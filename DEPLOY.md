@@ -1,16 +1,32 @@
-# Linux 服务器部署指南
+# Linux 服务器部署指南(无 Docker 版)
 
-> 本文档对应 README.md 第八节 "复用现有 PG 实例" 场景。
-> 默认 `docker-compose.yml` 让 backend/frontend 都跑在 `network_mode: host`,
-> backend 直接连宿主机 `127.0.0.1:5432`,因此**不需要**改 PG 的 `listen_addresses`、
-> `pg_hba.conf`,也**不需要**重启 PG。
+> **架构选择(MVP 阶段)**:不用 Docker,直接 Python venv + systemd。
+> 原因:数据库已在宿主机、镜像源被墙、调试更直接。
+>
+> 整体目录:`/opt/cmc-inventory`,运行身份 `prometheus`,数据库 `cmc_data_platform`。
 
 ---
 
-## 1. 在已有数据库 `cmc_data_platform` 里建 schema 与专用账号
+## 0. 前置准备(只做一次)
 
-> 一次性操作,需要超级用户身份。Debian/Ubuntu 装 PG 时 postgres 账号默认无密码,
-> 走 Unix peer 认证(sudo)进 psql。
+服务器 OS 上需要:
+
+```bash
+# 1) Python 3.10+(Debian 12 / Ubuntu 22.04 默认是 3.11,直接装包就行)
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git
+
+# 2) 让 prometheus 用户可以写 /opt/cmc-inventory(若还没建):
+sudo mkdir -p /opt/cmc-inventory
+sudo chown prometheus:prometheus /opt/cmc-inventory
+```
+
+---
+
+## 1. 数据库一次性初始化
+
+> 在已有数据库 `cmc_data_platform` 内加 schema、新建专用账号。
+> 不动其他 schema、不动其他账号、不动 PG 配置、不重启 PG。
 
 ```bash
 sudo -u postgres psql -d cmc_data_platform <<'EOF'
@@ -20,116 +36,137 @@ GRANT CONNECT ON DATABASE cmc_data_platform TO cmc_user;
 EOF
 ```
 
-执行后:
-- 多了一个 schema `material_mgmt`,owner 是 `cmc_user`
-- 多了一个账号 `cmc_user`,只能 CONNECT 这个库,只能在自己的 schema 内做 DDL/DML
-- 原有 6 个 schema(`app_rd`、`raw_qc_lims` 等)、其他账号、密码、PG 配置 **零变化**
+> 想换 cmc_user 密码,把上面与下面 `.env` 里两处一起改。
 
-> 想用更强密码就把上面 `CmcMvp2026!Strong` 替换。改了之后 `.env` 里同步改。
-
----
-
-## 2. 用 cmc_user 在 material_mgmt schema 内建表
+接着用 `cmc_user` 在 `material_mgmt` schema 内建表/索引/字典:
 
 ```bash
-cd /opt/cmc-inventory   # 或者 ~/cmc-inventory
+cd /opt/cmc-inventory
 PGPASSWORD='CmcMvp2026!Strong' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 ```
 
-执行后会创建 7 张表 + 索引 + 触发器 + 单位/位置字典初始数据,
-全部位于 `material_mgmt.*` 之下。重复执行也安全(`IF NOT EXISTS` / `ON CONFLICT DO NOTHING`)。
-
-验证:
+验证(应能看到 7 张表,owner 都是 cmc_user):
 
 ```bash
 PGPASSWORD='CmcMvp2026!Strong' psql -h 127.0.0.1 -U cmc_user \
-    -d cmc_data_platform -c "\dt material_mgmt.*"
+    -d cmc_data_platform -c '\dt material_mgmt.*'
 ```
 
-应看到 7 张表。
+---
+
+## 2. 拉代码
+
+```bash
+git clone git@github.com:qingcheng81/cmc-inventory.git /opt/cmc-inventory
+# 或
+git clone https://github.com/qingcheng81/cmc-inventory.git /opt/cmc-inventory
+```
 
 ---
 
 ## 3. 准备 .env
 
 ```bash
+cd /opt/cmc-inventory
 cp .env.example .env
-vim .env
+vim .env   # 修改 DATABASE_URL 中的密码,与第 1 步保持一致
 ```
 
-至少改一行 —— 把 `DATABASE_URL` 里的密码替换成第 1 步实际用的:
+`.env` 里两个 KEY:
 
 ```
 DATABASE_URL=postgresql://cmc_user:你的真实密码@127.0.0.1:5432/cmc_data_platform
+API_BASE_URL=http://localhost:8000
 ```
+
+> **格式严格** —— systemd 不允许加引号,KEY=VALUE 之间不能有空格。
 
 ---
 
-## 4. 启动
-
-```bash
-docker compose up -d --build
-docker compose ps
-docker compose logs -f backend
-```
-
-成功后访问:
-
-- 前端: `http://<linux-server-ip>:8501`
-- 后端 API: `http://<linux-server-ip>:8000/docs`
-
-> 由于使用 `network_mode: host`,这两个端口直接绑到宿主机,无需 `-p` 映射。
-> 防火墙(ufw/iptables/firewalld)按需放通 8501、8000 给内部用户。
-
----
-
-## 5. 后续更新流程
+## 4. 一键安装并启动
 
 ```bash
 cd /opt/cmc-inventory
-git pull
-docker compose up -d --build      # 重建镜像、滚动重启
-docker compose logs -f backend
+./install.sh
 ```
 
-如有 SQL 增量(MVP 阶段表结构稳定),手工跑相应 migration。
+脚本做了什么:
+1. `python3 -m venv backend/.venv` + `pip install -r backend/requirements.txt`
+2. `python3 -m venv frontend/.venv` + `pip install -r frontend/requirements.txt`
+3. 把 `systemd/*.service` 复制到 `/etc/systemd/system/`(需 sudo)
+4. `systemctl daemon-reload` + `enable --now` 两个服务
+
+成功后:
+
+- 前端: `http://<服务器IP>:8501`
+- 后端 API 文档: `http://<服务器IP>:8000/docs`
 
 ---
 
-## 6. 卸载(清理干净)
+## 5. 日常运维
+
+| 操作 | 命令 |
+|---|---|
+| 看后端日志(实时) | `sudo journalctl -u cmc-backend -f` |
+| 看前端日志 | `sudo journalctl -u cmc-frontend -f` |
+| 重启后端 | `sudo systemctl restart cmc-backend` |
+| 重启前后端 | `./install.sh restart` |
+| 查状态 | `sudo systemctl status cmc-backend cmc-frontend` |
+| 改代码后重启 | `cd /opt/cmc-inventory && git pull && ./install.sh restart` |
+| 改了 requirements.txt | `./install.sh deps && ./install.sh restart` |
+| 卸载(只删 unit/进程,不删数据) | `./install.sh uninstall` |
+
+---
+
+## 6. 防火墙
+
+按需放通这两个端口给内网用户:
 
 ```bash
-# 1. 停容器
-docker compose down --rmi local
+sudo ufw allow 8501/tcp comment 'cmc-inventory frontend'
+sudo ufw allow 8000/tcp comment 'cmc-inventory backend (optional, for /docs)'
+```
 
-# 2. 删 schema 和账号
+---
+
+## 7. 彻底卸载(回到部署前的状态)
+
+```bash
+# 1) 停服务、删 systemd unit
+cd /opt/cmc-inventory && ./install.sh uninstall
+
+# 2) 删 schema 和账号
 sudo -u postgres psql -d cmc_data_platform <<'EOF'
 DROP SCHEMA material_mgmt CASCADE;
 REVOKE CONNECT ON DATABASE cmc_data_platform FROM cmc_user;
 DROP USER cmc_user;
 EOF
 
-# 3. 删代码(可选)
-rm -rf /opt/cmc-inventory
+# 3) 删代码 / venv
+sudo rm -rf /opt/cmc-inventory
 ```
-
-之后宿主机 PG 完全恢复原状。
 
 ---
 
-## 7. 常见问题
+## 8. 常见问题
 
-**Q: backend 启动报 `connection to server at "127.0.0.1", port 5432 failed`**
-A: 在 host network 模式下应能直连。检查:
-- `ss -ltnp | grep 5432`,PG 是否真的在监听 127.0.0.1:5432
-- `.env` 里 DATABASE_URL 的密码是否与 cmc_user 的密码一致
+**Q: backend 起不来,journalctl 报 `password authentication failed`**
+A: `.env` 中 `DATABASE_URL` 的密码与 cmc_user 的真实密码不一致。改 `.env` 后 `./install.sh restart`。
 
-**Q: backend 报 `permission denied for schema material_mgmt`**
-A: 第 1 步的 `AUTHORIZATION cmc_user` 没生效,或第 2 步用错账号(用 postgres 跑 init.sql 会让表归 postgres 所有,cmc_user 反而读不到)。重新走第 2 步。
+**Q: backend 起来但报 `permission denied for schema material_mgmt`**
+A: init.sql 是用 postgres 身份跑的,导致表归 postgres 所有。改用 cmc_user 跑一次:
+```bash
+PGPASSWORD='...' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform -f sql/init.sql
+```
 
-**Q: 端口被占用 / 8501/8000 已被别的服务占用**
-A: 在 `docker-compose.yml` 里把 `network_mode: host` 改回 bridge + ports 映射到其他端口,或者停掉占用进程。
+**Q: 前端打开但调用接口报错**
+A: 检查 backend 是否在跑:`curl http://127.0.0.1:8000/health`。另外 `.env` 里 `API_BASE_URL` 应是 `http://localhost:8000` 或 `http://127.0.0.1:8000`(同机部署)。
 
-**Q: 想换成在容器里跑 PG**
-A: 用备选 compose:`docker compose -f docker-compose.with-pg.yml up -d --build`(连同 PG 一起起一个容器)。
+**Q: 端口被占用**
+A: `ss -ltnp | grep -E '8000|8501'` 查谁占着。改端口需要同时改 `systemd/*.service` + `.env` + 前端读后端的地址。
+
+**Q: 想加开机自启 / 取消自启**
+A: install.sh 默认已 `enable`。
+- 取消自启:`sudo systemctl disable cmc-backend cmc-frontend`
+- 重新自启:`sudo systemctl enable cmc-backend cmc-frontend`

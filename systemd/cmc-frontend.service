@@ -1,0 +1,37 @@
+# =============================================================================
+# 文件: systemd/cmc-frontend.service
+# 用途: 用 systemd 管 Streamlit 前端进程
+# 安装位置: /etc/systemd/system/cmc-frontend.service
+# =============================================================================
+
+[Unit]
+Description=CMC Inventory Frontend (Streamlit)
+Documentation=https://github.com/qingcheng81/cmc-inventory
+After=network-online.target cmc-backend.service
+Wants=network-online.target cmc-backend.service
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+WorkingDirectory=/opt/cmc-inventory/frontend
+EnvironmentFile=/opt/cmc-inventory/.env
+
+ExecStart=/opt/cmc-inventory/frontend/.venv/bin/streamlit run app.py \
+    --server.port=8501 \
+    --server.address=0.0.0.0 \
+    --server.headless=true \
+    --browser.gatherUsageStats=false
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
