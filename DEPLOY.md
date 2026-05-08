@@ -1,145 +1,74 @@
-# Linux 服务器部署指南(复用宿主机 PG)
+# Linux 服务器部署指南
 
-> 本文档针对 README.md 第八节的"复用本机已有 PG16"场景,补充具体步骤。
-> 默认 `docker-compose.yml` 只跑 backend + frontend,PG 走宿主机。
-
----
-
-## 1. 在宿主机 PG 上准备数据库与账号
-
-以 `postgres` 超级用户登录:
-
-```bash
-sudo -u postgres psql
-```
-
-执行:
-
-```sql
--- 创建专用账号(密码请与 .env 中保持一致)
-CREATE USER cmc_user WITH PASSWORD 'change_me';
-
--- 创建专用数据库
-CREATE DATABASE cmc_inventory OWNER cmc_user;
-
--- 退出
-\q
-```
+> 本文档对应 README.md 第八节 "复用现有 PG 实例" 场景。
+> 默认 `docker-compose.yml` 让 backend/frontend 都跑在 `network_mode: host`,
+> backend 直接连宿主机 `127.0.0.1:5432`,因此**不需要**改 PG 的 `listen_addresses`、
+> `pg_hba.conf`,也**不需要**重启 PG。
 
 ---
 
-## 2. 在新库中执行 init.sql
+## 1. 在已有数据库 `cmc_data_platform` 里建 schema 与专用账号
+
+> 一次性操作,需要超级用户身份。Debian/Ubuntu 装 PG 时 postgres 账号默认无密码,
+> 走 Unix peer 认证(sudo)进 psql。
 
 ```bash
-# 假设代码已 git pull 到 /opt/cmc-inventory
-cd /opt/cmc-inventory
-
-# 用 cmc_user 执行,所有对象归属正确
-PGPASSWORD=change_me psql -h 127.0.0.1 -U cmc_user -d cmc_inventory -f sql/init.sql
+sudo -u postgres psql -d cmc_data_platform <<'EOF'
+CREATE USER cmc_user WITH PASSWORD 'CmcMvp2026!Strong';
+CREATE SCHEMA material_mgmt AUTHORIZATION cmc_user;
+GRANT CONNECT ON DATABASE cmc_data_platform TO cmc_user;
+EOF
 ```
 
-执行后该库会有 `material_mgmt` schema 和 7 张表。
+执行后:
+- 多了一个 schema `material_mgmt`,owner 是 `cmc_user`
+- 多了一个账号 `cmc_user`,只能 CONNECT 这个库,只能在自己的 schema 内做 DDL/DML
+- 原有 6 个 schema(`app_rd`、`raw_qc_lims` 等)、其他账号、密码、PG 配置 **零变化**
+
+> 想用更强密码就把上面 `CmcMvp2026!Strong` 替换。改了之后 `.env` 里同步改。
 
 ---
 
-## 3. 让宿主机 PG 接受 Docker 容器的连接
-
-容器走 `host.docker.internal`(在 docker-compose.yml 通过 `extra_hosts: host-gateway` 注入)
-访问宿主机的 5432 端口。默认情况下 PG 只监听 localhost,需要放开。
-
-### 3.1 修改 `postgresql.conf`
-
-定位文件(Ubuntu/Debian 通常在 `/etc/postgresql/16/main/postgresql.conf`):
+## 2. 用 cmc_user 在 material_mgmt schema 内建表
 
 ```bash
-sudo find /etc -name postgresql.conf
-sudo vim /etc/postgresql/16/main/postgresql.conf
+cd /opt/cmc-inventory   # 或者 ~/cmc-inventory
+PGPASSWORD='CmcMvp2026!Strong' psql -h 127.0.0.1 -U cmc_user \
+    -d cmc_data_platform -f sql/init.sql
 ```
 
-把:
+执行后会创建 7 张表 + 索引 + 触发器 + 单位/位置字典初始数据,
+全部位于 `material_mgmt.*` 之下。重复执行也安全(`IF NOT EXISTS` / `ON CONFLICT DO NOTHING`)。
 
-```
-#listen_addresses = 'localhost'
-```
-
-改为(只监听 docker 网段更安全,这里给两种方案):
-
-```
-# 方案 A:监听全部接口(简单,但要确保防火墙没把 5432 暴露到外网)
-listen_addresses = '*'
-```
-
-或
-
-```
-# 方案 B:只监听 docker0 桥接网段
-# 需要先 ip addr show docker0 看到 172.17.0.1/16
-listen_addresses = 'localhost,172.17.0.1'
-```
-
-### 3.2 修改 `pg_hba.conf`
+验证:
 
 ```bash
-sudo vim /etc/postgresql/16/main/pg_hba.conf
+PGPASSWORD='CmcMvp2026!Strong' psql -h 127.0.0.1 -U cmc_user \
+    -d cmc_data_platform -c "\dt material_mgmt.*"
 ```
 
-在文件末尾加一行(允许 docker 默认 bridge 网段的 cmc_user 通过密码连接 cmc_inventory):
-
-```
-# CMC 物料管理系统 — 允许 docker 容器连接
-host    cmc_inventory   cmc_user   172.16.0.0/12   scram-sha-256
-```
-
-> 172.16.0.0/12 覆盖 Docker 默认 bridge(172.17.x.x)和大多数自定义网络。
-> 若你用 `host network` 或自定义子网,按实际网段调整。
-
-### 3.3 重启 PG
-
-```bash
-sudo systemctl restart postgresql
-```
-
-### 3.4 验证
-
-```bash
-# 从一个临时容器尝试连接宿主机 PG
-docker run --rm \
-  --add-host=host.docker.internal:host-gateway \
-  postgres:16 psql -h host.docker.internal -U cmc_user -d cmc_inventory -c '\dn'
-```
-
-应能看到 `material_mgmt` schema。
+应看到 7 张表。
 
 ---
 
-## 4. 准备 .env 与防火墙
+## 3. 准备 .env
 
 ```bash
-cd /opt/cmc-inventory
 cp .env.example .env
-vim .env   # 修改 DATABASE_URL 中的密码
+vim .env
 ```
 
-`DATABASE_URL` 形如:
+至少改一行 —— 把 `DATABASE_URL` 里的密码替换成第 1 步实际用的:
 
 ```
-DATABASE_URL=postgresql://cmc_user:真实密码@host.docker.internal:5432/cmc_inventory
-```
-
-防火墙:开放 8501(前端)给内部用户访问。8000(后端)按需:
-
-```bash
-sudo ufw allow 8501/tcp
-# 后端可选(若要直接访问 /docs)
-sudo ufw allow 8000/tcp
+DATABASE_URL=postgresql://cmc_user:你的真实密码@127.0.0.1:5432/cmc_data_platform
 ```
 
 ---
 
-## 5. 启动
+## 4. 启动
 
 ```bash
-cd /opt/cmc-inventory
 docker compose up -d --build
 docker compose ps
 docker compose logs -f backend
@@ -148,36 +77,59 @@ docker compose logs -f backend
 成功后访问:
 
 - 前端: `http://<linux-server-ip>:8501`
-- 后端 API 文档: `http://<linux-server-ip>:8000/docs`
+- 后端 API: `http://<linux-server-ip>:8000/docs`
+
+> 由于使用 `network_mode: host`,这两个端口直接绑到宿主机,无需 `-p` 映射。
+> 防火墙(ufw/iptables/firewalld)按需放通 8501、8000 给内部用户。
 
 ---
 
-## 6. 后续更新流程
+## 5. 后续更新流程
 
 ```bash
 cd /opt/cmc-inventory
 git pull
-docker compose up -d --build      # 重新构建镜像并滚动更新
-docker compose logs -f backend    # 观察启动日志
+docker compose up -d --build      # 重建镜像、滚动重启
+docker compose logs -f backend
 ```
 
-如果有新的 SQL 迁移(MVP 阶段表结构稳定,基本不会有),手动在 PG 中执行对应脚本。
+如有 SQL 增量(MVP 阶段表结构稳定),手工跑相应 migration。
+
+---
+
+## 6. 卸载(清理干净)
+
+```bash
+# 1. 停容器
+docker compose down --rmi local
+
+# 2. 删 schema 和账号
+sudo -u postgres psql -d cmc_data_platform <<'EOF'
+DROP SCHEMA material_mgmt CASCADE;
+REVOKE CONNECT ON DATABASE cmc_data_platform FROM cmc_user;
+DROP USER cmc_user;
+EOF
+
+# 3. 删代码(可选)
+rm -rf /opt/cmc-inventory
+```
+
+之后宿主机 PG 完全恢复原状。
 
 ---
 
 ## 7. 常见问题
 
-**Q: 容器报 `could not translate host name "host.docker.internal"`**
-A: Docker 版本太低。需要 ≥ 20.10,且 `extra_hosts: ["host.docker.internal:host-gateway"]` 在 compose 中已配置。`docker --version` 检查。
+**Q: backend 启动报 `connection to server at "127.0.0.1", port 5432 failed`**
+A: 在 host network 模式下应能直连。检查:
+- `ss -ltnp | grep 5432`,PG 是否真的在监听 127.0.0.1:5432
+- `.env` 里 DATABASE_URL 的密码是否与 cmc_user 的密码一致
 
-**Q: 容器能解析 host,但连接被拒(connection refused / no pg_hba.conf entry)**
-A: 第 3 步未生效。检查:
-- `sudo systemctl status postgresql` 是否重启
-- `ss -ltnp | grep 5432` 是否在 `*:5432` 或 docker 网关 IP 上监听
-- `sudo tail /var/log/postgresql/postgresql-16-main.log` 看具体拒绝原因
+**Q: backend 报 `permission denied for schema material_mgmt`**
+A: 第 1 步的 `AUTHORIZATION cmc_user` 没生效,或第 2 步用错账号(用 postgres 跑 init.sql 会让表归 postgres 所有,cmc_user 反而读不到)。重新走第 2 步。
+
+**Q: 端口被占用 / 8501/8000 已被别的服务占用**
+A: 在 `docker-compose.yml` 里把 `network_mode: host` 改回 bridge + ports 映射到其他端口,或者停掉占用进程。
 
 **Q: 想换成在容器里跑 PG**
-A: 用备选 compose:`docker compose -f docker-compose.with-pg.yml up -d --build`。
-
-**Q: 时区不对**
-A: 容器已设 `TZ=Asia/Shanghai`,但 PG 的 timezone 由宿主机决定。可在 `postgresql.conf` 设 `timezone = 'Asia/Shanghai'`。
+A: 用备选 compose:`docker compose -f docker-compose.with-pg.yml up -d --build`(连同 PG 一起起一个容器)。

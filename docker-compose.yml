@@ -1,13 +1,16 @@
 # =============================================================================
 # 文件: docker-compose.yml
-# 用途: 部署 backend + frontend 两个容器,复用宿主机已有的 PostgreSQL 16
+# 用途: 部署 backend + frontend,复用宿主机已有的 PostgreSQL
 #
-# 部署目标:Linux 服务器,PG 直接装在宿主机(systemd 托管,监听 5432)
-#   - 容器通过 host.docker.internal 访问宿主机 PG(extra_hosts 注入)
-#   - PG 必须修改 listen_addresses 与 pg_hba.conf 允许 docker 网段连接
-#   - init.sql 不会自动执行,需手动在宿主机 PG 上跑一次(详见 DEPLOY.md)
+# 部署目标:Linux 服务器,PG 直接装在宿主机(systemd 托管,默认监听 127.0.0.1:5432)
 #
-# 备份:若需要 docker 内置 PG 容器版本,见 docker-compose.with-pg.yml
+# 关键架构选择:network_mode: host
+#   - 容器与宿主机共享网络命名空间
+#   - backend 直接通过 127.0.0.1:5432 连本地 PG —— 不需要改 listen_addresses
+#   - 不需要改 pg_hba.conf —— 走的是已有的 host 127.0.0.1/32 规则
+#   - 不需要重启 PG
+#   - frontend 通过 http://localhost:8000 访问 backend
+#   - ports 配置在 host network 模式下被忽略,服务直接绑到宿主机端口
 # =============================================================================
 
 services:
@@ -15,26 +18,21 @@ services:
     build:
       context: ./backend
     container_name: cmc-backend
+    network_mode: host
     environment:
       DATABASE_URL: ${DATABASE_URL}
       TZ: Asia/Shanghai
-    ports:
-      - "8000:8000"
-    extra_hosts:
-      # 让容器内可用 host.docker.internal 解析到宿主机
-      # Docker 20.10+ 在 Linux 下需要这一行才能生效
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
     container_name: cmc-frontend
+    network_mode: host
     environment:
-      API_BASE_URL: http://backend:8000
+      # 前端跑在宿主机网络命名空间里,直接走 localhost 找 backend
+      API_BASE_URL: http://localhost:8000
       TZ: Asia/Shanghai
-    ports:
-      - "8501:8501"
     depends_on:
       - backend
     restart: unless-stopped

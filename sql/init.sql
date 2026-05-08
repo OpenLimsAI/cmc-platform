@@ -1,24 +1,32 @@
 -- =============================================================================
 -- 文件: sql/init.sql
 -- 用途: CMC 物料管理系统 MVP 数据库初始化脚本
---   1) 创建 schema material_mgmt
---   2) 创建 7 张核心表(material / batch / inventory_txn / location /
---      unit_dict / category_dict / import_log)
---   3) 预置单位字典初始值
---   4) 创建必要索引
+--   1) 在 material_mgmt schema 中创建 7 张核心表
+--      (material / batch / inventory_txn / location / unit_dict /
+--       category_dict / import_log)
+--   2) 预置单位字典初始值
+--   3) 创建必要索引
+--
+-- 前置条件(由超级用户 postgres 一次性完成,不在本脚本内):
+--   CREATE USER cmc_user WITH PASSWORD '<your-password>';
+--   CREATE SCHEMA material_mgmt AUTHORIZATION cmc_user;
+--   GRANT CONNECT ON DATABASE <db_name> TO cmc_user;
+--
+-- 执行身份: cmc_user(在自己 schema 内有完整 DDL 权限)
+-- 执行命令:
+--   PGPASSWORD='<password>' psql -h 127.0.0.1 -U cmc_user \
+--                                 -d <db_name> -f sql/init.sql
 --
 -- 关键设计原则:
 --   - material_code 用 VARCHAR(20),保留前导 0(如 04xxx 不会被截断)
 --   - 库存数量不落表,实时由 inventory_txn 聚合,杜绝账实不符
 --   - 所有数量字段用 NUMERIC(12,2) 避免浮点误差
+--   - 不修改数据库级 search_path(共享库时绝不污染其他 schema)
+--     backend/database.py 在每次连接建立时 SET search_path(会话级)
 -- =============================================================================
 
--- 创建专属 schema(便于复用现有 PG 实例)
-CREATE SCHEMA IF NOT EXISTS material_mgmt;
+-- 仅本脚本会话使用,影响范围 = 当前 psql 进程
 SET search_path TO material_mgmt, public;
-
--- 让后续所有连接都默认走该 schema
-ALTER DATABASE current_database() SET search_path TO material_mgmt, public;
 
 -- -----------------------------------------------------------------------------
 -- 1. 单位字典(unit_dict)
