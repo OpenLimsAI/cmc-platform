@@ -1,0 +1,8 @@
+# =============================================================================
+# 文件: backend/requirements-dev.txt
+# 用途: 开发/测试用依赖,生产部署不需要安装
+#       安装: backend/.venv/bin/pip install -r requirements-dev.txt
+# =============================================================================
+-r requirements.txt
+pytest>=8.0
+httpx>=0.27  # FastAPI TestClient 依赖

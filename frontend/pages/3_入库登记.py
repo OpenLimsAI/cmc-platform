@@ -91,30 +91,20 @@ if submitted:
             st.stop()
 
         if existing:
-            # 追加入库
-            st.warning(
-                f"批号 `{batch_no}` 已存在(批次 ID={existing['batch_id']},"
-                f"当前库存 {existing.get('current_qty')}{mat['unit']}),"
-                f"将作为**追加入库**记录。"
-            )
-            if st.session_state.get("__confirm_append__") != batch_no:
-                st.session_state["__confirm_append__"] = batch_no
-                st.button("👉 确认追加入库", key="confirm_append_btn")
-            else:
-                try:
-                    api_post("/api/inventory/in", json={
-                        "batch_id": existing["batch_id"],
-                        "qty": str(Decimal(str(qty))),
-                        "txn_date": str(received),
-                        "operator": operator,
-                        "remark": remark or None,
-                    })
-                    st.success(f"追加入库成功!批次 {batch_no} 当前库存已更新")
-                    st.session_state.pop("__confirm_append__", None)
-                except APIError as e:
-                    st.error(f"追加入库失败: {e}")
+            # 同批号已存在 → 把入库意图暂存到 session_state,在 form 外渲染确认按钮
+            st.session_state["__pending_append__"] = {
+                "material_code": mat["material_code"],
+                "unit": mat["unit"],
+                "batch_id": existing["batch_id"],
+                "batch_no": batch_no,
+                "current_qty": str(existing.get("current_qty") or 0),
+                "qty": str(Decimal(str(qty))),
+                "txn_date": str(received),
+                "operator": operator,
+                "remark": remark or None,
+            }
         else:
-            # 新建批次
+            # 新建批次,直接提交
             try:
                 payload = {
                     "material_code": mat["material_code"],
@@ -133,6 +123,33 @@ if submitted:
                 )
             except APIError as e:
                 st.error(f"入库失败: {e}")
+
+# ---- 追加入库的二次确认(在 form 之外,button click 才能正确触发提交)----
+pending = st.session_state.get("__pending_append__")
+if pending and pending["material_code"] == mat["material_code"]:
+    st.warning(
+        f"批号 `{pending['batch_no']}` 已存在(批次 ID={pending['batch_id']},"
+        f"当前库存 {pending['current_qty']}{pending['unit']}),"
+        f"本次将作为**追加入库**记录(创建新流水,不新建批次)。"
+    )
+    cc1, cc2 = st.columns([1, 1])
+    if cc1.button("✅ 确认追加入库", key="confirm_append_btn", type="primary"):
+        try:
+            api_post("/api/inventory/in", json={
+                "batch_id": pending["batch_id"],
+                "qty": pending["qty"],
+                "txn_date": pending["txn_date"],
+                "operator": pending["operator"],
+                "remark": pending["remark"],
+            })
+            st.success(f"追加入库成功!批次 {pending['batch_no']} 当前库存已更新")
+            st.session_state.pop("__pending_append__", None)
+            st.rerun()
+        except APIError as e:
+            st.error(f"追加入库失败: {e}")
+    if cc2.button("取消", key="cancel_append_btn"):
+        st.session_state.pop("__pending_append__", None)
+        st.rerun()
 
 # ---- 3) 该物料现有批次列表 ----
 st.markdown("---")

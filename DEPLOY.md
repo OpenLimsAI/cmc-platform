@@ -30,7 +30,7 @@ sudo chown prometheus:prometheus /opt/cmc-inventory
 
 ```bash
 sudo -u postgres psql -d cmc_data_platform <<'EOF'
-CREATE USER cmc_user WITH PASSWORD 'CmcMvp2026!Strong';
+CREATE USER cmc_user WITH PASSWORD '<your-password>';
 CREATE SCHEMA material_mgmt AUTHORIZATION cmc_user;
 GRANT CONNECT ON DATABASE cmc_data_platform TO cmc_user;
 EOF
@@ -42,14 +42,14 @@ EOF
 
 ```bash
 cd /opt/cmc-inventory
-PGPASSWORD='CmcMvp2026!Strong' psql -h 127.0.0.1 -U cmc_user \
+PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 ```
 
 验证(应能看到 7 张表,owner 都是 cmc_user):
 
 ```bash
-PGPASSWORD='CmcMvp2026!Strong' psql -h 127.0.0.1 -U cmc_user \
+PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -c '\dt material_mgmt.*'
 ```
 
@@ -121,11 +121,19 @@ cd /opt/cmc-inventory
 
 ## 6. 防火墙
 
-按需放通这两个端口给内网用户:
+后端 uvicorn 只绑 `127.0.0.1`(无鉴权,严禁直接对外),只放通前端端口给内网用户:
 
 ```bash
 sudo ufw allow 8501/tcp comment 'cmc-inventory frontend'
-sudo ufw allow 8000/tcp comment 'cmc-inventory backend (optional, for /docs)'
+# 不放通 8000:后端只允许同机 localhost 访问
+```
+
+需要从办公网看 Swagger `/docs` 时,用 SSH 隧道把后端临时映射出来:
+
+```bash
+# 在自己的笔记本上跑
+ssh -L 8000:127.0.0.1:8000 prometheus@<服务器IP>
+# 浏览器打开 http://localhost:8000/docs
 ```
 
 ---

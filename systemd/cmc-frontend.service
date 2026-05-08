@@ -15,10 +15,11 @@ Type=simple
 User=prometheus
 Group=prometheus
 WorkingDirectory=/opt/cmc-inventory/frontend
+# 端口由 .env 中的 FRONTEND_PORT 控制(改 .env 即可,不动 unit)
+# 注意:不要再用 Environment=FRONTEND_PORT=... 兜底 ——
+#       systemd 中 Environment= 会覆盖 EnvironmentFile= 中的同名变量,导致 .env 失效
 EnvironmentFile=/opt/cmc-inventory/.env
 
-# 端口由 .env 中的 FRONTEND_PORT 控制
-Environment=FRONTEND_PORT=8501
 ExecStart=/opt/cmc-inventory/frontend/.venv/bin/streamlit run app.py \
     --server.port=${FRONTEND_PORT} \
     --server.address=0.0.0.0 \

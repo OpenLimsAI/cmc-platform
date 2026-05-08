@@ -25,9 +25,13 @@ def by_material(
     category: Optional[str] = None,
     keyword: Optional[str] = None,
     include_inactive: bool = False,
+    exclude_expired: bool = True,
     db: Session = Depends(get_db),
 ):
-    return crud.stock_by_material(db, category, keyword, include_inactive)
+    """物料级总库存。默认排除已过期批次(可用库存口径,README §5.5)。"""
+    return crud.stock_by_material(
+        db, category, keyword, include_inactive, exclude_expired=exclude_expired,
+    )
 
 
 @router.get("/by-batch", response_model=List[StockByBatch])

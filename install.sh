@@ -56,10 +56,16 @@ case "$ACTION" in
         sudo systemctl --no-pager status cmc-backend  | head -10
         echo
         sudo systemctl --no-pager status cmc-frontend | head -10
+        # 从 .env 读出实际端口,避免与硬编码不一致
+        FE_PORT="$(grep -E '^FRONTEND_PORT=' "$ROOT/.env" 2>/dev/null | cut -d= -f2)"
+        BE_PORT="$(grep -E '^BACKEND_PORT='  "$ROOT/.env" 2>/dev/null | cut -d= -f2)"
+        FE_PORT="${FE_PORT:-8501}"
+        BE_PORT="${BE_PORT:-8000}"
+
         echo
         echo "==> 完成。访问:"
-        echo "    前端:   http://<服务器IP>:8501"
-        echo "    后端:   http://<服务器IP>:8000/docs"
+        echo "    前端:   http://<服务器IP>:${FE_PORT}"
+        echo "    后端:   http://<服务器IP>:${BE_PORT}/docs"
         echo "    日志:   sudo journalctl -u cmc-backend -f"
         ;;
 

@@ -23,11 +23,11 @@
 
 | 层 | 技术 |
 |----|------|
-| 数据库 | PostgreSQL 16 (Docker,复用现有实例,新建 schema `material_mgmt`) |
+| 数据库 | PostgreSQL 16,复用现有实例,新建 schema `material_mgmt`(Mac 调试时 PG 在 Docker;Linux 生产时 PG 原生装在宿主机) |
 | 后端 | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Pydantic v2 |
 | 前端 | Streamlit(MVP 阶段;后续可替换为 Vue3) |
 | 文件导入 | pandas + openpyxl(Excel 读取) |
-| 部署 | Docker Compose 一键启动 |
+| 部署 | **不用 Docker 跑应用**。Mac:venv 直接起进程;Linux:venv + systemd unit |
 | 认证 | **MVP 阶段不做认证**,操作人姓名作为字段直接录入 |
 
 ---
@@ -36,13 +36,17 @@
 
 ```
 cmc-inventory/
-├── docker-compose.yml              一键启动 PG + 后端 + 前端
-├── README.md                        本文档
+├── README.md                        本文档(开发与 Mac 调试指南)
+├── DEPLOY.md                        Linux 服务器部署指南(生产)
+├── install.sh                       Linux 一键装/起/重启/卸载脚本
 ├── .env.example                    环境变量样例
+├── .gitignore
 ├── sql/
 │   └── init.sql                    建表 + 字典初始化
+├── systemd/
+│   ├── cmc-backend.service         FastAPI 后端 systemd unit(Linux)
+│   └── cmc-frontend.service        Streamlit 前端 systemd unit(Linux)
 ├── backend/
-│   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── main.py                     FastAPI 入口
 │   ├── database.py                 PG 连接配置
@@ -55,9 +59,9 @@ cmc-inventory/
 │       ├── batch.py                批次 API
 │       ├── inventory.py            出入库 API
 │       ├── stock.py                库存查询 + 预警 API
+│       ├── location.py             储存位置 API
 │       └── import_data.py          Excel 导入 API
 ├── frontend/
-│   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── app.py                      Streamlit 主入口(导航)
 │   ├── utils.py                    API 调用封装
@@ -67,9 +71,11 @@ cmc-inventory/
 │       ├── 3_入库登记.py
 │       ├── 4_出库登记.py
 │       ├── 5_库存查询.py
-│       └── 6_库存预警.py
+│       ├── 6_库存预警.py
+│       └── 7_盘点调整.py
 └── template/
-    └── 物料导入模板.xlsx            带字段说明和示例
+    ├── generate_template.py        生成 Excel 模板的脚本
+    └── 物料导入模板.xlsx            生成产物(.gitignore 排除,本地跑脚本生成)
 ```
 
 ---
@@ -177,9 +183,9 @@ cmc-inventory/
 ### 5.1 物料编码处理(关键)
 
 - 数据库存储为 `VARCHAR(20)`,**严格保留前导 0**
-- Excel 读取时强制 dtype:
+- Excel 读取时强制全列字符串 + 关掉 NaN 自动识别(实现见 `backend/routers/import_data.py`):
   ```python
-  pd.read_excel(file, dtype={'代码': str})
+  pd.read_excel(file, dtype=str, keep_default_na=False)
   ```
 - 导入预览时,若检测到以 `0` 开头的编码,**前端弹窗提示用户核对**,避免 Excel 自动去 0
 
@@ -291,6 +297,15 @@ GROUP BY m.material_code, m.name_cn;
 - 每个列表显示: 物料、批号、效期、剩余天数、库存量、储存位置
 - 支持导出 Excel
 
+### 6.7 盘点调整页
+- 选物料 → 选批次(可含过期)→ 显示账面库存
+- 两种调整方式:
+  - 按**实际盘点数**:输入物理盘点数,前端自动算 delta
+  - 按**调整量**:直接输入正负调整量
+- 经办人 + 备注(建议填盘点单号 / 原因)
+- 后端校验:调整后批次库存不得 < 0,否则拒绝
+- 与出入库共用 `inventory_txn` 表,`txn_type='ADJUST'` 区分
+
 ---
 
 ## 七、API 设计(FastAPI)
@@ -350,89 +365,133 @@ GROUP BY m.material_code, m.name_cn;
 
 ---
 
-## 八、Docker Compose 服务
+## 八、部署形态(Mac 调试 / Linux 生产)
 
-```yaml
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: ${PG_USER}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
-      POSTGRES_DB: ${PG_DB}
-    ports: ["5432:5432"]
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+应用本身**不用 Docker 跑**(直接 venv + 进程),只是 mac 本机的 PG 在 Docker 里。
 
-  backend:
-    build: ./backend
-    environment:
-      DATABASE_URL: postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/${PG_DB}
-    ports: ["8000:8000"]
-    depends_on: [postgres]
+|  | Mac(开发调试) | Linux(生产) |
+|---|---|---|
+| PostgreSQL | Docker 容器,host 端口暴露(默认 5432) | 宿主机原生(`apt install postgresql`) |
+| 后端 / 前端 | venv + 直接 `uvicorn` / `streamlit` 起进程 | venv + `systemd` unit(由 `install.sh` 装) |
+| 数据库主机 | `127.0.0.1`(到 docker 暴露端口) | `127.0.0.1`(到宿主机 PG) |
+| 是否跑 `install.sh` | **不要跑**(`systemctl`/`sudo` 在 mac 没意义) | **要跑**,见 `DEPLOY.md` |
 
-  frontend:
-    build: ./frontend
-    environment:
-      API_BASE_URL: http://backend:8000
-    ports: ["8501:8501"]
-    depends_on: [backend]
-
-volumes:
-  pgdata:
-```
-
-**说明**: 若用户希望复用其本机已有的 PG16 实例(而非本 compose 启动新实例),README 应提供注释方案。
+后端只通过 `DATABASE_URL` 连库,所以两套环境的代码完全一致,差别只在 `.env` 里的连接串和起进程的方式。
 
 ---
 
 ## 九、环境变量(`.env.example`)
 
 ```
-PG_USER=cmc_user
-PG_PASSWORD=change_me
-PG_DB=cmc_inventory
-DATABASE_URL=postgresql://cmc_user:change_me@postgres:5432/cmc_inventory
-API_BASE_URL=http://backend:8000
+BACKEND_PORT=8000
+FRONTEND_PORT=8501
+DATABASE_URL=postgresql://cmc_user:<your-password>@127.0.0.1:5432/cmc_data_platform
+API_BASE_URL=http://localhost:8000
 ```
+
+> systemd 用 `EnvironmentFile=` 直接加载本文件,**KEY=VALUE 之间不能有空格,不要加引号**。
+> Mac 调试时同样可以读这份 `.env`,但没有强制格式约束。
+> 部署前务必把 `<your-password>` 换成你在 §10 第 1 步建库时设的真实密码;`.env` 已被 `.gitignore` 排除,不会进库。
 
 ---
 
 ## 十、启动步骤
 
+### 10.A Mac 本机调试(PG 在 Docker,后端/前端在 venv)
+
+> 当前 mac 环境的 PG 容器:**`postgres16`**(host 端口 5432,`postgres` 超管无需密码)。
+> 数据库 `cmc_data_platform` 已存在。如果你的环境不一样,把下面的容器名 / 端口 / 库名同步替换。
+
 ```bash
-# 1. 克隆/进入项目目录
-cd cmc-inventory
+# 0)(诊断用)确认 docker pg 在跑
+docker ps --filter "name=postgres16" --format "table {{.Names}}\t{{.Ports}}"
 
-# 2. 复制环境变量
+# 1) 在已有 PG 里新建用户 / schema(只做一次,库已存在所以不用 CREATE DATABASE)
+docker exec -i postgres16 psql -U postgres -d cmc_data_platform <<'EOF'
+CREATE USER cmc_user WITH PASSWORD '<your-password>';
+CREATE SCHEMA material_mgmt AUTHORIZATION cmc_user;
+GRANT CONNECT ON DATABASE cmc_data_platform TO cmc_user;
+EOF
+
+# 2) 用 cmc_user 跑建表脚本(不需要 mac 本机装 psql:仍走 docker exec)
+docker exec -i -e PGPASSWORD='<your-password>' postgres16 \
+    psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform < sql/init.sql
+
+# 3) 配 .env(默认值已对齐 docker pg 暴露在 127.0.0.1:5432 的情况)
 cp .env.example .env
-# 编辑 .env 修改密码
+# 如果你的 docker pg host 端口不是 5432,改 DATABASE_URL 里的端口
 
-# 3. 启动所有服务
-docker compose up -d --build
+# 4) 起后端(终端 A)
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+# 加载 .env 后用 uvicorn --reload(开发热加载)
+set -a; source ../.env; set +a
+.venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port "$BACKEND_PORT"
 
-# 4. 检查服务
-docker compose ps
-docker compose logs -f backend
+# 5) 起前端(终端 B)
+cd frontend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+set -a; source ../.env; set +a
+.venv/bin/streamlit run app.py --server.port "$FRONTEND_PORT"
 
-# 5. 访问
-# 前端: http://localhost:8501
-# 后端 API 文档: http://localhost:8000/docs
-# PostgreSQL: localhost:5432
+# 6)(可选)生成 Excel 导入模板
+cd template && python3 generate_template.py
 
-# 6. 首次使用
-# - 打开"物料导入"页,上传贵司物料代码 Excel 完成主数据导入
-# - 打开"物料管理"页,维护各物料的安全库存
-# - 在"入库登记"页录入实际批次
-# - 日常使用"出库登记"扣减,定期查看"库存预警"
+# 7) 访问(以下端口若 .env 中改过,以 .env 为准)
+#    前端: http://localhost:$FRONTEND_PORT     # 默认 8501
+#    后端 API 文档: http://localhost:$BACKEND_PORT/docs   # 默认 8000
 ```
+
+**Mac 常见问题**:
+
+- *后端报 `password authentication failed`*:`.env` 里的密码与第 1 步 `CREATE USER` 时设的不一致,改一致后重启 uvicorn。
+- *后端报 `permission denied for schema material_mgmt`*:第 2 步建表是用 postgres 跑的导致表归 postgres 所有,改用 cmc_user 跑(命令同上,带 `-U cmc_user`)。
+- *前端报 `后端不可达`*:确认 uvicorn 在跑(`curl http://127.0.0.1:8000/health`),再确认 `.env` 中 `API_BASE_URL=http://localhost:8000`。
+- *端口被占*:`lsof -iTCP -sTCP:LISTEN -P | grep -E '8000|8501'` 查谁占着,改 `.env` 中 `BACKEND_PORT` / `FRONTEND_PORT` 即可,前端读后端的 `API_BASE_URL` 端口要同步改。
+
+### 10.B Linux 生产部署
+
+完整流程见 [`DEPLOY.md`](DEPLOY.md)。要点:
+
+```bash
+# 1) 在宿主机已有 PG 中建 schema/user(详见 DEPLOY.md §1)
+sudo -u postgres psql -d cmc_data_platform <<'EOF'
+CREATE USER cmc_user WITH PASSWORD '<your-password>';
+CREATE SCHEMA material_mgmt AUTHORIZATION cmc_user;
+GRANT CONNECT ON DATABASE cmc_data_platform TO cmc_user;
+EOF
+PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform -f sql/init.sql
+
+# 2) 拉代码 + 配 .env
+git clone git@github.com:qingcheng81/cmc-inventory.git /opt/cmc-inventory
+cd /opt/cmc-inventory && cp .env.example .env  # 改密码
+
+# 3) 一键装 venv + systemd unit + enable --now
+./install.sh
+```
+
+日常运维(看日志 / 重启 / 更新代码后重启 / 卸载)同样见 `DEPLOY.md` §5。
+
+### 10.C 首次使用(两套环境通用)
+
+1. 打开「物料导入」页,上传贵司物料代码 Excel 完成主数据导入
+2. 打开「物料管理」页,维护各物料的安全库存
+3. 在「入库登记」页录入实际批次
+4. 日常使用「出库登记」扣减,定期查看「库存预警」
 
 ---
 
 ## 十一、Excel 导入模板
 
-模板放在 `template/物料导入模板.xlsx`,字段与贵司实际表对齐:
+模板由 `template/generate_template.py` 生成,产物 `template/物料导入模板.xlsx` 已在 `.gitignore` 中排除——克隆后本地跑一次脚本生成即可:
+
+```bash
+cd template && python3 generate_template.py
+```
+
+字段与贵司实际表对齐:
 
 | 序号 | 分类 | 代码 | 物料名称 | 级别 | 生产商 | 规格/型号 | 货号 | 单位 | 包装规格 | 备注 |
 |------|------|------|---------|------|--------|----------|------|------|---------|------|
@@ -446,29 +505,29 @@ docker compose logs -f backend
 
 ---
 
-## 十二、给 Claude Code 的实施指令
+## 十二、给 Claude Code 的实施指令(回顾,主体已完成)
 
-请按以下顺序生成代码:
+按以下顺序生成代码:
 
-1. **`sql/init.sql`** — 完整建表 + 字典预置数据 + 索引
-2. **`backend/`** 全部文件 — FastAPI 应用,含所有路由
-3. **`frontend/`** 全部文件 — Streamlit 多页应用
-4. **`docker-compose.yml`** + **`.env.example`** + 两个 `Dockerfile`
-5. **`template/物料导入模板.xlsx`** 生成脚本(用 openpyxl)
-6. 每个文件顶部加用途说明注释,关键逻辑加中文注释
+1. **`sql/init.sql`** — 完整建表 + 字典预置数据 + 索引 ✅
+2. **`backend/`** 全部文件 — FastAPI 应用,含所有路由 ✅
+3. **`frontend/`** 全部文件 — Streamlit 多页应用 ✅
+4. **`.env.example`** + **`install.sh`** + **`systemd/*.service`** + **`DEPLOY.md`** — Linux 部署套件 ✅
+5. **`template/generate_template.py`** — 用 openpyxl 生成 Excel 模板 ✅
+6. 每个文件顶部加用途说明注释,关键逻辑加中文注释 ✅
 
 ### 实施要求
 
-- ✅ 所有代码可在 macOS / Docker 环境直接运行
+- ✅ 所有代码可在 macOS(PG in docker)+ Linux(PG 原生)双环境运行
 - ✅ Pydantic v2 语法,SQLAlchemy 2.0 风格
 - ✅ FastAPI 启用 CORS,允许前端访问
 - ✅ 所有金额/数量字段用 `Decimal`,避免浮点误差
-- ✅ Excel 导入用 `pd.read_excel(dtype={'代码': str})` 严格保留前导 0
-- ✅ 时间字段统一 UTC,前端展示按本地时区
+- ✅ Excel 导入用 `pd.read_excel(dtype=str)` 严格保留前导 0
+- ✅ 时间字段统一走 PG 服务器时间(`now()` / `CURRENT_TIMESTAMP`),前端按字符串原样展示
 - ✅ 错误处理: 友好的中文错误信息返回前端
 - ✅ Streamlit 页面用 `st.session_state` 缓存物料字典,提升下拉响应速度
 - ✅ 库存数量永远从 `inventory_txn` 实时聚合,绝不缓存到 `batch` 表
-- ✅ README 中的启动步骤要在生成代码后**实测可用**
+- ✅ 不引入 Docker 跑应用(应用直接 venv;只有 mac 调试时 PG 在 docker)
 
 ### 不要做的
 
@@ -494,7 +553,33 @@ docker compose logs -f backend
 
 ---
 
-## 十四、合规与法规提示
+## 十四、测试
+
+仅核心账实计算路径有 pytest 用例(库存聚合、过期排除、严重度判断、出库超量、盘点为负拒绝),共 17 条。
+
+```bash
+cd backend
+.venv/bin/pip install -r requirements-dev.txt        # 装 pytest + httpx
+
+# 用一个独立的 PG database 跑测试(切勿指生产库 cmc_data_platform!)
+# Mac 默认连 docker postgres16 中的 postgres 库:
+PGPASSWORD='<postgres超管密码>' \
+  DATABASE_URL_TEST='postgresql://postgres@127.0.0.1:5432/postgres' \
+  .venv/bin/pytest tests/ -v
+
+# Linux 同理,自己建一个测试库:
+# sudo -u postgres createdb cmc_test
+# DATABASE_URL_TEST='postgresql://postgres@127.0.0.1:5432/cmc_test' .venv/bin/pytest tests/ -v
+```
+
+约定:
+- 每个测试函数开始前会 TRUNCATE 业务表,但保留 unit_dict / location 预置值
+- session 开始时 DROP+CREATE schema material_mgmt,跑完不清理(方便 psql 调试)
+- DB 连不上时,集成测试自动 skip,纯函数测试(test_severity)仍会跑
+
+---
+
+## 十五、合规与法规提示
 
 MVP 阶段**不主张**满足 GMP / 21 CFR Part 11,仅为部门级管理工具。
 若未来扩展到 GMP 范围,需对照核对(**版本以发布时为准**):

@@ -24,6 +24,20 @@ from models import (
 )
 
 
+def severity_of(days_to_expiry: int, warning_threshold: int = 90) -> Optional[str]:
+    """根据剩余天数判断效期严重度(README §5.5 规则)。
+    返回 EXPIRED / URGENT / WARNING / None(超出 threshold 不告警)。
+    单独抽出便于单测。
+    """
+    if days_to_expiry < 0:
+        return "EXPIRED"
+    if days_to_expiry <= 30:
+        return "URGENT"
+    if days_to_expiry <= warning_threshold:
+        return "WARNING"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Material
 # ---------------------------------------------------------------------------
@@ -63,24 +77,27 @@ def get_material(db: Session, code: str) -> Optional[Material]:
 
 
 def update_material(db: Session, code: str, data: dict) -> Optional[Material]:
+    """data 来自 router 的 model_dump(exclude_unset=True),
+    所以 dict 里的每个 key 都是用户显式传的字段;value=None 视为"清空"。
+    必填字段(name_cn/unit)若被传 None,会触发 IntegrityError 由全局处理器返回 400。
+    """
     obj = db.get(Material, code)
     if not obj:
         return None
     for k, v in data.items():
-        if v is not None:
-            setattr(obj, k, v)
+        setattr(obj, k, v)
     db.commit()
     db.refresh(obj)
     return obj
 
 
 def deactivate_material(db: Session, code: str, operator: str, reason: Optional[str]) -> Optional[Material]:
-    from datetime import datetime
     obj = db.get(Material, code)
     if not obj:
         return None
     obj.is_active = False
-    obj.deactivated_at = datetime.utcnow()
+    # 用 PG 服务器时间,与其他时间字段(created_at/updated_at)统一时区口径
+    obj.deactivated_at = func.now()
     obj.deactivated_by = operator
     obj.deactivate_reason = reason
     db.commit()
@@ -324,17 +341,25 @@ def stock_by_material(
     category: Optional[str] = None,
     keyword: Optional[str] = None,
     include_inactive: bool = False,
+    exclude_expired: bool = True,
 ) -> List[dict]:
-    """物料级总库存(实时聚合 inventory_txn)。"""
-    qty_subq = (
+    """物料级总库存(实时聚合 inventory_txn)。
+    exclude_expired=True 时,已过期批次的 txn 不计入「可用总库存」(README §5.5 规则);
+    需要含过期的全量库存时显式传 False。
+    """
+    qty_subq_inner = (
         select(
             Batch.material_code.label("material_code"),
             func.coalesce(func.sum(InventoryTxn.qty), 0).label("total_qty"),
         )
         .join(InventoryTxn, InventoryTxn.batch_id == Batch.batch_id)
-        .group_by(Batch.material_code)
-        .subquery()
     )
+    if exclude_expired:
+        today = date.today()
+        qty_subq_inner = qty_subq_inner.where(
+            or_(Batch.expiry_date.is_(None), Batch.expiry_date >= today)
+        )
+    qty_subq = qty_subq_inner.group_by(Batch.material_code).subquery()
 
     stmt = (
         select(
@@ -481,13 +506,8 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
     out = []
     for r in db.execute(stmt).all():
         d = (r.expiry_date - today).days
-        if d < 0:
-            sev = "EXPIRED"
-        elif d <= 30:
-            sev = "URGENT"
-        elif d <= days:
-            sev = "WARNING"
-        else:
+        sev = severity_of(d, warning_threshold=days)
+        if sev is None:
             continue
         out.append({
             "batch_id": r.batch_id,

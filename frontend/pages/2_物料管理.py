@@ -105,9 +105,34 @@ else:
             if not is_active:
                 st.info("该物料已是停用状态")
             else:
+                # 查询当前总库存,>0 时要求二次确认
+                current_qty = None
+                try:
+                    rows = api_get(
+                        "/api/stock/by-material",
+                        params={"keyword": m["material_code"], "include_inactive": "true"},
+                    ) or []
+                    hit = next((r for r in rows if r["material_code"] == m["material_code"]), None)
+                    if hit:
+                        current_qty = float(hit.get("total_qty") or 0)
+                except APIError:
+                    current_qty = None
+
+                if current_qty and current_qty > 0:
+                    st.warning(
+                        f"⚠️ 该物料仍有库存 **{current_qty} {m['unit']}**。"
+                        f"停用后将不能继续入库/出库,但已有批次和历史记录会保留。"
+                    )
+                    confirm = st.checkbox(
+                        "我已了解,仍要停用",
+                        key=f"deact_confirm_{m['material_code']}",
+                    )
+                else:
+                    confirm = True  # 库存为 0 / 查询失败 → 不强制额外确认
+
                 op = st.text_input("操作人", key="deact_op")
                 reason = st.text_input("停用原因", key="deact_reason")
-                if st.button("⛔ 停用此物料", type="primary"):
+                if st.button("⛔ 停用此物料", type="primary", disabled=not confirm):
                     if not op:
                         st.warning("请填写操作人")
                     else:
