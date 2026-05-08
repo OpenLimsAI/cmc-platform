@@ -1,0 +1,64 @@
+"""
+文件: backend/routers/stock.py
+用途: 库存查询与预警 API
+    - by-material:物料级总库存
+    - by-batch:批次级当前库存
+    - alerts/expiry:效期预警(EXPIRED/URGENT/WARNING)
+    - alerts/low-stock:低库存预警
+"""
+from __future__ import annotations
+
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+import crud
+from database import get_db
+from schemas import StockByMaterial, StockByBatch, ExpiryAlert, LowStockAlert
+
+router = APIRouter(prefix="/api/stock", tags=["stock"])
+
+
+@router.get("/by-material", response_model=List[StockByMaterial])
+def by_material(
+    category: Optional[str] = None,
+    keyword: Optional[str] = None,
+    include_inactive: bool = False,
+    db: Session = Depends(get_db),
+):
+    return crud.stock_by_material(db, category, keyword, include_inactive)
+
+
+@router.get("/by-batch", response_model=List[StockByBatch])
+def by_batch(
+    category: Optional[str] = None,
+    material_code: Optional[str] = None,
+    location_id: Optional[int] = None,
+    include_inactive: bool = False,
+    include_expired: bool = True,
+    only_positive: bool = True,
+    db: Session = Depends(get_db),
+):
+    return crud.stock_by_batch(
+        db,
+        category=category,
+        material_code=material_code,
+        location_id=location_id,
+        include_inactive=include_inactive,
+        include_expired=include_expired,
+        only_positive=only_positive,
+    )
+
+
+@router.get("/alerts/expiry", response_model=List[ExpiryAlert])
+def alerts_expiry(
+    days: int = Query(90, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    return crud.expiry_alerts(db, days=days)
+
+
+@router.get("/alerts/low-stock", response_model=List[LowStockAlert])
+def alerts_low_stock(db: Session = Depends(get_db)):
+    return crud.low_stock_alerts(db)

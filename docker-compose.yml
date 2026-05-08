@@ -1,0 +1,40 @@
+# =============================================================================
+# 文件: docker-compose.yml
+# 用途: 部署 backend + frontend 两个容器,复用宿主机已有的 PostgreSQL 16
+#
+# 部署目标:Linux 服务器,PG 直接装在宿主机(systemd 托管,监听 5432)
+#   - 容器通过 host.docker.internal 访问宿主机 PG(extra_hosts 注入)
+#   - PG 必须修改 listen_addresses 与 pg_hba.conf 允许 docker 网段连接
+#   - init.sql 不会自动执行,需手动在宿主机 PG 上跑一次(详见 DEPLOY.md)
+#
+# 备份:若需要 docker 内置 PG 容器版本,见 docker-compose.with-pg.yml
+# =============================================================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: cmc-backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      TZ: Asia/Shanghai
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      # 让容器内可用 host.docker.internal 解析到宿主机
+      # Docker 20.10+ 在 Linux 下需要这一行才能生效
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: cmc-frontend
+    environment:
+      API_BASE_URL: http://backend:8000
+      TZ: Asia/Shanghai
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    restart: unless-stopped
