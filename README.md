@@ -453,7 +453,7 @@ cd template && python3 generate_template.py
 
 ### 10.B Linux 生产部署
 
-完整流程见 [`DEPLOY.md`](DEPLOY.md)。要点:
+完整流程见 [`DEPLOY.md`](DEPLOY.md)。**首次部署**要点:
 
 ```bash
 # 1) 在宿主机已有 PG 中建 schema/user(详见 DEPLOY.md §1)
@@ -466,13 +466,73 @@ PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform 
 
 # 2) 拉代码 + 配 .env
 git clone git@github.com:qingcheng81/cmc-inventory.git /opt/cmc-inventory
-cd /opt/cmc-inventory && cp .env.example .env  # 改密码
+cd /opt/cmc-inventory && cp .env.example .env  # 改密码 / 端口
 
 # 3) 一键装 venv + systemd unit + enable --now
 ./install.sh
 ```
 
-日常运维(看日志 / 重启 / 更新代码后重启 / 卸载)同样见 `DEPLOY.md` §5。
+#### 后续日常流程
+
+按改动类型选合适的命令:
+
+```bash
+cd /opt/cmc-inventory
+
+# A. 改了 Python 代码 / 前端页面 → 拉代码并重启进程,不动 systemd
+git pull
+./install.sh restart
+
+# B. 改了 requirements.txt → 重装依赖再重启
+git pull
+./install.sh deps && ./install.sh restart
+
+# C. 改了 systemd unit / install.sh / .env.example 默认值 → 重装 + 重启
+git pull
+./install.sh install            # 会重装 unit、daemon-reload、enable --now
+
+# D. 只改了运行时 .env(不动代码) → 仅重启,让 systemd 重新加载 EnvironmentFile
+./install.sh restart
+```
+
+> 注意:`./install.sh install` 对**已 active** 的服务不会强制重启进程(只 enable --now),
+> 若想确保进程被替换,跟一句 `./install.sh restart` 或 `sudo systemctl restart cmc-backend cmc-frontend`。
+
+#### 日志、状态、卸载
+
+```bash
+sudo journalctl -u cmc-backend -f             # 后端实时日志
+sudo journalctl -u cmc-frontend -f            # 前端实时日志
+sudo systemctl status cmc-backend cmc-frontend  # 状态摘要
+./install.sh uninstall                         # 停服务 + 删 unit(数据库 / venv / 代码 都保留)
+```
+
+#### 访问入口
+
+| 服务 | 地址 | 谁能访问 |
+|---|---|---|
+| 前端 Streamlit | `http://<server-ip>:<FRONTEND_PORT>`(默认 8501) | 任何能到服务器内网的人,直接浏览器打开 |
+| 后端 FastAPI | `http://127.0.0.1:<BACKEND_PORT>` | **只允许服务器本机**(MVP 无鉴权,故不直接对外) |
+| 后端 Swagger `/docs` | 走 SSH 隧道,见下 | 临时调试用 |
+
+**后端为什么只绑 127.0.0.1?** 因为 MVP 阶段没做认证,直接对外等于把数据库读写权限暴露到内网。
+Streamlit 前端跑在**同一台机器**上,走 `localhost:<BACKEND_PORT>` 不受限制;
+内网用户访问前端 8501 即可,所有 API 调用都在服务器内完成。
+
+#### 在自己笔记本上看 Swagger `/docs`(SSH 隧道)
+
+前端首页那行"后端 API 仅限服务器本机访问"提示就是这个意思 — 链接不要点,而是按下面的方式开隧道:
+
+```bash
+# 在自己笔记本上跑;开着不要关,期间浏览器才能访问 http://localhost:8200/docs
+# 把端口和 ssh 配置改成你的实际值
+ssh -L 8200:127.0.0.1:8200 -p <ssh-port> prometheus@<server-ip>
+
+# 然后浏览器打开
+#   http://localhost:8200/docs
+```
+
+> 笔记本本地端口可以选别的(避免与本机已用端口冲突),例如 `-L 19000:127.0.0.1:8200`,然后浏览器开 `http://localhost:19000/docs`。
 
 ### 10.C 首次使用(两套环境通用)
 

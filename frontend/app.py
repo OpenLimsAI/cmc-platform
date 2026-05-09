@@ -30,7 +30,13 @@ with status_col:
         st.error("后端不可达 ❌")
         st.caption(str(e))
 with msg_col:
-    st.info(f"后端地址: `{API_BASE_URL}` — API 文档: {API_BASE_URL}/docs")
+    # 不展示成可点击链接 —— Linux 生产部署里 backend 只绑 127.0.0.1,
+    # 浏览器从用户笔记本点 localhost 链接会失败(笔记本本地没 backend)。
+    # Swagger /docs 通过 SSH 隧道访问(详见 README §10.B)。
+    st.info(
+        "ℹ️ 后端 API 仅限**服务器本机**访问(MVP 无鉴权,故不直接对外)。"
+        "如需查看 Swagger `/docs`,请走 SSH 隧道,详见 README §10.B 日常运维。"
+    )
 
 st.markdown("---")
 
