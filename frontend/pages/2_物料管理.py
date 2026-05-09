@@ -17,23 +17,31 @@ from utils import (
     api_get, api_patch, api_post, APIError,
     get_categories, get_units, fmt_null, clear_material_cache,
 )
+from auth_helper import require_login, is_admin
 
 st.set_page_config(page_title="物料管理", page_icon="🗂️", layout="wide")
+require_login()
 st.header("🗂️ 物料管理")
 
 units = get_units()
 cats_existing = get_categories()
+_admin = is_admin()
 
 # ============================================================================
-# ➕ 新增物料(B.2)
+# ➕ 新增物料(B.2)— 仅 admin
 # ============================================================================
-with st.expander("➕ 新增物料(单条录入)", expanded=False):
-    st.caption(
-        "代码列保留前导 0;新分类会自动加入字典。批量录入请走「物料导入」页。"
-    )
-    if not units:
-        st.warning("单位字典为空,无法新增。请先初始化 unit_dict 表。")
-    else:
+if not _admin:
+    st.caption("ℹ️ 你是普通用户(只读),新增 / 编辑 / 停用 / 启用 操作仅管理员可见。")
+
+
+def _render_new_material_form():
+    with st.expander("➕ 新增物料(单条录入)", expanded=False):
+        st.caption(
+            "代码列保留前导 0;新分类会自动加入字典。批量录入请走「物料导入」页。"
+        )
+        if not units:
+            st.warning("单位字典为空,无法新增。请先初始化 unit_dict 表。")
+            return
         with st.form("new_material_form", clear_on_submit=True):
             col1, col2 = st.columns(2)
             with col1:
@@ -61,30 +69,34 @@ with st.expander("➕ 新增物料(单条录入)", expanded=False):
             submit_new = st.form_submit_button("✅ 创建物料", type="primary")
 
         if submit_new:
-            n_code = (n_code or "").strip()
-            n_name = (n_name or "").strip()
-            if not n_code or not n_name or not n_unit:
+            code = (n_code or "").strip()
+            name = (n_name or "").strip()
+            if not code or not name or not n_unit:
                 st.error("代码 / 物料名称 / 单位 为必填")
-            else:
-                try:
-                    api_post("/api/materials", json={
-                        "material_code": n_code,
-                        "category": (n_cat or "").strip() or None,
-                        "name_cn": n_name,
-                        "grade": (n_grade or "").strip() or None,
-                        "manufacturer": (n_mfr or "").strip() or None,
-                        "spec_model": (n_spec or "").strip() or None,
-                        "catalog_no": (n_catalog or "").strip() or None,
-                        "unit": n_unit,
-                        "package_spec": (n_pkg or "").strip() or None,
-                        "remark": (n_remark or "").strip() or None,
-                        "safety_stock": str(Decimal(str(n_safety))),
-                    })
-                    st.success(f"物料 `{n_code}` 创建成功!")
-                    clear_material_cache()
-                    st.rerun()
-                except APIError as e:
-                    st.error(f"创建失败: {e}")
+                return
+            try:
+                api_post("/api/materials", json={
+                    "material_code": code,
+                    "category": (n_cat or "").strip() or None,
+                    "name_cn": name,
+                    "grade": (n_grade or "").strip() or None,
+                    "manufacturer": (n_mfr or "").strip() or None,
+                    "spec_model": (n_spec or "").strip() or None,
+                    "catalog_no": (n_catalog or "").strip() or None,
+                    "unit": n_unit,
+                    "package_spec": (n_pkg or "").strip() or None,
+                    "remark": (n_remark or "").strip() or None,
+                    "safety_stock": str(Decimal(str(n_safety))),
+                })
+                st.success(f"物料 `{code}` 创建成功!")
+                clear_material_cache()
+                st.rerun()
+            except APIError as e:
+                st.error(f"创建失败: {e}")
+
+
+if _admin:
+    _render_new_material_form()
 
 st.markdown("---")
 
@@ -142,6 +154,10 @@ else:
     ])
     st.dataframe(df, use_container_width=True, height=420)
 
+    if not _admin:
+        st.caption("ℹ️ 行内操作(编辑 / 安全库存 / 停用 / 启用)仅管理员可用。")
+
+if materials and _admin:
     st.markdown("---")
     st.subheader("✏️ 行内操作")
 
@@ -281,22 +297,19 @@ else:
                 else:
                     confirm = True  # 库存为 0 / 查询失败 → 不强制额外确认
 
-                op = st.text_input("操作人", key="deact_op")
+                # operator 自动取登录用户(后端记 audit_log + deactivated_by)
                 reason = st.text_input("停用原因", key="deact_reason")
                 if st.button("⛔ 停用此物料", type="primary", disabled=not confirm):
-                    if not op:
-                        st.warning("请填写操作人")
-                    else:
-                        try:
-                            api_post(
-                                f"/api/materials/{m['material_code']}/deactivate",
-                                json={"operator": op, "reason": reason or None},
-                            )
-                            st.success("已停用")
-                            clear_material_cache()
-                            st.rerun()
-                        except APIError as e:
-                            st.error(str(e))
+                    try:
+                        api_post(
+                            f"/api/materials/{m['material_code']}/deactivate",
+                            json={"reason": reason or None},
+                        )
+                        st.success("已停用")
+                        clear_material_cache()
+                        st.rerun()
+                    except APIError as e:
+                        st.error(str(e))
 
         with tab_act:
             if is_active:

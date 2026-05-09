@@ -182,6 +182,65 @@ CREATE INDEX IF NOT EXISTS idx_txn_batch  ON inventory_txn(batch_id);
 CREATE INDEX IF NOT EXISTS idx_txn_date   ON inventory_txn(txn_date);
 CREATE INDEX IF NOT EXISTS idx_txn_type   ON inventory_txn(txn_type);
 
+-- =============================================================================
+-- v1.1 — 用户系统 + 审计追踪(C 阶段)
+-- 这部分在 v1.0 服务器上重跑 init.sql 即可获得(IF NOT EXISTS 保证幂等)
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 8. 应用账号(app_user)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS app_user (
+    id                    SERIAL PRIMARY KEY,
+    username              VARCHAR(50)  NOT NULL UNIQUE,
+    password_hash         VARCHAR(255) NOT NULL,            -- bcrypt
+    role                  VARCHAR(20)  NOT NULL CHECK (role IN ('admin','user')),
+    is_active             BOOLEAN      NOT NULL DEFAULT TRUE,
+    must_change_password  BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login_at         TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_user_active ON app_user(is_active);
+
+-- -----------------------------------------------------------------------------
+-- 9. 会话/Token(auth_session)
+--    随机 hex token,落库便于主动失效
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS auth_session (
+    token         VARCHAR(64) PRIMARY KEY,
+    user_id       INT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at    TIMESTAMP NOT NULL,
+    last_seen_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source_ip     VARCHAR(45)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_session_user    ON auth_session(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_session_expires ON auth_session(expires_at);
+
+-- -----------------------------------------------------------------------------
+-- 10. 审计日志(audit_log)
+--     before_json / after_json 用 JSONB 存任意结构;敏感字段(password_hash)
+--     业务层在写入前抹掉
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_log (
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      INT REFERENCES app_user(id) ON DELETE SET NULL,
+    username     VARCHAR(50),                                    -- 冗余,user 删除后仍可查
+    action       VARCHAR(50) NOT NULL,                           -- 例: material.create / inventory.in
+    entity_type  VARCHAR(50),                                    -- 例: material / batch / inventory_txn
+    entity_id    VARCHAR(50),                                    -- 用 string,既能放 SERIAL 整数也能放 material_code
+    before_json  JSONB,
+    after_json   JSONB,
+    source_ip    VARCHAR(45),
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_user_time   ON audit_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_entity_time ON audit_log(entity_type, entity_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_action_time ON audit_log(action, created_at DESC);
+
 -- -----------------------------------------------------------------------------
 -- 完成
 -- -----------------------------------------------------------------------------

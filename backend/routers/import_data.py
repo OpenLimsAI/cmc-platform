@@ -21,13 +21,15 @@ from decimal import Decimal
 from typing import List, Optional, Dict, Any
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 import crud
+from audit import write_audit
+from auth import require_admin
 from database import get_db
-from models import Material, ImportLog, UnitDict, CategoryDict
+from models import AppUser, Material, ImportLog, UnitDict, CategoryDict
 from schemas import (
     ImportPreviewResult,
     ImportPreviewRow,
@@ -93,6 +95,7 @@ def _read_excel_bytes(content: bytes) -> pd.DataFrame:
 @router.post("/materials/dry-run", response_model=ImportPreviewResult)
 async def dry_run(
     file: UploadFile = File(...),
+    current: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """干跑:校验并返回每一行的处理结果(INSERT / UPDATE / ERROR)。"""
@@ -185,14 +188,20 @@ async def dry_run(
 
 
 @router.post("/materials/commit", response_model=ImportCommitResult)
-def commit(payload: ImportCommitRequest, db: Session = Depends(get_db)):
+def commit(
+    payload: ImportCommitRequest,
+    request: Request,
+    current: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """正式提交:执行 UPSERT 并写入 import_log。
     要求传入干跑后的逐行清洗结果(rows: list of dict),错误行将被忽略并计入 failed_rows。
+    operator 字段从登录用户自动取。
     """
     # 1) 先建 import_log(占位,后续更新统计)
     log = ImportLog(
         file_name=payload.file_name,
-        operator=payload.operator,
+        operator=current.username,
         total_rows=len(payload.rows),
     )
     db.add(log)
@@ -268,6 +277,21 @@ def commit(payload: ImportCommitRequest, db: Session = Depends(get_db)):
     log.updated_rows = updated
     log.failed_rows = failed
     log.error_detail = {"errors": errors} if errors else None
+
+    # 5) 审计:批量写一条 import.commit
+    write_audit(
+        db, current, "import.commit",
+        entity_type="import_log", entity_id=import_id,
+        before=None,
+        after={
+            "file_name": payload.file_name,
+            "total_rows": len(payload.rows),
+            "inserted_rows": inserted,
+            "updated_rows": updated,
+            "failed_rows": failed,
+        },
+        source_ip=request.client.host if request.client else None,
+    )
     db.commit()
 
     return ImportCommitResult(

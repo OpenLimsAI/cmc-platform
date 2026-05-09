@@ -18,10 +18,15 @@ from utils import (
     api_get, api_post, APIError,
     get_categories, get_materials, material_label, fuzzy_match_material,
 )
+from auth_helper import require_admin, get_user
 
 st.set_page_config(page_title="盘点调整", page_icon="🧮", layout="wide")
+require_admin()
 st.header("🧮 盘点调整")
 st.caption("把账面库存修正为实际盘点数;调整后批次库存不得 < 0。")
+_user = get_user()
+operator = _user["username"] if _user else ""
+st.caption(f"经办人(登录用户):**{operator}**")
 
 # ---- 1) 物料选择(只显示在用) ----
 materials = get_materials(active_only=True)
@@ -101,15 +106,12 @@ with st.form("adjust_form"):
 
         txn_date = st.date_input("调整日期 *", value=date.today())
     with col2:
-        operator = st.text_input("经办人 *", max_chars=50)
         remark = st.text_area("备注(建议写盘点单号或原因)", height=120)
 
     submitted = st.form_submit_button("✅ 提交调整", type="primary")
 
 if submitted:
-    if not operator:
-        st.error("经办人必填")
-    elif delta == 0:
+    if delta == 0:
         st.warning("调整量为 0,无需提交")
     elif book_qty + delta < 0:
         st.error(f"调整后库存为负({book_qty} + {delta} < 0),已拒绝")
@@ -119,7 +121,6 @@ if submitted:
                 "batch_id": b["batch_id"],
                 "qty": str(delta),
                 "txn_date": str(txn_date),
-                "operator": operator,
                 "remark": remark or None,
             })
             st.success(f"调整成功!批次 {b['batch_no']} 已写入调整流水 {delta}{mat['unit']}")

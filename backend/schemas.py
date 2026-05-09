@@ -93,7 +93,7 @@ class MaterialOut(MaterialBase, ORMBase):
 
 
 class DeactivateRequest(BaseModel):
-    operator: str
+    # operator 已由 v1.1 鉴权自动从登录用户取,不再手填
     reason: Optional[str] = None
 
 
@@ -111,7 +111,8 @@ class BatchBase(BaseModel):
 
 
 class BatchCreate(BatchBase):
-    operator: str  # 创建批次同步生成首笔入库 txn,需要经办人
+    # operator 由 v1.1 鉴权自动从登录用户取
+    pass
 
 
 class BatchOut(BatchBase, ORMBase):
@@ -128,30 +129,27 @@ class BatchOut(BatchBase, ORMBase):
 # Inventory Transaction
 # ---------------------------------------------------------------------------
 class TxnInRequest(BaseModel):
-    """对已有批次追加入库"""
+    """对已有批次追加入库 — operator 由鉴权自动填"""
     batch_id: int
     qty: Decimal = Field(..., gt=0)
     txn_date: date
-    operator: str
     remark: Optional[str] = None
 
 
 class TxnOutRequest(BaseModel):
-    """出库:从指定批次扣减"""
+    """出库:从指定批次扣减 — operator 由鉴权自动填"""
     batch_id: int
     qty: Decimal = Field(..., gt=0)
     txn_date: date
-    operator: str
     purpose: Optional[str] = None
     remark: Optional[str] = None
 
 
 class TxnAdjustRequest(BaseModel):
-    """盘点调整:正负皆可"""
+    """盘点调整:正负皆可 — operator 由鉴权自动填"""
     batch_id: int
     qty: Decimal  # 不限制正负
     txn_date: date
-    operator: str
     remark: Optional[str] = None
 
 
@@ -248,7 +246,7 @@ class ImportPreviewResult(BaseModel):
 
 class ImportCommitRequest(BaseModel):
     file_name: str
-    operator: str
+    # operator 由鉴权自动填
     auto_create_units: bool = True   # 文件中出现新单位时自动加入字典
     rows: List[dict]                 # 干跑后的逐行数据(已清洗)
 
@@ -271,3 +269,66 @@ class ImportLogOut(ORMBase):
     updated_rows: int
     failed_rows: int
     error_detail: Optional[Any] = None
+
+
+# ---------------------------------------------------------------------------
+# v1.1 用户 / 鉴权 / 审计
+# ---------------------------------------------------------------------------
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=1)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_at: datetime
+    user: "UserOut"
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=8)
+
+
+class UserOut(ORMBase):
+    id: int
+    username: str
+    role: str
+    is_active: bool
+    must_change_password: bool
+    created_at: datetime
+    last_login_at: Optional[datetime] = None
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=8)
+    role: str = Field(..., pattern="^(admin|user)$")
+
+
+class UserUpdate(BaseModel):
+    role: Optional[str] = Field(None, pattern="^(admin|user)$")
+    is_active: Optional[bool] = None
+
+
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=8)
+    require_change_on_login: bool = True
+
+
+class AuditLogOut(ORMBase):
+    id: int
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    action: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    before_json: Optional[Any] = None
+    after_json: Optional[Any] = None
+    source_ip: Optional[str] = None
+    created_at: datetime
+
+
+# 让 TokenResponse 的 forward ref 解析
+TokenResponse.model_rebuild()

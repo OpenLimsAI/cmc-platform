@@ -138,7 +138,44 @@ ssh -L 8000:127.0.0.1:8000 prometheus@<服务器IP>
 
 ---
 
-## 7. 彻底卸载(回到部署前的状态)
+## 7. 从已有 v1.0 升级到 v1.1(用户系统 + 审计追踪)
+
+> 当前服务器若已经按本文档跑起来(v1.0),按下面流程升级到 v1.1。
+> 不需要 down time(systemd restart 间隔约 1-2 秒)。
+
+```bash
+cd /opt/cmc-inventory
+
+# 1) 拉新代码
+git pull --ff-only
+
+# 2) 给 PG 加 v1.1 三张新表(app_user / auth_session / audit_log)
+#    init.sql 全部用 IF NOT EXISTS,重跑一遍只会新增,不影响 v1.0 的 7 张表
+PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
+    -d cmc_data_platform -f sql/init.sql
+
+# 3) 给 .env 加 ADMIN_INITIAL_PASSWORD(首次启动后端会用它自动建 admin)
+echo 'ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin' >> .env
+
+# 4) 装新依赖(bcrypt)+ 重装 systemd unit + 重启
+./install.sh deps
+./install.sh install
+```
+
+启动后端日志会打印:`已创建初始 admin 账号(must_change_password=True)`。
+
+**首次登录:** 浏览器开 `http://<server-ip>:8501` → 用户名 `admin`,密码 = 你设的 `ADMIN_INITIAL_PASSWORD` → 系统会强制让你改密码 → 改完后用新密码重新登录。
+
+之后:
+
+- 普通同事:在「用户管理」页给他们建 user 账号,告诉他们用户名 + 初始密码,他们自己改密
+- `.env` 中的 `ADMIN_INITIAL_PASSWORD` 改完后**保留即可**(后续启动若 app_user 已有数据,这个变量不再生效)
+
+⚠️ 升级后,**手填的"经办人"输入框消失了** —— 入库 / 出库 / 盘点 / 物料停用 等操作的"经办人"自动取登录用户名,所有写操作记 audit_log,可在「用户管理 → 操作日志」tab 中查询。
+
+---
+
+## 8. 彻底卸载(回到部署前的状态)
 
 ```bash
 # 1) 停服务、删 systemd unit
@@ -157,7 +194,7 @@ sudo rm -rf /opt/cmc-inventory
 
 ---
 
-## 8. 常见问题
+## 9. 常见问题
 
 **Q: backend 起不来,journalctl 报 `password authentication failed`**
 A: `.env` 中 `DATABASE_URL` 的密码与 cmc_user 的真实密码不一致。改 `.env` 后 `./install.sh restart`。

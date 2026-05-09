@@ -14,9 +14,14 @@ from utils import (
     get_categories, get_locations, get_materials, material_label,
     clear_material_cache, fuzzy_match_material,
 )
+from auth_helper import require_admin, get_user
 
 st.set_page_config(page_title="入库登记", page_icon="📥", layout="wide")
+require_admin()
 st.header("📥 入库登记")
+_user = get_user()
+operator = _user["username"] if _user else ""
+st.caption(f"经办人(登录用户):**{operator}**")
 
 # ---- 1) 物料选择(三级联) ----
 materials = get_materials(active_only=True)
@@ -57,7 +62,6 @@ with st.form("in_form", clear_on_submit=False):
         batch_no = st.text_input("供应商批号 *", max_chars=100)
         received = st.date_input("到货日期 *", value=date.today())
         qty = st.number_input(f"入库数量 ({mat['unit']}) *", min_value=0.01, step=1.0, value=1.0)
-        operator = st.text_input("经办人 *", max_chars=50)
     with col2:
         # 效期
         has_expiry = st.checkbox("此批次有效期", value=True)
@@ -74,8 +78,8 @@ with st.form("in_form", clear_on_submit=False):
     submitted = st.form_submit_button("✅ 提交入库", type="primary")
 
 if submitted:
-    if not batch_no or not operator or qty <= 0:
-        st.error("批号 / 经办人 / 数量为必填且数量必须 > 0")
+    if not batch_no or qty <= 0:
+        st.error("批号必填,数量必须 > 0")
     else:
         # 先查同物料同批号是否已存在
         existing = None
@@ -96,11 +100,10 @@ if submitted:
                 "current_qty": str(existing.get("current_qty") or 0),
                 "qty": str(Decimal(str(qty))),
                 "txn_date": str(received),
-                "operator": operator,
                 "remark": remark or None,
             }
         else:
-            # 新建批次,直接提交
+            # 新建批次,直接提交(operator 由后端从登录用户取)
             try:
                 payload = {
                     "material_code": mat["material_code"],
@@ -109,7 +112,6 @@ if submitted:
                     "location_id": loc_id,
                     "received_date": str(received),
                     "initial_qty": str(Decimal(str(qty))),
-                    "operator": operator,
                     "remark": remark or None,
                 }
                 created = api_post("/api/batches", json=payload)
@@ -135,7 +137,6 @@ if pending and pending["material_code"] == mat["material_code"]:
                 "batch_id": pending["batch_id"],
                 "qty": pending["qty"],
                 "txn_date": pending["txn_date"],
-                "operator": pending["operator"],
                 "remark": pending["remark"],
             })
             st.success(f"追加入库成功!批次 {pending['batch_no']} 当前库存已更新")

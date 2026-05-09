@@ -1,17 +1,24 @@
 """
 文件: backend/routers/batch.py
 用途: 批次相关 API:查询、创建(同步首笔入库)、详情
+v1.1:
+    - POST 要求 admin
+    - operator 自动取登录用户
+    - 写操作触发 audit_log
 """
 from __future__ import annotations
 
 from typing import List, Optional
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 import crud
+from audit import model_snapshot, write_audit
+from auth import require_admin
 from database import get_db
+from models import AppUser
 from schemas import BatchCreate, BatchOut
 
 router = APIRouter(prefix="/api/batches", tags=["batch"])
@@ -51,7 +58,12 @@ def list_batches(
 
 
 @router.post("", response_model=BatchOut)
-def create_batch(payload: BatchCreate, db: Session = Depends(get_db)):
+def create_batch(
+    payload: BatchCreate,
+    request: Request,
+    current: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """新建批次:不允许 (material_code, batch_no) 重复;同一物料同一批号要追加请走 /api/inventory/in"""
     mat = crud.get_material(db, payload.material_code)
     if not mat:
@@ -76,9 +88,16 @@ def create_batch(payload: BatchCreate, db: Session = Depends(get_db)):
         location_id=payload.location_id,
         received_date=payload.received_date,
         initial_qty=payload.initial_qty,
-        operator=payload.operator,
+        operator=current.username,
         remark=payload.remark,
     )
+    write_audit(
+        db, current, "batch.create",
+        entity_type="batch", entity_id=batch.batch_id,
+        before=None, after=model_snapshot(batch),
+        source_ip=request.client.host if request.client else None,
+    )
+    db.commit()
     qty = crud.get_batch_qty(db, batch.batch_id)
     return {
         "batch_id": batch.batch_id,

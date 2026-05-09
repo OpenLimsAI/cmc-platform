@@ -162,3 +162,57 @@ class InventoryTxn(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     batch: Mapped["Batch"] = relationship(back_populates="txns")
+
+
+# ---------------------------------------------------------------------------
+# v1.1 用户系统 + 审计追踪
+# ---------------------------------------------------------------------------
+class AppUser(Base):
+    __tablename__ = "app_user"
+    __table_args__ = (
+        CheckConstraint("role IN ('admin','user')", name="ck_app_user_role"),
+        {"schema": "material_mgmt"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_session"
+    __table_args__ = {"schema": "material_mgmt"}
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("material_mgmt.app_user.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    source_ip: Mapped[Optional[str]] = mapped_column(String(45))
+
+    user: Mapped["AppUser"] = relationship()
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+    __table_args__ = {"schema": "material_mgmt"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("material_mgmt.app_user.id", ondelete="SET NULL")
+    )
+    username: Mapped[Optional[str]] = mapped_column(String(50))  # 冗余,user 删后仍可查
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_type: Mapped[Optional[str]] = mapped_column(String(50))
+    entity_id: Mapped[Optional[str]] = mapped_column(String(50))
+    before_json: Mapped[Optional[dict]] = mapped_column(JSONB)
+    after_json: Mapped[Optional[dict]] = mapped_column(JSONB)
+    source_ip: Mapped[Optional[str]] = mapped_column(String(45))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

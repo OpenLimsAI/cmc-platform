@@ -2,9 +2,9 @@
 文件: frontend/utils.py
 用途: 后端 API 调用封装 + Streamlit 通用工具
 说明:
-    - API_BASE_URL 从环境变量读取(docker-compose 注入)
-    - 提供 cache_data 包裹的字典加载,降低下拉响应延迟
-    - 友好错误处理:把 HTTP 错误转成中文提示
+    - API_BASE_URL 从环境变量读取
+    - api_get/post/patch 自动注入 Authorization: Bearer <token>(从 session_state 取)
+    - 401 → 清空 session_state.token,抛 AuthError,由 auth_helper 重新跳登录
     - 关键字搜索归一化:NFKC + lower + 去空白,兼容全角/半角混用
 """
 from __future__ import annotations
@@ -28,7 +28,25 @@ class APIError(Exception):
     pass
 
 
+class AuthError(APIError):
+    """401:未登录或会话过期。auth_helper 捕获后跳登录。"""
+
+
+def _auth_headers() -> Dict[str, str]:
+    token = st.session_state.get("auth_token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def _handle(resp: requests.Response) -> Any:
+    if resp.status_code == 401:
+        # 顺手清掉 session,前端下次 require_login 会重显登录表单
+        for k in ("auth_token", "auth_user"):
+            st.session_state.pop(k, None)
+        try:
+            detail = resp.json().get("detail")
+        except Exception:
+            detail = resp.text
+        raise AuthError(f"[401] {detail}")
     if resp.status_code >= 400:
         try:
             detail = resp.json().get("detail")
@@ -41,18 +59,25 @@ def _handle(resp: requests.Response) -> Any:
 
 
 def api_get(path: str, params: Optional[dict] = None) -> Any:
-    return _handle(requests.get(f"{API_BASE_URL}{path}", params=params, timeout=TIMEOUT))
+    return _handle(requests.get(
+        f"{API_BASE_URL}{path}", params=params, timeout=TIMEOUT,
+        headers=_auth_headers(),
+    ))
 
 
 def api_post(path: str, json: Optional[dict] = None, files: Optional[dict] = None,
              data: Optional[dict] = None) -> Any:
     return _handle(requests.post(
-        f"{API_BASE_URL}{path}", json=json, files=files, data=data, timeout=TIMEOUT
+        f"{API_BASE_URL}{path}", json=json, files=files, data=data, timeout=TIMEOUT,
+        headers=_auth_headers(),
     ))
 
 
 def api_patch(path: str, json: Optional[dict] = None) -> Any:
-    return _handle(requests.patch(f"{API_BASE_URL}{path}", json=json, timeout=TIMEOUT))
+    return _handle(requests.patch(
+        f"{API_BASE_URL}{path}", json=json, timeout=TIMEOUT,
+        headers=_auth_headers(),
+    ))
 
 
 # ---------------------------------------------------------------------------

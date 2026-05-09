@@ -4,12 +4,14 @@
 说明:
     - 实际业务页面位于 frontend/pages/ 下,按文件名前的数字排序
     - Streamlit 会自动把 pages/*.py 渲染成左侧导航
+    - v1.1:首屏检查登录态,未登录显示登录表单
 """
 from __future__ import annotations
 
 import streamlit as st
 
-from utils import API_BASE_URL, api_get, APIError
+from utils import API_BASE_URL, api_get, APIError, AuthError
+from auth_helper import require_login, get_user, is_admin
 
 st.set_page_config(
     page_title="CMC 物料管理系统",
@@ -20,22 +22,25 @@ st.set_page_config(
 st.title("📦 CMC 物料管理系统 (MVP)")
 st.caption("部门级物料管理 — 物料导入 / 入库 / 出库 / 库存统计 / 预警")
 
+# 登录守卫(未登录 → 在此处渲染登录/改密表单 + st.stop)
+require_login()
+
+user = get_user()
+
 # 后端连通性检查
 status_col, msg_col = st.columns([1, 5])
 with status_col:
     try:
         api_get("/health")
         st.success("后端连接正常 ✅")
-    except APIError as e:
+    except (APIError, AuthError) as e:
         st.error("后端不可达 ❌")
         st.caption(str(e))
 with msg_col:
-    # 不展示成可点击链接 —— Linux 生产部署里 backend 只绑 127.0.0.1,
-    # 浏览器从用户笔记本点 localhost 链接会失败(笔记本本地没 backend)。
-    # Swagger /docs 通过 SSH 隧道访问(详见 README §10.B)。
+    role_label = "管理员(全部权限)" if is_admin() else "普通用户(只读)"
     st.info(
-        "ℹ️ 后端 API 仅限**服务器本机**访问(MVP 无鉴权,故不直接对外)。"
-        "如需查看 Swagger `/docs`,请走 SSH 隧道,详见 README §10.B 日常运维。"
+        f"当前登录:**{user['username']}** · {role_label}。"
+        " 后端 API 仅限服务器本机访问,Swagger `/docs` 通过 SSH 隧道,详见 README §10.B。"
     )
 
 st.markdown("---")
@@ -43,13 +48,16 @@ st.markdown("---")
 st.markdown(
     """
 ### 使用流程
-1. **物料导入** — 首次使用时,上传公司物料代码 Excel
-2. **物料管理** — 维护安全库存、停用/启用物料
+1. **物料导入** — 上传公司物料代码 Excel
+2. **物料管理** — 维护安全库存、停用/启用、新增/编辑物料
 3. **入库登记** — 录入实际批次和数量
 4. **出库登记** — 日常出库扣减
 5. **库存查询** — 按物料 / 按批次查看实时库存
 6. **库存预警** — 关注效期、低库存
-
+7. **盘点调整** — 把账面修正为实际盘点数
+"""
+    + ("8. **用户管理** — 用户 CRUD、操作日志(仅管理员)\n" if is_admin() else "")
+    + """
 > 左侧导航选择具体功能。
 """
 )
@@ -62,5 +70,6 @@ with st.expander("📌 关键设计原则"):
 - N/A、空白统一视为 NULL,展示为 `-`
 - 物料停用为**软删除**,历史出入库记录完整保留
 - 数量字段统一 `Decimal`,杜绝浮点误差
+- v1.1:登录用户即操作人,所有写操作记 audit_log
 """
     )

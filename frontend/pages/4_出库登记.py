@@ -14,9 +14,14 @@ from utils import (
     api_get, api_post, APIError,
     get_categories, get_materials, material_label, fuzzy_match_material,
 )
+from auth_helper import require_admin, get_user
 
 st.set_page_config(page_title="出库登记", page_icon="📤", layout="wide")
+require_admin()
 st.header("📤 出库登记")
+_user = get_user()
+operator = _user["username"] if _user else ""
+st.caption(f"经办人(登录用户):**{operator}**")
 
 # ---- 1) 加载有库存的物料 ----
 try:
@@ -109,7 +114,6 @@ with st.form("out_form"):
             max_value=float(b.get("current_qty") or 0),
         )
         txn_date = st.date_input("出库日期 *", value=date.today())
-        operator = st.text_input("经办人 *", max_chars=50)
     with col2:
         purpose = st.text_input("用途 / 项目编号", max_chars=200)
         remark = st.text_area("备注", height=80)
@@ -117,8 +121,8 @@ with st.form("out_form"):
     submitted = st.form_submit_button("✅ 确认出库", type="primary")
 
 if submitted:
-    if not operator or qty <= 0:
-        st.error("经办人 / 出库数量 必填,数量必须 > 0")
+    if qty <= 0:
+        st.error("出库数量必须 > 0")
     elif Decimal(str(qty)) > Decimal(str(b.get("current_qty") or 0)):
         st.error(f"出库数量超过批次现有库存 {b.get('current_qty')}{mat['unit']}")
     else:
@@ -127,7 +131,6 @@ if submitted:
                 "batch_id": b["batch_id"],
                 "qty": str(Decimal(str(qty))),
                 "txn_date": str(txn_date),
-                "operator": operator,
                 "purpose": purpose or None,
                 "remark": remark or None,
             })

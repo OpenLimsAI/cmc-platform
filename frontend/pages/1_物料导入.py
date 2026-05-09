@@ -11,8 +11,10 @@ import pandas as pd
 import streamlit as st
 
 from utils import api_get, api_post, APIError, clear_material_cache, API_BASE_URL
+from auth_helper import require_admin, get_user
 
 st.set_page_config(page_title="物料导入", page_icon="📥", layout="wide")
+require_admin()
 st.header("📥 物料主数据导入")
 
 # --- 顶部说明 ---
@@ -28,7 +30,10 @@ st.markdown(
 import requests
 
 # --- 1) 上传文件 ---
-operator = st.text_input("操作人姓名", value="", placeholder="例如: 张三", max_chars=50)
+# v1.1:操作人 = 当前登录用户(自动写入 import_log,不再手填)
+_user = get_user()
+operator = _user["username"] if _user else ""
+st.caption(f"当前操作人(登录用户):**{operator}**")
 uploaded = st.file_uploader("选择 Excel 文件", type=["xlsx", "xls"])
 
 col_dry, col_reset = st.columns([1, 1])
@@ -42,8 +47,13 @@ if uploaded is not None and col_dry.button("🔍 干跑校验", type="primary"):
         try:
             files = {"file": (uploaded.name, uploaded.getvalue(),
                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
-            # 直接 requests.post 因 utils.api_post 主要给 JSON 用
-            resp = requests.post(f"{API_BASE_URL}/api/import/materials/dry-run", files=files, timeout=60)
+            # multipart upload 不走 utils.api_post(那个是 JSON);手工带上 Authorization
+            token = st.session_state.get("auth_token")
+            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            resp = requests.post(
+                f"{API_BASE_URL}/api/import/materials/dry-run",
+                files=files, timeout=60, headers=headers,
+            )
             if resp.status_code >= 400:
                 detail = resp.json().get("detail") if resp.headers.get("content-type", "").startswith("application/json") else resp.text
                 st.error(f"干跑失败: {detail}")
@@ -118,9 +128,7 @@ if result:
         help="若取消勾选,出现新单位的行将以错误处理",
     )
 
-    can_commit = bool(operator and (result["insert_count"] + result["update_count"]) > 0)
-    if not operator:
-        st.warning("请先在上方填写操作人姓名")
+    can_commit = (result["insert_count"] + result["update_count"]) > 0
 
     if st.button("✅ 确认导入", type="primary", disabled=not can_commit):
         # 只提交非 ERROR 的行
@@ -128,7 +136,7 @@ if result:
         try:
             payload = {
                 "file_name": st.session_state.get("dry_run_filename") or "unknown.xlsx",
-                "operator": operator,
+                # operator 由后端从登录用户取,不再前端传
                 "auto_create_units": auto_create_units,
                 "rows": valid_rows,
             }

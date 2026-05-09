@@ -1,76 +1,116 @@
 """
 文件: backend/routers/inventory.py
-用途: 出入库流水 API:对已有批次追加入库 / 出库 / 调整 / 流水查询
-约束:
-    - 出库数量不可超过批次实时库存
-    - 调整无强制约束(允许将库存从 5 调到 4),但若结果为负数会拒绝
+用途: 出入库流水 API
+v1.1:
+    - 写操作要求 admin
+    - operator 自动取登录用户
+    - 触发 audit_log
 """
 from __future__ import annotations
 
 from typing import List, Optional
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 import crud
+from audit import model_snapshot, write_audit
+from auth import require_admin
 from database import get_db
+from models import AppUser
 from schemas import (
-    TxnInRequest,
-    TxnOutRequest,
     TxnAdjustRequest,
+    TxnInRequest,
     TxnOut,
+    TxnOutRequest,
 )
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
 
 @router.post("/in", response_model=TxnOut)
-def receive_in(payload: TxnInRequest, db: Session = Depends(get_db)):
+def receive_in(
+    payload: TxnInRequest,
+    request: Request,
+    current: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """已有批次追加入库。"""
     b = crud.get_batch(db, payload.batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {payload.batch_id} 不存在")
     txn = crud.add_in(
-        db, payload.batch_id, payload.qty, payload.txn_date, payload.operator, payload.remark
+        db, payload.batch_id, payload.qty, payload.txn_date, current.username, payload.remark
     )
+    write_audit(
+        db, current, "inventory.in",
+        entity_type="inventory_txn", entity_id=txn.txn_id,
+        before=None, after=model_snapshot(txn),
+        source_ip=request.client.host if request.client else None,
+    )
+    db.commit()
     return _to_txn_out(db, txn)
 
 
 @router.post("/out", response_model=TxnOut)
-def issue_out(payload: TxnOutRequest, db: Session = Depends(get_db)):
+def issue_out(
+    payload: TxnOutRequest,
+    request: Request,
+    current: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """从指定批次出库。"""
     b = crud.get_batch(db, payload.batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {payload.batch_id} 不存在")
-    current = crud.get_batch_qty(db, payload.batch_id)
-    if payload.qty > current:
+    current_qty = crud.get_batch_qty(db, payload.batch_id)
+    if payload.qty > current_qty:
         raise HTTPException(
             status_code=400,
-            detail=f"出库数量 {payload.qty} 超过批次现有库存 {current}",
+            detail=f"出库数量 {payload.qty} 超过批次现有库存 {current_qty}",
         )
     txn = crud.add_out(
         db, payload.batch_id, payload.qty, payload.txn_date,
-        payload.operator, payload.purpose, payload.remark,
+        current.username, payload.purpose, payload.remark,
     )
+    write_audit(
+        db, current, "inventory.out",
+        entity_type="inventory_txn", entity_id=txn.txn_id,
+        before=None, after=model_snapshot(txn),
+        source_ip=request.client.host if request.client else None,
+    )
+    db.commit()
     return _to_txn_out(db, txn)
 
 
 @router.post("/adjust", response_model=TxnOut)
-def adjust(payload: TxnAdjustRequest, db: Session = Depends(get_db)):
+def adjust(
+    payload: TxnAdjustRequest,
+    request: Request,
+    current: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """盘点调整,可正可负;但调整后批次库存不得 < 0。"""
     b = crud.get_batch(db, payload.batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {payload.batch_id} 不存在")
-    current = crud.get_batch_qty(db, payload.batch_id)
-    if current + payload.qty < 0:
+    current_qty = crud.get_batch_qty(db, payload.batch_id)
+    if current_qty + payload.qty < 0:
         raise HTTPException(
             status_code=400,
-            detail=f"调整后库存为负({current} + {payload.qty} < 0),已拒绝",
+            detail=f"调整后库存为负({current_qty} + {payload.qty} < 0),已拒绝",
         )
     txn = crud.add_adjust(
-        db, payload.batch_id, payload.qty, payload.txn_date, payload.operator, payload.remark
+        db, payload.batch_id, payload.qty, payload.txn_date, current.username, payload.remark
     )
+    write_audit(
+        db, current, "inventory.adjust",
+        entity_type="inventory_txn", entity_id=txn.txn_id,
+        before=None, after=model_snapshot(txn),
+        source_ip=request.client.host if request.client else None,
+    )
+    db.commit()
     return _to_txn_out(db, txn)
 
 

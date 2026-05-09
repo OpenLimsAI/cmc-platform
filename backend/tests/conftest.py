@@ -38,7 +38,7 @@ from database import engine, SessionLocal  # noqa: E402  (after sys.path tweak)
 
 @pytest.fixture(scope="session")
 def _prepare_schema():
-    """重建 material_mgmt schema 并跑 init.sql。
+    """重建 material_mgmt schema 并跑 init.sql,顺手建一个测试 admin。
     连不上库时跳过依赖该 fixture 的测试,但纯函数测试(如 test_severity)不受影响。
     """
     sql_init = (BACKEND_DIR.parent / "sql" / "init.sql").read_text(encoding="utf-8")
@@ -61,29 +61,78 @@ def _prepare_schema():
         cur.close()
     finally:
         raw.close()
+
+    # 建一个测试 admin(must_change_password=False,免去强制改密路径)
+    from auth import hash_password  # 延迟 import,避免循环
+    from models import AppUser
+    s = SessionLocal()
+    try:
+        if not s.execute(text("SELECT 1 FROM app_user WHERE username='testadmin'")).first():
+            s.add(AppUser(
+                username="testadmin",
+                password_hash=hash_password("test_pwd_123"),
+                role="admin",
+                is_active=True,
+                must_change_password=False,
+            ))
+            s.commit()
+    finally:
+        s.close()
+
     yield
     # 测试完保留 schema,方便用 psql 看现场;需要清理可手动 DROP
 
 
 @pytest.fixture
 def db(_prepare_schema):
-    """每个测试一个 session;结束后 TRUNCATE 业务表保持隔离。"""
+    """每个测试一个 session;结束后 TRUNCATE 业务表保持隔离。
+    app_user / auth_session / audit_log 不清,使 testadmin 与 token 跨测试可复用。
+    若某测试需要清理审计日志,自己在用例里清。
+    """
     session = SessionLocal()
     try:
         yield session
     finally:
         session.close()
-        # 清空业务数据(unit_dict / location 的预置值保留,category_dict 也清)
         with engine.begin() as conn:
             conn.execute(text(
-                "TRUNCATE inventory_txn, batch, material, import_log, category_dict "
+                "TRUNCATE inventory_txn, batch, material, import_log, category_dict, audit_log "
                 "RESTART IDENTITY CASCADE"
             ))
 
 
 @pytest.fixture
 def client(db):
-    """FastAPI TestClient,DI 替换 get_db 走测试 session。"""
+    """FastAPI TestClient,DI 替换 get_db 走测试 session;
+    自动以 testadmin 登录,后续 client.get/post 自带 Bearer token。
+    """
+    from fastapi.testclient import TestClient
+    from main import app
+    from database import get_db
+
+    def _override():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = _override
+    with TestClient(app) as c:
+        # 登录拿 token
+        resp = c.post("/api/auth/login", json={
+            "username": "testadmin", "password": "test_pwd_123",
+        })
+        if resp.status_code != 200:
+            raise RuntimeError(f"测试 admin 登录失败: {resp.status_code} {resp.text}")
+        token = resp.json()["access_token"]
+        c.headers.update({"Authorization": f"Bearer {token}"})
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def anon_client(db):
+    """匿名 TestClient(无 token),用于测 401 / 公开接口。"""
     from fastapi.testclient import TestClient
     from main import app
     from database import get_db

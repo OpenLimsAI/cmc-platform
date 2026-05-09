@@ -14,7 +14,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from routers import material, batch, inventory, stock, import_data, location
+from fastapi import Depends
+
+from routers import (
+    admin_router, auth_router, batch, import_data, inventory,
+    location, material, stock,
+)
+from auth import ensure_initial_admin, get_current_user, require_password_not_pending
+from database import SessionLocal
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("cmc-inventory")
@@ -56,6 +63,21 @@ async def value_error_handler(_: Request, exc: ValueError):
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.on_event("startup")
+def _startup_init_admin():
+    """首次启动时,若 ADMIN_INITIAL_PASSWORD 已注入且 app_user 为空,自动建 admin。"""
+    db = SessionLocal()
+    try:
+        admin = ensure_initial_admin(db)
+        if admin:
+            log.info("已创建初始 admin 账号(must_change_password=True)")
+    except Exception as e:
+        # 启动期任何 DB 错误不应阻塞服务启动 —— 让健康检查可访问,业务调用再失败
+        log.exception("初始化 admin 失败: %s", e)
+    finally:
+        db.close()
+
+
 @app.get("/", tags=["health"])
 def root():
     return {"name": "CMC 物料管理系统", "status": "ok"}
@@ -67,9 +89,16 @@ def health():
 
 
 # 路由注册
-app.include_router(material.router)
-app.include_router(batch.router)
-app.include_router(inventory.router)
-app.include_router(stock.router)
-app.include_router(import_data.router)
-app.include_router(location.router)
+# auth_router 不挂默认鉴权(登录是匿名),它内部各 endpoint 自己控制
+app.include_router(auth_router.router)
+
+# 业务路由统一要求登录 + 已通过强制改密;具体写操作再叠加 require_admin
+_AUTHED_DEPS = [Depends(get_current_user), Depends(require_password_not_pending)]
+app.include_router(material.router,    dependencies=_AUTHED_DEPS)
+app.include_router(batch.router,       dependencies=_AUTHED_DEPS)
+app.include_router(inventory.router,   dependencies=_AUTHED_DEPS)
+app.include_router(stock.router,       dependencies=_AUTHED_DEPS)
+app.include_router(import_data.router, dependencies=_AUTHED_DEPS)
+app.include_router(location.router,    dependencies=_AUTHED_DEPS)
+# admin_router 内部各 endpoint 用 require_admin 显式控制(仍需登录基础)
+app.include_router(admin_router.router, dependencies=_AUTHED_DEPS)
