@@ -1,6 +1,10 @@
 """
 文件: frontend/pages/2_物料管理.py
-用途: 物料检索 + 安全库存维护 + 停用/启用
+用途: 物料检索 + 新增 + 编辑 + 安全库存维护 + 停用/启用
+v1.1-B:
+    - 顶部加"➕ 新增物料" expander,全字段表单(单条录入)
+    - 行内操作加"编辑物料" tab,可改除 material_code 之外的所有信息字段
+    - "设置安全库存"/"停用"/"启用" 仍保留作为高频快捷动作
 """
 from __future__ import annotations
 
@@ -11,16 +15,85 @@ import streamlit as st
 
 from utils import (
     api_get, api_patch, api_post, APIError,
-    get_categories, fmt_null, clear_material_cache,
+    get_categories, get_units, fmt_null, clear_material_cache,
 )
 
 st.set_page_config(page_title="物料管理", page_icon="🗂️", layout="wide")
 st.header("🗂️ 物料管理")
 
-# 顶部筛选
+units = get_units()
+cats_existing = get_categories()
+
+# ============================================================================
+# ➕ 新增物料(B.2)
+# ============================================================================
+with st.expander("➕ 新增物料(单条录入)", expanded=False):
+    st.caption(
+        "代码列保留前导 0;新分类会自动加入字典。批量录入请走「物料导入」页。"
+    )
+    if not units:
+        st.warning("单位字典为空,无法新增。请先初始化 unit_dict 表。")
+    else:
+        with st.form("new_material_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                n_code = st.text_input("代码 *", max_chars=20,
+                                        placeholder="如 42001 / 04321")
+                n_name = st.text_input("物料名称 *", max_chars=200)
+                n_unit = st.selectbox("单位 *", units, index=0)
+                n_safety = st.number_input("安全库存", min_value=0.0, step=1.0, value=0.0)
+            with col2:
+                cats_hint = f"已有: {', '.join(cats_existing[:10])}" + (
+                    " ..." if len(cats_existing) > 10 else ""
+                ) if cats_existing else "首次新增请直接填,会自动加入字典"
+                n_cat = st.text_input("分类", help=cats_hint)
+                n_grade = st.text_input("级别")
+                n_mfr = st.text_input("生产商")
+                n_spec = st.text_input("规格/型号")
+
+            col3, col4 = st.columns(2)
+            with col3:
+                n_catalog = st.text_input("货号")
+            with col4:
+                n_pkg = st.text_input("包装规格")
+            n_remark = st.text_area("备注", height=80)
+
+            submit_new = st.form_submit_button("✅ 创建物料", type="primary")
+
+        if submit_new:
+            n_code = (n_code or "").strip()
+            n_name = (n_name or "").strip()
+            if not n_code or not n_name or not n_unit:
+                st.error("代码 / 物料名称 / 单位 为必填")
+            else:
+                try:
+                    api_post("/api/materials", json={
+                        "material_code": n_code,
+                        "category": (n_cat or "").strip() or None,
+                        "name_cn": n_name,
+                        "grade": (n_grade or "").strip() or None,
+                        "manufacturer": (n_mfr or "").strip() or None,
+                        "spec_model": (n_spec or "").strip() or None,
+                        "catalog_no": (n_catalog or "").strip() or None,
+                        "unit": n_unit,
+                        "package_spec": (n_pkg or "").strip() or None,
+                        "remark": (n_remark or "").strip() or None,
+                        "safety_stock": str(Decimal(str(n_safety))),
+                    })
+                    st.success(f"物料 `{n_code}` 创建成功!")
+                    clear_material_cache()
+                    st.rerun()
+                except APIError as e:
+                    st.error(f"创建失败: {e}")
+
+st.markdown("---")
+
+# ============================================================================
+# 检索 + 列表
+# ============================================================================
 c1, c2, c3, c4 = st.columns([2, 3, 2, 1])
 with c1:
-    cats = ["(全部分类)"] + get_categories()
+    cats = ["(全部分类)"] + cats_existing
     cat = st.selectbox("分类", cats, index=0)
 with c2:
     keyword = st.text_input("代码 / 名称 模糊搜索", "")
@@ -31,7 +104,6 @@ with c4:
         clear_material_cache()
         st.rerun()
 
-# 拉取数据
 params = {}
 if cat != "(全部分类)":
     params["category"] = cat
@@ -49,7 +121,7 @@ except APIError as e:
 st.caption(f"共 {len(materials)} 条")
 
 if not materials:
-    st.info("无数据。可前往「物料导入」页导入主数据。")
+    st.info("无数据。可前往「物料导入」页批量导入,或在上方「➕ 新增物料」单条录入。")
 else:
     # 表格(只读概览)
     df = pd.DataFrame([
@@ -84,7 +156,85 @@ else:
             f"安全库存 = `{m.get('safety_stock') or 0}`"
         )
 
-        tab_safety, tab_deact, tab_act = st.tabs(["设置安全库存", "停用", "启用"])
+        tab_edit, tab_safety, tab_deact, tab_act = st.tabs(
+            ["编辑物料", "设置安全库存", "停用", "启用"]
+        )
+
+        # ---- 编辑物料(B.3)----
+        with tab_edit:
+            if not is_active:
+                st.warning("物料已停用,如需修改请先在「启用」tab 中恢复。")
+            elif not units:
+                st.warning("单位字典为空,无法编辑单位。")
+            else:
+                code_key = m["material_code"]  # 用作 widget key,避免不同物料窗体串台
+                cur_unit_idx = units.index(m["unit"]) if m.get("unit") in units else 0
+                with st.form(f"edit_form_{code_key}", clear_on_submit=False):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        ed_name = st.text_input(
+                            "物料名称 *", value=m.get("name_cn") or "", max_chars=200,
+                            key=f"ed_name_{code_key}",
+                        )
+                        ed_unit = st.selectbox(
+                            "单位 *", units, index=cur_unit_idx,
+                            key=f"ed_unit_{code_key}",
+                        )
+                        ed_grade = st.text_input(
+                            "级别", value=m.get("grade") or "",
+                            key=f"ed_grade_{code_key}",
+                        )
+                        ed_mfr = st.text_input(
+                            "生产商", value=m.get("manufacturer") or "",
+                            key=f"ed_mfr_{code_key}",
+                        )
+                    with col2:
+                        ed_cat = st.text_input(
+                            "分类", value=m.get("category") or "",
+                            help="改成新值会自动加入分类字典",
+                            key=f"ed_cat_{code_key}",
+                        )
+                        ed_spec = st.text_input(
+                            "规格/型号", value=m.get("spec_model") or "",
+                            key=f"ed_spec_{code_key}",
+                        )
+                        ed_catalog = st.text_input(
+                            "货号", value=m.get("catalog_no") or "",
+                            key=f"ed_cat_no_{code_key}",
+                        )
+                        ed_pkg = st.text_input(
+                            "包装规格", value=m.get("package_spec") or "",
+                            key=f"ed_pkg_{code_key}",
+                        )
+                    ed_remark = st.text_area(
+                        "备注", value=m.get("remark") or "", height=80,
+                        key=f"ed_remark_{code_key}",
+                    )
+                    submit_edit = st.form_submit_button("💾 保存修改", type="primary")
+
+                if submit_edit:
+                    ed_name_clean = (ed_name or "").strip()
+                    if not ed_name_clean or not ed_unit:
+                        st.error("物料名称 / 单位 为必填")
+                    else:
+                        try:
+                            # 后端 update_material 会自动把新分类加入 category_dict
+                            api_patch(f"/api/materials/{code_key}", json={
+                                "category": (ed_cat or "").strip() or None,
+                                "name_cn": ed_name_clean,
+                                "grade": (ed_grade or "").strip() or None,
+                                "manufacturer": (ed_mfr or "").strip() or None,
+                                "spec_model": (ed_spec or "").strip() or None,
+                                "catalog_no": (ed_catalog or "").strip() or None,
+                                "unit": ed_unit,
+                                "package_spec": (ed_pkg or "").strip() or None,
+                                "remark": (ed_remark or "").strip() or None,
+                            })
+                            st.success("已保存")
+                            clear_material_cache()
+                            st.rerun()
+                        except APIError as e:
+                            st.error(str(e))
 
         with tab_safety:
             new_val = st.number_input(
@@ -110,7 +260,8 @@ else:
                 try:
                     rows = api_get(
                         "/api/stock/by-material",
-                        params={"keyword": m["material_code"], "include_inactive": "true"},
+                        params={"keyword": m["material_code"], "include_inactive": "true",
+                                "only_positive": "false"},
                     ) or []
                     hit = next((r for r in rows if r["material_code"] == m["material_code"]), None)
                     if hit:

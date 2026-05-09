@@ -13,6 +13,7 @@ import crud
 from database import get_db
 from schemas import (
     MaterialOut,
+    MaterialCreate,
     MaterialUpdate,
     DeactivateRequest,
     UnitOut,
@@ -42,6 +43,16 @@ def list_materials(
         is_active=is_active,
         include_inactive=include_inactive,
     )
+
+
+@router.post("/materials", response_model=MaterialOut, status_code=201)
+def create_material(payload: MaterialCreate, db: Session = Depends(get_db)):
+    """单条创建物料。冲突 / 单位不存在等业务错误返 400。"""
+    try:
+        return crud.create_material(db, payload.model_dump())
+    except ValueError as e:
+        # 业务校验失败,翻 400 并把中文消息透出
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/materials/{code}", response_model=MaterialOut)

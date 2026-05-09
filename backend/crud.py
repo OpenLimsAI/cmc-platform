@@ -76,14 +76,68 @@ def get_material(db: Session, code: str) -> Optional[Material]:
     return db.get(Material, code)
 
 
+def create_material(db: Session, data: dict) -> Material:
+    """单条创建物料(供「物料管理」页"新增"按钮用)。
+    校验:
+        - material_code 不能与已有(含已停用)冲突
+        - unit 必须在 unit_dict 中(否则 FK 报错)
+        - category 若为新值,自动追加到 category_dict(与 Excel 导入流程一致)
+    上层 router 把业务异常翻成 HTTPException。
+    """
+    code = data.get("material_code")
+    if not code:
+        raise ValueError("material_code 不能为空")
+
+    if db.get(Material, code):
+        raise ValueError(f"物料代码 {code} 已存在,请改用「编辑物料」修改信息")
+
+    unit = data.get("unit")
+    if not unit:
+        raise ValueError("unit 不能为空")
+    if not db.get(UnitDict, unit):
+        raise ValueError(f"单位 '{unit}' 不在字典中,请先维护单位字典")
+
+    category = data.get("category")
+    if category and not db.get(CategoryDict, category):
+        # 与导入流程一致:文件中遇到新分类自动加入字典
+        db.add(CategoryDict(category=category))
+
+    obj = Material(
+        material_code=code,
+        category=category,
+        name_cn=data["name_cn"],
+        grade=data.get("grade"),
+        manufacturer=data.get("manufacturer"),
+        spec_model=data.get("spec_model"),
+        catalog_no=data.get("catalog_no"),
+        unit=unit,
+        package_spec=data.get("package_spec"),
+        remark=data.get("remark"),
+        safety_stock=data.get("safety_stock") or Decimal("0"),
+        is_active=True,
+        import_batch_id=None,  # 手工录入,不挂导入批次
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 def update_material(db: Session, code: str, data: dict) -> Optional[Material]:
     """data 来自 router 的 model_dump(exclude_unset=True),
     所以 dict 里的每个 key 都是用户显式传的字段;value=None 视为"清空"。
     必填字段(name_cn/unit)若被传 None,会触发 IntegrityError 由全局处理器返回 400。
+    若 category 改为字典中尚未存在的新值,自动加入 category_dict
+    (与 create_material 行为一致)。
     """
     obj = db.get(Material, code)
     if not obj:
         return None
+
+    new_cat = data.get("category")
+    if new_cat and not db.get(CategoryDict, new_cat):
+        db.add(CategoryDict(category=new_cat))
+
     for k, v in data.items():
         setattr(obj, k, v)
     db.commit()
