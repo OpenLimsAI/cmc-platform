@@ -599,16 +599,56 @@ cd template && python3 generate_template.py
 
 ---
 
-## 十三、迭代路线图(MVP 之后,仅作参考)
+## 十三、迭代路线图
+
+### 13.A v1.1 实施计划(已确认,即将开发)
+
+MVP 上线后实际使用中暴露的问题与高频功能诉求,合并为 v1.1。按依赖与价值分**三阶段**滚动交付,每阶段独立 push、独立可发版,服务器按 §10.B 流程拉新代码即可。
+
+#### 阶段 A — Hot Fix(1-2 天)
+
+| # | 问题 | 改动范围 |
+|---|---|---|
+| A.1 | 入库登记搜索:含中文/全角字符时部分关键字搜不到 | `frontend/utils.py` 加 NFKC 归一化函数 + `material_label` / 搜索过滤函数都用归一化后的值比对 |
+| A.2 | 库存查询默认显示零库存物料,信噪比低 | `backend/crud.py.stock_by_material` 加 `only_positive` 参数(默认 True);`backend/routers/stock.py` 暴露同名 query;`frontend/pages/5_库存查询.py` 加"包含零库存"复选框,默认关 |
+
+#### 阶段 B — 物料维护补全(2-3 天)
+
+| # | 改动 | 范围 |
+|---|---|---|
+| B.1 | 后端新增 `POST /api/materials`(单条创建) | `backend/routers/material.py`;`backend/crud.py` 加 `create_material`;`schemas.py` 复用 `MaterialCreate` |
+| B.2 | 「物料管理」页加"➕ 新增物料"按钮 + 完整表单 | `frontend/pages/2_物料管理.py`;含字段:代码、分类、名称、级别、生产商、规格/型号、货号、单位、包装规格、备注、安全库存 |
+| B.3 | 「物料管理」页加"✏️ 编辑物料"完整表单 | 同上文件;后端 PATCH 已支持,只补前端 UI;允许改除 `material_code`/`is_active` 外所有字段 |
+
+> 「物料导入」页保持不变,继续负责 Excel 批量。两条路径(单条 / 批量)语义清晰。
+
+#### 阶段 C — 用户系统 + 审计追踪(约 1 周)
+
+技术选型:**streamlit-authenticator** 库 + 后端简单 token 验证。
+
+| # | 改动 | 范围 |
+|---|---|---|
+| C.1 | 数据模型 | 新增 `app_user`(id / username / password_hash / role / is_active / created_at)、`audit_log`(id / user_id / action / entity_type / entity_id / before_json / after_json / source_ip / created_at);`sql/init.sql` 增量补丁 + 一份 `sql/migrate_v1.1.sql` |
+| C.2 | 后端鉴权 | `POST /api/auth/login` 返 token;FastAPI 依赖 `current_user` 注入路由;写操作 router 在事务内调 `audit_log_helper(...)` 写日志 |
+| C.3 | 角色控制 | `admin` / `user` 两档:user 仅 GET,admin 才能 POST/PATCH;后端中间件级控制(403),前端按 role 隐藏按钮 |
+| C.4 | 前端登录 | streamlit-authenticator 接 cookie session;首次启动用预置 admin(`.env` 注入初始密码,首次登录强制改);把所有页里"经办人 *"输入框改为**自动取登录用户名**(只读展示,不再手填) |
+| C.5 | 用户管理页 | 新增「用户管理」页(`8_用户管理.py`),仅 admin 可见:列表、新增、改密、停用 |
+| C.6 | 审计追踪查看 | 「用户管理」页中加"操作日志" tab,仅 admin 可见,可按用户/实体/时间段筛选 |
+
+#### 与原"远期路线图"的关系
+
+原 v1.4(用户登录 + RBAC)、原 v2.1 的"审计追踪"部分,**提前到 v1.1**,因为 MVP 实际跑起来后这两项是最影响日常使用的。`v1.4` 中"对接公司 AD"延后到 SSO 阶段。
+
+### 13.B 远期路线图(MVP 之后,仅作参考)
 
 | 阶段 | 计划功能 |
 |------|---------|
-| v1.1 | 申购单(PR) + 简单审批流 |
-| v1.2 | CoA 文件上传 + 关联批次 |
-| v1.3 | 供应商主数据 + 质量状态(待检/合格/不合格) |
-| v1.4 | 用户登录(对接公司 AD)+ RBAC |
+| v1.2 | 申购单(PR) + 简单审批流 |
+| v1.3 | CoA 文件上传 + 关联批次 |
+| v1.4 | 供应商主数据 + 质量状态(待检/合格/不合格) |
+| v1.5 | 对接公司 AD / SSO(替换 v1.1 的本地账号体系) |
 | v2.0 | 与 `rd_budget` 库联动 + 预算占用校验 |
-| v2.1 | GMP 合规模式: 审计追踪、电子签名(21 CFR Part 11) |
+| v2.1 | GMP 合规模式增强: 电子签名(21 CFR Part 11)、变更控制 |
 | v3.0 | 替换前端为 Vue3,支持移动端扫码出入库 |
 
 ---
