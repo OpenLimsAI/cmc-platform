@@ -12,7 +12,7 @@ import streamlit as st
 
 from utils import (
     api_get, api_post, APIError,
-    get_categories, get_materials, material_label,
+    get_categories, get_materials, material_label, fuzzy_match_material,
 )
 
 st.set_page_config(page_title="出库登记", page_icon="📤", layout="wide")
@@ -57,11 +57,7 @@ with c2:
 filtered = [
     m for m in choices
     if (cat == "(全部)" or m.get("category") == cat)
-       and (
-           not keyword
-           or keyword.lower() in m["material_code"].lower()
-           or keyword.lower() in m["name_cn"].lower()
-       )
+       and fuzzy_match_material(m, keyword)
 ]
 if not filtered:
     st.info("无匹配物料")

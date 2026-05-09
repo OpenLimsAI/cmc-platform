@@ -5,10 +5,13 @@
     - API_BASE_URL 从环境变量读取(docker-compose 注入)
     - 提供 cache_data 包裹的字典加载,降低下拉响应延迟
     - 友好错误处理:把 HTTP 错误转成中文提示
+    - 关键字搜索归一化:NFKC + lower + 去空白,兼容全角/半角混用
 """
 from __future__ import annotations
 
 import os
+import re
+import unicodedata
 from typing import Any, Optional, List, Dict
 
 import requests
@@ -117,3 +120,38 @@ def material_label(m: Dict) -> str:
     spec = m.get("spec_model")
     base = f"{m['material_code']} - {m['name_cn']}"
     return f"{base}({spec})" if spec else base
+
+
+# ---------------------------------------------------------------------------
+# 文本归一化(供模糊搜索使用)
+#
+# 解决 bug:用户在「入库登记」搜索时,因数据/输入混用全角半角(如 全角括号
+# 「(」 vs 半角 「(」、全角空格 vs 半角空格)导致匹配失败。
+# 用 Unicode NFKC 把全角折叠为半角,再去掉所有空白,再 lower。
+# ---------------------------------------------------------------------------
+_WS_RE = re.compile(r"\s+")
+
+
+def normalize_text(s: Optional[str]) -> str:
+    """归一化文本用于模糊匹配:NFKC 折叠 → 去全部空白 → lower。"""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKC", str(s))
+    s = _WS_RE.sub("", s)
+    return s.lower()
+
+
+def fuzzy_match_material(m: Dict, keyword: str) -> bool:
+    """归一化后判断关键字是否落在 material_code / name_cn / spec_model / catalog_no 之内。
+    匹配范围特意比原来宽,避免"用户记得的字符串"与"录入字段"放错位置导致搜不到。
+    """
+    if not keyword:
+        return True
+    k = normalize_text(keyword)
+    if not k:
+        return True
+    haystack = "|".join(
+        normalize_text(m.get(field))
+        for field in ("material_code", "name_cn", "spec_model", "catalog_no")
+    )
+    return k in haystack

@@ -342,10 +342,13 @@ def stock_by_material(
     keyword: Optional[str] = None,
     include_inactive: bool = False,
     exclude_expired: bool = True,
+    only_positive: bool = True,
 ) -> List[dict]:
     """物料级总库存(实时聚合 inventory_txn)。
     exclude_expired=True 时,已过期批次的 txn 不计入「可用总库存」(README §5.5 规则);
     需要含过期的全量库存时显式传 False。
+    only_positive=True(默认)时,只返回总库存 > 0 的物料 —— 默认就是用户最常看
+    的"在库视图";勾"包含零库存"再传 False 看完整目录。
     """
     qty_subq_inner = (
         select(
@@ -385,6 +388,8 @@ def stock_by_material(
     out = []
     for row in db.execute(stmt).all():
         total_qty = Decimal(row.total_qty)
+        if only_positive and total_qty <= 0:
+            continue
         safety = Decimal(row.safety_stock or 0)
         low = bool(safety > 0 and total_qty < safety)
         out.append({
@@ -525,8 +530,10 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
 
 
 def low_stock_alerts(db: Session) -> List[dict]:
-    """低库存预警:total_qty < safety_stock 且 safety_stock > 0,只看在用物料。"""
-    rows = stock_by_material(db, include_inactive=False)
+    """低库存预警:total_qty < safety_stock 且 safety_stock > 0,只看在用物料。
+    显式传 only_positive=False,确保 0 库存物料也参与预警判断
+    (零库存 < safety_stock 是最该报警的情况)。"""
+    rows = stock_by_material(db, include_inactive=False, only_positive=False)
     return [
         {
             "material_code": r["material_code"],

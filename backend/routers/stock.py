@@ -26,11 +26,18 @@ def by_material(
     keyword: Optional[str] = None,
     include_inactive: bool = False,
     exclude_expired: bool = True,
+    only_positive: bool = True,
     db: Session = Depends(get_db),
 ):
-    """物料级总库存。默认排除已过期批次(可用库存口径,README §5.5)。"""
+    """物料级总库存。
+    - 默认排除已过期批次(可用库存口径,README §5.5)
+    - 默认 only_positive=True,只返回总库存 > 0 的物料(用户日常视图);
+      勾"包含零库存"传 False 看完整目录
+    """
     return crud.stock_by_material(
-        db, category, keyword, include_inactive, exclude_expired=exclude_expired,
+        db, category, keyword, include_inactive,
+        exclude_expired=exclude_expired,
+        only_positive=only_positive,
     )
 
 

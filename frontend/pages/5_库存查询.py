@@ -20,7 +20,7 @@ categories = get_categories()
 locations = get_locations()
 loc_map = {"(全部位置)": None, **{l["name"]: l["location_id"] for l in locations}}
 
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
     cat = st.selectbox("分类", ["(全部分类)"] + categories)
 with c2:
@@ -30,6 +30,9 @@ with c3:
 with c4:
     inc_expired = st.checkbox("含已过期(批次)", value=False)
 with c5:
+    # 默认排除零库存:用户日常视图。勾选后包含 0 库存物料/批次,看完整目录
+    inc_zero = st.checkbox("含零库存", value=False)
+with c6:
     loc_name = st.selectbox("储存位置(批次)", list(loc_map.keys()))
 
 params = {}
@@ -41,8 +44,12 @@ if inc_inactive:
     params["include_inactive"] = "true"
 
 if view == "按物料汇总":
+    bp = dict(params)
+    # only_positive=True 是后端默认。勾"含零库存" → 显式传 false
+    if inc_zero:
+        bp["only_positive"] = "false"
     try:
-        rows = api_get("/api/stock/by-material", params=params) or []
+        rows = api_get("/api/stock/by-material", params=bp) or []
     except APIError as e:
         st.error(str(e))
         rows = []
@@ -75,6 +82,9 @@ if view == "按物料汇总":
 else:  # 按批次明细
     bp = dict(params)
     bp["include_expired"] = str(inc_expired).lower()
+    # only_positive 在 by-batch 后端默认就是 True;勾"含零库存"传 false
+    if inc_zero:
+        bp["only_positive"] = "false"
     if loc_map.get(loc_name) is not None:
         bp["location_id"] = loc_map[loc_name]
 
