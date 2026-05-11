@@ -15,7 +15,6 @@ import streamlit as st
 from utils import api_get, api_post, api_patch, APIError
 from auth_helper import require_admin, get_user
 
-st.set_page_config(page_title="用户管理", page_icon="👤", layout="wide")
 require_admin()
 st.header("👤 用户管理")
 

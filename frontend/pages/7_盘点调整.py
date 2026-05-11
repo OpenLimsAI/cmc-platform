@@ -20,7 +20,6 @@ from utils import (
 )
 from auth_helper import require_admin, get_user
 
-st.set_page_config(page_title="盘点调整", page_icon="🧮", layout="wide")
 require_admin()
 st.header("🧮 盘点调整")
 st.caption("把账面库存修正为实际盘点数;调整后批次库存不得 < 0。")

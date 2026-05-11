@@ -12,7 +12,6 @@ import streamlit as st
 from utils import api_get, APIError, get_categories, get_locations, fmt_null
 from auth_helper import require_login
 
-st.set_page_config(page_title="库存查询", page_icon="📊", layout="wide")
 require_login()
 st.header("📊 库存查询")
 

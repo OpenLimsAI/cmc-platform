@@ -13,7 +13,6 @@ import streamlit as st
 from utils import api_get, api_post, APIError, clear_material_cache, API_BASE_URL
 from auth_helper import require_admin, get_user
 
-st.set_page_config(page_title="物料导入", page_icon="📥", layout="wide")
 require_admin()
 st.header("📥 物料主数据导入")
 

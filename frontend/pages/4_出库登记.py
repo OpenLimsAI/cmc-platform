@@ -16,7 +16,6 @@ from utils import (
 )
 from auth_helper import require_admin, get_user
 
-st.set_page_config(page_title="出库登记", page_icon="📤", layout="wide")
 require_admin()
 st.header("📤 出库登记")
 _user = get_user()

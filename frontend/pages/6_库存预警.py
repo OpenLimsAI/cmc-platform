@@ -17,7 +17,6 @@ import streamlit as st
 from utils import api_get, APIError, fmt_null
 from auth_helper import require_login
 
-st.set_page_config(page_title="库存预警", page_icon="⚠️", layout="wide")
 require_login()
 st.header("⚠️ 库存预警")
 

@@ -19,7 +19,6 @@ from utils import (
 )
 from auth_helper import require_login, is_admin
 
-st.set_page_config(page_title="物料管理", page_icon="🗂️", layout="wide")
 require_login()
 st.header("🗂️ 物料管理")
 
