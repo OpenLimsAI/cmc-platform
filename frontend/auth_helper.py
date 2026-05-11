@@ -133,6 +133,8 @@ def require_login() -> None:
     """每个 page 顶部调用。
     未登录 → 显示登录表单 + st.stop()
     需要改密 → 显示改密表单 + st.stop()
+    用户卡片(render_user_chip) 由入口 app.py 统一调,这里不再重复 render
+    避免 sidebar 出现两份。
     """
     if not is_logged_in():
         # 简化:在 page 顶部直接渲染登录表单
@@ -143,7 +145,6 @@ def require_login() -> None:
         st.title("🔑 修改密码")
         render_change_password_form()
         st.stop()
-    render_user_chip()
 
 
 def require_admin() -> None:
