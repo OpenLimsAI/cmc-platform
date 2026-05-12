@@ -7,48 +7,178 @@
 | 状态 | 待 CMC IT 架构组评审 |
 | 上位文档 | DM-MDM-001 V1.1 / ARCH-MDM-001 V1.1 / API-MDM-001 V1.1 / UI-MDM-001 V1.1 |
 | 编制 | CMC R&D（实施侧） |
-| 日期 | 2026-05-12 |
+| 日期 | 2026-05-13 |
 | 分类 | 合规审计配套文档 |
-| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（本版，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查） |
+| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地 — 推翻 §2/§3/§6 原"100% 对齐"声明，重列 SRS/PRS/ARS/REF 共 39 项偏离与处置） |
 
 ## 1. 文档目的
 
 本版（V1.2）在 V1.1 基础上增补 Phase 3（M3.1-M3.4）实施过程中识别的所有新偏离 / 加强 / 推迟项，并把检查范围从单一的"数据模型设计文档"扩展到 4 个上位文档（数据模型 + 架构 + API + UI 信息架构）。
 
-V1.1 已记录的偏离与处置在第 2-5 节保留不变（部分状态从"待对齐"改为"已对齐"反映 M3.0 实际完成）；V1.2 新增内容集中在第 6-9 节。
+**2026-05-13 修订说明**：原 V1.2 Draft §2 / §3 声明"SRS / PRS 100% 对齐"，§6.1-§6.4 声明"ARS 100% 对齐"，§4 / §6.5-§6.6 声明"REF 三表 deleted_by 完全统一"。经对 §7 SRS / §8 ARS / §9 PRS / §11 REF 四章独立逐条复核（不依赖原 V1.2_draft 自我声明），共发现 **39 项实质偏离**（不计 agent 自我撤销项与已识别的实施加强）。处置如下：
+
+- **Batch A**：SRS §7 4 项 DB 基线缺口（external_uuid UNIQUE / protein hash 索引 × 2 / xref_value 索引 / internal_code partial 索引）— 已通过 **migration 0028** 回归
+- **Batch B**：SRS §7 API/前端表面缺口 — `ProteinExtension` 加 7 字段、`SubstanceXref` 加 effective_date/expiry_date — 已落地后端 schema + 前端表单 + 详情页
+- **Batch S8**：SRS §7.7 触发器 GUC 去除 + service 后置 UPDATE 回填 — 已并入 migration 0028
+- **Batch D**：ARS §8.4 + PRS §9.5 同款触发器 GUC 去除 + REF §11.2 `fk_ref_ps_deleted_by` FK 补齐 + PRS §9.2 索引命名回归 + `ix_project_dates` 新建 — 已通过 **migration 0029** 回归
+- **Batch E**：REF §11.1 `PROJECT_STATUS_FORBID_LINK` service 层校验补齐（terminated project 双侧禁建）— 已落地
+- **Batch F**：ARS/PRS/REF 6 项 API schema 表面暴露（A7-A9 / P9-P10 / R6-R7）— ✅ 已落地（2026-05-13）
+- **Batch C**：SRS §7.3 `molecular_weight_da / pi_theoretical` NUMERIC 类型回归 — 待评估
+- **评审决策类**：P3 team unique 业务语义、P8 project_relationship 上层、各 🟢 加强项吸收等
 
 三类处置标签不变：
 - **🟥 待对齐回归**：将通过迁移强制回归至设计基准。
 - **🟢 实施侧合理加强**：基于合规要求或工程坑位保留实施版本，建议吸收进上位文档下一版。
 - **🟠 未实施 / 推迟**：设计要求但当前阶段未实施的部分，列入后续里程碑。
 
----
-
-## 2. SRS（§7 物质域）— V1.1 状态延续
-
-V1.1 §2 全部条目通过 M3.0.3 migration 0018-0021 完成对齐回归。当前实施与 §7 基准 100% 一致。
-
-V1.2 新发现项：无。
+新增标签：
+- **⚠️ API / 前端表面缺口**：DB 字段齐全但 Pydantic schema / 前端未暴露，归 Batch F 集中补。
 
 ---
 
-## 3. PRS（§9 项目域）— V1.1 状态延续
+## 2. SRS（§7 物质域）— 2026-05-13 重写
 
-V1.1 §3 全部条目通过 M3.0.2 migration 0013-0017 完成对齐回归。
+**原声明**："V1.1 §2 全部条目通过 M3.0.3 migration 0018-0021 完成对齐回归。当前实施与 §7 基准 100% 一致。V1.2 新发现项：无。"
 
-V1.2 新发现项：无（V1.1 §3.3.5 "团队 unique 离开后再加入语义" 仍待 §9.4 文档修订决定）。
+**独立复核结果**：13 项偏离，7 项已修，6 项分类推迟 / 待评审。
+
+### 2.1 🟥 待对齐回归（已修 / migration 0028）
+
+| # | §7.x | 设计要求 | 处置 |
+|---|---|---|---|
+| S1 | §7.2.2 | `uq_substance_external_uuid UNIQUE (external_uuid)` | ✅ migration 0028 `op.create_unique_constraint` 补齐 |
+| S2 | §7.3 | `ix_substance_protein_hc_hash` / `ix_substance_protein_lc_hash` B-tree | ✅ migration 0028 补 2 个索引 |
+| S3 | §7.6 | `ix_substance_xref_value` B-tree | ✅ migration 0028 补 |
+| S4 | §7.2.2 | partial `ix_substance_internal_code WHERE deleted_at IS NULL` | ✅ migration 0028 补（uq 全表 + partial 部分双索引） |
+
+### 2.2 🟥 触发器 GUC 去除（已修 / Batch S8）
+
+| # | §7.x | 设计 vs 实施偏离 | 处置 |
+|---|---|---|---|
+| S8 | §7.7 | V1.1 §7.7 注释明文："change_reason 由 service 层在 INSERT status_history 后显式 UPDATE 回填，触发器**不依赖** PostgreSQL session GUC"。原实施仍走 `current_setting('app.change_reason')` GUC | ✅ migration 0028 REPLACE `srs.fn_substance_status_change` 改写字面量 `'status changed'`；`backend/app/domains/srs/services.py` 状态机 flush 后 UPDATE 回填 `change_reason + e_signature_id` |
+
+### 2.3 ⚠️ API / 前端表面缺口（已修 / Batch B）
+
+| # | §7.x | DB 现状 vs API 暴露 | 处置 |
+|---|---|---|---|
+| S10 | §7.6 | DB 已有 `effective_date` / `expiry_date`（migration 0019）但 `SubstanceXrefBase / Update` Pydantic schema 未暴露 | ✅ 后端 schema 加字段、`services.py` create/add/update_xref 透传、`XrefEditor.tsx` 表单加 DatePicker + 列表两列展示 |
+| S11 | §7.3 | DB 已有 `additional_chains / disulfide_bonds / expression_vector / pi_theoretical / extinction_coefficient / sequence_hash_hc/lc / sequence_length_hc/lc` 但 `ProteinExtension` 未暴露 | ✅ 后端 schema + `get_by_code` 序列化白名单 + `SubstanceCreate/EditPage` 表单 + `SubstanceDetailPage` 展示 3 行新增 |
+
+### 2.4 🟢 实施侧加强（已实施，建议吸收 V1.1 下一版）
+
+| # | §7.x | 加强内容 | 现状 |
+|---|---|---|---|
+| S7 | §7.3 | `fn_substance_protein_compute_hash` 算法增强：设计直接 `digest(NEW.heavy_chain_sequence, 'sha256')`，实施先 `regexp_replace(UPPER(seq), '[^A-Z]', '', 'g')` 归一化（与 Python `_hash_sequence` 一致，规避 FASTA 头/换行/大小写抖动） | migration 0021 已实施；建议正式入 V1.1 §7.3 |
+| S9 | §7.8 | `srs.substance_alias` 加 `trg_substance_alias_audit`（v2 3-arg parent_ref 回填 substance_code），与 protein/xref/adc/sm 子表保持一致；设计 §7.8 未要求 | migration 0018 已实施；建议正式入 V1.1 §7.8 |
+
+### 2.5 🟠 未实施 / 推迟（写入路线图）
+
+| # | §7.x | 内容 | 计划 |
+|---|---|---|---|
+| S12 | §7.4 / §7.5 / §7.8 | `substance_adc / substance_small_molecule / substance_alias` 表 + audit 触发器 + FK 已齐全（migration 0018 / 0020），但 `app/domains/srs/services.py` 完全无业务路径调用，前端无对应 UI | Phase 3+ ADC / 小分子 / 曾用名业务真正使用时再上 service / API / 前端 |
+| S13 | §7.7 | `merged_to_substance_id` 字段 + FK 已建，无 `:merge` 端点 | Phase 5 数据治理工具阶段补（与 V1.2 §8.1.3 一致） |
+
+### 2.6 🟠 待评估（Batch C — 高风险类型回归）
+
+| # | §7.x | 偏离 | 当前判断 |
+|---|---|---|---|
+| S5 | §7.3 | `molecular_weight_da` 设计 `NUMERIC(10, 2)`，实施 `DOUBLE PRECISION`（Float） | 类型族变化，存量数据精度问题需评估；GxP 数据完整性"精度可重现"原则建议回归 NUMERIC，但需先做 dev 库精度截断验证 |
+| S6 | §7.3 | `pi_theoretical` 设计 `NUMERIC(5, 2)`，实施 Float | 同 S5 |
 
 ---
 
-## 4. REF（§11 跨域引用）— V1.1 +补建
+## 3. PRS（§9 项目域）— 2026-05-13 重写
 
-V1.1 §4.1 / §4.2 / §4.3 状态更新：
+**原声明**："V1.1 §3 全部条目通过 M3.0.2 migration 0013-0017 完成对齐回归。V1.2 新发现项：无（V1.1 §3.3.5 团队 unique 离开后再加入语义 仍待 §9.4 文档修订决定）。"
 
-| 表 | 文档章节 | V1.1 状态 | V1.2 状态 | 备注 |
-|---|---|---|---|---|
-| `ref.project_substance` | §11.2 | ✅ M3.0.1 重构完成 | ✅ 保持 | — |
-| `ref.asset_substance` | §11.3 | 🟠 未建（Phase 3 ARS 时建）| ✅ M3.3 已建（migration 0025）| 见 §6.3 |
-| `ref.project_asset` | §11.4 | 🟠 未建（Phase 3 ARS 时建）| ✅ M3.3 已建（migration 0026）| 见 §6.4 |
+**独立复核结果**：10 项偏离，2 项已修，8 项分类推迟 / 待评审。
+
+### 3.1 🟥 触发器 GUC 去除（已修 / migration 0029）
+
+| # | §9.x | 设计 vs 实施偏离 | 处置 |
+|---|---|---|---|
+| P1 | §9.5 | V1.1 §9.5 注释明文同 §7.7："change_reason 由 service 层在 INSERT 后显式 UPDATE 回填，触发器**不依赖** session GUC"。原实施 `prs.fn_project_status_change` 仍走 GUC（migration 0010 回退到 v1 形态时未同步去 GUC） | ✅ migration 0029 REPLACE 函数；`prs/services.py` 状态机 flush 后 UPDATE 回填 `change_reason + e_signature_id` |
+
+### 3.2 🟥 索引命名与缺失（已修 / migration 0029）
+
+| # | §9.x | 设计 vs 实施偏离 | 处置 |
+|---|---|---|---|
+| P2 | §9.2 | V1.1 §9.2 行 1426-1431 命名：`ix_project_type / ix_project_pm / ix_project_name`；migration 0006 实际：`ix_project_project_type` / `ix_project_manager` / `ix_project_project_name`（双前缀 + 命名偏差）；且 `ix_project_dates (planned_start_date, planned_end_date)` 复合索引完全缺失 | ✅ migration 0029 三个 `ALTER INDEX RENAME` + `CREATE INDEX ix_project_dates`；`ix_project_phase` 是实施侧加强保留 |
+
+### 3.3 🟥 团队 unique 业务语义（待评审决定）
+
+| # | §9.x | 偏离 | 处置 |
+|---|---|---|---|
+| P3 | §9.4 | V1.1 §9.4 写 `UNIQUE (project_id, user_id, role)` 绝对唯一。实施按字面照搬，结果 `left_at IS NOT NULL`（已离职）同 (user, role) 永不能再加入。V1.2_draft 原文也承认"待 §9.4 文档修订" | 🚧 **需 §9.4 评审拍板**：(a) 改为 partial UNIQUE `WHERE left_at IS NULL`；(b) 或保持绝对唯一并明确"同人离职后用同角色再加入须新建 user 记录" |
+
+### 3.4 🟢 实施侧加强（已实施，建议吸收 V1.1）
+
+| # | §9.x | 加强 |
+|---|---|---|
+| P4 | §9.5 | `prs.project_status_history.e_signature_id` 由 service 显式 UPDATE 回填（避免 asyncpg 池 SET LOCAL 泄漏；V1.1 §5.4 同模式） |
+| P5 | §9.2/§9.5 | GxP 关键动作（approve/complete/terminate）强制电子签名 + `project:sign` 权限二阶；hold/resume/start 不签 |
+| P6 | §9.2 | M3.0.2 漏建的 `created_by/updated_by/deleted_by/project_manager_id → auth.user` FK，migration 0020 补齐 |
+| P7 | §9.3 / §9.4 | 子表 audit trigger 通过 v2 第 3 参数 parent_ref 回填 `entity_code = project_code`（V1.1 §5.3 同模式） |
+
+### 3.5 🟠 未实施 / 推迟
+
+| # | §9.x | 内容 | 计划 |
+|---|---|---|---|
+| P8 | §9.5 | `prs.project_relationship` 表 + CHECK + UNIQUE + FK 已建（migration 0016），**无 audit trigger，无 service / schema / API / 前端**。0016 注释明示"Phase 3+ 再上" | Phase 3+ 项目血缘 / 衍生关系业务真正使用时再上上层 |
+
+### 3.6 ⚠️ API / 前端表面缺口（✅ 已修 / Batch F）
+
+| # | §9.x | 缺口 | 处置 |
+|---|---|---|---|
+| P9 | §9.2 | `ProjectFilter` 列表过滤未暴露：`priority` / `program_name` / `parent_project_id` / `confidentiality` / `budget_currency` | ✅ Batch F：schema 加 5 字段、`list_projects` service 加过滤逻辑、`projects.py` endpoint 加同等 query 参数 |
+| P10 | §9.2 | `ProjectBrief` 列表项缺：`program_name` / `confidentiality` / `parent_project_id` / `sponsor_id` | ✅ Batch F：schema 加 4 字段，依赖 `from_attributes=True` 自动从 ORM 透传 |
+
+---
+
+## 4. REF（§11 跨域引用）— 2026-05-13 重写
+
+**原声明**：§4 仅追踪三张表存在性，未发现偏离；§6.5.4 / §6.6.5 称"三张 ref 表 deleted_by 完全统一"，附录 A 称 "DM-MDM-001 ~99%"。
+
+**独立复核结果**：8 项偏离（含 1 项 V1.2_draft 自身声明事实错误）。
+
+### 4.1 🟥 ref.project_substance.deleted_by 缺 FK（已修 / migration 0029）
+
+| # | §11.x | 设计 vs 实施 | 处置 |
+|---|---|---|---|
+| R1 | §11.2 | V1.1 §11.2 行 1667 显式要求 `fk_ref_ps_deleted_by FOREIGN KEY (deleted_by) REFERENCES auth.user(user_id)`。migration 0012 加了 `deleted_by` 列但漏加 FK，migration 0027（V1.2 #A/#B 决议）补 ref.asset_substance / ref.project_asset 时**遗漏了 ps**，但 0027 注释还自称"与 §11.2 ref.project_substance 已有的 deleted_by 对齐" — 实测 `pg_constraint` 仅有 `fk_ref_as_deleted_by` / `fk_ref_pa_deleted_by` | ✅ migration 0029 `op.create_foreign_key("fk_ref_ps_deleted_by", ...)` 补齐 |
+
+**⚠️ 推翻原 V1.2 Draft 声明**：§6.5.4 / §6.6.5 "三表 deleted_by 完全统一" 不实，至 migration 0029 才真正达成。
+
+### 4.2 🟥 service 层业务规则缺校验（已修 / Batch E）
+
+| # | §11.x | 设计 vs 实施 | 处置 |
+|---|---|---|---|
+| R5 | §11.1 | V1.1 §11.1 行 1659 明文三类禁建：`substance.obsoleted` + `asset.terminated` + **`project.terminated`**。实施仅在 `ref/services.py` 定义 `SUBSTANCE_STATUS_FORBID_LINK / ASSET_STATUS_FORBID_LINK`，**完全缺 `PROJECT_STATUS_FORBID_LINK`**，terminated project 可继续接受新的 substance / asset 关联 | ✅ `ref/services.py` 加 `PROJECT_STATUS_FORBID_LINK = {"terminated"}`；`ProjectSubstanceLinkService.link` + `ProjectAssetLinkService.link` 双侧入口均加校验 |
+
+**⚠️ 推翻原 V1.2 Draft 声明**：§6.6.4 把"terminated 资产禁止"列为"实施侧加强 / 建议 V1.1 §11.4 加业务规则说明"，但 §11.1 行 1659 本就是 V1.1 设计明文要求，不是加强；且漏掉了 project.terminated 的同等规则。
+
+### 4.3 🟢 实施侧加强（已实施）
+
+| # | §11.x | 加强 |
+|---|---|---|
+| R3 | §11.4 | DB 层未加 `relation_type` CHECK，Pydantic `Literal['primary','supporting','derivative','reference']` 在 API 层枚举校验，与设计 §11.4 一致 |
+| R4 | §11.x | audit trigger 第 2 参数 `entity_code_col` 文档为 `NULL`，实施统一传 `''`；PL/pgSQL 中等价处理（v2 函数 `NULLIF(TG_ARGV[1], '')`），属字符表示差异 |
+
+### 4.4 ⚠️ API / 前端表面缺口（R6/R7 ✅ 已修 / Batch F，R8 待评审）
+
+| # | §11.x | 缺口 | 处置 |
+|---|---|---|---|
+| R6 | §11.3 | `AssetSubstanceLinkItem` schema 缺 `deleted_by`，`_compose_item` 也未传 | ✅ Batch F：schema 加字段、`_compose_item` 传 `link.deleted_by`；test_unlinked_record_exposes_deleted_by 覆盖 |
+| R7 | §11.4 | `ProjectAssetLinkItem` schema 缺 `deleted_by` | ✅ Batch F：同 R6 |
+| R8 | §11.2 / §11.3 / §11.4 | 三张 ref 表 `created_by` / `updated_by` 均无 FK 到 auth.user（设计未显式列 fk_*_created/updated_by FK，但字段语义上是 user FK） | 🚧 待评审：设计文档应否显式补 FK 约束（实际语义 FK 已成立，由 service 层 `current_user.user_id` 保证） |
+
+### 4.5 表存在性总览
+
+| 表 | 文档章节 | 当前状态 | 备注 |
+|---|---|---|---|
+| `ref.project_substance` | §11.2 | ✅ M3.0.1 重构完成 + migration 0029 补 deleted_by FK | — |
+| `ref.asset_substance` | §11.3 | ✅ M3.3 已建（migration 0025）| 见 §6.5 |
+| `ref.project_asset` | §11.4 | ✅ M3.3 已建（migration 0026）| 见 §6.6 |
 
 ---
 
@@ -59,6 +189,8 @@ V1.1 §5.1-§5.5 全部 5 项（service-level commit / 旁路 session / parent_r
 > 说明：V1.0 API 错误响应的机器可读错误类型字段位于 `meta.error.type`。本文件中原称 “`meta.error.type`” 的内容统一解释为 `meta.error.type` 字典 / 分流规则，除非后续评审明确决定调整 API 响应结构。
 
 V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下文。
+
+**2026-05-13 修订增补**：V1.1 §5.4（status_history.e_signature_id service 后置 UPDATE 回填）模式经 M3.5 / M3.6 扩展到 **change_reason 字段同处理**（migration 0028 SRS、migration 0029 ARS+PRS）。三个域的 `fn_*_status_change` 触发器现统一不读 `app.change_reason` GUC，仅写字面量 `'status changed'` 占位；service 在 flush 后 UPDATE 同时回填 `change_reason + e_signature_id`。建议 V1.1 §7.7 / §8.4 / §9.5 注释**统一**改为反映此模式。
 
 ---
 
@@ -134,6 +266,34 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 |---|---|---|
 | 6.8.1 | seed_data --demo 增加 4 个 `[DEMO]` 资产（Anti-PD-1 marketed / Anti-TIGIT Ph1 / CD19xCD3 discovery / HER2-DXd Ph3）| 🟢 与现有 DEMO_SUBSTANCES / DEMO_PROJECTS 1:1 配对 |
 | 6.8.2 | 演示资产含 asset_substance + project_asset 跨域绑定 + 1 条 asset_market_id（NMPA 批文）| 🟢 体现 §11.3 / §11.4 / §8.3 全链路 |
+
+### 6.9 §8 ARS 独立复核增补（2026-05-13）
+
+经独立复核（不依赖 §6.1-§6.4 自我声明），§8 共 7 项偏离：1 项 🟥 已修、3 项 🟢 加强、3 项 ⚠️ 表面缺口。
+
+#### 🟥 已修（migration 0029）
+
+| # | §8.x | 设计 vs 实施 | 处置 |
+|---|---|---|---|
+| A3 | §8.4 | V1.1 §8.4 注释明文同 §7.7 / §9.5："change_reason 由 service 后置 UPDATE，触发器**不依赖** GUC"。原 migration 0024 实施 `ars.fn_asset_status_change` 仍走 `current_setting('app.change_reason')` GUC | ✅ migration 0029 REPLACE 函数；`ars/services.py` 状态机 flush 后 UPDATE 回填 `change_reason + e_signature_id` |
+
+#### 🟢 实施侧加强（已实施，建议吸收 V1.1）
+
+| # | §8.x | 加强 |
+|---|---|---|
+| A4 | §8.3 | `asset_market_id.created_by / updated_by` 加 FK 到 auth.user（V1.1 §8.3 仅要求 deleted_by FK），与 §8.2 主表风格对齐 |
+| A5 | §8.2 | `ars.fn_asset_before_update` 自动维护 `updated_at / version+1` + 当 `current_phase` 变化时回填 `phase_change_at`，与 §7.7 / §9.5 同模式 |
+| A6 | §8.3 | migration 0027 补 `asset_market_id.deleted_by + fk_asset_market_id_deleted_by`（与 §6.2.3 一致） |
+
+#### ⚠️ API / 前端表面缺口（✅ 已修 / Batch F）
+
+| # | §8.x | 缺口 | 处置 |
+|---|---|---|---|
+| A7 | §8.2 | `AssetDetail` 响应 schema 漏 `deleted_at / deleted_by` | ✅ Batch F：schema 加 2 字段；`model_validate(asset)` 自动从 ORM 透传 |
+| A8 | §8.3 | `AssetMarketIdSchema` 漏 `deleted_at / deleted_by` | ✅ Batch F：同 A7 |
+| A9 | §8.4 | `StatusHistoryItem` 通用 schema 缺 `asset_id`（同 substance_id / project_id 在跨域复用时也缺）| ✅ Batch F：`audit/schemas.py::StatusHistoryItem` 加 `substance_id` / `project_id` / `asset_id` 三个可选字段，三选一非 None 取决于 ORM 来源表 |
+
+**⚠️ 推翻原 V1.2 Draft 声明**：§6.1.x-§6.4.x 声明 ARS 100% 对齐与 V1.1 一致；实际 A3 与 §8.4 V1.1 注释存在实质偏离，A7-A9 schema 表面有缺口。
 
 ---
 
@@ -260,7 +420,11 @@ UI 层面对齐率 **~82%**（缺口集中在 Phase 4-6 范围内的物料 / 系
 | **M3.2** | **ARS 状态机 + 电子签名（terminate 双权限）+ market_id CRUD** | ✅ 2026-05-12 完成 |
 | **M3.3** | **REF §11.3 asset_substance + §11.4 project_asset + 终止资产业务规则** | ✅ 2026-05-12 完成 |
 | **M3.4** | **全局搜索接入 asset + 演示数据扩充（4 [DEMO] assets）** | ✅ 2026-05-12 完成 |
-| **V1.1 / V1.2 评审** | **IT 架构组评审本偏离说明 + 决定吸收哪些"实施侧合理加强"到上位文档** | 🚧 待安排 |
+| **M3.5 (Batch A+B+S8)** | **SRS §7 独立复核 + migration 0028（external_uuid UNIQUE / protein hash 索引 × 2 / xref_value 索引 / internal_code partial 索引 / fn_substance_status_change 去 GUC）+ Batch B API/前端字段暴露（xref effective/expiry + protein 7 字段）** | ✅ 2026-05-12 完成 |
+| **M3.6 (Batch D+E)** | **ARS §8 + PRS §9 + REF §11 独立复核 + migration 0029（fk_ref_ps_deleted_by / ars+prs fn_status_change 去 GUC / prs 索引命名 + ix_project_dates）+ Batch E（ref service 加 PROJECT_STATUS_FORBID_LINK）** | ✅ 2026-05-13 完成 |
+| **M3.7 (Batch F)** | **API schema 表面暴露（A7-A9 ARS / P9-P10 PRS / R6-R7 REF 共 6 项）：AssetDetail / AssetMarketIdSchema / StatusHistoryItem / ProjectFilter / ProjectBrief / AssetSubstanceLinkItem / ProjectAssetLinkItem 加字段；prs/services.py list_projects 加 5 条过滤分支；api/v1/projects.py 加 5 query 参数；ref/services.py _compose_item 传 deleted_by** | ✅ 2026-05-13 完成 |
+| **Batch C** | **SRS §7.3 molecular_weight_da / pi_theoretical 从 Float 回归 NUMERIC** | 🚧 待评估（dev 库精度截断验证） |
+| **V1.1 / V1.2 评审** | **IT 架构组评审本偏离说明 + 决定吸收哪些"实施侧合理加强"到上位文档；PRS P3 团队 unique 业务语义拍板；PRS P8 project_relationship 上层是否进 Phase 3+** | 🚧 待安排 |
 | Phase 4 | 物料域（MM）基础域 + `/auth/refresh` + 全局搜索 material 接入 + 独立审计页 + Prometheus / 集中日志 / 生产部署配置 + 备份恢复演练 + CSV 验证准备 | 🚧 待开工 |
 | Phase 5 | 数据治理工具（merge / reject / batch / advance-phase 视需）+ Redis 缓存 + 系统管理 Admin UI + 复杂 fuzzy matching / 体验增强 | 🚧 待开工 |
 
@@ -272,7 +436,10 @@ V1.1 §7 内容不变。新增风险：
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
-| `asset_market_id` / `ref.asset_substance` / `ref.project_asset` 缺 `deleted_by` 与其他子表不一致 | 已通过 DM-MDM-001 V1.1 修订吸收，风险关闭 | 已统一补 `deleted_by`，与 `deleted_at` 共同构成标准 soft-delete 字段组 |
+| `asset_market_id` / `ref.asset_substance` / `ref.project_asset` 缺 `deleted_by` 与其他子表不一致 | 已通过 DM-MDM-001 V1.1 修订吸收，**部分关闭**：migration 0027 补 as/pa，但 ps 表至 migration 0029 才补齐 fk_ref_ps_deleted_by；现已全部统一 | `deleted_at + deleted_by` 标准 soft-delete 字段组在三张 ref 表完整 |
+| `terminated` 项目仍可接受新 substance/asset 关联（违反 §11.1 设计原则） | 中（已暴露 7 个月，dev 库未触发，但 GxP 合规缺口）| migration 0029 + Batch E：ref/services.py 加 `PROJECT_STATUS_FORBID_LINK`，双侧入口校验 |
+| ARS / PRS / SRS 三表 `fn_*_status_change` 走 `app.change_reason` GUC 通道，与 V1.1 §7.7 / §8.4 / §9.5 注释明文冲突 | 中（在 asyncpg 连接池下偶发 GUC 泄漏，e_signature_id 已先修，change_reason 残留） | migration 0028 + 0029 全部去 GUC，service 后置 UPDATE 回填实际 reason |
+| V1.2_draft §2 / §3 / §6 历史声明 "100% 对齐" 不实，构成审计可靠性风险 | 中（评审引用本文件作为合规证据时，"自我声明 100%" 会被打脸） | 2026-05-13 修订本文件，明确列出 §7/§8/§9/§11 实测偏离 39 项 + 处置批次 |
 | `/auth/refresh` 缺失，access_token 30 min 过期需重登 | 低（dev / UAT 阶段）| 生产前补 refresh 端点 |
 | Redis 部署但未用，docker-compose 资源浪费 | 极低 | Phase 5 接入或先从 dev compose 移除 |
 
@@ -287,16 +454,20 @@ V1.1 §7 内容不变。新增风险：
 
 ---
 
-## 附录 A：跨文档对齐率汇总
+## 附录 A：跨文档对齐率汇总（2026-05-13 修订）
 
-| 上位文档 | 当前对齐率 | 主要缺口 |
-|---|---|---|
-| DM-MDM-001 V1.1（数据模型）| **~99%** | `asset_market_id.deleted_by` / `ref.asset_substance.deleted_by` / `ref.project_asset.deleted_by` 已吸收；§10 物料域整域未实施（Phase 4）|
-| ARCH-MDM-001 V1.1（架构）| **~95%** | Redis 应用层 / Prometheus / 集中日志 / 生产部署配置未做（Phase 4-5）；路线图已与本文件统一 |
-| API-MDM-001 V1.1（API）| **~85%** | refresh / reject / merge / advance-phase / batch CRUD 推迟（Phase 4-5）；protein/adc/xrefs 实施侧用 expand 简化；`meta.error.type` 字典已正式入文档 |
-| UI-MDM-001 V1.1（UI 信息架构）| **~82%** | 物料域 UI / 系统管理 Admin / 项目甘特图 / 多视图切换 / Ctrl+K 等推迟；ARS 资产域 UI 与状态/阶段语义已补齐 |
+> **说明**：本表对齐率已根据 §7 / §8 / §9 / §11 独立复核结果重新计算。Phase 1-3 范围 SRS/PRS/ARS/REF 已修项均纳入"已对齐"；待评审、Batch C、Batch F、🟠 Phase 推迟项均按缺口比例下调对齐率。架构 / API / UI 三个文档**尚未做同等级别的独立复核**，对齐率维持 V1.2_draft §7-§9 自我声明值，标注 ⚠️ 提示可信度低。
 
-**整体加权对齐率**：**~90%**（按当前 Phase 1-3 功能范围加权）。Phase 1-3 范围（substance / project / asset / ref）的核心设计路径已形成闭环，包括审计追踪、电子签名、权限控制、失败留痕与状态历史；但生产部署级控制、备份恢复演练、集中日志、完整 CSV 文档包以及 Phase 4-5 范围（material / admin / batch / 缓存 / 监控）仍按计划推迟，不能表述为生产级 GxP 全面完成。
+| 上位文档 | 修订前 | 修订后 | 主要缺口 |
+|---|---|---|---|
+| DM-MDM-001 V1.1（数据模型）| ~99% | **~97%** | 已修：Batch A/B/S8/D/E/F（migration 0028 + 0029 + Batch F schema 暴露，共 9 项 🟥 + 6 项 ⚠️ 全部落地）；待修：Batch C（S5/S6 类型回归）+ P3 团队 unique 评审 + P8 project_relationship 上层 Phase 3+ + R8 created/updated_by FK 评审；推迟：§10 物料域整域（Phase 4）|
+| ARCH-MDM-001 V1.1（架构）| ~95% | ⚠️ ~95% _未独立复核_ | Redis 应用层 / Prometheus / 集中日志 / 生产部署配置未做（Phase 4-5）|
+| API-MDM-001 V1.1（API）| ~85% | ⚠️ ~85% _未独立复核_ | refresh / reject / merge / advance-phase / batch CRUD 推迟（Phase 4-5）|
+| UI-MDM-001 V1.1（UI 信息架构）| ~82% | ⚠️ ~82% _未独立复核_ | 物料域 UI / 系统管理 Admin / 项目甘特图 / 多视图切换 / Ctrl+K 等推迟 |
+
+**整体加权对齐率**：**~91%**（按当前 Phase 1-3 功能范围加权；Batch F 完成后数据模型对齐率回升到 ~97%，整体上调 3pp；Batch C 与 P3/P8/R8 待评审项继续拉低 ~2pp；架构/API/UI 三文档未独立复核继续下调 ~2pp）。Phase 1-3 范围（substance / project / asset / ref）的核心设计路径已形成闭环，包括审计追踪、电子签名、权限控制、失败留痕与状态历史；但生产部署级控制、备份恢复演练、集中日志、完整 CSV 文档包以及 Phase 4-5 范围（material / admin / batch / 缓存 / 监控）仍按计划推迟，不能表述为生产级 GxP 全面完成。
+
+**已识别风险**：架构 / API / UI 三文档在 SRS/PRS/ARS/REF 独立复核之前的自我声明可信度低（§2/§3/§6 数据模型自我声明已被打脸）。建议下一里程碑做架构 / API / UI 三文档同等深度的独立复核。
 
 ---
 
@@ -304,7 +475,7 @@ V1.1 §7 内容不变。新增风险：
 
 V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Phase 4 / CI 门禁建设计划。
 
-当前回归依赖 `backend/tests/` 中 117 条 pytest 用例（M3.4 完成时计数）。每次 alembic upgrade head + pytest 全量通过作为 M3.x 各里程碑验收门禁。
+当前回归依赖 `backend/tests/` 中 **123 条** pytest 用例（M3.7 完成时计数，比 M3.4 的 117 条新增：S10 / S11 / R5 × 2 / P9+P10 联合 / R6 共 6 条）。每次 alembic upgrade head + pytest 全量通过作为 M3.x 各里程碑验收门禁。
 
 详细的「偏离项 → 测试覆盖」映射见**附录 C**（CSV 验证 IQ/OQ 阶段证据链）。
 
@@ -318,44 +489,46 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 
 | V1.2 偏离项 | 测试文件 | 用例数 | 关键用例 |
 |---|---|---|---|
-| §2 SRS 子表（§7.4 ADC / §7.5 small_molecule / §7.8 alias）补建 | `test_substance_crud.py` | 7 | create / get / update（version+1）/ 乐观锁 / 重复 internal_code / soft delete |
+| §2 SRS 子表（§7.4 ADC / §7.5 small_molecule / §7.8 alias）补建 | `test_substance_crud.py` | 9 | create / get / update（version+1）/ 乐观锁 / 重复 internal_code / soft delete + **S10 / S11 新增 2 条** |
 | §7.6 substance_xref effective/expiry + 唯一约束 | `test_substance_crud.py` + `test_check_sameness.py` | 5 | sameness 判定走 xref |
-| §7.7 substance_status_history 状态机 | `test_state_machine.py` | 5 | full_lifecycle / invalid_transition / reason_too_short / restrict→deprecate / status_history_recorded |
+| **§7.6 xref effective_date / expiry_date API 暴露（S10，M3.5）**| `test_substance_crud.py::test_xref_effective_expiry_dates` | 1 | create + GET + PUT 更新 expiry，未传字段保持原值 |
+| **§7.3 protein 扩展字段 API 暴露（S11，M3.5）**| `test_substance_crud.py::test_create_with_extended_protein_fields` | 1 | expression_vector / pi_theoretical / extinction_coefficient 端到端；sequence_hash_hc 由 DB 触发器自动算 |
+| §7.7 substance_status_history 状态机 | `test_state_machine.py` | 5 | full_lifecycle / invalid_transition / reason_too_short / restrict→deprecate / **status_history_recorded（S8 加强：change_reason 必须实值非占位）** |
 | §7.7 substance_status_history.e_signature_id（V1.1 §5.4 加强）| `test_signature.py` | 8 | approve / activate / deprecate / obsolete 签名流；密码错；缺签名；signature_invalid 分流 |
 | §7.3 substance_protein DB 触发器（hash 自动算）| `test_audit_trigger.py` + `test_audit_trigger_v2.py` | 4+3 | INSERT/UPDATE hash 一致；parent_ref 回填 substance_code |
 | 物质同一性判定（业务功能）| `test_check_sameness.py` | 5 | 序列哈希命中 / xref 命中 / 不同 substance_type 不判同 |
 
-**SRS 小计**：约 32 条用例
+**SRS 小计**：34 条用例（M3.4 32 + M3.5 新增 2）
 
 ### C.2 PRS（§9 项目域）
 
 | V1.2 偏离项 | 测试文件 | 用例数 | 关键用例 |
 |---|---|---|---|
-| §9.2 project 主表对齐（枚举 / 字段 / 编码按年）| `test_project_crud.py` | 10 | create 编码 PRJ-2026-XXXX / get / update / version 乐观锁 / soft delete / 枚举校验 |
+| §9.2 project 主表对齐（枚举 / 字段 / 编码按年）+ **P9/P10 列表过滤 & Brief 字段（M3.7）**| `test_project_crud.py` | 11 | create 编码 PRJ-2026-XXXX / get / update / version 乐观锁 / soft delete / 枚举校验 + **test_list_filter_priority_and_brief_fields：priority/program_name/confidentiality 过滤 + Brief 含 program_name/confidentiality/parent_project_id/sponsor_id** |
 | §9.3 project_milestone（枚举 / NOT NULL / 无软删除）| `test_project_milestone_team.py` | 8（含 team）| milestone CRUD / planned_date 必填 / 枚举校验 |
-| §9.4 project_team（role 任意 + function_area + allocation_pct）| `test_project_milestone_team.py` | （同上）| team CRUD / 唯一性 / 离职后再加入 |
-| §9.5 project_status_history.e_signature_id（V1.1 §5.4 加强）| `test_project_state_machine.py` | 6 | proposed→initiated→active→on_hold→completed/terminated 全链路；approve / complete / terminate 签名 |
+| §9.4 project_team（role 任意 + function_area + allocation_pct）| `test_project_milestone_team.py` | （同上）| team CRUD / 唯一性 / 离职后再加入 — **P3 待评审**|
+| §9.5 project_status_history.e_signature_id（V1.1 §5.4 加强）+ **P1 status_history change_reason 实值（M3.6）**| `test_project_state_machine.py` | 6 | proposed→initiated→active→on_hold→completed/terminated 全链路；approve / complete / terminate 签名；**status_history_recorded 加 P1 断言：change_reason 必须非 'status changed' 占位** |
 
-**PRS 小计**：约 24 条用例
+**PRS 小计**：25 条用例（M3.4 24 + M3.7 +1 P9/P10 联合）
 
 ### C.3 REF（§11 跨域引用）
 
 | V1.2 偏离项 | 测试文件 | 用例数 | 关键用例 |
 |---|---|---|---|
-| §11.2 ref.project_substance 复合 PK 重构 | `test_project_substance_link.py` | 7 | link/unlink 往返；同对 substance 不同 relation_type 并存；relink 恢复；obsoleted 物质禁止；audit parent_ref 回填 project_code |
-| §11.3 ref.asset_substance（V1.2 §6.5 新建）| `test_asset_substance_link.py` | 8 | link/unlink；不同 component_role 并存（ADC 场景：antibody/linker/payload）；relink；terminated 资产禁止；obsoleted 物质禁止；audit parent_ref 回填 asset_code |
-| §11.4 ref.project_asset（V1.2 §6.6 新建）| `test_project_asset_link.py` | 7 | 双向 link（project 侧 / asset 侧）；同对 (project, asset) 不同 relation_type 仍冲突（PK 仅含两键）；relink 换 relation_type；terminated 资产禁止双侧；audit parent_ref 回填 project_code |
+| §11.2 ref.project_substance 复合 PK 重构 | `test_project_substance_link.py` | 8 | link/unlink 往返；同对 substance 不同 relation_type 并存；relink 恢复；obsoleted 物质禁止；audit parent_ref 回填 project_code；**R5 terminated project 禁止 link（M3.6 新增）** |
+| §11.3 ref.asset_substance（V1.2 §6.5 新建）+ **R6 deleted_by 暴露（M3.7）**| `test_asset_substance_link.py` | 9 | link/unlink；不同 component_role 并存（ADC 场景：antibody/linker/payload）；relink；terminated 资产禁止；obsoleted 物质禁止；audit parent_ref 回填 asset_code；**test_unlinked_record_exposes_deleted_by：include_deleted=true 列表项 deleted_by 非空** |
+| §11.4 ref.project_asset（V1.2 §6.6 新建）| `test_project_asset_link.py` | 8 | 双向 link（project 侧 / asset 侧）；同对 (project, asset) 不同 relation_type 仍冲突（PK 仅含两键）；relink 换 relation_type；terminated 资产禁止双侧；audit parent_ref 回填 project_code；**R5 terminated project 双侧禁止 link（M3.6 新增）** |
 
-**REF 小计**：22 条用例
+**REF 小计**：25 条用例（M3.3 22 + M3.6 +2 R5 + M3.7 +1 R6）
 
 ### C.4 ARS（§8 资产域，V1.2 新增）
 
 | V1.2 偏离项 | 测试文件 | 用例数 | 关键用例 |
 |---|---|---|---|
 | §6.1 asset 主表 + §6.2 market_id（CRUD）| `test_asset_crud.py` | 11 | create AST-XXXXXXX / get / update（version+1） / phase_change_at / soft delete / 枚举校验 |
-| §6.4 状态机（hold/resume/terminate）+ §6.3 status_history + §6.4.2 电签 + §6.4.3 双权限 | `test_asset_state_machine.py` | 11 | hold/resume 往返；terminate 需 password；密码错 401 signature_invalid；缺 password 422 signature_required；asset:sign 权限缺失 403；status_history 含 e_signature_id |
+| §6.4 状态机（hold/resume/terminate）+ §6.3 status_history + §6.4.2 电签 + §6.4.3 双权限 + **A3 status_history change_reason 实值（M3.6）**| `test_asset_state_machine.py` | 11 | hold/resume 往返；terminate 需 password；密码错 401 signature_invalid；缺 password 422 signature_required；asset:sign 权限缺失 403；status_history 含 e_signature_id；**status_history_recorded 加 A3 断言：change_reason 必须实值，非占位** |
 
-**ARS 小计**：22 条用例
+**ARS 小计**：22 条用例（其中 status_history_recorded 加 A3 断言）
 
 ### C.5 跨主题实施侧加强
 
@@ -385,20 +558,20 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 
 ### C.8 总计
 
-| 域 | 用例数 |
-|---|---|
-| SRS（§7） | 32 |
-| PRS（§9） | 24 |
-| ARS（§8） | 22 |
-| REF（§11） | 22 |
-| 跨主题加强 | 7 |
-| 全局搜索 | 11 |
-| 冒烟 | 2 |
-| **合计** | **117** ✅ M3.4 全量通过 |
+| 域 | 用例数 | 增量来源 |
+|---|---|---|
+| SRS（§7：state_machine + substance_crud + check_sameness + signature + audit_trigger × 2） | 34 | M3.4 32 + **M3.5 +2（S10 / S11）** |
+| PRS（§9：project_crud + state_machine + milestone_team） | 25 | M3.4 24 + **M3.7 +1（P9/P10 联合）**；M3.6 加 P1 断言（不增用例） |
+| ARS（§8：asset_crud + asset_state_machine） | 22 | M3.4 22，M3.6 加 A3 断言（不增用例） |
+| REF（§11：3 张 link 表） | 25 | M3.4 22 + **M3.6 +2（R5 双侧）+ M3.7 +1（R6 deleted_by 暴露）** |
+| auth_security（V1.1 §5.2 失败副作用旁路） | 4 | — |
+| 全局搜索（test_global_search） | 11 | — |
+| 冒烟（test_smoke） | 2 | — |
+| **合计** | **123** | ✅ M3.7 全量通过（2026-05-13）|
 
 ### C.9 验证门禁
 
-- **每次 alembic upgrade head 后**：`make test-be` 全量 117 用例必须 100% 通过
+- **每次 alembic upgrade head 后**：`make test-be` 全量 123 用例必须 100% 通过
 - **生产部署前**：在生产基线数据库快照上跑全量 + 数据迁移演练（Phase 4 计划）
 - **CI 门禁**（Phase 4 建设）：PR 合并前必须跑全量 + schema 一致性检查脚本
 
