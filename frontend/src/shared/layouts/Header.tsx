@@ -1,0 +1,103 @@
+import { Layout, Avatar, Dropdown, Space, theme } from 'antd';
+import { UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/authStore';
+import { authApi } from '@/api/auth';
+import { GlobalSearchBox } from '@/shared/components/GlobalSearchBox';
+
+const { Header: AntHeader } = Layout;
+
+export function Header() {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const { token } = theme.useToken();
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // 即使后端报错也要本地登出
+    }
+    logout();
+    navigate('/login');
+  };
+
+  const userMenu = {
+    items: [
+      {
+        key: 'profile',
+        icon: <UserOutlined />,
+        label: '个人中心',
+        onClick: () => navigate('/profile'),
+      },
+      {
+        key: 'change-pwd',
+        icon: <KeyOutlined />,
+        label: '修改密码',
+        onClick: () => navigate('/profile/password'),
+      },
+      { type: 'divider' as const },
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: '退出登录',
+        onClick: handleLogout,
+      },
+    ],
+  };
+
+  return (
+    <AntHeader
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        height: 56,
+        lineHeight: '56px',
+        padding: '0 24px',
+        background: '#fff',
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 6,
+            background: token.colorPrimary,
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+            fontSize: 16,
+          }}
+        >
+          C
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: token.colorPrimary }}>
+          CMAB MDM Portal
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        <GlobalSearchBox />
+      </div>
+
+      <Space size="large">
+        <BellOutlined style={{ fontSize: 18, color: token.colorTextSecondary, cursor: 'pointer' }} />
+        <Dropdown menu={userMenu} placement="bottomRight">
+          <Space style={{ cursor: 'pointer' }}>
+            <Avatar size="small" icon={<UserOutlined />} style={{ background: token.colorPrimary }} />
+            <span style={{ color: token.colorText }}>{user?.full_name || user?.username}</span>
+          </Space>
+        </Dropdown>
+      </Space>
+    </AntHeader>
+  );
+}

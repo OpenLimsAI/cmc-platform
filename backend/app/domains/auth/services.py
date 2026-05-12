@@ -1,0 +1,243 @@
+"""
+认证服务
+"""
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
+from loguru import logger
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.core.exceptions import (
+    AccountDisabledError,
+    AccountLockedError,
+    InvalidCredentialsError,
+    OldPasswordWrongError,
+)
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
+from app.domains.auth.models import LoginHistory, Permission, RolePermission, User
+from app.domains.auth.schemas import (
+    LoginResponse,
+    LoginResponseUser,
+    RefreshTokenResponse,
+)
+
+
+class AuthService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    # ----------- 内部辅助 -----------
+    async def _get_user_permissions(self, user: User) -> list[str]:
+        if not user.roles:
+            return []
+        # SYS_ADMIN 全权限
+        if any(r.role_code == "SYS_ADMIN" for r in user.roles):
+            result = await self.db.execute(select(Permission.permission_code))
+            return sorted({c for (c,) in result.all()})
+
+        role_ids = [r.role_id for r in user.roles]
+        result = await self.db.execute(
+            select(Permission.permission_code)
+            .join(RolePermission, RolePermission.permission_id == Permission.permission_id)
+            .where(RolePermission.role_id.in_(role_ids))
+        )
+        return sorted({c for (c,) in result.all()})
+
+    async def _record_login(
+        self,
+        username: str,
+        success: bool,
+        ip: str | None,
+        ua: str | None,
+        user_id: int | None = None,
+        failure_reason: str | None = None,
+    ):
+        history = LoginHistory(
+            user_id=user_id,
+            username_input=username,
+            success=success,
+            failure_reason=failure_reason,
+            ip_address=ip,
+            user_agent=ua,
+        )
+        self.db.add(history)
+        await self.db.flush()
+
+    @staticmethod
+    async def _persist_login_failure(
+        *,
+        user_id: int | None,
+        username: str,
+        ip: str | None,
+        ua: str | None,
+        failure_reason: str,
+        increment_count_for_user_id: int | None = None,
+    ) -> tuple[bool, bool]:
+        """旁路 session 持久化登录失败：login_history + failed_login_count++ + 自动锁定。
+
+        必须独立 commit，否则外层 raise InvalidCredentialsError/AccountLockedError 会触发
+        get_db 的 rollback，把 failure_count 和 login_history 一起丢失（暴力破解防护失效）。
+
+        返回 (locked_now, _)：locked_now 表示本次是否触发了锁定（让 caller 决定抛哪个异常）。
+        """
+        locked_now = False
+        async with AsyncSessionLocal() as side:
+            side.add(
+                LoginHistory(
+                    user_id=user_id,
+                    username_input=username,
+                    success=False,
+                    failure_reason=failure_reason,
+                    ip_address=ip,
+                    user_agent=ua,
+                )
+            )
+            if increment_count_for_user_id is not None:
+                u = (
+                    await side.execute(
+                        select(User).where(User.user_id == increment_count_for_user_id)
+                    )
+                ).scalar_one_or_none()
+                if u is not None and u.status == "active":
+                    u.failed_login_count = (u.failed_login_count or 0) + 1
+                    if u.failed_login_count >= settings.LOGIN_MAX_FAILED_ATTEMPTS:
+                        u.status = "locked"
+                        u.locked_at = datetime.now(UTC)
+                        locked_now = True
+            await side.commit()
+        return locked_now, False
+
+    # ----------- 公共方法 -----------
+    async def login(
+        self, username: str, password: str, ip: str | None, ua: str | None
+    ) -> LoginResponse:
+        result = await self.db.execute(
+            select(User)
+            .options(selectinload(User.roles))
+            .where(User.username == username, User.deleted_at.is_(None))
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            # 旁路独立 session 记录失败（主事务后续 raise 会 rollback）
+            await self._persist_login_failure(
+                user_id=None, username=username, ip=ip, ua=ua,
+                failure_reason="user_not_found",
+            )
+            raise InvalidCredentialsError()
+
+        # 锁定检查：超过 LOGIN_LOCK_DURATION_MINUTES 自动解锁
+        if user.status == "locked":
+            if user.locked_at is not None:
+                unlock_after = user.locked_at + timedelta(
+                    minutes=settings.LOGIN_LOCK_DURATION_MINUTES
+                )
+                if datetime.now(UTC) >= unlock_after:
+                    logger.info(
+                        f"用户 {username} 锁定时长已过（{settings.LOGIN_LOCK_DURATION_MINUTES} 分钟），自动解锁"
+                    )
+                    user.status = "active"
+                    user.failed_login_count = 0
+                    user.locked_at = None
+                    # 继续走密码校验流程
+                else:
+                    await self._persist_login_failure(
+                        user_id=user.user_id, username=username, ip=ip, ua=ua,
+                        failure_reason="locked",
+                    )
+                    raise AccountLockedError()
+            else:
+                # 没有 locked_at（旧数据或管理员手动锁定）：仍按硬锁处理
+                await self._persist_login_failure(
+                    user_id=user.user_id, username=username, ip=ip, ua=ua,
+                    failure_reason="locked",
+                )
+                raise AccountLockedError()
+
+        if user.status == "disabled":
+            await self._persist_login_failure(
+                user_id=user.user_id, username=username, ip=ip, ua=ua,
+                failure_reason="disabled",
+            )
+            raise AccountDisabledError()
+
+        # 密码校验
+        if not verify_password(password, user.password_hash):
+            locked_now, _ = await self._persist_login_failure(
+                user_id=user.user_id, username=username, ip=ip, ua=ua,
+                failure_reason="wrong_password",
+                increment_count_for_user_id=user.user_id,
+            )
+            if locked_now:
+                logger.warning(f"用户 {username} 因连续失败被锁定")
+                raise AccountLockedError()
+            raise InvalidCredentialsError()
+
+        # 登录成功
+        user.failed_login_count = 0
+        user.locked_at = None
+        user.last_login_at = datetime.now(UTC)
+        await self._record_login(username, True, ip, ua, user.user_id)
+        await self.db.flush()
+
+        # 加载权限并构造 token
+        permissions = await self._get_user_permissions(user)
+        roles = [r.role_code for r in user.roles]
+
+        access_token = create_access_token(
+            subject=user.user_id,
+            extra_claims={"username": user.username, "roles": roles},
+        )
+
+        return LoginResponse(
+            access_token=access_token,
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=LoginResponseUser(
+                user_id=user.user_id,
+                username=user.username,
+                full_name=user.full_name,
+                department=user.department,
+                title=user.title,
+                roles=roles,
+                permissions=permissions,
+            ),
+        )
+
+    async def get_me(self, user: User) -> dict:
+        """获取当前用户完整信息"""
+        permissions = await self._get_user_permissions(user)
+        return {
+            "user_id": user.user_id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "full_name_en": user.full_name_en,
+            "department": user.department,
+            "title": user.title,
+            "phone": user.phone,
+            "status": user.status,
+            "mfa_enabled": user.mfa_enabled,
+            "last_login_at": user.last_login_at,
+            "roles": [
+                {"role_id": r.role_id, "role_code": r.role_code, "role_name": r.role_name}
+                for r in user.roles
+            ],
+            "permissions": permissions,
+        }
+
+    async def change_password(self, user: User, old_password: str, new_password: str):
+        if not verify_password(old_password, user.password_hash):
+            raise OldPasswordWrongError()
+        user.password_hash = hash_password(new_password)
+        user.password_changed_at = datetime.now(UTC)
+        user.password_expires_at = datetime.now(UTC) + timedelta(days=90)
+        await self.db.flush()
