@@ -478,6 +478,7 @@ class SubstanceService:
         reason: str,
         current_user: User,
         password: str | None = None,
+        signature_reason: str | None = None,
     ) -> SubstanceDetail:
         transitions = STATE_MACHINE.get(action)
         if not transitions:
@@ -514,6 +515,8 @@ class SubstanceService:
         )
 
         # 电子签名：验证密码、写 e_signature
+        # signature_reason 独立于 change_reason（21 CFR Part 11 §11.50）；未传则 fallback
+        sig_reason = signature_reason or reason
         sig = None
         if requires_sig:
             sig_service = ESignatureService(self.db)
@@ -525,7 +528,7 @@ class SubstanceService:
                 entity_id=sub.substance_id,
                 entity_code=sub.substance_code,
                 meaning=ACTION_TO_MEANING[action],
-                reason=reason,
+                reason=sig_reason,
                 content_for_hash={
                     "substance_code": sub.substance_code,
                     "internal_code": sub.internal_code,
@@ -534,6 +537,7 @@ class SubstanceService:
                     "target_status": next_status,
                     "version": sub.version,
                     "change_reason": reason,
+                    "signature_reason": sig_reason,
                 },
             )
 

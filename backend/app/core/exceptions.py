@@ -108,9 +108,17 @@ class ProjectNotFoundError(NotFoundError):
 
 
 class AssetNotFoundError(NotFoundError):
-    code = 40405
+    # API-MDM-001 V1.1 §4.2 表：40404 = asset_not_found
+    code = 40404
     error_type = "asset_not_found"
     default_message = "资产不存在"
+
+
+class MaterialNotFoundError(NotFoundError):
+    # API-MDM-001 V1.1 §4.2 表：40405 = material_not_found（Phase 4 物料域占位）
+    code = 40405
+    error_type = "material_not_found"
+    default_message = "物料不存在"
 
 
 class ConflictError(AppError):
@@ -154,7 +162,9 @@ class StateInvalidError(AppError):
 
 
 class XrefNotFoundError(NotFoundError):
-    code = 40404
+    # 40404 在 V1.1 §4.2 表中是 asset_not_found；xref_not_found 未在 V1.1 §4.2 表中定义，
+    # 使用扩展位 40406（NotFound 系列向后扩展，等 API 文档下一版正式入表）
+    code = 40406
     error_type = "xref_not_found"
     default_message = "标识符不存在"
 

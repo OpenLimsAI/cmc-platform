@@ -19,8 +19,13 @@ export interface StatusActionDef {
 interface Props<TDetail extends { status: string }> {
   /** 当前 status 下可执行的动作列表（按 status 查表后传入；空数组时整组不渲染）*/
   actions: StatusActionDef[];
-  /** 调用后端冒号端点的函数；签名场景多传 password 字段 */
-  changeStatusFn: (action: string, change_reason: string, password?: string) => Promise<TDetail>;
+  /** 调用后端冒号端点的函数；签名场景多传 password + signature_reason（21 CFR Part 11 §11.50）*/
+  changeStatusFn: (
+    action: string,
+    change_reason: string,
+    password?: string,
+    signature_reason?: string,
+  ) => Promise<TDetail>;
   /** 触发动作所需权限码（如 'project:approve'）*/
   permission: string;
   /** 用于 invalidate 缓存的 queryKey（详情）*/
@@ -48,7 +53,11 @@ export function StatusActionsBar<TDetail extends { status: string }>({
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<StatusActionDef | null>(null);
-  const [form] = Form.useForm<{ change_reason: string; password?: string }>();
+  const [form] = Form.useForm<{
+    change_reason: string;
+    password?: string;
+    signature_reason?: string;
+  }>();
 
   const canTrigger = hasPermission(permission);
 
@@ -57,11 +66,13 @@ export function StatusActionsBar<TDetail extends { status: string }>({
       action,
       reason,
       password,
+      signature_reason,
     }: {
       action: string;
       reason: string;
       password?: string;
-    }) => changeStatusFn(action, reason, password),
+      signature_reason?: string;
+    }) => changeStatusFn(action, reason, password, signature_reason),
     onSuccess: (data, vars) => {
       const def = actions.find((a) => a.action === vars.action);
       message.success(`已${def?.label ?? vars.action}：状态变为 ${data.status}`);
@@ -85,14 +96,44 @@ export function StatusActionsBar<TDetail extends { status: string }>({
 
   if (actions.length === 0) return null;
 
-  const handleSubmit = async () => {
-    const values = await form.validateFields();
+  const submit = (values: {
+    change_reason: string;
+    password?: string;
+    signature_reason?: string;
+  }) => {
     if (!pending) return;
     mutation.mutate({
       action: pending.action,
       reason: values.change_reason,
       password: pending.requiresSignature ? values.password : undefined,
+      signature_reason: pending.requiresSignature ? values.signature_reason : undefined,
     });
+  };
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    // UI4：GxP 关键动作（不可逆 / 需电子签名）提交前再做一次二次确认
+    // V1.1 §7.3 / §9.2.1 / 21 CFR Part 11 §11.50 要求
+    if (pending?.requiresSignature || pending?.danger) {
+      Modal.confirm({
+        title: `确认执行：${pending.label}`,
+        content: (
+          <div>
+            <p>该操作不可撤销，将以电子签名形式记录。</p>
+            <p style={{ color: '#cf1322', marginBottom: 0 }}>
+              点击「确认签名」后立即生效，本次操作将永久写入审计日志。
+            </p>
+          </div>
+        ),
+        okText: '确认签名',
+        okType: 'danger',
+        cancelText: '我再想想',
+        centered: true,
+        onOk: () => submit(values),
+      });
+    } else {
+      submit(values);
+    }
   };
 
   return (
@@ -152,14 +193,28 @@ export function StatusActionsBar<TDetail extends { status: string }>({
             <TextArea rows={4} placeholder="说明此次状态变更的业务依据" />
           </Form.Item>
           {pending?.requiresSignature && (
-            <Form.Item
-              name="password"
-              label="登录密码"
-              tooltip="重新输入当前登录密码以完成电子签名（21 CFR Part 11 §11.200）"
-              rules={[{ required: true, message: '必须输入密码完成签名' }]}
-            >
-              <Input.Password placeholder="重新输入您的登录密码" autoComplete="off" />
-            </Form.Item>
+            <>
+              <Form.Item
+                name="signature_reason"
+                label="签名理由（最少 5 字）"
+                tooltip="独立于变更原因记录的签名含义说明（21 CFR Part 11 §11.50）"
+                rules={[
+                  { required: true, message: '必须填写签名理由' },
+                  { min: 5, message: '签名理由至少 5 字' },
+                  { max: 2000 },
+                ]}
+              >
+                <TextArea rows={2} placeholder="如：Phase I 数据评审通过 / 批文已签发 / 合规终止" />
+              </Form.Item>
+              <Form.Item
+                name="password"
+                label="登录密码"
+                tooltip="重新输入当前登录密码以完成电子签名（21 CFR Part 11 §11.200）"
+                rules={[{ required: true, message: '必须输入密码完成签名' }]}
+              >
+                <Input.Password placeholder="重新输入您的登录密码" autoComplete="off" />
+              </Form.Item>
+            </>
           )}
         </Form>
       </Modal>

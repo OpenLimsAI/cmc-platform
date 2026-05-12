@@ -159,6 +159,66 @@ async def test_project_approve_signature_flow(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_signature_reason_independent_from_change_reason(admin_client, unique_suffix):
+    """UI3 / API V1.1 §6.4（DEV-MDM-001 V1.2 Batch G1.A）：
+    电子签名时若传 signature_reason，则 e_signature.signature_reason 独立于 change_reason；
+    未传时 fallback 到 change_reason（向后兼容）。21 CFR Part 11 §11.50。
+    """
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.domains.audit.models import ESignature
+
+    # 1) 显式传 signature_reason → 独立写入
+    code = await _new_substance(admin_client, unique_suffix)
+    r = await admin_client.post(
+        f"/api/v1/substances/{code}:approve",
+        json={
+            "change_reason": "数据评审完成，准备入库",
+            "password": ADMIN_PASSWORD,
+            "signature_reason": "Phase I CMC 评审通过 - QA 批准",
+        },
+    )
+    assert r.status_code == 200, r.text
+
+    async with AsyncSessionLocal() as s:
+        sig_row = (
+            await s.execute(
+                select(ESignature)
+                .where(ESignature.entity_code == code)
+                .order_by(ESignature.signed_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        assert sig_row is not None
+        assert sig_row.signature_reason == "Phase I CMC 评审通过 - QA 批准"
+        # change_reason 与 signature_reason 必须分离
+        assert sig_row.signature_reason != "数据评审完成，准备入库"
+
+    # 2) 不传 signature_reason → fallback 到 change_reason（向后兼容）
+    code2 = await _new_substance(admin_client, f"{unique_suffix}-bc")
+    r2 = await admin_client.post(
+        f"/api/v1/substances/{code2}:approve",
+        json={
+            "change_reason": "向后兼容路径，未传 signature_reason",
+            "password": ADMIN_PASSWORD,
+        },
+    )
+    assert r2.status_code == 200
+
+    async with AsyncSessionLocal() as s:
+        sig_row2 = (
+            await s.execute(
+                select(ESignature)
+                .where(ESignature.entity_code == code2)
+                .order_by(ESignature.signed_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        assert sig_row2 is not None
+        assert sig_row2.signature_reason == "向后兼容路径，未传 signature_reason"
+
+
+@pytest.mark.asyncio
 async def test_project_start_does_not_require_signature(admin_client, unique_suffix):
     """PRS :start 不要求签名"""
     pcode = (

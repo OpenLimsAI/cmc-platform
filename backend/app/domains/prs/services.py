@@ -270,6 +270,7 @@ class ProjectService:
         reason: str,
         current_user: User,
         password: str | None = None,
+        signature_reason: str | None = None,
     ) -> ProjectDetail:
         transitions = STATE_MACHINE.get(action)
         if not transitions:
@@ -297,7 +298,8 @@ class ProjectService:
             {"r": reason},
         )
 
-        # 电子签名
+        # 电子签名（signature_reason 独立于 change_reason；未传则 fallback）
+        sig_reason = signature_reason or reason
         sig = None
         if requires_sig:
             sig_service = ESignatureService(self.db)
@@ -309,7 +311,7 @@ class ProjectService:
                 entity_id=proj.project_id,
                 entity_code=proj.project_code,
                 meaning=ACTION_TO_MEANING[action],
-                reason=reason,
+                reason=sig_reason,
                 content_for_hash={
                     "project_code": proj.project_code,
                     "project_name": proj.project_name,
@@ -317,6 +319,7 @@ class ProjectService:
                     "target_status": next_status,
                     "version": proj.version,
                     "change_reason": reason,
+                    "signature_reason": sig_reason,
                 },
             )
 

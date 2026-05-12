@@ -217,6 +217,7 @@ class AssetService:
         reason: str,
         current_user: User,
         password: str | None = None,
+        signature_reason: str | None = None,
     ) -> AssetDetail:
         transitions = STATE_MACHINE.get(action)
         if not transitions:
@@ -243,7 +244,8 @@ class AssetService:
             {"r": reason},
         )
 
-        # 电子签名：验证密码、写 e_signature
+        # 电子签名（signature_reason 独立于 change_reason；未传则 fallback）
+        sig_reason = signature_reason or reason
         sig = None
         if requires_sig:
             sig_service = ESignatureService(self.db)
@@ -255,7 +257,7 @@ class AssetService:
                 entity_id=asset.asset_id,
                 entity_code=asset.asset_code,
                 meaning=ACTION_TO_MEANING[action],
-                reason=reason,
+                reason=sig_reason,
                 content_for_hash={
                     "asset_code": asset.asset_code,
                     "internal_name": asset.internal_name,
@@ -264,6 +266,7 @@ class AssetService:
                     "current_phase": asset.current_phase,
                     "version": asset.version,
                     "change_reason": reason,
+                    "signature_reason": sig_reason,
                 },
             )
 

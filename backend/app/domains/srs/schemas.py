@@ -121,6 +121,11 @@ class SubstanceStatusChange(BaseModel):
         None, min_length=1, max_length=128,
         description="当前用户密码；仅 GxP 关键动作要求（21 CFR Part 11 §11.200）",
     )
+    signature_reason: str | None = Field(
+        None, min_length=1, max_length=2000,
+        description="电子签名理由（21 CFR Part 11 §11.50，独立于 change_reason）；"
+                    "未传则 fallback 到 change_reason 以保证向后兼容",
+    )
 
 
 class SubstanceDelete(BaseModel):

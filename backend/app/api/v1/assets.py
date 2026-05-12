@@ -165,7 +165,8 @@ async def _state_change(
 ):
     service = AssetService(db)
     detail = await service.change_status(
-        code, action, payload.change_reason, user, password=payload.password
+        code, action, payload.change_reason, user,
+        password=payload.password, signature_reason=payload.signature_reason,
     )
     return success(
         data=detail.model_dump(mode="json"),

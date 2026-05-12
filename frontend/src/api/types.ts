@@ -274,6 +274,9 @@ export interface SubstanceStatusChangePayload {
   // GxP 关键动作（approve / activate / deprecate / obsolete）必填；
   // 21 CFR Part 11 §11.200 电子签名验证用当前用户密码
   password?: string;
+  // 21 CFR Part 11 §11.50 要求记录独立的签名理由（与 change_reason 分离）；
+  // 不传则后端 fallback 到 change_reason（向后兼容）
+  signature_reason?: string;
 }
 
 export interface SubstanceXrefCreateInput extends SubstanceXrefInput {}
@@ -456,6 +459,8 @@ export interface ProjectStatusChangePayload {
   change_reason: string;
   // GxP 关键动作（approve / complete / terminate）必填
   password?: string;
+  // 21 CFR Part 11 §11.50 签名理由（独立于 change_reason）
+  signature_reason?: string;
 }
 
 // ============== Project milestones (DM-MDM-001 §9.3) ==============
@@ -756,6 +761,8 @@ export type AssetAction = 'hold' | 'resume' | 'terminate';
 export interface AssetStatusChangePayload {
   change_reason: string;
   password?: string;
+  // 21 CFR Part 11 §11.50 签名理由（独立于 change_reason）
+  signature_reason?: string;
 }
 
 // §8.3 asset_market_id

@@ -128,6 +128,18 @@ async def test_status_history_recorded(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_asset_not_found_returns_40404(admin_client):
+    """API1（DEV-MDM-001 V1.2 Batch G1.A）：V1.1 §4.2 错误码表 40404=asset_not_found；
+    之前实施侧错位（asset 占 40405，xref 占 40404），本次修正。
+    """
+    r = await admin_client.get("/api/v1/assets/AST-NONEXIST-999")
+    assert r.status_code == 404
+    body = r.json()
+    assert body["code"] == 40404
+    assert body["meta"]["error"]["type"] == "asset_not_found"
+
+
+@pytest.mark.asyncio
 async def test_terminate_requires_sign_permission(researcher_client, admin_client, unique_suffix):
     """researcher 没 asset:sign 权限 → 403"""
     code = await _new_asset(admin_client, unique_suffix, "perm")
