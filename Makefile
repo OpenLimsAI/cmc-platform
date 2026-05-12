@@ -1,4 +1,4 @@
-.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be lint-be lint-fe gen-types
+.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be lint-be lint-fe gen-types docs-extract docs-check
 
 COMPOSE := docker compose -f deploy/docker-compose.dev.yml
 
@@ -20,6 +20,9 @@ help:
 	@echo "  make lint-be     后端代码检查"
 	@echo "  make lint-fe     前端代码检查"
 	@echo "  make gen-types   从后端 OpenAPI 生成前端 TS 类型"
+	@echo ""
+	@echo "  make docs-extract 从 V1.1+ docx 派生 markdown（双轨同步）"
+	@echo "  make docs-check   校验 markdown 与 docx 一致性（CI 门禁）"
 
 up:
 	$(COMPOSE) up -d --build
@@ -80,3 +83,12 @@ lint-fe:
 
 gen-types:
 	cd frontend && pnpm gen:api
+
+# ============== 双轨文档同步 ==============
+# docx 是源（签字定稿、Word 修订模式追踪）；markdown 由 docx 自动派生。
+# markdown 不能手工修改；CI 通过 docs-check 强制一致性。
+docs-extract:
+	@python3 scripts/docs/extract_md.py
+
+docs-check:
+	@python3 scripts/docs/check_consistency.py

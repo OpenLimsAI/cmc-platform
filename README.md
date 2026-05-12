@@ -30,10 +30,37 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 - [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 在 V1.1 基础上叠加 M3.1-M3.4 ARS + 跨域引用 + 跨 4 文档检查（含附录 C 测试覆盖映射表）
 
 **V1.0 → V1.1 修订清单**（基于 V1.2 偏离决议，供评审组逐项决议接受/拒绝/修改，决议后秘书在 Word 修订模式落地）：
-- [DM-MDM-001_修订清单](./docs/V1.1_修订清单/DM-MDM-001_修订清单.md)（12 项 · 9 接受 + 2 待决议 + 1 可选）
+- [DM-MDM-001_修订清单](./docs/V1.1_修订清单/DM-MDM-001_修订清单.md)（12 项 · 9 接受 + 2 已决议 + 1 可选）
 - [ARCH-MDM-001_修订清单](./docs/V1.1_修订清单/ARCH-MDM-001_修订清单.md)（11 项）
-- [API-MDM-001_修订清单](./docs/V1.1_修订清单/API-MDM-001_修订清单.md)（19 项 · 含 errorType 字典补充与 5 个推迟端点路线图）
+- [API-MDM-001_修订清单](./docs/V1.1_修订清单/API-MDM-001_修订清单.md)（21 项 · 含 `meta.error.type` 字典 / `require_all_permissions` 示例 / SET LOCAL GUC 修订）
 - [UI-MDM-001_修订清单](./docs/V1.1_修订清单/UI-MDM-001_修订清单.md)（14 项 · 含资产域整章新增与状态变更全局交互模式）
+
+### 双轨文档同步（docx 是源、markdown 是派生）
+
+为了让"人读 docx、程序读 markdown"同时成立且保持一致，本项目采用**单源派生**模式：
+
+| 角色 | 文件 | 维护方式 |
+|---|---|---|
+| **源** | `docs/*.V1.1.docx`（待秘书产出）| 走 Word 修订模式 + GxP 签字定稿 |
+| **派生** | `docs/*.V1.1.md` | 由 `make docs-extract` 从 docx 自动提取，**不能手工修改** |
+| **CI 门禁** | — | `make docs-check` 重新提取后 diff，不一致就 fail |
+
+**变更流程**（V1.1 发布后）：
+1. 内容变更先在 docx 里走 Word 修订模式
+2. 评审签字定稿
+3. 跑 `make docs-extract` 重新生成 markdown
+4. `git add docs/*.md && git commit`
+5. CI 自动跑 `make docs-check` 校验一致性
+
+**当前状态**：V1.1.docx 尚未由秘书产出，`make docs-extract` 全部跳过；待 4 份 V1.1.docx 落地后跑一次即可生成对应 markdown。命令链路已演练通过（V1.0.docx 演练成功提取 2545 行 markdown）。
+
+工具依赖：
+- 优先用本地 `pandoc`（macOS: `brew install pandoc` / Linux: `apt install pandoc`）
+- 没有则自动 fallback 用 `docker run pandoc/core:3.1`（项目已依赖 docker）
+
+例外：以下 markdown 文档是**原生 markdown**，**不**走双轨派生：
+- 设计基准偏离说明 V1.1/V1.2_draft（评审材料，markdown 原生）
+- V1.0 → V1.1 修订清单 4 份（评审对照表，markdown 原生）
 
 ## 技术栈
 

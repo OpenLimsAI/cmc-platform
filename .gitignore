@@ -66,3 +66,6 @@ backups/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .claude/projects/
+
+# ============== 临时工作目录（演练 / CI 提取产物）==============
+.tmp/
