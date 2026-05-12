@@ -23,10 +23,10 @@ CHECK_DIR = REPO_ROOT / ".tmp" / "docs-check"
 
 # 与 extract_md.py 保持一致的 ACTIVE 列表
 ACTIVE_MD_NAMES = [
-    "CMAB_MDM_Portal_数据模型设计文档_V1.1.md",
-    "CMAB_MDM_Portal_架构设计文档_V1.1.md",
-    "CMAB_MDM_Portal_API接口规范_V1.1.md",
-    "CMAB_MDM_Portal_UI信息架构与线框图_V1.1.md",
+    "CMAB_MDM_Portal_数据模型设计文档_V1_1.md",
+    "CMAB_MDM_Portal_架构设计文档_V1_1.md",
+    "CMAB_MDM_Portal_API接口规范_V1_1.md",
+    "CMAB_MDM_Portal_UI信息架构与线框图_V1_1.md",
 ]
 
 

@@ -32,13 +32,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _blocks import restore_blocks_from_docx  # noqa: E402
+
 # 当前有效版本的 docx 列表（其他版本不派生 markdown）
-# V1.0 已签字归档；V1.1 待秘书产出；V1.1 出现后此处会工作
+# V1.0 已签字归档；命名规范使用下划线（V1_1）匹配秘书实际产出的文件名
 ACTIVE_DOCX_PATTERNS = [
-    "CMAB_MDM_Portal_数据模型设计文档_V1.1.docx",
-    "CMAB_MDM_Portal_架构设计文档_V1.1.docx",
-    "CMAB_MDM_Portal_API接口规范_V1.1.docx",
-    "CMAB_MDM_Portal_UI信息架构与线框图_V1.1.docx",
+    "CMAB_MDM_Portal_数据模型设计文档_V1_1.docx",
+    "CMAB_MDM_Portal_架构设计文档_V1_1.docx",
+    "CMAB_MDM_Portal_API接口规范_V1_1.docx",
+    "CMAB_MDM_Portal_UI信息架构与线框图_V1_1.docx",
 ]
 
 PANDOC_DOCKER_IMAGE = "pandoc/core:3.1"
@@ -95,33 +98,41 @@ def _run_pandoc(in_docx: Path, out_md: Path) -> None:
         sys.exit(f"pandoc failed: {result.stderr}")
 
 
-def _post_process(md_path: Path) -> None:
+def _post_process(md_path: Path, docx_path: Path) -> None:
     """
-    后处理：去除 pandoc 输出的噪音，让 markdown 更稳定可读、可 diff。
+    后处理：去除 pandoc 输出的噪音 + 用 docx 原文恢复单单元格表的对齐与缩进。
 
-    1. 去除 attribute id `{#title}` `{.class}` 等（pandoc 给标题加的内部锚点）
-    2. 折叠连续 3 行以上空行为 2 行
-    3. 去除行尾空白
-    4. 文件头加自动生成警告
+    pandoc 把 docx 单单元格 <w:tbl> 转成 HTML <p> 时会按 HTML 标准压缩连续空格，
+    破坏 ASCII 框图和代码缩进。restore_blocks_from_docx 直接从 docx XML
+    读取 xml:space="preserve" 原文重建为代码围栏 / blockquote。
+
+    1. 从 docx 原文恢复所有单单元格表（多单元格表保留 HTML 不动）
+    2. 去除 attribute id `{#title}` `{.class}` 等（pandoc 给标题加的内部锚点）
+    3. 折叠连续 3 行以上空行为 2 行
+    4. 去除行尾空白
+    5. 文件头加自动生成警告
     """
     text = md_path.read_text(encoding="utf-8")
 
-    # 1) attribute id `{#xxx}` `{.xxx}` `{.unnumbered}` 等
+    # 1) 用 docx 原文重建单单元格表（恢复 ASCII 对齐 / 代码缩进）
+    text, _stats = restore_blocks_from_docx(text, docx_path)
+
+    # 2) attribute id `{#xxx}` `{.xxx}` `{.unnumbered}` 等
     text = re.sub(r"[ \t]*\{[#.][^}]+\}", "", text)
 
-    # 2) 多余空行
+    # 3) 多余空行
     text = re.sub(r"\n{3,}", "\n\n", text)
 
-    # 3) 行尾空白
+    # 4) 行尾空白
     text = re.sub(r"[ \t]+\n", "\n", text)
 
-    # 4) 文件头警告（让人类知道这是派生文件）
+    # 5) 文件头警告（让人类知道这是派生文件）
     warning = (
         f"<!--\n"
         f"  本文件由 scripts/docs/extract_md.py 从 docx 自动派生，请勿手工修改。\n"
-        f"  源文件：{md_path.with_suffix('.docx').name}\n"
-        f"  重新生成：make docs-extract\n"
-        f"  一致性校验：make docs-check\n"
+        f"  源文件:{md_path.with_suffix('.docx').name}\n"
+        f"  重新生成:make docs-extract\n"
+        f"  一致性校验:make docs-check\n"
         f"-->\n\n"
     )
     if not text.startswith("<!--"):
@@ -137,7 +148,7 @@ def extract_one(docx_path: Path, out_md: Path) -> bool:
         return False
     out_md.parent.mkdir(parents=True, exist_ok=True)
     _run_pandoc(docx_path, out_md)
-    _post_process(out_md)
+    _post_process(out_md, docx_path)
     print(f"  ✓ {docx_path.name} → {out_md.relative_to(REPO_ROOT)}")
     return True
 
