@@ -236,6 +236,8 @@ class AssetService:
                 f"（允许的起始状态：{list(transitions)}）"
             )
 
+        # 写入 change_reason GUC — 仅 audit.fn_audit_trigger 仍读（写 audit_log.reason）
+        # ars.fn_asset_status_change 已不读 GUC（migration 0029），改为 service 后置 UPDATE
         await self.db.execute(
             text("SELECT set_config('app.change_reason', :r, true)"),
             {"r": reason},
@@ -269,22 +271,28 @@ class AssetService:
         asset.updated_by = current_user.user_id
 
         await self.db.flush()
-        # status_change 触发器已经写入 asset_status_history（service 后置回填 sig_id）
-        if sig is not None:
-            await self.db.execute(
-                text(
-                    """
-                    UPDATE ars.asset_status_history
-                       SET e_signature_id = :sid
-                     WHERE history_id = (
-                         SELECT MAX(history_id)
-                           FROM ars.asset_status_history
-                          WHERE asset_id = :aid
-                     )
-                    """
-                ),
-                {"sid": sig.signature_id, "aid": asset.asset_id},
-            )
+        # 触发器写入 asset_status_history（change_reason='status changed', e_signature_id=NULL）
+        # service 显式回填实际 change_reason 与 e_signature_id：与 §8.4 V1.1 DDL/注释一致，
+        # 同时规避 asyncpg SET LOCAL GUC 在连接复用下的偶发泄漏
+        await self.db.execute(
+            text(
+                """
+                UPDATE ars.asset_status_history
+                   SET change_reason  = :reason,
+                       e_signature_id = :sid
+                 WHERE history_id = (
+                     SELECT MAX(history_id)
+                       FROM ars.asset_status_history
+                      WHERE asset_id = :aid
+                 )
+                """
+            ),
+            {
+                "reason": reason,
+                "sid": sig.signature_id if sig is not None else None,
+                "aid": asset.asset_id,
+            },
+        )
         await self.db.refresh(asset, ["version", "updated_at"])
         # 显式 commit：避免 FastAPI yield 依赖在 response 后才 commit 导致下一请求 race
         await self.db.commit()

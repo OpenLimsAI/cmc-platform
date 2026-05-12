@@ -122,6 +122,17 @@ class ProjectService:
             stmt = stmt.where(Project.department.ilike(f"%{filter.department}%"))
         if filter.project_manager_id is not None:
             stmt = stmt.where(Project.project_manager_id == filter.project_manager_id)
+        if filter.priority:
+            priorities = [p.strip() for p in filter.priority.split(",")]
+            stmt = stmt.where(Project.priority.in_(priorities))
+        if filter.program_name:
+            stmt = stmt.where(Project.program_name.ilike(f"%{filter.program_name}%"))
+        if filter.parent_project_id is not None:
+            stmt = stmt.where(Project.parent_project_id == filter.parent_project_id)
+        if filter.confidentiality:
+            stmt = stmt.where(Project.confidentiality == filter.confidentiality)
+        if filter.budget_currency:
+            stmt = stmt.where(Project.budget_currency == filter.budget_currency)
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = (await self.db.execute(count_stmt)).scalar_one()
@@ -279,6 +290,8 @@ class ProjectService:
                 f"（允许的起始状态：{list(transitions)}）"
             )
 
+        # 写入 change_reason GUC — 仅 audit.fn_audit_trigger 仍读（写 audit_log.reason）
+        # prs.fn_project_status_change 已不读 GUC（migration 0029），改为 service 后置 UPDATE
         await self.db.execute(
             text("SELECT set_config('app.change_reason', :r, true)"),
             {"r": reason},
@@ -321,22 +334,28 @@ class ProjectService:
         _ = now_utc  # 留作未来需要时使用
 
         await self.db.flush()
-        # 显式回填 e_signature_id（避免 SET LOCAL 在异步连接池下的偶发泄漏）
-        if sig is not None:
-            await self.db.execute(
-                text(
-                    """
-                    UPDATE prs.project_status_history
-                       SET e_signature_id = :sid
-                     WHERE history_id = (
-                         SELECT MAX(history_id)
-                           FROM prs.project_status_history
-                          WHERE project_id = :proj_id
-                     )
-                    """
-                ),
-                {"sid": sig.signature_id, "proj_id": proj.project_id},
-            )
+        # 触发器写入 project_status_history（change_reason='status changed', e_signature_id=NULL）
+        # service 显式回填实际 change_reason 与 e_signature_id：与 §9.5 V1.1 DDL/注释一致，
+        # 同时规避 asyncpg SET LOCAL GUC 在连接复用下的偶发泄漏
+        await self.db.execute(
+            text(
+                """
+                UPDATE prs.project_status_history
+                   SET change_reason  = :reason,
+                       e_signature_id = :sid
+                 WHERE history_id = (
+                     SELECT MAX(history_id)
+                       FROM prs.project_status_history
+                      WHERE project_id = :proj_id
+                 )
+                """
+            ),
+            {
+                "reason": reason,
+                "sid": sig.signature_id if sig is not None else None,
+                "proj_id": proj.project_id,
+            },
+        )
         # 触发器维护字段：
         #   prs.fn_project_before_update → version / updated_at
         #   prs.fn_project_status_change → 写入 project_status_history（service 后置回填 sig_id）

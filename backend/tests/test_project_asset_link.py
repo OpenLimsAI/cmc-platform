@@ -186,6 +186,43 @@ async def test_terminated_asset_forbids_link_from_both_sides(admin_client, uniqu
 
 
 @pytest.mark.asyncio
+async def test_terminated_project_forbids_link_from_both_sides(admin_client, unique_suffix):
+    """R5（DEV-MDM-001 V1.2 / migration 0029）：terminated project 无论从哪一侧都不允许新建关联，
+    与 §11.1 设计原则三类禁建之一一致。
+    """
+    pcode = await _new_project(admin_client, unique_suffix)
+    acode = await _new_asset(admin_client, unique_suffix)
+
+    # 推 project 到 active 再 terminate
+    for action, reason in [
+        ("approve", "pytest prep approve"),
+        ("start", "pytest prep start"),
+        ("terminate", "pytest terminate before link"),
+    ]:
+        r = await admin_client.post(
+            f"/api/v1/projects/{pcode}:{action}",
+            json={"change_reason": reason, "password": ADMIN_PASSWORD},
+        )
+        assert r.status_code == 200, f"{action} 失败: {r.text}"
+
+    # 从 project 侧
+    r1 = await admin_client.post(
+        f"/api/v1/projects/{pcode}/assets",
+        json={"asset_code": acode, "relation_type": "primary"},
+    )
+    assert r1.status_code == 400
+    assert "terminated" in r1.text
+
+    # 从 asset 侧
+    r2 = await admin_client.post(
+        f"/api/v1/assets/{acode}/projects",
+        json={"project_code": pcode, "relation_type": "primary"},
+    )
+    assert r2.status_code == 400
+    assert "terminated" in r2.text
+
+
+@pytest.mark.asyncio
 async def test_link_audit_inherits_project_code(admin_client, unique_suffix):
     """project_asset 触发器写 audit_log entity_code 应回填 project_code"""
     pcode = await _new_project(admin_client, unique_suffix)

@@ -175,6 +175,33 @@ async def test_link_obsoleted_substance_rejected(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_link_terminated_project_rejected(admin_client, unique_suffix):
+    """R5（DEV-MDM-001 V1.2 / migration 0029）：terminated project 不允许新建关联，
+    与 §11.1 设计原则三类禁建之一一致（substance.obsoleted / asset.terminated / project.terminated）。
+    """
+    pcode = await _new_project(admin_client, unique_suffix)
+    scode = await _new_substance(admin_client, unique_suffix)
+    # 推到 active 然后 terminate
+    for action, reason in [
+        ("approve", "pytest 推 approve"),
+        ("start", "pytest 推 start"),
+        ("terminate", "pytest 终止 project ≥5"),
+    ]:
+        r = await admin_client.post(
+            f"/api/v1/projects/{pcode}:{action}",
+            json={"change_reason": reason, "password": "__REDACTED_SEED_PASSWORD_1__"},
+        )
+        assert r.status_code == 200, f"{action} 失败: {r.text}"
+
+    resp = await admin_client.post(
+        f"/api/v1/projects/{pcode}/substances",
+        json={"substance_code": scode, "relation_type": "primary"},
+    )
+    assert resp.status_code == 400
+    assert "terminated" in resp.text
+
+
+@pytest.mark.asyncio
 async def test_link_audit_inherits_project_code(admin_client, unique_suffix):
     """ref.project_substance 触发器写 audit_log 时 entity_code 应是 project_code"""
     pcode = await _new_project(admin_client, unique_suffix)

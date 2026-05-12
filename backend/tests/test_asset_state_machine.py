@@ -118,6 +118,13 @@ async def test_status_history_recorded(admin_client, unique_suffix):
     assert hist[1]["e_signature_id"] is None  # resume 不签
     assert hist[2]["new_status"] == "on_hold"
     assert hist[2]["e_signature_id"] is None  # hold 不签
+    # A3（DEV-MDM-001 V1.2 / migration 0029）：触发器只写占位 'status changed'，
+    # service 后置 UPDATE 回填实际 reason — 与 V1.1 §8.4 注释一致
+    assert hist[0]["change_reason"] == "pytest 历史链测试"
+    for item in hist:
+        assert item["change_reason"] != "status changed", (
+            "service 应已把触发器写入的占位 'status changed' 改为实际 reason"
+        )
 
 
 @pytest.mark.asyncio

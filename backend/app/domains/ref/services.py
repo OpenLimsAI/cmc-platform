@@ -6,9 +6,10 @@ DM-MDM-001 V1.0 §11：
   - §11.3 asset   ↔ substance（AssetSubstanceLinkService）
   - §11.4 project ↔ asset    （ProjectAssetLinkService）
 
-业务规则：
+业务规则（V1.1 §11.1 设计原则）：
   - SUBSTANCE_STATUS_FORBID_LINK：obsoleted 物质不允许参与新关联
   - ASSET_STATUS_FORBID_LINK：terminated 资产不允许参与新关联（业务侧已停止开发）
+  - PROJECT_STATUS_FORBID_LINK：terminated 项目不允许参与新关联（与 asset/substance 同等要求）
 软删除 deleted_at（取消引用），保留审计。
 """
 from datetime import UTC, datetime
@@ -41,6 +42,7 @@ from app.domains.srs.models import Substance
 # 关联业务规则
 SUBSTANCE_STATUS_FORBID_LINK = {"obsoleted"}
 ASSET_STATUS_FORBID_LINK = {"terminated"}
+PROJECT_STATUS_FORBID_LINK = {"terminated"}
 
 
 # ============== §11.2 ProjectSubstance ==============
@@ -76,6 +78,10 @@ class ProjectSubstanceLinkService:
         proj = await self._get_project(project_code)
         sub = await self._get_substance(payload.substance_code)
 
+        if proj.status in PROJECT_STATUS_FORBID_LINK:
+            raise BadRequestError(
+                f"project {proj.project_code} 当前状态为 '{proj.status}'，不允许建立新关联"
+            )
         if sub.status in SUBSTANCE_STATUS_FORBID_LINK:
             raise BadRequestError(
                 f"substance {sub.substance_code} 当前状态为 '{sub.status}'，不允许建立新关联"
@@ -395,6 +401,7 @@ class AssetSubstanceLinkService:
             updated_at=link.updated_at,
             updated_by=link.updated_by,
             deleted_at=link.deleted_at,
+            deleted_by=link.deleted_by,
             asset_code=asset.asset_code,
             asset_internal_name=asset.internal_name,
             asset_type=asset.asset_type,
@@ -443,6 +450,10 @@ class ProjectAssetLinkService:
         proj = await self._get_project(project_code)
         asset = await self._get_asset(asset_code)
 
+        if proj.status in PROJECT_STATUS_FORBID_LINK:
+            raise BadRequestError(
+                f"project {proj.project_code} 当前状态为 '{proj.status}'，不允许建立新关联"
+            )
         if asset.status in ASSET_STATUS_FORBID_LINK:
             raise BadRequestError(
                 f"asset {asset.asset_code} 当前状态为 '{asset.status}'，不允许建立新关联"
@@ -570,6 +581,7 @@ class ProjectAssetLinkService:
             updated_at=link.updated_at,
             updated_by=link.updated_by,
             deleted_at=link.deleted_at,
+            deleted_by=link.deleted_by,
             project_code=proj.project_code,
             project_name=proj.project_name,
             project_status=proj.status,

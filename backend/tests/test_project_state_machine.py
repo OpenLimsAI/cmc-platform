@@ -116,6 +116,12 @@ async def test_status_history_recorded(admin_client, unique_suffix):
     assert items[-1]["new_status"] == "initiated"  # §9.2 approve → initiated
     assert items[-1]["old_status"] == "proposed"
     assert "pytest hold" in items[0]["change_reason"]
+    # P1（DEV-MDM-001 V1.2 / migration 0029）：触发器只写占位 'status changed'，
+    # service 后置 UPDATE 回填实际 reason — 与 V1.1 §9.5 注释一致
+    for item in items:
+        assert item["change_reason"] != "status changed", (
+            "service 应已把触发器写入的占位 'status changed' 改为实际 reason"
+        )
 
 
 @pytest.mark.asyncio
