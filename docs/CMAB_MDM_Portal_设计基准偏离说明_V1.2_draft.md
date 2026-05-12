@@ -5,7 +5,7 @@
 | 文档编号 | DEV-MDM-001 |
 | 版本 | V1.2 Draft |
 | 状态 | 待 CMC IT 架构组评审 |
-| 上位文档 | DM-MDM-001 V1.0 / ARCH-MDM-001 V1.0 / API-MDM-001 V1.0 / UI-MDM-001 V1.0 |
+| 上位文档 | DM-MDM-001 V1.1 / ARCH-MDM-001 V1.1 / API-MDM-001 V1.1 / UI-MDM-001 V1.1 |
 | 编制 | CMC R&D（实施侧） |
 | 日期 | 2026-05-12 |
 | 分类 | 合规审计配套文档 |
@@ -54,7 +54,9 @@ V1.1 §4.1 / §4.2 / §4.3 状态更新：
 
 ## 5. 跨主题实施侧合理加强 — V1.1 状态延续
 
-V1.1 §5.1-§5.5 全部 5 项（service-level commit / 旁路 session / parent_ref / e_signature_id / errorType 401 分流）状态不变，建议 V1.1 文档评审时一并吸收。
+V1.1 §5.1-§5.5 全部 5 项（service-level commit / 旁路 session / parent_ref / e_signature_id / `meta.error.type` 401 分流）状态不变，建议 V1.1 文档评审时一并吸收。
+
+> 说明：V1.0 API 错误响应的机器可读错误类型字段位于 `meta.error.type`。本文件中原称 “`meta.error.type`” 的内容统一解释为 `meta.error.type` 字典 / 分流规则，除非后续评审明确决定调整 API 响应结构。
 
 V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下文。
 
@@ -78,7 +80,7 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 |---|---|---|---|
 | 6.2.1 | `asset_market_id` 表（多市场注册号）| ✅ migration 0023 按 §8.3 DDL 建表 | 无偏离 |
 | 6.2.2 | `UNIQUE (asset_id, market_code, id_type, id_value)` | 实施一致 | 无偏离 |
-| 6.2.3 | `deleted_at` 软删除字段，**无** `deleted_by` | 实施一致（与 §8.3 设计相同）| ⚠️ **建议 V1.1 评审确认**：§8.3 该表无 `deleted_by`，但其余子表（substance_xref / project_milestone 等）都有；这是设计上的不一致点还是有意简化？|
+| 6.2.3 | `deleted_at` 软删除字段，V1.0 **无** `deleted_by` | 实施侧已按 V1.1 修订统一补 `deleted_by` | ✅ 已吸收进 DM-MDM-001 V1.1：补 `deleted_by BIGINT REFERENCES auth.user(user_id)`，与 substance_xref / project_milestone 等子表 soft-delete 字段组保持一致。|
 | 6.2.4 | audit trigger 接入，第 3 参数 `parent_ref` 回填 `asset_code` | 实施保留实施侧加强（V1.1 §5.3）| 🟢 与 V1.1 §5.3 同模式 |
 
 ### 6.3 🟢 ARS §8.1 asset_status_history — 文档遗漏 + 实施补齐
@@ -105,7 +107,7 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 | 6.5.1 | 复合 PK `(asset_id, substance_id, component_role)` | ✅ migration 0025 按 §11.3 DDL 建表 | 无偏离 |
 | 6.5.2 | `component_role` ∈ `main_component / antibody / linker / payload / excipient / impurity`（6 值 CHECK）| 实施一致 | 无偏离 |
 | 6.5.3 | `is_active_ingredient BOOLEAN NOT NULL DEFAULT TRUE` | 实施一致 | 无偏离 |
-| 6.5.4 | 软删除 `deleted_at`，**无** `deleted_by`（与 §11.2 不同）| 实施一致 | ⚠️ **建议 V1.1 评审确认**：§11.2 ref.project_substance 有 `deleted_by`，§11.3 / §11.4 都无；统一 soft-delete 模式还是有意区分？|
+| 6.5.4 | 软删除 `deleted_at`，V1.0 **无** `deleted_by`（与 §11.2 不同）| 实施侧已按 V1.1 修订统一补 `deleted_by` | ✅ 已吸收进 DM-MDM-001 V1.1：`ref.asset_substance` / `ref.project_asset` 均补 `deleted_by`，三张 ref 表采用一致 soft-delete 模式（`deleted_at + deleted_by`）。|
 | 6.5.5 | audit trigger 第 1 参数用 `asset_id`（§11.3 复合 PK 无单一 ID），第 3 参数 `parent_ref` 回填 `asset_code` | 实施一致 | 🟢 沿用 V1.1 §5.3 |
 
 ### 6.6 🟢 REF §11.4 ref.project_asset（M3.3）
@@ -116,6 +118,7 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 | 6.6.2 | `relation_type VARCHAR(32) NOT NULL DEFAULT 'primary'` 文档未限定 CHECK 枚举 | 实施一致（后端无 CHECK；前端给建议值 primary/supporting/derivative/reference）| 🟢 与 §11.4 设计一致 |
 | 6.6.3 | audit trigger parent_ref 回填 `project_code`（project 是关系中"更主"的实体）| 实施一致 | 🟢 业务语义合理 |
 | 6.6.4 | 业务规则：`asset.status='terminated'` 禁止新建关联 | 实施侧加强（service 层校验，与"obsoleted 物质不允许新关联" V1.1 §3 类似）| 🟢 建议 V1.1 §11.4 加业务规则说明 |
+| 6.6.5 | 软删除 `deleted_at`，V1.0 **无** `deleted_by`（与 §11.2 不同）| 实施侧已按 V1.1 修订统一补 `deleted_by` | ✅ 已吸收进 DM-MDM-001 V1.1，与 `ref.asset_substance` 保持一致。|
 
 ### 6.7 🟢 全局搜索接入 asset（M3.4）
 
@@ -152,7 +155,7 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 | 7.2.2 | Prometheus metrics endpoint | 未实现 | Phase 4 / 生产部署前补 |
 | 7.2.3 | 集中日志收集（ELK / Splunk）| 仅 stdout loguru | 生产部署前配置 |
 | 7.2.4 | 生产级 nginx 反代 + k8s manifest | 仅 docker-compose dev | Phase 4 / 生产部署前补 |
-| 7.2.5 | 数据库备份策略 | 未定义 | 生产部署前定义 |
+| 7.2.5 | 数据库备份策略 | 未定义 | Phase 4 生产部署前定义备份策略，并完成至少一次恢复演练，形成可审计记录 |
 | 7.2.6 | 测试覆盖率工具兼容性 | V1.1 §附录 A 提到 schema 一致性检查脚本，未实现 | 维持记录，CI 门禁待 Phase 4 补 |
 
 ### 7.3 已对齐项（无偏离）
@@ -181,11 +184,11 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 | 8.2.2 | `GET /substances/{code}/adc` 独立子资源端点 | 同上，用 `?expand=adc` | 同上 |
 | 8.2.3 | `GET /substances/{code}/xrefs` 独立列表端点 | 同上，用 `?expand=xrefs`；POST/PUT/DELETE 独立子资源端点保留 | 列表数据少，跟主体一起返回开销低 |
 
-### 8.3 🟢 errorType 体系（V1.1 §5.5 延续）
+### 8.3 🟢 `meta.error.type` 体系（V1.1 §5.5 延续）
 
-实施已落地 errorType 分流（`signature_invalid` / `token_expired` / `token_invalid`），但 API-MDM-001 V1.0 未定义 errorType 字典。
+实施已落地基于 `meta.error.type` 的错误分流（`signature_invalid` / `token_expired` / `token_invalid`），但 API-MDM-001 V1.0 尚未定义完整的 `meta.error.type` 字典。
 
-**建议 V1.1 评审决定**是否将 errorType 体系正式纳入 API 文档：
+**建议 V1.1 评审决定**是否将 `meta.error.type` 体系正式纳入 API 文档：
 - `40101 invalid_credentials`
 - `40102 token_expired`
 - `40103 token_invalid`
@@ -195,7 +198,7 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 - `40301 permission_denied`
 - `40302 account_disabled`
 - `42201 state_invalid`
-- `42202 signature_required` ← 实施侧新增
+- `42203 signature_required` ← 实施侧新增（保留 V1.0 既有 `42202 reference_in_use`，避免破坏性变更）
 - `42301 account_locked`
 
 ### 8.4 已对齐项
@@ -211,7 +214,7 @@ CRUD 路径 / 响应格式（code/message/data/meta + pagination）/ 错误码 H
 - 导航 / 侧边菜单 / Header 全局搜索（接入 substance + project + asset 三类）
 - 物质 / 项目 / 资产三域的列表 / 详情 / 创建 / 编辑页
 - 详情页 Tab 结构（基本信息 / 关联 / 状态历史 / 审计）
-- 状态变更 + 电子签名 UI 全套（变更原因强制 ≥5 字 + 二次确认 + 密码输入 + errorType 分流）
+- 状态变更 UI 全套（变更原因强制 ≥5 字 + 二次确认 + `meta.error.type` 分流）；其中关键不可逆动作（如 terminate / approve / deprecate）额外要求电子签名密码与签名理由，普通 hold / resume 不默认强制电签
 - PermissionGuard 权限守卫
 - 修改密码页（含 §11.300 提示 + 旧 token 即时失效）
 
@@ -223,7 +226,7 @@ CRUD 路径 / 响应格式（code/message/data/meta + pagination）/ 错误码 H
 | 9.2.2 | 项目详情"概览" Tab 含甘特图 | 仅 Descriptions 基本信息 Tab | 中 / Phase 5（需引入甘特图组件） |
 | 9.2.3 | 项目 / 资产列表多视图切换（表格 / 看板 / 时间轴） | 仅表格视图 | 低 / 体验增强，与业务工作流配套 |
 | 9.2.4 | 创建表单 Steps 分步（基本 / 结构 / 标识符 / 关联 / 确认） | 单页表单 | 低 / 单页表单功能等价，体验差异有限 |
-| 9.2.5 | 物料模块（MM）整体 UI | PlaceholderPage 占位 | 高 / Phase 4 物料域 |
+| 9.2.5 | 物料模块（MM）整体 UI | PlaceholderPage 占位 | 高 / Phase 4 物料域；全局搜索 `material` 类型也随 MM 基础域在 Phase 4 接入 |
 | 9.2.6 | 系统管理子页（用户 / 角色 / 权限矩阵 / 编码序列 / 字典 / 配置）| Placeholder | Phase 5 / 6 Admin 工具 |
 | 9.2.7 | 独立审计日志页（全系统日志浏览）| Placeholder（详情页内 AuditLogPanel 已实现）| 中 / Phase 4 |
 | 9.2.8 | 密码复杂度强制（大小写 + 数字 + 特殊字符）| 仅长度 ≥8 校验 | 中 / 合规建议加强 |
@@ -238,7 +241,7 @@ CRUD 路径 / 响应格式（code/message/data/meta + pagination）/ 错误码 H
 - `AssetSubstanceTab` / `AssetProjectTab`（资产侧组分 / 项目绑定）
 - `ProjectAssetTab`（项目侧资产绑定）
 - `RelatedAssetsTab`（物质详情侧反向只读列表）
-- `terminated` 资产时绑定按钮禁用 + tooltip 提示
+- `asset.status = terminated` 时绑定按钮禁用 + tooltip 提示；`current_phase = discontinued` 仅表示业务进度 / 商业阶段，不自动等同于资产终止
 - Header 搜索分组加 `资产` 组（purple Tag）+ `/assets` 跳转
 - 修改密码页 `ChangePasswordPage`（M2.5.x 实施侧加，符合 §11.300）
 
@@ -258,8 +261,8 @@ UI 层面对齐率 **~82%**（缺口集中在 Phase 4-6 范围内的物料 / 系
 | **M3.3** | **REF §11.3 asset_substance + §11.4 project_asset + 终止资产业务规则** | ✅ 2026-05-12 完成 |
 | **M3.4** | **全局搜索接入 asset + 演示数据扩充（4 [DEMO] assets）** | ✅ 2026-05-12 完成 |
 | **V1.1 / V1.2 评审** | **IT 架构组评审本偏离说明 + 决定吸收哪些"实施侧合理加强"到上位文档** | 🚧 待安排 |
-| Phase 4 | 物料域（MM）+ refresh / batch / advance-phase 等推迟端点 + 生产部署配置 | 🚧 待开工 |
-| Phase 5 | 数据治理工具（merge / reject / batch）+ Redis 缓存 + 系统管理 Admin UI | 🚧 待开工 |
+| Phase 4 | 物料域（MM）基础域 + `/auth/refresh` + 全局搜索 material 接入 + 独立审计页 + Prometheus / 集中日志 / 生产部署配置 + 备份恢复演练 + CSV 验证准备 | 🚧 待开工 |
+| Phase 5 | 数据治理工具（merge / reject / batch / advance-phase 视需）+ Redis 缓存 + 系统管理 Admin UI + 复杂 fuzzy matching / 体验增强 | 🚧 待开工 |
 
 ---
 
@@ -269,7 +272,7 @@ V1.1 §7 内容不变。新增风险：
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
-| `asset_market_id` / `ref.asset_substance` 缺 `deleted_by` 与其他子表不一致 | 低（审计可通过 audit_log.user_id 反查删除者）| 评审决定：统一补 deleted_by 还是接受设计差异 |
+| `asset_market_id` / `ref.asset_substance` / `ref.project_asset` 缺 `deleted_by` 与其他子表不一致 | 已通过 DM-MDM-001 V1.1 修订吸收，风险关闭 | 已统一补 `deleted_by`，与 `deleted_at` 共同构成标准 soft-delete 字段组 |
 | `/auth/refresh` 缺失，access_token 30 min 过期需重登 | 低（dev / UAT 阶段）| 生产前补 refresh 端点 |
 | Redis 部署但未用，docker-compose 资源浪费 | 极低 | Phase 5 接入或先从 dev compose 移除 |
 
@@ -288,12 +291,12 @@ V1.1 §7 内容不变。新增风险：
 
 | 上位文档 | 当前对齐率 | 主要缺口 |
 |---|---|---|
-| DM-MDM-001 V1.0（数据模型）| **~99%** | `asset_market_id.deleted_by` / `ref.asset_substance.deleted_by` 是否补，评审决定；§10 物料域整域未实施（Phase 4）|
-| ARCH-MDM-001 V1.0（架构）| **~95%** | Redis 应用层 / Prometheus / 集中日志 / 生产部署配置未做（Phase 4-5）|
-| API-MDM-001 V1.0（API）| **~85%** | refresh / reject / merge / advance-phase / batch CRUD 推迟（Phase 4-5）；protein/adc/xrefs 实施侧用 expand 简化 |
-| UI-MDM-001 V1.0（UI 信息架构）| **~82%** | 物料域 UI / 系统管理 Admin / 项目甘特图 / 多视图切换 / Ctrl+K 等推迟 |
+| DM-MDM-001 V1.1（数据模型）| **~99%** | `asset_market_id.deleted_by` / `ref.asset_substance.deleted_by` / `ref.project_asset.deleted_by` 已吸收；§10 物料域整域未实施（Phase 4）|
+| ARCH-MDM-001 V1.1（架构）| **~95%** | Redis 应用层 / Prometheus / 集中日志 / 生产部署配置未做（Phase 4-5）；路线图已与本文件统一 |
+| API-MDM-001 V1.1（API）| **~85%** | refresh / reject / merge / advance-phase / batch CRUD 推迟（Phase 4-5）；protein/adc/xrefs 实施侧用 expand 简化；`meta.error.type` 字典已正式入文档 |
+| UI-MDM-001 V1.1（UI 信息架构）| **~82%** | 物料域 UI / 系统管理 Admin / 项目甘特图 / 多视图切换 / Ctrl+K 等推迟；ARS 资产域 UI 与状态/阶段语义已补齐 |
 
-**整体加权对齐率**：**~90%**（按合规关键路径加权）。Phase 1-3 范围（substance / project / asset / ref）已 100% 满足设计基准与 21 CFR Part 11 / GxP 要求；Phase 4-6 范围（material / admin / batch / 缓存 / 监控）按计划推迟。
+**整体加权对齐率**：**~90%**（按当前 Phase 1-3 功能范围加权）。Phase 1-3 范围（substance / project / asset / ref）的核心设计路径已形成闭环，包括审计追踪、电子签名、权限控制、失败留痕与状态历史；但生产部署级控制、备份恢复演练、集中日志、完整 CSV 文档包以及 Phase 4-5 范围（material / admin / batch / 缓存 / 监控）仍按计划推迟，不能表述为生产级 GxP 全面完成。
 
 ---
 
@@ -362,7 +365,7 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 | V1.1 §5.3 audit_trigger parent_ref（子表 entity_code 回填）| `test_audit_trigger_v2.py` | 3 | substance_xref / substance_protein / project_milestone 子表 audit_log.entity_code 回填父 code |
 | V1.1 §5.1 service-level 显式 commit（响应后立即可见）| 隐式覆盖 | — | 全部状态机 + link 测试均依赖此（无失败说明已生效）|
 | V1.1 §5.4 status_history.e_signature_id | `test_signature.py` + `test_project_state_machine.py` + `test_asset_state_machine.py` | 多处 | 签名后 status_history.e_signature_id 非空 |
-| V1.1 §5.5 errorType 401 分流 | `test_signature.py` + `test_auth_security.py` | 多处 | signature_invalid vs token_expired 区分；FE 不一刀切跳登录 |
+| V1.1 §5.5 `meta.error.type` 401 分流 | `test_signature.py` + `test_auth_security.py` | 多处 | signature_invalid vs token_expired 区分；FE 不一刀切跳登录 |
 
 **跨主题加强**：直接专项 7 用例 + 多处间接覆盖
 
@@ -406,7 +409,7 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 | §10 物料域 | 未实施，无测试 | Phase 4 |
 | `/auth/refresh` | 未实施 | Phase 4 |
 | substance `:reject` / `:merge` | 未实施 | Phase 5 |
-| asset `:advance-phase` | 未实施 | 待评估 |
+| asset `:advance-phase` | 未实施 | Phase 5 视业务必要性评估；当前 `current_phase` 由 PUT 直接更新，不等同于 `status` 状态机 |
 | batch CRUD | 未实施 | Phase 5 |
 | Redis 缓存层 / Prometheus 指标 | 未集成 | Phase 4-5 |
 | 数据迁移演练（生产场景）| 未做 | 生产部署前 |
