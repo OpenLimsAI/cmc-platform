@@ -128,21 +128,30 @@ export interface SubstanceXref {
   xref_source?: string | null;
   region?: string | null;
   is_primary: boolean;
+  effective_date?: string | null;
+  expiry_date?: string | null;
   notes?: string | null;
 }
 
 export interface ProteinExtension {
   heavy_chain_sequence?: string | null;
   light_chain_sequence?: string | null;
+  additional_chains?: Record<string, unknown> | null;
   sequence_length_hc?: number | null;
   sequence_length_lc?: number | null;
+  sequence_hash_hc?: string | null;
+  sequence_hash_lc?: string | null;
   isotype?: string | null;
   architecture?: string | null;
-  expression_system?: string | null;
-  cell_line?: string | null;
-  molecular_weight_da?: number | null;
+  disulfide_bonds?: Record<string, unknown> | null;
   glycosylation_sites?: Record<string, unknown> | null;
   ptm_info?: Record<string, unknown> | null;
+  expression_system?: string | null;
+  cell_line?: string | null;
+  expression_vector?: string | null;
+  molecular_weight_da?: number | null;
+  pi_theoretical?: number | null;
+  extinction_coefficient?: number | null;
 }
 
 export interface SubstanceDetail {
@@ -204,19 +213,26 @@ export interface SubstanceXrefInput {
   xref_source?: string;
   region?: string;
   is_primary?: boolean;
+  effective_date?: string;
+  expiry_date?: string;
   notes?: string;
 }
 
 export interface ProteinExtensionInput {
   heavy_chain_sequence?: string;
   light_chain_sequence?: string;
+  additional_chains?: Record<string, unknown>;
   sequence_length_hc?: number;
   sequence_length_lc?: number;
   isotype?: string;
   architecture?: string;
+  disulfide_bonds?: Record<string, unknown>;
   expression_system?: string;
   cell_line?: string;
+  expression_vector?: string;
   molecular_weight_da?: number;
+  pi_theoretical?: number;
+  extinction_coefficient?: number;
 }
 
 export interface SubstanceCreatePayload {
@@ -268,6 +284,8 @@ export interface SubstanceXrefUpdateInput {
   xref_source?: string;
   region?: string;
   is_primary?: boolean;
+  effective_date?: string;
+  expiry_date?: string;
   notes?: string;
 }
 

@@ -131,8 +131,15 @@ export function SubstanceDetailPage() {
             <Descriptions.Item label="架构">{sub.protein.architecture || '—'}</Descriptions.Item>
             <Descriptions.Item label="表达系统">{sub.protein.expression_system || '—'}</Descriptions.Item>
             <Descriptions.Item label="细胞株">{sub.protein.cell_line || '—'}</Descriptions.Item>
+            <Descriptions.Item label="表达载体">{sub.protein.expression_vector || '—'}</Descriptions.Item>
             <Descriptions.Item label="分子量 (Da)">
               {sub.protein.molecular_weight_da?.toLocaleString() || '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="理论 pI">
+              {sub.protein.pi_theoretical ?? '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="消光系数 (M⁻¹cm⁻¹)">
+              {sub.protein.extinction_coefficient?.toLocaleString() ?? '—'}
             </Descriptions.Item>
             <Descriptions.Item label="重链长度">
               {sub.protein.sequence_length_hc ? `${sub.protein.sequence_length_hc} aa` : '—'}

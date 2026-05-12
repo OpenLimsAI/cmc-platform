@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import dayjs, { type Dayjs } from 'dayjs';
 import { substancesApi } from '@/api/substances';
 import type {
   SubstanceXref,
@@ -10,6 +11,11 @@ import type {
 } from '@/api/types';
 import { useAuthStore } from '@/stores/authStore';
 import { XREF_TYPE_OPTIONS } from '../constants';
+
+interface XrefFormValues extends Omit<SubstanceXrefCreateInput, 'effective_date' | 'expiry_date'> {
+  effective_date?: Dayjs | null;
+  expiry_date?: Dayjs | null;
+}
 
 interface Props {
   substanceCode: string;
@@ -26,7 +32,7 @@ export function XrefEditor({ substanceCode, xrefs }: Props) {
   const queryClient = useQueryClient();
   const canEdit = hasPermission('substance:update');
   const [editing, setEditing] = useState<EditState | null>(null);
-  const [form] = Form.useForm<SubstanceXrefCreateInput>();
+  const [form] = Form.useForm<XrefFormValues>();
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ['substance', substanceCode] });
@@ -74,16 +80,23 @@ export function XrefEditor({ substanceCode, xrefs }: Props) {
       xref_value: xref.xref_value,
       xref_source: xref.xref_source ?? undefined,
       is_primary: xref.is_primary,
+      effective_date: xref.effective_date ? dayjs(xref.effective_date) : null,
+      expiry_date: xref.expiry_date ? dayjs(xref.expiry_date) : null,
       notes: xref.notes ?? undefined,
     });
   };
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
+    const payload: SubstanceXrefCreateInput = {
+      ...values,
+      effective_date: values.effective_date ? values.effective_date.format('YYYY-MM-DD') : undefined,
+      expiry_date: values.expiry_date ? values.expiry_date.format('YYYY-MM-DD') : undefined,
+    };
     if (editing?.mode === 'create') {
-      createMutation.mutate(values);
+      createMutation.mutate(payload);
     } else if (editing?.mode === 'edit' && editing.xref?.xref_id) {
-      updateMutation.mutate({ xrefId: editing.xref.xref_id, payload: values });
+      updateMutation.mutate({ xrefId: editing.xref.xref_id, payload });
     }
   };
 
@@ -101,6 +114,8 @@ export function XrefEditor({ substanceCode, xrefs }: Props) {
     },
     { title: '值', dataIndex: 'xref_value' },
     { title: '来源', dataIndex: 'xref_source', width: 140, render: (v?: string) => v || '—' },
+    { title: '生效日期', dataIndex: 'effective_date', width: 120, render: (v?: string | null) => v || '—' },
+    { title: '失效日期', dataIndex: 'expiry_date', width: 120, render: (v?: string | null) => v || '—' },
     { title: '备注', dataIndex: 'notes', render: (v?: string) => v || '—' },
     {
       title: '操作',
@@ -171,6 +186,14 @@ export function XrefEditor({ substanceCode, xrefs }: Props) {
           <Form.Item name="is_primary" label="是否为该类型的主标识" valuePropName="checked">
             <Switch checkedChildren="主" unCheckedChildren="次" />
           </Form.Item>
+          <Space.Compact block>
+            <Form.Item name="effective_date" label="生效日期" style={{ flex: 1, marginRight: 8 }}>
+              <DatePicker style={{ width: '100%' }} placeholder="如：2024-01-01" />
+            </Form.Item>
+            <Form.Item name="expiry_date" label="失效日期" style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} placeholder="无失效日期可留空" />
+            </Form.Item>
+          </Space.Compact>
           <Form.Item name="notes" label="备注">
             <Input.TextArea rows={2} maxLength={500} showCount />
           </Form.Item>

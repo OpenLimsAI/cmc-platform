@@ -88,7 +88,10 @@ export function SubstanceEditPage() {
             architecture: sub.protein.architecture ?? undefined,
             expression_system: sub.protein.expression_system ?? undefined,
             cell_line: sub.protein.cell_line ?? undefined,
+            expression_vector: sub.protein.expression_vector ?? undefined,
             molecular_weight_da: sub.protein.molecular_weight_da ?? undefined,
+            pi_theoretical: sub.protein.pi_theoretical ?? undefined,
+            extinction_coefficient: sub.protein.extinction_coefficient ?? undefined,
             heavy_chain_sequence: sub.protein.heavy_chain_sequence ?? undefined,
             light_chain_sequence: sub.protein.light_chain_sequence ?? undefined,
           }
@@ -151,7 +154,10 @@ export function SubstanceEditPage() {
         architecture: p.architecture || undefined,
         expression_system: p.expression_system || undefined,
         cell_line: p.cell_line || undefined,
+        expression_vector: p.expression_vector || undefined,
         molecular_weight_da: p.molecular_weight_da ?? undefined,
+        pi_theoretical: p.pi_theoretical ?? undefined,
+        extinction_coefficient: p.extinction_coefficient ?? undefined,
         heavy_chain_sequence: p.heavy_chain_sequence?.trim() || undefined,
         light_chain_sequence: p.light_chain_sequence?.trim() || undefined,
       };
@@ -285,9 +291,25 @@ export function SubstanceEditPage() {
               <Form.Item name={['protein', 'cell_line']} label="细胞株" style={{ flex: 1 }}>
                 <Input />
               </Form.Item>
+              <Form.Item name={['protein', 'expression_vector']} label="表达载体" style={{ flex: 1 }}>
+                <Input placeholder="如：pCAG-Hyg-mAb" />
+              </Form.Item>
+            </Space>
+
+            <Space size="large" style={{ display: 'flex', width: '100%' }}>
               <Form.Item
                 name={['protein', 'molecular_weight_da']}
                 label="分子量 (Da)"
+                style={{ flex: 1 }}
+              >
+                <InputNumber style={{ width: '100%' }} min={0} />
+              </Form.Item>
+              <Form.Item name={['protein', 'pi_theoretical']} label="理论 pI" style={{ flex: 1 }}>
+                <InputNumber style={{ width: '100%' }} min={0} max={14} step={0.01} />
+              </Form.Item>
+              <Form.Item
+                name={['protein', 'extinction_coefficient']}
+                label="消光系数 (M⁻¹cm⁻¹)"
                 style={{ flex: 1 }}
               >
                 <InputNumber style={{ width: '100%' }} min={0} />
