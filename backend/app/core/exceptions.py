@@ -161,7 +161,7 @@ class XrefNotFoundError(NotFoundError):
 
 class SignatureRequiredError(AppError):
     """请求体未提供 password，但当前动作要求电子签名"""
-    code = 42202
+    code = 42203  # API-MDM-001 V1.1 决议：保留 42202=reference_in_use，signature_required 用 42203
     http_status = 422
     error_type = "signature_required"
     default_message = "此操作需要电子签名，请在请求中提供密码"

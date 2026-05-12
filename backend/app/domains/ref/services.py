@@ -289,6 +289,7 @@ class AssetSubstanceLinkService:
         existing_link = soft_deleted.scalar_one_or_none()
         if existing_link is not None:
             existing_link.deleted_at = None
+            existing_link.deleted_by = None
             existing_link.is_active_ingredient = payload.is_active_ingredient
             existing_link.notes = payload.notes
             existing_link.updated_by = current_user.user_id
@@ -339,6 +340,7 @@ class AssetSubstanceLinkService:
                 f" component_role={component_role}"
             )
         link.deleted_at = datetime.now(UTC)
+        link.deleted_by = current_user.user_id
         link.updated_by = current_user.user_id
         await self.db.flush()
         await self.db.commit()
@@ -469,6 +471,7 @@ class ProjectAssetLinkService:
         existing_link = soft_deleted.scalar_one_or_none()
         if existing_link is not None:
             existing_link.deleted_at = None
+            existing_link.deleted_by = None
             existing_link.relation_type = relation_type
             existing_link.notes = notes
             existing_link.updated_by = current_user.user_id
@@ -515,6 +518,7 @@ class ProjectAssetLinkService:
                 f"未找到活动引用：project={project_code} asset={asset_code}"
             )
         link.deleted_at = datetime.now(UTC)
+        link.deleted_by = current_user.user_id
         link.updated_by = current_user.user_id
         await self.db.flush()
         await self.db.commit()

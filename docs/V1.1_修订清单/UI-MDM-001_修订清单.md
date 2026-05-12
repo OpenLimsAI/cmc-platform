@@ -62,7 +62,7 @@
 | 修订类型 | 重大重写（章节扩充） |
 | V1.0 原文位置 | §7.3.1 阶段推进对话框前的 Tab 列表（5 行简要） |
 | V1.0 原文摘录 | "Tab 1：概览（基本信息 + 当前阶段时间线）/ Tab 2：多市场注册 / Tab 3：关联物质（组分）/ Tab 4：关联项目 / Tab 5：审计" |
-| V1.1 修订内容 | 重写为 6 Tab 详细规范，每 Tab 含字段清单与线框图（参考 §6.2 物质详情页粒度）：<br>- **Tab 1 基本信息**：asset_code / internal_name / trade_name / inn_name / generic_name / asset_type / modality / current_phase / approval_status / target_indication / mechanism_of_action / route_of_administration / sponsor_id / status / confidentiality + 描述字段；阶段推进按钮（保留原 §7.3.1 阶段推进对话框）<br>- **Tab 2 多市场注册号**：表格列 = region / market / status / market_id / approval_date / first_launch_date / withdrawal_date / discontinuation_date / trade_name_local / regulatory_authority；MarketIdTable 组件支持 CRUD（详见修订 #8）<br>- **Tab 3 关联物质（组分）**：表格列 = substance_code / preferred_name / role（main_component / antibody / linker / payload / adjuvant）/ stoichiometry / is_active_principle / notes；AssetSubstanceTab 组件支持新增 / 编辑 / 移除（详见修订 #8）<br>- **Tab 4 关联项目**：表格列 = project_code / project_name / relation_type（development / clinical / cmc / regulatory / supply）/ is_primary / start_date / end_date / notes；AssetProjectTab 组件支持双向绑定（详见修订 #8）<br>- **Tab 5 状态历史**：时间线视图，含 status / changed_at / changed_by / reason / e_signature_id（链接到签名详情），与 substance / project 三域统一<br>- **Tab 6 审计**：与 §6.2.7 同结构，按 entity_schema=ars / entity_type=asset 过滤 |
+| V1.1 修订内容 | 重写为 6 Tab 详细规范，每 Tab 含字段清单与线框图（参考 §6.2 物质详情页粒度）：<br>- **Tab 1 基本信息**：asset_code / internal_name / trade_name / inn_name / generic_name / asset_type / modality / current_phase / approval_status / target_indication / mechanism_of_action / route_of_administration / sponsor_id / status / confidentiality + 描述字段；阶段推进按钮（保留原 §7.3.1 阶段推进对话框）<br>- **Tab 2 多市场注册号**：表格列 = region / market / status / market_id / approval_date / first_launch_date / withdrawal_date / discontinuation_date / trade_name_local / regulatory_authority；MarketIdTable 组件支持 CRUD（详见修订 #8）<br>- **Tab 3 关联物质（组分）**：表格列 = substance_code / preferred_name / role（main_component / antibody / linker / payload / adjuvant）/ stoichiometry / is_active_ingredient / notes；AssetSubstanceTab 组件支持新增 / 编辑 / 移除（详见修订 #8）<br>- **Tab 4 关联项目**：表格列 = project_code / project_name / relation_type（development / clinical / cmc / regulatory / supply）/ is_primary / start_date / end_date / notes；AssetProjectTab 组件支持双向绑定（详见修订 #8）<br>- **Tab 5 状态历史**：时间线视图，含 status / changed_at / changed_by / reason / e_signature_id（链接到签名详情），与 substance / project 三域统一<br>- **Tab 6 审计**：与 §6.2.7 同结构，按 entity_schema=ars / entity_type=asset 过滤 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.1-§6.4 / §9.3 |
 | 修订理由 | M3.1-M3.3 资产域已完整实现 6 Tab，V1.0 仅 5 Tab 简述且无字段粒度；UI 文档需与 SRS / PRS 详情页粒度对齐 |
 
@@ -82,17 +82,17 @@
 
 ---
 
-### 修订 #6：§7.3.1 阶段推进对话框 — 补齐状态变更全套交互
+### 修订 #6：§7.3.x 新增「资产状态变更对话框」（hold / resume / terminate）
 
 | 字段 | 内容 |
 |---|---|
-| docx 章节 | §7.3.1 阶段推进对话框 |
-| 修订类型 | 修改既有内容 |
-| V1.0 原文位置 | §7.3.1 阶段推进对话框线框图 |
-| V1.0 原文摘录 | 含目标阶段 / 阶段变更日期 / 推进原因 / 密码确认 / 签名理由（已较完整） |
-| V1.1 修订内容 | 在原线框基础上补 3 处实施细节：<br>1. **变更原因强制 ≥5 字**：前端校验 + 后端兜底校验，错误提示"请填写变更原因（至少 5 个字符）"<br>2. **二次确认弹窗**：提交前再弹一次"确认推进至 Phase II？此操作将记录电子签名且不可撤销"<br>3. **密码输入错误时 errorType 分流**：401 + errorType=`signature_invalid` → 仅显示"密码错误，请重新输入"且保留对话框，不清 token、不跳登录（详见修订 #11） |
-| 上游决议引用 | DEV-MDM-001 V1.2 §9.1 / V1.1 §5.5 |
-| 修订理由 | M2.5 / M3.x 实施时状态变更 UI 全套已落地这 3 条交互细节，V1.0 仅画出表单框但未明确校验和分流规则 |
+| docx 章节 | §7.3 资产详情页（在阶段推进对话框 §7.3.1 之后新增 §7.3.x，建议命名 §7.3.2 资产状态变更对话框；原 §7.3.2 创建页等顺延为 §7.3.3 / §7.3.4） |
+| 修订类型 | 新增子节（区别于已有的 §7.3.1 阶段推进对话框） |
+| V1.0 原文位置 | V1.0 §7.3 仅有 §7.3.1「阶段推进对话框」（advance-phase UI），**未涉及 hold / resume / terminate 三个状态机动作的对话框**；该 §7.3.1 对应的 `:advance-phase` 端点 V1.0 已声明但 Phase 1-3 未实施（推迟至 Phase 5，见修订 #13 路线图） |
+| V1.0 原文摘录 | §7.3.1 阶段推进对话框（含目标阶段 / 阶段变更日期 / 推进原因 / 密码确认）—— 此对话框是 advance-phase 用，**不是** hold/resume/terminate 用 |
+| V1.1 修订内容 | 新增 §7.3.x「资产状态变更对话框（hold / resume / terminate）」，明确与 §7.3.1 阶段推进对话框**不同**：<br>1. **触发位置**：资产详情页右上"状态变更"按钮（当前 status=active 时显示 hold/terminate；status=on_hold 时显示 resume/terminate；status=terminated 时无可用动作）<br>2. **公共字段**：变更原因（≥5 字，前后端双校验，错误提示"请填写变更原因（至少 5 个字符）"）<br>3. **签名要求按动作分**：<br>   - `hold` / `resume`：**不要求电子签名**（可逆调整）—— 对话框无密码字段<br>   - `terminate`：**强制电子签名**（关键不可逆动作，21 CFR Part 11 §11.50）—— 对话框含「电子签名密码 *」+「签名理由 *」<br>4. **二次确认弹窗**：terminate 提交前再弹一次"确认终止资产？此操作将记录电子签名且不可撤销"；hold/resume 不弹二次确认（轻量操作）<br>5. **密码错误 errorType 分流**：仅 terminate 涉及；401 + `errorType=signature_invalid` → 仅显示"密码错误，请重新输入"且保留对话框，不清 token、不跳登录（详见修订 #11）<br>6. **章节关联**：本对话框抽象自 §9.2.1 状态变更全局交互模式（见修订 #10），与 substance / project 同模式 |
+| 上游决议引用 | DEV-MDM-001 V1.2 §6.4 / V1.1 §5.5 |
+| 修订理由 | V1.0 仅画了 advance-phase 对话框（推迟项），但 M3.2 实施落地的是 hold/resume/terminate 三个状态机动作的对话框；这两类对话框语义不同（current_phase vs status 两个独立维度），UI 文档须分开描述以免开发误用 |
 
 ---
 
@@ -124,7 +124,7 @@
 
 ---
 
-### 修订 #9：§8.x 业务组件 — terminated 资产绑定按钮禁用规则
+### 修订 #9：§8.x 业务组件 — 终止态资产绑定按钮禁用规则（仅 `status='terminated'`）
 
 | 字段 | 内容 |
 |---|---|
@@ -132,9 +132,9 @@
 | 修订类型 | 新增子节 |
 | V1.0 原文位置 | V1.0 §8 通用组件清单未涉及业务规则态禁用 |
 | V1.0 原文摘录 | — |
-| V1.1 修订内容 | 新增 **§8.5 业务规则态禁用**：「terminated / discontinued 状态的资产，所有写入按钮（添加市场注册号 / 添加组分 / 添加项目绑定 / 编辑）置 disabled + tooltip 提示"资产已终止，禁止变更绑定关系"。同步规则适用于 substance deprecated / project terminated。」 |
-| 上游决议引用 | DEV-MDM-001 V1.2 §9.3 / §6.4 |
-| 修订理由 | M3.3 实施时已落地此交互（终止资产业务规则），V1.0 仅在 §9.2 提到"二次确认"但未涉及"按钮态禁用"的统一规则 |
+| V1.1 修订内容 | 新增 **§8.5 业务规则态禁用**：<br>① **资产域（ARS）禁用以 `asset.status='terminated'` 为唯一判定依据**——所有写入按钮（添加市场注册号 / 添加组分 / 添加项目绑定 / 编辑）置 disabled + tooltip 提示"资产已终止，禁止变更绑定关系"。<br>② **`asset.current_phase='discontinued'` 不触发禁用**——current_phase 与 status 是 ARS 两个独立维度（业务进度 vs 管控状态），discontinued 只是阶段标记，不影响绑定行为；该资产仍可被关联、编辑（如有 status=active）。<br>③ **物质域（SRS）**：`substance.status='obsoleted'` 触发禁用（与 ARS terminated 同语义——终态、不可逆）；`status='deprecated'` 是可恢复弃用态，**不禁用**新建关联（service 层校验亦不拒绝，与 M3.3 实施一致）。<br>④ **项目域（PRS）**：`project.status='terminated'` 触发禁用；其他状态（active / on_hold / completed）不影响绑定。<br>⑤ 上述判定与后端 service 层业务规则一致（V1.2 §6.6.4、§3 obsoleted 物质禁新关联），UI 仅做按钮态反馈，最终拒绝由后端 422 错误兜底。 |
+| 上游决议引用 | DEV-MDM-001 V1.2 §9.3 / §6.4 / §6.6.4 |
+| 修订理由 | M3.3 实施时已落地此交互；V1.0 仅在 §9.2 提到"二次确认"但未涉及"按钮态禁用"的统一规则；本次评审明确：(a) ARS 禁用必须按 status='terminated' 而非 current_phase='discontinued'（两个维度），(b) SRS 禁用按 obsoleted 而非 deprecated（终态 vs 可逆态）——避免开发与测试组合并术语 |
 
 ---
 
@@ -146,7 +146,7 @@
 | 修订类型 | 章节扩充 + 新增子节 |
 | V1.0 原文位置 | §9.2 含确认对话框模式线框（删除原因 + 确认按钮） |
 | V1.0 原文摘录 | 软删除确认对话框线框；条目列表含 "Substance 弃用 / 合并、Project 终止、电子签名提交" 等 |
-| V1.1 修订内容 | 在 §9.2 后新增 **§9.2.1 状态变更通用交互模式**：明确所有三域（SRS substance / PRS project / ARS asset）的状态流转 UI 统一规范：<br>1. 触发方式：详情页右上操作菜单 → 选择"激活 / 暂停 / 恢复 / 终止 / 弃用"等动词命令<br>2. 抽屉式表单（侧滑）：含「变更原因 *」（≥5 字校验）+「电子签名密码 *」+「签名理由 *」<br>3. 提交前二次确认弹窗（消息列出当前状态→目标状态 + 影响摘要）<br>4. 401 响应 errorType 分流（详见 §9.x errorType 处置约定，本次修订 #11）<br>5. 提交成功后刷新详情页 + Toast 通知 + 状态历史 Tab 立即追加新条目 |
+| V1.1 修订内容 | 在 §9.2 后新增 **§9.2.1 状态变更通用交互模式**：明确所有三域（SRS substance / PRS project / ARS asset）的状态流转 UI 统一规范：<br>1. **触发方式**：详情页右上操作菜单 → 选择当前状态可用的动词命令（按状态机派发，UI 自动过滤）<br>2. **公共必填字段**：「变更原因 *」（≥5 字校验，前后端双校验）<br>3. **签名字段按动作分（不是所有状态变更都签）**——仅 **关键不可逆动作** 强制电子签名：<br>   - **SRS substance**（4 个签字动作）：`approve` / `activate` / `deprecate` / `obsolete`<br>   - **PRS project**（3 个签字动作）：`approve` / `complete` / `terminate`<br>   - **ARS asset**（1 个签字动作）：`terminate`<br>   - 其他动作（如 substance.reject 推迟未实现 / project.start / project.hold / project.resume / asset.hold / asset.resume）**不要求电子签名**，对话框无密码字段<br>   - 是否签字由后端 `SIGNATURE_REQUIRED_ACTIONS` 集合权威定义；前端按 `ACTION_TO_MEANING` constants 渲染对应字段<br>4. **二次确认弹窗**：仅签字动作（不可逆）触发二次确认；可逆动作（hold/resume 等）不弹<br>5. **401 响应 errorType 分流**：仅签字动作涉及；详见 §9.6 errorType 处置约定（修订 #11）<br>6. **提交成功后**：刷新详情页 + Toast 通知 + 状态历史 Tab 立即追加新条目；签字动作的 status_history.e_signature_id 非空，可逆动作的 e_signature_id 为空 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.4 / §9.1 |
 | 修订理由 | M2.5 + M3.x 实施时三域状态变更 UI 已统一为此模式（变更原因 ≥5 字 + 二次确认 + 密码 + errorType 分流），V1.0 仅在 §6.4 物质审核流程画了一次，未抽象为全局交互模式 |
 
@@ -188,7 +188,7 @@
 | 修订类型 | 新增附录子节 |
 | V1.0 原文位置 | V1.0 §12 附录仅含 §12.1 路由清单 / §12.2 前端目录结构 |
 | V1.0 原文摘录 | — |
-| V1.1 修订内容 | 新增 **§12.3 未实现项路线图（Phase 4-6）**：表格列 = 项 / V1.0 章节引用 / 当前状态 / 优先级 / 计划阶段。条目（共 10 项，来自 DEV-MDM-001 V1.2 §9.2）：<br>1. Ctrl+K 全局搜索快捷键（§2.3）— 仅有点击聚焦 — 中 / Phase 4<br>2. 项目详情概览 Tab 甘特图（§7.2.1）— 仅 Descriptions — 中 / Phase 5<br>3. 项目 / 资产列表多视图切换（表格 / 看板 / 时间轴）（§7.1）— 仅表格 — 低 / 体验增强<br>4. 创建表单 Steps 分步（§6.3.1）— 单页表单 — 低 / 等价<br>5. 物料模块整体 UI（§7.4）— PlaceholderPage — 高 / Phase 4<br>6. 系统管理子页（用户 / 角色 / 权限矩阵 / 编码序列 / 字典 / 配置）（§2.1 / §12.1）— Placeholder — Phase 5-6<br>7. 独立审计日志页（§7.6）— Placeholder（详情页内 AuditLogPanel 已实现）— 中 / Phase 4<br>8. 密码复杂度强制（大小写 + 数字 + 特殊字符）（§4.1.2）— 仅长度 ≥8 — 中 / 合规建议<br>9. 仪表盘高级功能（项目状态分布图表 / 系统公告动态加载）（§4.2）— 部分静态 — 低 / Phase 5<br>10. 项目详情 `sponsor_id` 显示为 user 名称而非 ID — 当前显示 ID — 低 / 单点 UX 修复 |
+| V1.1 修订内容 | 新增 **§12.3 未实现项路线图（Phase 4-6）**：表格列 = 项 / V1.0 章节引用 / 当前状态 / 优先级 / 计划阶段。条目（共 10 项，来自 DEV-MDM-001 V1.2 §9.2）：<br>1. Ctrl+K 全局搜索快捷键（§2.3）— 仅有点击聚焦 — 中 / Phase 4<br>2. 项目详情概览 Tab 甘特图（§7.2.1）— 仅 Descriptions — 中 / Phase 5<br>3. 项目 / 资产列表多视图切换（表格 / 看板 / 时间轴）（§7.1）— 仅表格 — 低 / 体验增强<br>4. 创建表单 Steps 分步（§6.3.1）— 单页表单 — 低 / 等价<br>5. 物料模块整体 UI（§7.4）— PlaceholderPage — 高 / Phase 4<br>6. 系统管理子页（用户 / 角色 / 权限矩阵 / 编码序列 / 字典 / 配置）（§2.1 / §12.1）— Placeholder — Phase 5-6<br>7. 独立审计日志页（§7.6）— Placeholder（详情页内 AuditLogPanel 已实现）— 中 / Phase 4<br>8. 密码复杂度强制（大小写 + 数字 + 特殊字符）（§4.1.2）— 仅长度 ≥8 — 中 / 合规建议<br>9. 仪表盘高级功能（项目状态分布图表 / 系统公告动态加载）（§4.2）— 部分静态 — 低 / Phase 5<br>10. 项目详情 `sponsor_id` 显示为 user 名称而非 ID — 当前显示 ID — 低 / 单点 UX 修复<br>11. **资产阶段推进对话框（advance-phase UI）**（§7.3.1）— V1.0 已画线框，但 `:advance-phase` 端点 Phase 1-3 未实现（当前用 PUT 直接更新 current_phase）— 中 / Phase 5（与端点同步上线；详见 API-MDM-001 修订 #15） |
 | 上游决议引用 | DEV-MDM-001 V1.2 §9.2 全部条目 |
 | 修订理由 | 集中标注所有"V1.0 已设计但 Phase 1-3 未实现"的 UI 项，避免散落在各章节注脚；为 Phase 4-6 排期提供输入；评审组也可在此章节统一决议优先级 |
 

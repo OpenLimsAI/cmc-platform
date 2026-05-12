@@ -3,8 +3,8 @@
 | 字段 | 值 |
 |---|---|
 | 文档 | API-MDM-001 V1.0 → V1.1 |
-| 上游决议 | DEV-MDM-001 V1.2_draft §6.4 / §6.5 / §6.6 / §6.7 / §8.1 / §8.2 / §8.3 |
-| 修订总数 | 18 项 |
+| 上游决议 | DEV-MDM-001 V1.2_draft §6.4 / §6.5 / §6.6 / §6.7 / §7.1 / §8.1 / §8.2 / §8.3 |
+| 修订总数 | 21 项（含本轮评审决议补充 #20 §2.6 / #21 §2.4） |
 | 修订模式 | docx Word 修订模式逐项落地 |
 | 评审用途 | IT 架构组逐项决议（接受 / 拒绝 / 修改），秘书在 Word 修订模式下落地 |
 
@@ -14,10 +14,10 @@
 
 | # | docx 章节 | 修订摘要 | 上游决议 |
 |---|---|---|---|
-| 1 | §1.4.2 错误响应 | 增加 errorType 字典指向 §4.4 的交叉引用 | V1.2 §8.3 |
+| 1 | §1.4.2 错误响应 | 增加 `meta.error.type` 字典指向 §4.4 的交叉引用 | V1.2 §8.3 |
 | 2 | §2.2 认证 Endpoint / `POST /auth/refresh` | 标注"V1.0 未实现，Phase 4 安全收尾时补" | V1.2 §8.1.1 |
 | 3 | §4.2 通用错误码（错误码表） | 新增 `40106 signature_invalid` 与 `42202 signature_required` 两行 | V1.2 §8.3 |
-| 4 | §4 错误码体系 | 新增 §4.4「errorType 字典与前端处置约定」整节 | V1.2 §8.3 + V1.1 §5.5 |
+| 4 | §4 错误码体系 | 新增 §4.4「`meta.error.type` 字典与前端处置约定」整节 | V1.2 §8.3 + V1.1 §5.5 |
 | 5 | §5.1.1 认证（auth）索引表 | `/auth/refresh` 行加 "Phase 4 补" 路线图标识 | V1.2 §8.1.1 |
 | 6 | §5.1.3 SRS 索引表 | `:reject` / `:merge` 加 "Phase 4 / Phase 5 补" 标识；`/protein` `/adc` `/xrefs` GET 行加"V1.1 简化为 `?expand=`，写操作端点保留"备注 | V1.2 §8.1.2 / §8.1.3 / §8.2 |
 | 7 | §5.1.5 ARS 索引表 | 新增 `:hold` / `:resume` / `:terminate` 三行（含权限）；`:advance-phase` 行加 "V1.0 未实现，Phase 5 视需补" | V1.2 §6.4.5 / §8.1.4 |
@@ -33,8 +33,8 @@
 | 17 | §8.1 / §7.5 跨域引用 | 新增「ref.project_asset 关系端点」子节（GET / POST / PUT / DELETE 4 端点完整签名） | V1.2 §6.6 |
 | 18 | §8.3 全局搜索 | `types` 参数当前可选值表述限定为 `substance,project,asset`；补"命中字段与排序权重"小节（asset 命中 asset_code / internal_name / trade_name / inn_name / indication；trade_name / inn_name 排序权重 = 5） | V1.2 §6.7.1 / §6.7.2 |
 | 19 | §11 附录 | 新增 §11.7「路线图：Phase 4 / Phase 5 端点」附录，集中列出 5 个推迟端点的依据、计划阶段、临时替代手段 | V1.2 §8.1 |
-
-> 实际修订项 = 19 项（封面表内修订总数同步改 19）。
+| 20 | §2.6 应用层会话上下文（用于审计） | 修订示例代码与说明：禁用 `SET LOCAL app.*` GUC 方案（asyncpg 池跨事务泄漏风险），改为 service 层显式 `UPDATE` 审计字段 + ContextVar 注入 | V1.2 §7.1.1（评审决议补充） |
+| 21 | §2.4 权限模型与 Endpoint 权限映射 | 补 `require_all_permissions(...)` 多权限组合工厂示例（针对 GxP 关键不可逆动作的"操作权限 + 签名权限"双校验，如 asset:terminate 要求 `asset:update + asset:sign`） | V1.2 §6.4.3 / V1.2 §7.1.2（评审决议补充） |
 
 ---
 
@@ -48,9 +48,9 @@
 | 修订类型 | 新增交叉引用 |
 | V1.0 原文位置 | §1.4.2 错误响应 JSON 示例后段，`error.type` 字段注释 |
 | V1.0 原文摘录 | `"type": "permission_denied",  // 错误类型（机器可读）` |
-| V1.1 修订内容 | 字段注释后新增一句："完整 errorType 字典与前端处置约定见 §4.4。" |
+| V1.1 修订内容 | 字段注释后新增一句："完整 `meta.error.type` 字典与前端处置约定见 §4.4。" |
 | 上游决议引用 | DEV-MDM-001 V1.2 §8.3 |
-| 修订理由 | 让 errorType 字典具备文档锚点，前端拦截器分流有据可查（V1.1 §5.5 401 双重语义分流的延续）。 |
+| 修订理由 | 让 `meta.error.type` 字典具备文档锚点，前端拦截器分流有据可查（V1.1 §5.5 401 双重语义分流的延续）。 |
 
 ---
 
@@ -75,11 +75,11 @@
 | docx 章节 | §4.2 通用错误码（错误码表） |
 | 修订类型 | 表格新增 2 行 |
 | V1.0 原文位置 | §4.2 通用错误码表，401 段与 422 段 |
-| V1.0 原文摘录 | 现有 `40105 old_password_wrong` 之后无 40106；`42202 reference_in_use` 之后无 42202 之后的项 |
-| V1.1 修订内容 | (a) 在 `40105 old_password_wrong` 行后新增：`40106 \| 401 \| signature_invalid \| 电子签名密码错误 / 内容哈希不一致`；(b) 在 `42201 state_invalid` 行后、`42202 reference_in_use` 之前新增（或视秘书排版另起）：`42202 signature_required \| 422 \| signature_required \| 当前操作要求电子签名但未提供 / 签名失败`（并将原 `42202 reference_in_use` 重新编号为 `42203` 或保留分配，由架构组决议） |
+| V1.0 原文摘录 | 现有 `40105 old_password_wrong` 之后无 40106；`42202 reference_in_use` 已分配 |
+| V1.1 修订内容 | (a) 在 `40105 old_password_wrong` 行后新增：`40106 \| 401 \| signature_invalid \| 电子签名密码错误 / 内容哈希不一致`；(b) 在 `42202 reference_in_use` 行后新增：`42203 \| 422 \| signature_required \| 当前操作要求电子签名但未提供 / 签名失败`。**不动 V1.0 已分配的 42202 reference_in_use**。 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §8.3 |
-| 修订理由 | 实施侧已落地两类 errorType，但 V1.0 错误码表未收录；签名流（SRS approve / PRS approve / ARS terminate）必须有可识别错误码。 |
-| 评审待决议 | `42202` 与 `reference_in_use` 是否冲突 — 建议把 reference_in_use 改为 `42203`（破坏性变更需评审组确认）；若保留 `42202=reference_in_use`，则签名必填错误码使用 `42203 signature_required`。 |
+| 修订理由 | 实施侧已落地两类 `meta.error.type`，但 V1.0 错误码表未收录；签名流（SRS approve/activate/deprecate/obsolete / PRS approve/complete/terminate / ARS terminate）必须有可识别错误码。 |
+| 评审已决议 | 保留 V1.0 `42202=reference_in_use`；新增 `42203=signature_required`。代码侧 `backend/app/core/exceptions.py` 的 `SignatureRequiredError.code` 同步从 42202 改 42203（见后续代码改动清单）。 |
 
 ---
 
@@ -91,9 +91,9 @@
 | 修订类型 | 新增整节 §4.4 |
 | V1.0 原文位置 | §4.3「域专属错误码（各域分配 100 段）」之后、§5「Endpoint 总索引」之前 |
 | V1.0 原文摘录 | V1.0 §4.3 末尾的"⚠ 错误码使用准则"四条 |
-| V1.1 修订内容 | 新增 §4.4「errorType 字典与前端处置约定」整节，内容：(1) 11 条 errorType 全表（`invalid_credentials` / `token_expired` / `token_invalid` / `token_missing` / `old_password_wrong` / `signature_invalid` / `permission_denied` / `account_disabled` / `state_invalid` / `signature_required` / `account_locked`），列出 errorType / 错误码 / HTTP / 前端默认处置（如 token_expired → 静默 refresh / 业务身份再验证 → 弹密码二次确认对话框 / 会话失效 → 跳转登录）；(2) 强调"前端按 errorType 分流，不按 HTTP 状态码一刀切跳登录" |
+| V1.1 修订内容 | 新增 §4.4「`meta.error.type` 字典与前端处置约定」整节，内容：(1) 11 条 `meta.error.type` 全表（`invalid_credentials` / `token_expired` / `token_invalid` / `token_missing` / `old_password_wrong` / `signature_invalid` / `permission_denied` / `account_disabled` / `state_invalid` / `signature_required` / `account_locked`），列出 `meta.error.type` / 错误码 / HTTP / 前端默认处置（如 token_expired → 静默 refresh / 业务身份再验证 → 弹密码二次确认对话框 / 会话失效 → 跳转登录）；(2) 强调"前端按 `meta.error.type` 分流，不按 HTTP 状态码一刀切跳登录" |
 | 上游决议引用 | DEV-MDM-001 V1.2 §8.3 + V1.1 §5.5 |
-| 修订理由 | V1.1 §5.5 已记载 401 双重语义分流策略但放在偏离说明里；正式 API 文档需要把 errorType 当成对外契约固化。 |
+| 修订理由 | V1.1 §5.5 已记载 401 双重语义分流策略但放在偏离说明里；正式 API 文档需要把 `meta.error.type` 当成对外契约固化。 |
 
 ---
 
@@ -175,7 +175,7 @@
 | 修订类型 | 表格行加备注 |
 | V1.0 原文位置 | §5.1.7 全局功能索引中 `GET /api/v1/search` 行 |
 | V1.0 原文摘录 | `GET \| /api/v1/search \| 全局搜索 \| 已登录` |
-| V1.1 修订内容 | 说明列改为："全局搜索（V1.1 实现 entity_type ∈ {substance, project, asset} 3 类；material 推迟至 Phase 5 MM 域开发）" |
+| V1.1 修订内容 | 说明列改为："全局搜索（V1.1 实现 entity_type ∈ {substance, project, asset} 3 类；material 推迟至 **Phase 4 MM 域开发**）" |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.7.1 |
 | 修订理由 | V1.0 §8.3 与 §3.2.2 同时罗列 4 类（含 material），但实施侧 M3.4 仅落地 3 类；需对外明示当前可用类型。 |
 
@@ -287,7 +287,7 @@
 | 修订类型 | 端点说明修改 + 新增小节 |
 | V1.0 原文位置 | §8.3 全局搜索查询参数表 `types` 行；响应示例 `results` 对象 |
 | V1.0 原文摘录 | "types \| string \| 限定类型，逗号分隔（substance,project,asset,material）"；响应示例中含 `"material": { "total": 4, "items": [ ... ] }` |
-| V1.1 修订内容 | (a) `types` 描述改为："限定类型，逗号分隔（**V1.1 支持：substance, project, asset**；material 推迟至 Phase 5 MM 域开发）"；(b) 响应示例移除 `material` 块，保留 substance / project / asset 三块；(c) 新增小节「8.3.x 命中字段与排序权重」：列出 substance / project / asset 三类各自命中字段（asset = asset_code / internal_name / trade_name / inn_name / indication）和排序权重（trade_name / inn_name 归入 weight=5，与 name_en / internal_code 并列），权限过滤说明按 `<entity>:read`（SYS_ADMIN bypass） |
+| V1.1 修订内容 | (a) `types` 描述改为："限定类型，逗号分隔（**V1.1 支持：substance, project, asset**；material 推迟至 **Phase 4 MM 域开发**）"；(b) 响应示例移除 `material` 块，保留 substance / project / asset 三块；(c) 新增小节「8.3.x 命中字段与排序权重」：列出 substance / project / asset 三类各自命中字段（asset = asset_code / internal_name / trade_name / inn_name / indication）和排序权重（trade_name / inn_name 归入 weight=5，与 name_en / internal_code 并列），权限过滤说明按 `<entity>:read`（SYS_ADMIN bypass） |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.7.1 / §6.7.2 / §6.7.3 |
 | 修订理由 | (1) 当前实现仅 3 类，需与 V1.0 文档对齐；(2) 排序权重 / 命中字段是前端搜索结果排序的契约，需明示。 |
 
@@ -307,14 +307,42 @@
 
 ---
 
+### 修订 #20
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §2.6 应用层会话上下文（用于审计） |
+| 修订类型 | 修订示例代码 + 加技术备注 |
+| V1.0 原文位置 | §2.6 整节（`audit_context_middleware` 伪代码 + 5 行 `SET LOCAL app.*`） |
+| V1.0 原文摘录 | `await conn.execute(text(f"SET LOCAL app.user_id = '{user.id}'"))` 等 5 行 `SET LOCAL` GUC 注入；末尾"此后所有 SQL 操作都会被审计触发器自动记录调用方信息" |
+| V1.1 修订内容 | 整节重写：(1) 删除 5 行 `SET LOCAL app.*` 示例；(2) 改为说明："**V1.1 已禁用 `SET LOCAL` GUC 方案**——在 asyncpg 连接池模式下，`SET LOCAL` 设置的会话变量在事务提交/回滚后未必清理干净，可能跨事务泄漏到下一个复用的连接（M2.5.1 发现：第 2 条 status_history 行写入第 1 条事务的 e_signature_id）。"；(3) 新增 V1.1 推荐做法：service 层在写入业务记录时**显式 `UPDATE` 审计字段**（`created_by` / `updated_by` / `e_signature_id`），不依赖触发器从 GUC 取值；ContextVar + AuditContextMiddleware 仍负责把 user / IP / request_id 注入 Python 调用栈供日志使用，但**不进 PG 连接级变量**。 |
+| 上游决议引用 | DEV-MDM-001 V1.2 §7.1.1（评审决议补充） |
+| 修订理由 | V1.0 §2.6 示范的 `SET LOCAL` 方案在 asyncpg 池下存在跨事务泄漏的合规风险；继续按 V1.0 实施会导致 audit_log 错位（违反 21 CFR Part 11 §11.10(e)）。本次评审决议同步把工程修复入档。 |
+
+---
+
+### 修订 #21
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §2.4 权限模型与 Endpoint 权限映射 |
+| 修订类型 | 新增示例代码段 |
+| V1.0 原文位置 | §2.4 末尾（`require_permission("substance:approve")` 示例之后） |
+| V1.0 原文摘录 | V1.0 仅给出 `require_permission(...)` 单权限示例（3 行 endpoint 示例） |
+| V1.1 修订内容 | 在 §2.4 末尾追加示例与说明："**V1.1 新增：`require_all_permissions(...)` 多权限组合工厂**——针对 21 CFR Part 11 §11.50 关键不可逆动作（如 ARS terminate），endpoint 需要同时校验"操作权限 + 签名权限"：<br>`@router.post("/assets/{code}:terminate", dependencies=[Depends(require_all_permissions("asset:update", "asset:sign"))])`<br>`async def terminate_asset(...): ...`<br>角色映射示例：PROJECT_MANAGER + QA_REVIEWER 默认持有 `asset:sign` / `substance:sign` / `project:sign`；普通操作角色仅持 `*:update`。**单权限不足以触发签名流**。" |
+| 上游决议引用 | DEV-MDM-001 V1.2 §6.4.3 / §7.1.2（评审决议补充） |
+| 修订理由 | M3.2 实施已落地 `require_all_permissions`，但 V1.0 §2.4 仅有单权限示例，下游集成方 / FE 不知道有这个工厂，无法对照需求设计角色矩阵。GxP 关键动作的双权限约束需要在 API 文档明示。 |
+
+---
+
 ## 评审决议汇总（待评审组逐项填写）
 
 | 修订 # | docx 章节 | 决议 | 备注 |
 |---|---|---|---|
 | 1 | §1.4.2 | 接受 / 拒绝 / 修改 | |
 | 2 | §2.2 `/auth/refresh` | 接受 / 拒绝 / 修改 | |
-| 3 | §4.2 错误码表 | 接受 / 拒绝 / 修改 | **需先决议 42202 是否冲突** |
-| 4 | §4.4 errorType 字典（新增） | 接受 / 拒绝 / 修改 | |
+| 3 | §4.2 错误码表 | ✅ 已决议接受 | 保留 42202=reference_in_use；新增 42203=signature_required；代码侧同步改 SignatureRequiredError.code |
+| 4 | §4.4 `meta.error.type` 字典（新增） | 接受 / 拒绝 / 修改 | |
 | 5 | §5.1.1 auth 索引 | 接受 / 拒绝 / 修改 | |
 | 6 | §5.1.3 SRS 索引 | 接受 / 拒绝 / 修改 | |
 | 7 | §5.1.5 ARS 索引 (3 状态机端点) | 接受 / 拒绝 / 修改 | |
@@ -330,20 +358,25 @@
 | 17 | §7.5 ref.project_asset 端点（新增） | 接受 / 拒绝 / 修改 | |
 | 18 | §8.3 全局搜索 | 接受 / 拒绝 / 修改 | |
 | 19 | §11.7 路线图附录（新增） | 接受 / 拒绝 / 修改 | |
+| 20 | §2.6 GUC 调整（重写示例代码）| 接受 / 拒绝 / 修改 | **本轮评审补加；合规关键工程修复** |
+| 21 | §2.4 require_all_permissions 示例（新增）| 接受 / 拒绝 / 修改 | **本轮评审补加；GxP 双权限明示** |
 
 ---
 
 ## 配套修订（决议通过后秘书落地）
 
-1. 封面「修订记录」表追加一行：`V1.1 \| 2026-05-XX \| CMC IT 架构组 \| 增补 ARS 状态机端点 / ref 关系端点 / errorType 字典；标注 Phase 4/5 路线图端点`
+1. 封面「修订记录」表追加一行：`V1.1 \| 2026-05-XX \| CMC IT 架构组 \| 增补 ARS 状态机端点 / ref 关系端点 / `meta.error.type` 字典 / 双权限工厂示例 / §2.6 GUC 工程修复；标注 Phase 4/5 路线图端点`
 2. 文档头「版本」字段：`V1.0` → `V1.1`
 3. 全文检索校对：所有 `V1.0` 引用确认是否需要改 `V1.1`（修订记录除外）
-4. 目录 (TOC) 重新生成：新增 §4.4 / §8.1.x ARS 状态机端点 / §8.1.x ref.asset_substance / §7.5.x ref.project_asset / §8.3.x 命中字段与排序权重 / §11.7 路线图
+4. 目录 (TOC) 重新生成：新增 §4.4 / §8.1.x ARS 状态机端点 / §8.1.x ref.asset_substance / §7.5.x ref.project_asset / §8.3.x 命中字段与排序权重 / §11.7 路线图（§2.4 §2.6 是修订内容不新增章节，不入 TOC）
+5. **代码侧同步**（决议接受后由开发执行，非秘书工作）：
+   - `backend/app/core/exceptions.py`：`SignatureRequiredError.code` 42202 → 42203
+   - 测试侧扫描硬编码 `42202` 改为 `42203`（如有）
 
 ---
 
 ## 参考
 
 - 上游：`/Users/qingcheng/code/cmab-mdm-platform/docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md` §6.4 / §6.5 / §6.6 / §6.7 / §8.1 / §8.2 / §8.3
-- 背景：`/Users/qingcheng/code/cmab-mdm-platform/docs/CMAB_MDM_Portal_设计基准偏离说明_V1.1_draft.md` §5.5（errorType 401 双重语义分流）
+- 背景：`/Users/qingcheng/code/cmab-mdm-platform/docs/CMAB_MDM_Portal_设计基准偏离说明_V1.1_draft.md` §5.5（`meta.error.type` 401 双重语义分流）
 - V1.0 原文：`/tmp/mdm_docs_extract/API_____V1_0.txt`（OpenAPI 3.0 / REST / JSON / JWT，API-MDM-001 V1.0，2026-05-11 发布）

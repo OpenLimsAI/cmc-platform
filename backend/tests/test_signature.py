@@ -36,7 +36,7 @@ async def test_approve_without_password_rejected(admin_client, unique_suffix):
         json={"change_reason": "测试缺密码"},
     )
     assert resp.status_code == 422
-    assert resp.json()["code"] == 42202
+    assert resp.json()["code"] == 42203  # V1.1 决议：signature_required 改 42203（保留 42202=reference_in_use）
     assert resp.json()["meta"]["error"]["type"] == "signature_required"
 
 

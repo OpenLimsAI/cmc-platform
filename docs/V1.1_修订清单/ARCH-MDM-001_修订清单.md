@@ -32,7 +32,7 @@ V1.2 偏离说明中提到的「§11.300 / §15.2 / §6.5」是 DM-MDM-001 数�
 | 修订类型 | 新增施工说明段落 |
 | V1.0 原文位置 | §4.3 Domain Layer 框图后、Shared Layer 框图前 |
 | V1.0 原文摘录 | 「Domain Layer (域层 - 业务逻辑) ┌───────┐ ┌───────┐ ┌───────┐ ┌────┐ │ SRS │ │ PRS │ │ ARS │ │ MM │ │Service│ │Service│ │Service│ │Svc │」 |
-| V1.1 修订内容 | 在 Domain Layer 描述下新增一段：「**Service 层事务提交规则（强一致性场景）**：状态变更、电子签名、跨域引用变更等强一致性写操作，service 必须在所有数据库变更完成后**显式** `await self.db.commit()`，不依赖 FastAPI yield 依赖（`get_db`）的 cleanup commit。原因：FastAPI 异步 yield 依赖的 cleanup 在 HTTP response 已发送给客户端之后执行，客户端紧接的下一请求可能在 pre-commit 状态下读到旧快照（pytest 全集实测 ~10% 失败率）。Service 显式 commit 后，yield cleanup 的 commit 退化为空操作。」 |
+| V1.1 修订内容 | 在 Domain Layer 描述下新增一段：「**Service 层事务提交规则**：<br>① **适用范围（强制显式 commit）**：状态机变更（status / current_phase 变化）、电子签名生效写入（status_history.e_signature_id 回填）、跨域引用写入（ref.* 三表 link / unlink）等**强一致性写操作**，service 必须在所有数据库变更完成后**显式** `await self.db.commit()`，**不依赖** FastAPI yield 依赖（`get_db`）的 cleanup commit。<br>② **不适用范围（沿用统一 transaction pattern）**：普通 CRUD（读、单表 INSERT / UPDATE / soft-delete）、列表查询、详情查询等无强一致性约束的端点，按 FastAPI yield 依赖默认 commit 即可，不必引入 service 显式 commit。<br>③ **原因**：FastAPI 异步 yield 依赖的 cleanup 在 HTTP response 已发送给客户端之后执行，客户端紧接的下一请求可能在 pre-commit 状态下读到旧快照（pytest 全集实测 ~10% 失败率）。Service 显式 commit 后，yield cleanup 的 commit 退化为空操作。<br>④ **判断准则**：端点是否触发后续读操作必须看到本次写入结果？若是 → 强一致性，显式 commit；若否 → 沿用统一 pattern。」 |
 | 上游决议引用 | DEV-MDM-001 V1.1 §5.1 + V1.2 §5 |
 | 修订理由 | 实施侧高频踩坑，影响强一致性读写；落入架构文档以建立规范，避免后续模块（MM / Admin）重蹈覆辙 |
 
@@ -46,7 +46,7 @@ V1.2 偏离说明中提到的「§11.300 / §15.2 / §6.5」是 DM-MDM-001 数�
 | 修订类型 | 新增设计原则段落 |
 | V1.0 原文位置 | §6.5 三张表 DDL 之后、「⚠ 数据完整性关键设计」之前 |
 | V1.0 原文摘录 | 「audit.e_signature（电子签名）... └─ ip_address ... ⚠ 数据完整性关键设计 • 所有时间戳使用 UTC 存储...」 |
-| V1.1 修订内容 | 在「⚠ 数据完整性关键设计」之前新增小节：「**失败副作用的旁路 session 持久化**：登录失败、电子签名失败、权限校验失败等场景下，`failed_login_count++` 与失败审计日志写入必须使用**独立 `AsyncSessionLocal()` 旁路 session 单独 commit**，不能挂在主请求事务上。原因：失败路径会 raise 异常，主事务被 `get_db` 的 `except: rollback()` 整体回滚，防暴力破解计数与失败审计将一并丢失，违反 21 CFR Part 11 §11.300（操作可追溯）要求。旁路 session 在主事务 rollback 后仍保留失败痕迹。」 |
+| V1.1 修订内容 | 在「⚠ 数据完整性关键设计」之前新增小节：「**失败副作用的旁路 session 持久化**：<br>① **严格适用范围**：仅用于"失败但必须留痕的副作用"——典型场景：`failed_login_count++` / `failed_signature_count++` / 登录失败审计日志 / 签名失败审计日志 / 账号锁定记录。<br>② **不得用于**：普通业务写操作（CRUD / link / unlink / 状态机变更等）。普通写操作必须在主事务内完成，依赖统一 transaction 边界保证 ACID；旁路 session 绕过主事务原子性，误用会造成数据一致性破坏。<br>③ **实现**：独立 `AsyncSessionLocal()` 创建 session，写入后单独 `await session.commit()`，再 raise 业务异常。主事务被 `get_db` 的 `except: rollback()` 整体回滚时，旁路 session 已提交的失败痕迹不受影响。<br>④ **原因**：21 CFR Part 11 §11.300 要求防暴力破解与失败审计必须可追溯；若挂在主事务上，raise → rollback 将一并丢失计数与日志，破解保护失效。<br>⑤ **评审准则**：每个使用旁路 session 的位置都应有 code review 备注说明"为何必须脱离主事务"，避免后续维护者将其扩展到普通写场景。」 |
 | 上游决议引用 | DEV-MDM-001 V1.1 §5.2 + V1.2 §5 |
 | 修订理由 | 补齐合规审计在异常路径下的可追溯性；与"审计 schema 仅可写不可改"原则配套 |
 
@@ -158,7 +158,7 @@ V1.2 偏离说明中提到的「§11.300 / §15.2 / §6.5」是 DM-MDM-001 数�
 | 修订类型 | 修订状态标注（不改设计本身） |
 | V1.0 原文位置 | §7.4 备份表标题之上 |
 | V1.0 原文摘录 | 「类型 \| 频率 \| 保留期 \| 位置 全量备份 \| 每日 02:00 \| 30 天 \| 本地 + Duck-mounted NAS ...」 |
-| V1.1 修订内容 | 在 §7.4 标题下新增一段说明：「**当前实施状态（Phase 1-3 完成时）**：本节备份策略为目标设计，dev / 测试环境尚未部署完整备份流程；生产部署（Phase 4）前必须按本节定义落地，并完成至少一次完整恢复演练验证 RTO ≤ 4h / RPO ≤ 1h 指标。详见附录 D 未实施项路线图。」表格本体保持不变。 |
+| V1.1 修订内容 | 在 §7.4 标题下新增一段说明：「**当前实施状态（Phase 1-3 完成时）**：本节备份策略为目标设计，dev / 测试环境尚未部署完整备份流程；**生产部署（Phase 4）前必须完成下列三项，缺一不可**：<br>① 按本节定义部署备份执行流程（全量 + WAL 增量）；<br>② **完成至少一次完整恢复演练**（从备份还原到独立环境并验证业务可用性，验证 RTO ≤ 4h / RPO ≤ 1h 指标）；<br>③ **演练记录归档**（含演练日期、执行人、起止时间、恢复结果、RTO/RPO 实测值、异常处理），并由 QA 归档至 GxP 验证证据库。<br>⚠ 未完成恢复演练的备份策略**不能视为已实施**——21 CFR Part 11 / Annex 11 与 GxP 数据完整性（ALCOA+）均要求"备份必须可恢复"，仅定义策略不算合规。详见 §10.6 路线图。」表格本体保持不变。 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §7.2.5 |
 | 修订理由 | 避免审计组误读为"已实施"；与新增的 §10.6 未实施路线图相互引用 |
 
@@ -172,7 +172,7 @@ V1.2 偏离说明中提到的「§11.300 / §15.2 / §6.5」是 DM-MDM-001 数�
 | 修订类型 | 新增附录小节 |
 | V1.0 原文位置 | §10.5 联系与反馈之后、文档版权页之前 |
 | V1.0 原文摘录 | 「10.5 联系与反馈 文档维护者：CMC IT 架构组 反馈渠道：项目协作平台 / 邮件 ...」（§10 当前以 10.5 结尾） |
-| V1.1 修订内容 | 新增 §10.6 章节，内容如下：<br><br>**10.6 未实施项路线图（V1.1 新增）**<br><br>本架构文档 V1.0 描述的部分能力在 Phase 1-3（SRS / PRS / ARS）范围内**目标设计**已确定但**尚未实施**，列入后续阶段计划。各项与本文档相关章节交叉引用如下：<br><br>\| 项 \| 涉及章节 \| 当前状态 \| 计划阶段 \| 备注 \|<br>\|---\|---\|---\|---\|---\|<br>\| Redis 缓存层应用层接入 \| §4.2 容器图 / §7.2.1 第 6 步 \| 容器已部署，应用层未集成；JWT 即时失效改用 `password_changed_at` 实现 \| Phase 5 性能优化 \| 当前 dev 数据量无瓶颈 \|<br>\| Prometheus metrics endpoint \| §4.3 组件图（未画 metrics 端点）\| 未实现 \| Phase 4 生产部署前 \| 与可观测性建设打包 \|<br>\| 集中日志收集（ELK / Splunk）\| §4.5 部署视图 \| 仅 stdout loguru，日志目录 `/var/log/cmab-mdm/` 本地保留 \| Phase 4 生产部署前 \| — \|<br>\| 生产级 Nginx 反代 + k8s manifest \| §4.5 部署视图 \| 仅 docker-compose dev 配置 \| Phase 4 生产部署前 \| 当前部署形态见 §5.3 dev / test / prod 环境 \|<br>\| 数据库备份策略落地 \| §7.4 备份与灾备 \| 策略已定义，未部署执行 \| Phase 4 生产部署前 \| 含恢复演练 \|<br>\| CI 门禁 schema 一致性检查脚本 \| §5.2 开发工具链 \| 未实现 \| Phase 4 \| 比对 `information_schema` 与 DM-MDM-001 §7/§8/§9/§11 DDL diff \|<br>\| 完整 CSV 验证（URS / FS / DS / IQ / OQ / PQ）\| §7.5 CSV 验证策略 \| Phase 1 R&D 工具简化版完成 \| Phase 2 GxP 升级时（上线后 6-12 月）\| 与现行分阶段验证策略一致，无变更 \|<br>\| `/auth/refresh` 端点 \| §7.2.1 认证流程第 5 步 \| 未实现，当前 access_token 30min 过期需重登 \| Phase 4 安全收尾 \| 见 DEV-MDM-001 V1.2 §8.1.1 \|<br><br>本路线图**不影响**当前 Phase 1-3 范围内的 21 CFR Part 11 / Annex 11 合规关键路径符合性（实施侧整体加权对齐率 ~90%，关键合规路径 100%）。生产上线（Phase 4）前必须完成上表中标注「Phase 4 生产部署前」的全部项。 |
+| V1.1 修订内容 | 新增 §10.6 章节，内容如下：<br><br>**10.6 未实施项路线图（V1.1 新增）**<br><br>本架构文档 V1.0 描述的部分能力在 Phase 1-3（SRS / PRS / ARS）范围内**目标设计**已确定但**尚未实施**，列入后续阶段计划。各项与本文档相关章节交叉引用如下：<br><br>\| 项 \| 涉及章节 \| 当前状态 \| 计划阶段 \| 备注 \|<br>\|---\|---\|---\|---\|---\|<br>\| Redis 缓存层应用层接入 \| §4.2 容器图 / §7.2.1 第 6 步 \| 容器已部署，应用层未集成；JWT 即时失效改用 `password_changed_at` 实现 \| Phase 5 性能优化 \| 当前 dev 数据量无瓶颈 \|<br>\| Prometheus metrics endpoint \| §4.3 组件图（未画 metrics 端点）\| 未实现 \| Phase 4 生产部署前 \| 与可观测性建设打包 \|<br>\| 集中日志收集（ELK / Splunk）\| §4.5 部署视图 \| 仅 stdout loguru，日志目录 `/var/log/cmab-mdm/` 本地保留 \| Phase 4 生产部署前 \| — \|<br>\| 生产级 Nginx 反代 + k8s manifest \| §4.5 部署视图 \| 仅 docker-compose dev 配置 \| Phase 4 生产部署前 \| 当前部署形态见 §5.3 dev / test / prod 环境 \|<br>\| 数据库备份策略落地 \| §7.4 备份与灾备 \| 策略已定义，未部署执行 \| Phase 4 生产部署前 \| 含恢复演练 \|<br>\| CI 门禁 schema 一致性检查脚本 \| §5.2 开发工具链 \| 未实现 \| Phase 4 \| 比对 `information_schema` 与 DM-MDM-001 §7/§8/§9/§11 DDL diff \|<br>\| 完整 CSV 验证（URS / FS / DS / IQ / OQ / PQ）\| §7.5 CSV 验证策略 \| Phase 1 R&D 工具简化版完成 \| Phase 2 GxP 升级时（上线后 6-12 月）\| 与现行分阶段验证策略一致，无变更 \|<br>\| `/auth/refresh` 端点 \| §7.2.1 认证流程第 5 步 \| 未实现，当前 access_token 30min 过期需重登 \| Phase 4 安全收尾 \| 见 DEV-MDM-001 V1.2 §8.1.1 \|<br><br>本路线图**不影响**当前 Phase 1-3 范围内的 21 CFR Part 11 / Annex 11 合规**主要路径**符合性（实施侧整体加权对齐率 ~90%）。**全面合规结论需待完整 CSV 验证（OQ / PQ）通过后正式确认**；本文档不作"100% 合规"宣称。生产上线（Phase 4）前必须完成上表中标注「Phase 4 生产部署前」的全部项 + CSV 验证。 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §7.2.1–§7.2.6 + §8.1.1 |
 | 修订理由 | 让架构文档与实施现状对齐；让 CSV 审计组与 QA 一眼看清"目标设计 vs 当前实施"边界，避免审计误判；为 Phase 4 部署收尾提供清单 |
 

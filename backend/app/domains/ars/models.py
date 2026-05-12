@@ -128,6 +128,7 @@ class AssetMarketId(Base):
     )
     updated_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_by: Mapped[int | None] = mapped_column(BigInteger)
 
 
 class AssetStatusHistory(Base):

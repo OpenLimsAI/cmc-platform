@@ -5,7 +5,7 @@
 | 文档 | DM-MDM-001 V1.0 → V1.1 |
 | 上游决议 | DEV-MDM-001 V1.2_draft §2 / §3 / §4 / §5 / §6 |
 | 用途 | 供 CMC IT 架构组逐项决议「接受 / 拒绝 / 修改」；秘书在 Word 修订模式下落地。**本清单不直接改 docx**。 |
-| 修订总数 | 12 项（9 项建议接受 + 2 项待评审决议 + 1 项可选备注） |
+| 修订总数 | 12 项（9 项建议接受 + 2 项已决议接受方案 A + 1 项可选备注） |
 | 编制日期 | 2026-05-12 |
 
 定位说明：V1.0 docx 提取的 txt 无页码，本清单用「§X.Y 第 N 个 DDL 块 / 第 N 段文字 / 行号 ≈ N」三类锚点定位；秘书在 docx 中按章节标题与 DDL 关键词搜索即可。
@@ -58,7 +58,7 @@
 | 修订类型 | 新增小节 + 新增 DDL |
 | V1.0 原文位置 | §8.1 表清单第 3 行列出 `ars.asset_status_history`（"资产状态变更历史"），但 §8 全章只有 §8.2 asset / §8.3 asset_market_id，**§8.4 缺失** |
 | V1.0 原文摘录 | "ars.asset_status_history｜资产状态变更历史"（§8.1 表清单）；§8 章节后续无对应 DDL |
-| V1.1 修订内容 | 在 §8.3 后新增 §8.4 `ars.asset_status_history（状态变更历史）`，DDL 与 §7.7 / §9.5 同构：<br>字段：history_id BIGINT PK / asset_id BIGINT NOT NULL FK ars.asset / old_status / new_status NOT NULL / change_reason TEXT NOT NULL / changed_at TIMESTAMPTZ DEFAULT NOW() / changed_by BIGINT NOT NULL FK auth.user / **e_signature_id BIGINT FK audit.e_signature**（terminate 强制电签）<br>索引：`ix_asset_status_history_asset (asset_id, changed_at DESC)`<br>触发器：`trg_asset_status_change AFTER UPDATE ON ars.asset`（OLD.status DISTINCT FROM NEW.status 时自动写入，参照 §7.7 / §9.5 的 fn_*_status_change 函数模板）<br>章节注释：「ars.asset 状态机 3 值（active / on_hold / terminated）；terminate 为关键不可逆动作（21 CFR Part 11 §11.50），强制要求 e_signature_id 非空」 |
+| V1.1 修订内容 | 在 §8.3 后新增 §8.4 `ars.asset_status_history（状态变更历史）`，DDL 与 §7.7 / §9.5 同构：<br>字段：history_id BIGINT PK / asset_id BIGINT NOT NULL FK ars.asset / old_status / new_status NOT NULL / change_reason TEXT NOT NULL / changed_at TIMESTAMPTZ DEFAULT NOW() / changed_by BIGINT NOT NULL FK auth.user / **e_signature_id BIGINT NULL FK audit.e_signature**<br>**字段注释（重要业务约束）**：`COMMENT ON COLUMN ars.asset_status_history.e_signature_id IS '电子签名记录 FK。**仅 terminate 动作强制非空**（关键不可逆动作，21 CFR Part 11 §11.50）；hold / resume 等可逆状态变更不要求电子签名，本字段可为空。约束由 service 层校验（SIGNATURE_REQUIRED_ACTIONS = {"terminate"}），DB 层不加 CHECK 以保留扩展性。'`<br>索引：`ix_asset_status_history_asset (asset_id, changed_at DESC)`<br>触发器：`trg_asset_status_change AFTER UPDATE ON ars.asset`（OLD.status DISTINCT FROM NEW.status 时自动写入，参照 §7.7 / §9.5 的 fn_*_status_change 函数模板）<br>**章节注释**：「ars.asset 状态机 3 值（active / on_hold / terminated），3 个动作（hold / resume / terminate）。**仅 terminate 是关键不可逆动作，强制电签**；hold / resume 是可逆调整，不强制电签。该约束与 §7.7 substance（4 个签字动作）/ §9.5 project（3 个签字动作）模式一致——签字范围由各域 service 层 SIGNATURE_REQUIRED_ACTIONS 集合定义，DM 层不在状态机字段加 CHECK。」 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.3.1 / §6.3.2（实施 migration 0024 已建） |
 | 修订理由 | §8.1 表清单已声明此表存在，DDL 缺失为文档遗漏；实施侧 M3.1 已按 §7.7/§9.5 同构补建，须正式入文档闭环。 |
 
@@ -126,31 +126,29 @@
 
 ## 待评审决议项（架构组需先决议，决议后再决定是否落地修订）
 
-### 决议项 #A — §8.3 ars.asset_market_id：是否补 `deleted_by` 字段？
+### 决议项 #A — §8.3 ars.asset_market_id：补 `deleted_by` 字段 ✅ 已决议接受方案 A
 
 | 字段 | 内容 |
 |---|---|
 | docx 章节 | §8.3 ars.asset_market_id |
-| 修订类型 | （待评审）表结构 — 加字段 |
+| 修订类型 | 表结构 — 加字段（决议后转为正式修订项） |
 | V1.0 原文位置 | §8.3 DDL，字段列表至 `deleted_at TIMESTAMPTZ,` 即结束，无 `deleted_by` |
 | V1.0 原文摘录 | `created_by BIGINT NOT NULL, updated_at ..., updated_by BIGINT NOT NULL, deleted_at TIMESTAMPTZ, CONSTRAINT uq_asset_market_id ...` —— 仅有 `deleted_at` 无 `deleted_by` |
-| 备选方案 A（接受补字段）| 加 `deleted_by BIGINT,` + `CONSTRAINT fk_asset_market_id_deleted_by FOREIGN KEY (deleted_by) REFERENCES auth.user(user_id)`；与 §7.2 substance / §8.2 asset / §9.2 project 主表对齐。 |
-| 备选方案 B（接受设计差异）| 保留 V1.0 现状（仅 deleted_at）；在 §8.3 表注释补一句"删除者通过 audit.audit_log.user_id（action='DELETE'）反查，子表 soft-delete 不冗余 deleted_by"。 |
+| V1.1 修订内容（方案 A）| 在 `deleted_at TIMESTAMPTZ,` 之后加 `deleted_by BIGINT,` + `CONSTRAINT fk_asset_market_id_deleted_by FOREIGN KEY (deleted_by) REFERENCES auth.user(user_id)`；与 §7.2 substance / §8.2 asset / §9.2 project 主表对齐。 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.2.3 |
-| 评审决议建议 | 倾向方案 B（保留差异 + 加注释）：子表追溯通过 audit_log 已闭环，冗余字段维护成本高于收益。**待架构组拍板。** |
+| 评审已决议 | **接受方案 A（统一补 deleted_by）**：三个 ref / 子表 soft-delete 模式完全统一，避免实施侧记忆负担。代码侧 migration 0027 同步建（见后续代码改动清单）。 |
 
-### 决议项 #B — §11.3 ref.asset_substance：是否补 `deleted_by` 字段（顺带 §11.4 ref.project_asset）？
+### 决议项 #B — §11.3 ref.asset_substance + §11.4 ref.project_asset：补 `deleted_by` 字段 ✅ 已决议接受方案 A
 
 | 字段 | 内容 |
 |---|---|
 | docx 章节 | §11.3 ref.asset_substance / §11.4 ref.project_asset |
-| 修订类型 | （待评审）表结构 — 加字段 |
+| 修订类型 | 表结构 — 加字段（决议后转为正式修订项） |
 | V1.0 原文位置 | §11.3 DDL 字段至 `deleted_at TIMESTAMPTZ,` 结束；§11.4 同；但 §11.2 ref.project_substance 有 `deleted_by` |
 | V1.0 原文摘录 | §11.3：`updated_by BIGINT NOT NULL, deleted_at TIMESTAMPTZ, CONSTRAINT pk_ref_asset_substance ...` ；§11.2 同位置有 `deleted_by BIGINT,` |
-| 备选方案 A（统一补字段）| §11.3 / §11.4 各加 `deleted_by BIGINT,` + 对应 FK；ref 三表 soft-delete 模式完全统一。 |
-| 备选方案 B（保留 §11.2 与 §11.3/§11.4 差异）| 维持现状；在 §11.1 设计原则备注"ref.project_substance 因含 relation_type 较丰富语义，保留 deleted_by；ref.asset_substance / ref.project_asset 为纯关联表，删除者走 audit_log 反查"。 |
+| V1.1 修订内容（方案 A）| §11.3 / §11.4 各在 `deleted_at TIMESTAMPTZ,` 后加 `deleted_by BIGINT,` + 对应 `CONSTRAINT fk_ref_<tab>_deleted_by FOREIGN KEY (deleted_by) REFERENCES auth.user(user_id)`；ref 三表 soft-delete 模式完全统一。 |
 | 上游决议引用 | DEV-MDM-001 V1.2 §6.5.4 / 附录 A |
-| 评审决议建议 | 倾向方案 A（统一补）：ref 三表对外行为一致，避免实施侧记忆负担与未来对齐成本。**待架构组拍板。** |
+| 评审已决议 | **接受方案 A（统一补 deleted_by）**：与 #A 一致；ref 三表对外行为一致；代码侧 migration 0027 一并新增 + service 层 unlink 路径补 `deleted_by = current_user.user_id` 赋值。 |
 
 ---
 

@@ -401,4 +401,6 @@ class AssetService:
         if not m:
             raise NotFoundError(f"market_id_pk={market_id_pk} 不属于 {code} 或已删除")
         m.deleted_at = datetime.now(UTC)
+        m.deleted_by = current_user.user_id
+        m.updated_by = current_user.user_id
         await self.db.flush()
