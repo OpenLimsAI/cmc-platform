@@ -135,6 +135,86 @@ async def test_soft_delete_excludes_from_list(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_create_with_extended_protein_fields(admin_client, unique_suffix):
+    """S11（DM-MDM-001 V1.1 §7.3）：protein 扩展字段 expression_vector / pi_theoretical /
+    extinction_coefficient 等可经 API 写入并回读。
+    """
+    resp = await admin_client.post(
+        "/api/v1/substances",
+        json={
+            "substance_type": "mab",
+            "internal_code": f"TEST-PROT-{unique_suffix}",
+            "preferred_name": "pytest protein ext",
+            "protein": {
+                "isotype": "IgG1",
+                "expression_system": "CHO",
+                "cell_line": "CHO-K1",
+                "expression_vector": "pCAG-Hyg-mAb",
+                "molecular_weight_da": 148000.5,
+                "pi_theoretical": 8.45,
+                "extinction_coefficient": 215000,
+                "heavy_chain_sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFTFSSYAMS",
+            },
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    code = resp.json()["data"]["substance_code"]
+
+    get_resp = await admin_client.get(f"/api/v1/substances/{code}?expand=protein")
+    p = get_resp.json()["data"]["protein"]
+    assert p["expression_vector"] == "pCAG-Hyg-mAb"
+    assert p["pi_theoretical"] == 8.45
+    assert p["extinction_coefficient"] == 215000
+    # DB 触发器自动算 hash + length（migration 0021）
+    assert p["sequence_hash_hc"] and len(p["sequence_hash_hc"]) == 64
+    assert p["sequence_length_hc"] == len(
+        "EVQLVESGGGLVQPGGSLRLSCAASGFTFSSYAMS"
+    )
+
+
+@pytest.mark.asyncio
+async def test_xref_effective_expiry_dates(admin_client, unique_suffix):
+    """S10（DM-MDM-001 V1.1 §7.6）：xref 的 effective_date / expiry_date 可写可读，
+    用于按申报有效期管理 INN/CAS 等外部标识。
+    """
+    create_resp = await admin_client.post(
+        "/api/v1/substances",
+        json={
+            "substance_type": "mab",
+            "internal_code": f"TEST-XREF-DT-{unique_suffix}",
+            "preferred_name": "pytest xref dates",
+            "xrefs": [
+                {
+                    "xref_type": "INN",
+                    "xref_value": f"pytestmab-{unique_suffix}",
+                    "is_primary": True,
+                    "effective_date": "2024-03-01",
+                    "expiry_date": "2034-03-01",
+                }
+            ],
+        },
+    )
+    assert create_resp.status_code == 201, create_resp.text
+    code = create_resp.json()["data"]["substance_code"]
+
+    detail = (await admin_client.get(f"/api/v1/substances/{code}?expand=xrefs")).json()["data"]
+    xref = detail["xrefs"][0]
+    assert xref["effective_date"] == "2024-03-01"
+    assert xref["expiry_date"] == "2034-03-01"
+
+    # PUT 更新 expiry_date
+    xref_id = xref["xref_id"]
+    put_resp = await admin_client.put(
+        f"/api/v1/substances/{code}/xrefs/{xref_id}",
+        json={"expiry_date": "2040-12-31"},
+    )
+    assert put_resp.status_code == 200
+    assert put_resp.json()["data"]["expiry_date"] == "2040-12-31"
+    # 未传的字段应保持原值
+    assert put_resp.json()["data"]["effective_date"] == "2024-03-01"
+
+
+@pytest.mark.asyncio
 async def test_soft_delete_requires_reason(admin_client, unique_suffix):
     """M2.0：DELETE 必须带 change_reason body（21 CFR Part 11 §11.10）"""
     code = (

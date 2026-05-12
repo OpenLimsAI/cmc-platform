@@ -2,7 +2,7 @@
 SRS Pydantic schemas
 对齐 API-MDM-001 第 9 章
 """
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -39,15 +39,22 @@ class ProteinExtension(BaseModel):
 
     heavy_chain_sequence: str | None = None
     light_chain_sequence: str | None = None
+    additional_chains: dict | None = None
     sequence_length_hc: int | None = None
     sequence_length_lc: int | None = None
+    sequence_hash_hc: str | None = None
+    sequence_hash_lc: str | None = None
     isotype: str | None = None
     architecture: str | None = None
-    expression_system: str | None = None
-    cell_line: str | None = None
-    molecular_weight_da: float | None = None
+    disulfide_bonds: dict | None = None
     glycosylation_sites: dict | None = None
     ptm_info: dict | None = None
+    expression_system: str | None = None
+    cell_line: str | None = None
+    expression_vector: str | None = None
+    molecular_weight_da: float | None = None
+    pi_theoretical: float | None = None
+    extinction_coefficient: int | None = None
 
 
 class SubstanceXrefBase(BaseModel):
@@ -61,6 +68,8 @@ class SubstanceXrefBase(BaseModel):
     xref_source: str | None = Field(None, max_length=64)
     region: str | None = Field(None, max_length=16)
     is_primary: bool = False
+    effective_date: date | None = None
+    expiry_date: date | None = None
     notes: str | None = None
 
 
@@ -135,6 +144,8 @@ class SubstanceXrefUpdate(BaseModel):
     xref_source: str | None = Field(None, max_length=64)
     region: str | None = Field(None, max_length=16)
     is_primary: bool | None = None
+    effective_date: date | None = None
+    expiry_date: date | None = None
     notes: str | None = None
 
 

@@ -102,4 +102,11 @@ async def test_status_history_recorded(admin_client, unique_suffix):
     # 倒序：最新的在前
     assert items[0]["new_status"] == "active"
     assert items[1]["new_status"] == "registered"
+    # S8（DEV-MDM-001 V1.2 / migration 0028）：change_reason 由 service 后置 UPDATE 回填
+    # 触发器只写字面量 'status changed'，service 必须把每条 history 的 reason 改成实际值
+    assert items[0]["change_reason"] == "激活进入生产"
     assert items[1]["change_reason"] == "批准注册测试历史记录"
+    for item in items:
+        assert item["change_reason"] != "status changed", (
+            "service 应已把触发器写入的占位 'status changed' 改为实际 reason"
+        )

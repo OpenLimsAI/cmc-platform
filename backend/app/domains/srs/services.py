@@ -238,15 +238,22 @@ class SubstanceService:
                 detail_data["protein"] = {
                     "heavy_chain_sequence": protein.heavy_chain_sequence,
                     "light_chain_sequence": protein.light_chain_sequence,
+                    "additional_chains": protein.additional_chains,
                     "sequence_length_hc": protein.sequence_length_hc,
                     "sequence_length_lc": protein.sequence_length_lc,
+                    "sequence_hash_hc": protein.sequence_hash_hc,
+                    "sequence_hash_lc": protein.sequence_hash_lc,
                     "isotype": protein.isotype,
                     "architecture": protein.architecture,
-                    "expression_system": protein.expression_system,
-                    "cell_line": protein.cell_line,
-                    "molecular_weight_da": protein.molecular_weight_da,
+                    "disulfide_bonds": protein.disulfide_bonds,
                     "glycosylation_sites": protein.glycosylation_sites,
                     "ptm_info": protein.ptm_info,
+                    "expression_system": protein.expression_system,
+                    "cell_line": protein.cell_line,
+                    "expression_vector": protein.expression_vector,
+                    "molecular_weight_da": protein.molecular_weight_da,
+                    "pi_theoretical": protein.pi_theoretical,
+                    "extinction_coefficient": protein.extinction_coefficient,
                 }
 
         # xrefs 默认加载
@@ -264,6 +271,8 @@ class SubstanceService:
                 "xref_source": x.xref_source,
                 "region": x.region,
                 "is_primary": x.is_primary,
+                "effective_date": x.effective_date,
+                "expiry_date": x.expiry_date,
                 "notes": x.notes,
             }
             for x in x_result.scalars().all()
@@ -319,17 +328,22 @@ class SubstanceService:
                 substance_id=sub.substance_id,
                 heavy_chain_sequence=p.heavy_chain_sequence,
                 light_chain_sequence=p.light_chain_sequence,
+                additional_chains=p.additional_chains,
                 sequence_length_hc=len(hc) if hc else None,
                 sequence_length_lc=len(lc) if lc else None,
                 sequence_hash_hc=_hash_sequence(p.heavy_chain_sequence),
                 sequence_hash_lc=_hash_sequence(p.light_chain_sequence),
                 isotype=p.isotype,
                 architecture=p.architecture,
-                expression_system=p.expression_system,
-                cell_line=p.cell_line,
-                molecular_weight_da=p.molecular_weight_da,
+                disulfide_bonds=p.disulfide_bonds,
                 glycosylation_sites=p.glycosylation_sites,
                 ptm_info=p.ptm_info,
+                expression_system=p.expression_system,
+                cell_line=p.cell_line,
+                expression_vector=p.expression_vector,
+                molecular_weight_da=p.molecular_weight_da,
+                pi_theoretical=p.pi_theoretical,
+                extinction_coefficient=p.extinction_coefficient,
             )
             self.db.add(protein)
 
@@ -342,6 +356,8 @@ class SubstanceService:
                 xref_source=x.xref_source,
                 region=x.region,
                 is_primary=x.is_primary,
+                effective_date=x.effective_date,
+                expiry_date=x.expiry_date,
                 notes=x.notes,
                 created_by=current_user.user_id,
                 updated_by=current_user.user_id,
@@ -490,7 +506,8 @@ class SubstanceService:
                 f"当前状态 '{sub.status}' 不能执行 '{action}'（允许的起始状态：{list(transitions)}）"
             )
 
-        # 写入 change_reason（fn_audit_trigger / fn_substance_status_change 都读）
+        # 写入 change_reason GUC — 仅 audit.fn_audit_trigger 仍读（写入 audit_log.reason）
+        # srs.fn_substance_status_change 已不读 GUC（migration 0028），改为 service 后置 UPDATE
         await self.db.execute(
             text("SELECT set_config('app.change_reason', :r, true)"),
             {"r": reason},
@@ -529,23 +546,28 @@ class SubstanceService:
             sub.registered_by = current_user.user_id
 
         await self.db.flush()
-        # 触发器写入 substance_status_history（e_signature_id=NULL）
-        # 显式回填 e_signature_id（避免 SET LOCAL 在异步连接池下的偶发泄漏）
-        if sig is not None:
-            await self.db.execute(
-                text(
-                    """
-                    UPDATE srs.substance_status_history
-                       SET e_signature_id = :sid
-                     WHERE history_id = (
-                         SELECT MAX(history_id)
-                           FROM srs.substance_status_history
-                          WHERE substance_id = :sub_id
-                     )
-                    """
-                ),
-                {"sid": sig.signature_id, "sub_id": sub.substance_id},
-            )
+        # 触发器写入 substance_status_history（change_reason='status changed', e_signature_id=NULL）
+        # service 显式回填实际 change_reason 与 e_signature_id：与 §7.7 V1.1 DDL/注释一致，
+        # 同时规避 asyncpg SET LOCAL GUC 在连接复用下的偶发泄漏
+        await self.db.execute(
+            text(
+                """
+                UPDATE srs.substance_status_history
+                   SET change_reason  = :reason,
+                       e_signature_id = :sid
+                 WHERE history_id = (
+                     SELECT MAX(history_id)
+                       FROM srs.substance_status_history
+                      WHERE substance_id = :sub_id
+                 )
+                """
+            ),
+            {
+                "reason": reason,
+                "sid": sig.signature_id if sig is not None else None,
+                "sub_id": sub.substance_id,
+            },
+        )
         await self.db.refresh(sub, ["version", "updated_at"])
         # 显式 commit：避免 FastAPI yield 依赖在 response 发送后才 commit 导致下一请求读到 pre-commit 状态
         await self.db.commit()
@@ -575,6 +597,8 @@ class SubstanceService:
             xref_source=payload.xref_source,
             region=payload.region,
             is_primary=payload.is_primary,
+            effective_date=payload.effective_date,
+            expiry_date=payload.expiry_date,
             notes=payload.notes,
             created_by=current_user.user_id,
             updated_by=current_user.user_id,
