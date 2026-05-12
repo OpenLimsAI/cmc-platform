@@ -90,6 +90,7 @@ class AssetSubstanceLinkItem(BaseModel):
     updated_at: datetime
     updated_by: int
     deleted_at: datetime | None = None
+    deleted_by: int | None = None
 
     asset_code: str
     asset_internal_name: str
@@ -140,6 +141,7 @@ class ProjectAssetLinkItem(BaseModel):
     updated_at: datetime
     updated_by: int
     deleted_at: datetime | None = None
+    deleted_by: int | None = None
 
     project_code: str
     project_name: str

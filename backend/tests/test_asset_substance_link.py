@@ -175,6 +175,31 @@ async def test_obsoleted_substance_forbids_new_link(admin_client, unique_suffix)
 
 
 @pytest.mark.asyncio
+async def test_unlinked_record_exposes_deleted_by(admin_client, unique_suffix):
+    """R6（DEV-MDM-001 V1.2 Batch F）：unlink 后 include_deleted=true 列表项应暴露 deleted_by。"""
+    acode = await _new_asset(admin_client, unique_suffix)
+    scode = await _new_substance(admin_client, unique_suffix)
+    await admin_client.post(
+        f"/api/v1/assets/{acode}/substances",
+        json={"substance_code": scode, "component_role": "antibody"},
+    )
+    unlink_resp = await admin_client.delete(
+        f"/api/v1/assets/{acode}/substances/{scode}/antibody",
+        json={"change_reason": "pytest unlink for deleted_by 暴露"},
+    )
+    assert unlink_resp.status_code == 204
+
+    list_resp = await admin_client.get(
+        f"/api/v1/assets/{acode}/substances",
+        params={"include_deleted": "true"},
+    )
+    items = list_resp.json()["data"]
+    soft_deleted = [it for it in items if it["substance_code"] == scode and it["deleted_at"]]
+    assert soft_deleted, "include_deleted=true 时应能看到刚 unlink 的记录"
+    assert soft_deleted[0]["deleted_by"] is not None, "schema 暴露 deleted_by 后应非空"
+
+
+@pytest.mark.asyncio
 async def test_link_audit_inherits_asset_code(admin_client, unique_suffix):
     """ref.asset_substance 触发器写 audit_log 时 entity_code 应回填 asset_code"""
     acode = await _new_asset(admin_client, unique_suffix)

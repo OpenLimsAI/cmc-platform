@@ -46,6 +46,11 @@ async def list_projects(
     status: str | None = None,
     department: str | None = None,
     project_manager_id: int | None = None,
+    priority: str | None = None,
+    program_name: str | None = None,
+    parent_project_id: int | None = None,
+    confidentiality: str | None = None,
+    budget_currency: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort: str | None = None,
@@ -59,6 +64,11 @@ async def list_projects(
         status=status,
         department=department,
         project_manager_id=project_manager_id,
+        priority=priority,
+        program_name=program_name,
+        parent_project_id=parent_project_id,
+        confidentiality=confidentiality,
+        budget_currency=budget_currency,
     )
     service = ProjectService(db)
     items, total = await service.list_projects(filter, page, page_size, sort)

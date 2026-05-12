@@ -106,6 +106,8 @@ class AssetDetail(AssetBase):
     created_by: int
     updated_at: datetime
     updated_by: int
+    deleted_at: datetime | None = None
+    deleted_by: int | None = None
 
 
 class AssetFilter(BaseModel):
@@ -180,3 +182,5 @@ class AssetMarketIdSchema(AssetMarketIdBase):
     created_by: int
     updated_at: datetime
     updated_by: int
+    deleted_at: datetime | None = None
+    deleted_by: int | None = None

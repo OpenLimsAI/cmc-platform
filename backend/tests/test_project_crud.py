@@ -215,6 +215,50 @@ async def test_project_audit_log_entity_code(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_list_filter_priority_and_brief_fields(admin_client, unique_suffix):
+    """P9 / P10（DEV-MDM-001 V1.2 Batch F）：列表过滤暴露 priority / program_name /
+    confidentiality 等字段，ProjectBrief 返回 program_name / confidentiality /
+    parent_project_id / sponsor_id。
+    """
+    pname = f"pytest brief {unique_suffix}"
+    create_resp = await admin_client.post(
+        "/api/v1/projects",
+        json={
+            "project_name": pname,
+            "project_type": "cmc",
+            "priority": "high",
+            "program_name": f"PRG-{unique_suffix}",
+            "confidentiality": "restricted",
+        },
+    )
+    assert create_resp.status_code == 201, create_resp.text
+    code = create_resp.json()["data"]["project_code"]
+
+    # P9：列表过滤 priority=high 命中
+    list_resp = await admin_client.get(
+        "/api/v1/projects",
+        params={"priority": "high", "q": unique_suffix},
+    )
+    assert list_resp.status_code == 200
+    items = list_resp.json()["data"]
+    target = next((it for it in items if it["project_code"] == code), None)
+    assert target is not None, "priority=high 过滤应包含刚创建的项目"
+    # P10：Brief 包含新暴露字段
+    assert target["program_name"] == f"PRG-{unique_suffix}"
+    assert target["confidentiality"] == "restricted"
+    assert "parent_project_id" in target
+    assert "sponsor_id" in target
+
+    # P9：confidentiality=public 过滤应排除该项目
+    list_resp2 = await admin_client.get(
+        "/api/v1/projects",
+        params={"confidentiality": "public", "q": unique_suffix},
+    )
+    items2 = list_resp2.json()["data"]
+    assert all(it["project_code"] != code for it in items2)
+
+
+@pytest.mark.asyncio
 async def test_readonly_cannot_create_project(readonly_client, unique_suffix):
     """READ_ONLY_USER 缺 project:create"""
     resp = await readonly_client.post(

@@ -122,6 +122,10 @@ class ProjectBrief(BaseModel):
     priority: str | None = None
     status: ProjectStatus
     project_manager_id: int | None = None
+    sponsor_id: int | None = None
+    parent_project_id: int | None = None
+    program_name: str | None = None
+    confidentiality: ProjectConfidentiality | None = None
     planned_start_date: date | None = None
     planned_end_date: date | None = None
     created_at: datetime
@@ -151,6 +155,11 @@ class ProjectFilter(BaseModel):
     status: str | None = None
     department: str | None = None
     project_manager_id: int | None = None
+    priority: str | None = None
+    program_name: str | None = None
+    parent_project_id: int | None = None
+    confidentiality: str | None = None
+    budget_currency: str | None = None
 
 
 # ============== 状态机 ==============
