@@ -19,17 +19,21 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 
 设计依据见 [docs/](./docs/) 下的设计文档：
 
-**Phase 0 设计基准 V1.0**（IT 架构组已签批）：
-- [CMAB_MDM_Portal_架构设计文档_V1.0.docx](./docs/CMAB_MDM_Portal_架构设计文档_V1.0.docx)（ARCH-MDM-001）
-- [CMAB_MDM_Portal_数据模型设计文档_V1.0.docx](./docs/CMAB_MDM_Portal_数据模型设计文档_V1.0.docx)（DM-MDM-001）
-- [CMAB_MDM_Portal_API接口规范_V1.0.docx](./docs/CMAB_MDM_Portal_API接口规范_V1.0.docx)（API-MDM-001）
-- [CMAB_MDM_Portal_UI信息架构与线框图_V1.0.docx](./docs/CMAB_MDM_Portal_UI信息架构与线框图_V1.0.docx)（UI-MDM-001）
+**设计文档 V1.1**（当前活跃版本 · IT 架构组已签批 · 2026-05-12）：
+- [CMAB_MDM_Portal_架构设计文档_V1_1.docx](./docs/CMAB_MDM_Portal_架构设计文档_V1_1.docx)（ARCH-MDM-001）
+- [CMAB_MDM_Portal_数据模型设计文档_V1_1.docx](./docs/CMAB_MDM_Portal_数据模型设计文档_V1_1.docx)（DM-MDM-001）
+- [CMAB_MDM_Portal_API接口规范_V1_1.docx](./docs/CMAB_MDM_Portal_API接口规范_V1_1.docx)（API-MDM-001）
+- [CMAB_MDM_Portal_UI信息架构与线框图_V1_1.docx](./docs/CMAB_MDM_Portal_UI信息架构与线框图_V1_1.docx)（UI-MDM-001）
+
+每份 docx 旁都有同名 `.md` 派生副本（由 `make docs-extract` 自动生成，**不可手工修改**），方便程序读取与 grep。
+
+**Phase 0 设计基准 V1.0**（已归档基线，保留作 V1.1 修订溯源）：
+- [V1.0 docx × 4](./docs/) — 文件命名 `*_V1.0.docx`
 
 **设计基准偏离说明**（DEV-MDM-001 系列，待 IT 架构组评审）：
-- [V1.1_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.1_draft.md) — 覆盖 Phase 1 / Phase 2 / Phase 2.5 + M3.0 回归
-- [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 在 V1.1 基础上叠加 M3.1-M3.4 ARS + 跨域引用 + 跨 4 文档检查（含附录 C 测试覆盖映射表）
+- [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 覆盖 Phase 1 / Phase 2 / Phase 2.5 + M3.0 回归 + M3.1-M3.4 ARS + 跨域引用 + 跨 4 文档检查（含附录 C 测试覆盖映射表）
 
-**V1.0 → V1.1 修订清单**（基于 V1.2 偏离决议，供评审组逐项决议接受/拒绝/修改，决议后秘书在 Word 修订模式落地）：
+**V1.0 → V1.1 修订清单**（评审决议过程档，决议已全部落地至 V1.1 docx）：
 - [DM-MDM-001_修订清单](./docs/V1.1_修订清单/DM-MDM-001_修订清单.md)（12 项 · 9 接受 + 2 已决议 + 1 可选）
 - [ARCH-MDM-001_修订清单](./docs/V1.1_修订清单/ARCH-MDM-001_修订清单.md)（11 项）
 - [API-MDM-001_修订清单](./docs/V1.1_修订清单/API-MDM-001_修订清单.md)（21 项 · 含 `meta.error.type` 字典 / `require_all_permissions` 示例 / SET LOCAL GUC 修订）
@@ -41,25 +45,31 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 
 | 角色 | 文件 | 维护方式 |
 |---|---|---|
-| **源** | `docs/*.V1.1.docx`（待秘书产出）| 走 Word 修订模式 + GxP 签字定稿 |
-| **派生** | `docs/*.V1.1.md` | 由 `make docs-extract` 从 docx 自动提取，**不能手工修改** |
+| **源** | `docs/*_V1_1.docx` | 走 Word 修订模式 + GxP 签字定稿 |
+| **派生** | `docs/*_V1_1.md` | 由 `make docs-extract` 从 docx 自动提取，**不能手工修改** |
 | **CI 门禁** | — | `make docs-check` 重新提取后 diff，不一致就 fail |
 
-**变更流程**（V1.1 发布后）：
+**派生处理**（封装在 `scripts/docs/extract_md.py` + `_blocks.py`）：
+- pandoc 跑 `docx → gfm`
+- 用 docx XML 原文（`xml:space="preserve"`）重建单单元格表为 ``` 代码围栏（sql/json/http/python/tsx/text）或 `>` blockquote callout — 因为 pandoc 转 HTML `<p>` 时会按 HTML 标准压缩连续空格，丢失 ASCII 框图对齐与代码缩进
+- 清掉 pandoc attribute id、折叠空行、去行尾空白
+- 文件头加自动生成警告注释
+
+**变更流程**：
 1. 内容变更先在 docx 里走 Word 修订模式
 2. 评审签字定稿
 3. 跑 `make docs-extract` 重新生成 markdown
 4. `git add docs/*.md && git commit`
 5. CI 自动跑 `make docs-check` 校验一致性
 
-**当前状态**：V1.1.docx 尚未由秘书产出，`make docs-extract` 全部跳过；待 4 份 V1.1.docx 落地后跑一次即可生成对应 markdown。命令链路已演练通过（V1.0.docx 演练成功提取 2545 行 markdown）。
+**当前状态**：V1.1 已定稿，4 份 docx + 4 份 md 派生已入库（2026-05-12）。
 
 工具依赖：
 - 优先用本地 `pandoc`（macOS: `brew install pandoc` / Linux: `apt install pandoc`）
 - 没有则自动 fallback 用 `docker run pandoc/core:3.1`（项目已依赖 docker）
 
 例外：以下 markdown 文档是**原生 markdown**，**不**走双轨派生：
-- 设计基准偏离说明 V1.1/V1.2_draft（评审材料，markdown 原生）
+- 设计基准偏离说明 V1.2_draft（评审材料，markdown 原生）
 - V1.0 → V1.1 修订清单 4 份（评审对照表，markdown 原生）
 
 ## 技术栈
@@ -157,7 +167,7 @@ cmab-mdm-platform/
 │   ├── docker-compose.prod.yml
 │   └── nginx/
 │
-├── docs/                     # 设计文档：V1.0 基准（4 份 .docx）+ V1.1/V1.2 偏离说明 + V1.1 修订清单
+├── docs/                     # 设计文档：V1.1 活跃（4 docx + md 派生）/ V1.0 归档 / V1.2 偏离说明 / V1.1 修订清单
 │
 ├── .env.example
 ├── .gitignore
