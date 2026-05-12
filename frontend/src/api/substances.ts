@@ -5,6 +5,7 @@ import type {
   CheckSamenessRequest,
   CheckSamenessResponse,
   ProjectSubstanceLink,
+  StateChangeResponse,
   StatusHistoryItem,
   SubstanceAction,
   SubstanceBrief,
@@ -41,7 +42,7 @@ export const substancesApi = {
 
   // 状态机端点（路径含冒号，encodeURIComponent 会把 : 编成 %3A，浏览器/FastAPI 都能解析）
   changeStatus: (code: string, action: SubstanceAction, payload: SubstanceStatusChangePayload) =>
-    unwrap<SubstanceDetail>(
+    unwrap<StateChangeResponse>(
       api.post(`/substances/${encodeURIComponent(code)}:${action}`, payload)
     ),
 

@@ -282,11 +282,11 @@ export function SubstanceDetailPage() {
                   requiresSignature: ACTION_LABELS[a].requiresSignature,
                 })
               )}
-              changeStatusFn={(action, change_reason, password, signature_reason) =>
+              changeStatusFn={(action, comment, signature) =>
                 substancesApi.changeStatus(
                   sub.substance_code,
                   action as SubstanceAction,
-                  { change_reason, password, signature_reason }
+                  { comment, signature }
                 )
               }
               permission="substance:approve"

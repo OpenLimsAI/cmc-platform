@@ -166,7 +166,10 @@ async def test_terminated_asset_forbids_link_from_both_sides(admin_client, uniqu
 
     r = await admin_client.post(
         f"/api/v1/assets/{acode}:terminate",
-        json={"change_reason": "pytest before pa link", "password": ADMIN_PASSWORD},
+        json={
+            "comment": "pytest before pa link",
+            "signature": {"password": ADMIN_PASSWORD, "reason": "pytest terminate before link"},
+        },
     )
     assert r.status_code == 200
 
@@ -199,9 +202,12 @@ async def test_terminated_project_forbids_link_from_both_sides(admin_client, uni
         ("start", "pytest prep start"),
         ("terminate", "pytest terminate before link"),
     ]:
+        body: dict = {"comment": reason}
+        if action in ("approve", "terminate"):
+            body["signature"] = {"password": ADMIN_PASSWORD, "reason": f"pytest {action} 签名"}
         r = await admin_client.post(
             f"/api/v1/projects/{pcode}:{action}",
-            json={"change_reason": reason, "password": ADMIN_PASSWORD},
+            json=body,
         )
         assert r.status_code == 200, f"{action} 失败: {r.text}"
 

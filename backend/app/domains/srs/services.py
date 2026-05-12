@@ -475,20 +475,28 @@ class SubstanceService:
         self,
         code: str,
         action: str,
-        reason: str,
+        comment: str,
         current_user: User,
-        password: str | None = None,
-        signature_reason: str | None = None,
-    ) -> SubstanceDetail:
+        signature: "SignatureBlock | None" = None,
+    ) -> "StateChangeResponse":
+        """状态机入口（API-MDM-001 V1.1 §6.5）
+
+        - comment: 业务变更原因（写入 audit_log.reason + substance_status_history.change_reason）
+        - signature: GxP 关键动作必传（password + meaning + reason）；service 据此校验
+
+        返回 StateChangeResponse（V1.1 §6.5 行 1140-1155）。
+        """
+        from app.domains.audit.schemas import SignatureBlock, StateChangeResponse  # 局部导入避免循环
+
         transitions = STATE_MACHINE.get(action)
         if not transitions:
             raise StateInvalidError(f"未知动作: {action}")
 
         # GxP 关键动作必须电子签名
         requires_sig = action in SIGNATURE_REQUIRED_ACTIONS
-        if requires_sig and not password:
+        if requires_sig and signature is None:
             raise SignatureRequiredError(
-                f"动作 '{action}' 为 GxP 关键转移，必须提供 password 进行电子签名"
+                f"动作 '{action}' 为 GxP 关键转移，必须提供 signature 对象进行电子签名"
             )
 
         result = await self.db.execute(
@@ -501,43 +509,42 @@ class SubstanceService:
         if not sub:
             raise SubstanceNotFoundError()
 
-        next_status = transitions.get(sub.status)
+        old_status = sub.status
+        next_status = transitions.get(old_status)
         if not next_status:
             raise StateInvalidError(
-                f"当前状态 '{sub.status}' 不能执行 '{action}'（允许的起始状态：{list(transitions)}）"
+                f"当前状态 '{old_status}' 不能执行 '{action}'（允许的起始状态：{list(transitions)}）"
             )
 
         # 写入 change_reason GUC — 仅 audit.fn_audit_trigger 仍读（写入 audit_log.reason）
         # srs.fn_substance_status_change 已不读 GUC（migration 0028），改为 service 后置 UPDATE
         await self.db.execute(
             text("SELECT set_config('app.change_reason', :r, true)"),
-            {"r": reason},
+            {"r": comment},
         )
 
         # 电子签名：验证密码、写 e_signature
-        # signature_reason 独立于 change_reason（21 CFR Part 11 §11.50）；未传则 fallback
-        sig_reason = signature_reason or reason
         sig = None
-        if requires_sig:
+        if signature is not None:
             sig_service = ESignatureService(self.db)
             sig = await sig_service.sign(
                 user=current_user,
-                password=password,
+                password=signature.password,
                 entity_schema="srs",
                 entity_table="substance",
                 entity_id=sub.substance_id,
                 entity_code=sub.substance_code,
-                meaning=ACTION_TO_MEANING[action],
-                reason=sig_reason,
+                meaning=signature.meaning or ACTION_TO_MEANING[action],
+                reason=signature.reason,
                 content_for_hash={
                     "substance_code": sub.substance_code,
                     "internal_code": sub.internal_code,
                     "preferred_name": sub.preferred_name,
-                    "current_status": sub.status,
+                    "current_status": old_status,
                     "target_status": next_status,
                     "version": sub.version,
-                    "change_reason": reason,
-                    "signature_reason": sig_reason,
+                    "comment": comment,
+                    "signature_reason": signature.reason,
                 },
             )
 
@@ -551,8 +558,7 @@ class SubstanceService:
 
         await self.db.flush()
         # 触发器写入 substance_status_history（change_reason='status changed', e_signature_id=NULL）
-        # service 显式回填实际 change_reason 与 e_signature_id：与 §7.7 V1.1 DDL/注释一致，
-        # 同时规避 asyncpg SET LOCAL GUC 在连接复用下的偶发泄漏
+        # service 显式回填实际 change_reason 与 e_signature_id
         await self.db.execute(
             text(
                 """
@@ -567,15 +573,22 @@ class SubstanceService:
                 """
             ),
             {
-                "reason": reason,
+                "reason": comment,
                 "sid": sig.signature_id if sig is not None else None,
                 "sub_id": sub.substance_id,
             },
         )
         await self.db.refresh(sub, ["version", "updated_at"])
-        # 显式 commit：避免 FastAPI yield 依赖在 response 发送后才 commit 导致下一请求读到 pre-commit 状态
         await self.db.commit()
-        return await self.get_by_code(code)
+        return StateChangeResponse(
+            substance_code=sub.substance_code,
+            old_status=old_status,
+            new_status=sub.status,
+            signature_id=sig.signature_id if sig is not None else None,
+            registered_at=sub.registered_at if action == "approve" else None,
+            registered_by=sub.registered_by if action == "approve" else None,
+            version=sub.version,
+        )
 
     # ----------- xrefs 子资源 -----------
     async def _get_substance_or_404(self, code: str) -> Substance:

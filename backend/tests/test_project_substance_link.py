@@ -163,7 +163,10 @@ async def test_link_obsoleted_substance_rejected(admin_client, unique_suffix):
     for action in ["approve", "activate", "deprecate", "obsolete"]:
         r = await admin_client.post(
             f"/api/v1/substances/{scode}:{action}",
-            json={"change_reason": f"pytest 推 {action}", "password": "__REDACTED_SEED_PASSWORD_1__"},
+            json={
+                "comment": f"pytest 推 {action}",
+                "signature": {"password": "__REDACTED_SEED_PASSWORD_1__", "reason": f"pytest {action} 签名理由"},
+            },
         )
         assert r.status_code == 200, f"{action} 失败: {r.text}"
 
@@ -187,10 +190,10 @@ async def test_link_terminated_project_rejected(admin_client, unique_suffix):
         ("start", "pytest 推 start"),
         ("terminate", "pytest 终止 project ≥5"),
     ]:
-        r = await admin_client.post(
-            f"/api/v1/projects/{pcode}:{action}",
-            json={"change_reason": reason, "password": "__REDACTED_SEED_PASSWORD_1__"},
-        )
+        body: dict = {"comment": reason}
+        if action in ("approve", "terminate"):
+            body["signature"] = {"password": "__REDACTED_SEED_PASSWORD_1__", "reason": f"pytest {action} 签名"}
+        r = await admin_client.post(f"/api/v1/projects/{pcode}:{action}", json=body)
         assert r.status_code == 200, f"{action} 失败: {r.text}"
 
     resp = await admin_client.post(

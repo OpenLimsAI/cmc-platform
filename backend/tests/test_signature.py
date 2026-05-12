@@ -29,11 +29,11 @@ async def _new_substance(client, suffix: str) -> str:
 
 @pytest.mark.asyncio
 async def test_approve_without_password_rejected(admin_client, unique_suffix):
-    """GxP 关键动作未提供 password → 422 signature_required"""
+    """GxP 关键动作未提供 signature → 422 signature_required"""
     code = await _new_substance(admin_client, unique_suffix)
     resp = await admin_client.post(
         f"/api/v1/substances/{code}:approve",
-        json={"change_reason": "测试缺密码"},
+        json={"comment": "测试缺密码"},  # 缺 signature 对象
     )
     assert resp.status_code == 422
     assert resp.json()["code"] == 42203  # V1.1 决议：signature_required 改 42203（保留 42202=reference_in_use）
@@ -46,7 +46,10 @@ async def test_approve_wrong_password_rejected(admin_client, unique_suffix):
     code = await _new_substance(admin_client, unique_suffix)
     resp = await admin_client.post(
         f"/api/v1/substances/{code}:approve",
-        json={"change_reason": "测试错误密码", "password": "wrong_password"},
+        json={
+            "comment": "测试错误密码",
+            "signature": {"password": "wrong_password", "reason": "测试错误密码签名理由"},
+        },
     )
     assert resp.status_code == 401
     assert resp.json()["code"] == 40106
@@ -63,10 +66,13 @@ async def test_approve_correct_password_signs_and_transitions(admin_client, uniq
     code = await _new_substance(admin_client, unique_suffix)
     resp = await admin_client.post(
         f"/api/v1/substances/{code}:approve",
-        json={"change_reason": "测试合规签名审批", "password": ADMIN_PASSWORD},
+        json={
+            "comment": "测试合规签名审批",
+            "signature": {"password": ADMIN_PASSWORD, "reason": "合规审批签名理由"},
+        },
     )
     assert resp.status_code == 200
-    assert resp.json()["data"]["status"] == "registered"
+    assert resp.json()["data"]["new_status"] == "registered"
 
     # status-history 第一条应携带 e_signature_id
     hist = (
@@ -84,7 +90,10 @@ async def test_multiple_signatures_independent(admin_client, unique_suffix):
     for action in ["approve", "activate"]:
         r = await admin_client.post(
             f"/api/v1/substances/{code}:{action}",
-            json={"change_reason": f"测试多次签名 {action}", "password": ADMIN_PASSWORD},
+            json={
+                "comment": f"测试多次签名 {action}",
+                "signature": {"password": ADMIN_PASSWORD, "reason": f"多次签名理由 {action}"},
+            },
         )
         assert r.status_code == 200
 
@@ -98,21 +107,24 @@ async def test_multiple_signatures_independent(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_restrict_does_not_require_signature(admin_client, unique_suffix):
-    """非 GxP 关键动作（:restrict）不要求 password；status_history.e_signature_id=NULL"""
+    """非 GxP 关键动作（:restrict）不要求 signature；status_history.e_signature_id=NULL"""
     code = await _new_substance(admin_client, unique_suffix)
     # 先推到 active
     for action in ["approve", "activate"]:
         await admin_client.post(
             f"/api/v1/substances/{code}:{action}",
-            json={"change_reason": f"prep {action}", "password": ADMIN_PASSWORD},
+            json={
+                "comment": f"prep {action}",
+                "signature": {"password": ADMIN_PASSWORD, "reason": f"prep {action} 签名理由"},
+            },
         )
-    # restrict 不带 password
+    # restrict 不带 signature
     r = await admin_client.post(
         f"/api/v1/substances/{code}:restrict",
-        json={"change_reason": "临时风控测试，不需签名"},
+        json={"comment": "临时风控测试，不需签名"},
     )
     assert r.status_code == 200
-    assert r.json()["data"]["status"] == "restricted"
+    assert r.json()["data"]["new_status"] == "restricted"
 
     hist = (
         await admin_client.get(f"/api/v1/substances/{code}/status-history")
@@ -127,7 +139,10 @@ async def test_sign_permission_required(researcher_client, admin_client, unique_
     code = await _new_substance(admin_client, unique_suffix)
     r = await researcher_client.post(
         f"/api/v1/substances/{code}:approve",
-        json={"change_reason": "测试缺 sign 权限", "password": "__REDACTED_SEED_PASSWORD_5__"},
+        json={
+            "comment": "测试缺 sign 权限",
+            "signature": {"password": "__REDACTED_SEED_PASSWORD_5__", "reason": "测试缺权限签名理由"},
+        },
     )
     assert r.status_code == 403
     assert "substance:sign" in r.json()["message"]
@@ -148,7 +163,10 @@ async def test_project_approve_signature_flow(admin_client, unique_suffix):
 
     r = await admin_client.post(
         f"/api/v1/projects/{pcode}:approve",
-        json={"change_reason": "测试项目签名审批", "password": ADMIN_PASSWORD},
+        json={
+            "comment": "测试项目签名审批",
+            "signature": {"password": ADMIN_PASSWORD, "reason": "项目审批签名理由"},
+        },
     )
     assert r.status_code == 200
 
@@ -159,23 +177,27 @@ async def test_project_approve_signature_flow(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
-async def test_signature_reason_independent_from_change_reason(admin_client, unique_suffix):
-    """UI3 / API V1.1 §6.4（DEV-MDM-001 V1.2 Batch G1.A）：
-    电子签名时若传 signature_reason，则 e_signature.signature_reason 独立于 change_reason；
-    未传时 fallback 到 change_reason（向后兼容）。21 CFR Part 11 §11.50。
+async def test_signature_reason_independent_from_comment(admin_client, unique_suffix):
+    """UI3 / API V1.1 §6.5（DEV-MDM-001 V1.2 Batch G1.B）：
+    电子签名 signature.reason 独立于业务 comment 字段：
+    - comment 写入 audit_log.reason + status_history.change_reason
+    - signature.reason 写入 e_signature.signature_reason
+    两者必须分离记录（21 CFR Part 11 §11.50）。
     """
     from sqlalchemy import select
     from app.core.database import AsyncSessionLocal
     from app.domains.audit.models import ESignature
 
-    # 1) 显式传 signature_reason → 独立写入
+    # 1) signature.reason ≠ comment → 各自落到对应字段
     code = await _new_substance(admin_client, unique_suffix)
     r = await admin_client.post(
         f"/api/v1/substances/{code}:approve",
         json={
-            "change_reason": "数据评审完成，准备入库",
-            "password": ADMIN_PASSWORD,
-            "signature_reason": "Phase I CMC 评审通过 - QA 批准",
+            "comment": "数据评审完成,准备入库",
+            "signature": {
+                "password": ADMIN_PASSWORD,
+                "reason": "Phase I CMC 评审通过 - QA 批准",
+            },
         },
     )
     assert r.status_code == 200, r.text
@@ -191,31 +213,26 @@ async def test_signature_reason_independent_from_change_reason(admin_client, uni
         ).scalar_one_or_none()
         assert sig_row is not None
         assert sig_row.signature_reason == "Phase I CMC 评审通过 - QA 批准"
-        # change_reason 与 signature_reason 必须分离
-        assert sig_row.signature_reason != "数据评审完成，准备入库"
+        assert sig_row.signature_reason != "数据评审完成,准备入库"
 
-    # 2) 不传 signature_reason → fallback 到 change_reason（向后兼容）
-    code2 = await _new_substance(admin_client, f"{unique_suffix}-bc")
+    # 2) signature 整个对象缺失 → 422 signature_required（service 层校验）
+    code2 = await _new_substance(admin_client, f"{unique_suffix}-no-sig")
     r2 = await admin_client.post(
         f"/api/v1/substances/{code2}:approve",
+        json={"comment": "未提供 signature 对象"},
+    )
+    assert r2.status_code == 422
+    assert r2.json()["meta"]["error"]["type"] == "signature_required"
+
+    # 3) signature.reason 缺失 → 422 pydantic（reason 是必填字段）
+    r3 = await admin_client.post(
+        f"/api/v1/substances/{code2}:approve",
         json={
-            "change_reason": "向后兼容路径，未传 signature_reason",
-            "password": ADMIN_PASSWORD,
+            "comment": "signature 对象缺 reason",
+            "signature": {"password": ADMIN_PASSWORD},
         },
     )
-    assert r2.status_code == 200
-
-    async with AsyncSessionLocal() as s:
-        sig_row2 = (
-            await s.execute(
-                select(ESignature)
-                .where(ESignature.entity_code == code2)
-                .order_by(ESignature.signed_at.desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        assert sig_row2 is not None
-        assert sig_row2.signature_reason == "向后兼容路径，未传 signature_reason"
+    assert r3.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -233,12 +250,15 @@ async def test_project_start_does_not_require_signature(admin_client, unique_suf
     # approve 需签名
     await admin_client.post(
         f"/api/v1/projects/{pcode}:approve",
-        json={"change_reason": "prep approve", "password": ADMIN_PASSWORD},
+        json={
+            "comment": "prep approve",
+            "signature": {"password": ADMIN_PASSWORD, "reason": "prep approve 签名理由"},
+        },
     )
     # start 不需要
     r = await admin_client.post(
         f"/api/v1/projects/{pcode}:start",
-        json={"change_reason": "测试启动不需签名"},
+        json={"comment": "测试启动不需签名"},
     )
     assert r.status_code == 200
-    assert r.json()["data"]["status"] == "active"
+    assert r.json()["data"]["new_status"] == "active"

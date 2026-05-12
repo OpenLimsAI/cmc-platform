@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.domains.audit.schemas import SignatureBlock
+
 SubstanceType = Literal[
     "mab", "bispecific", "adc", "fusion", "small_molecule", "oligonucleotide", "other"
 ]
@@ -109,23 +111,14 @@ class SubstanceUpdate(BaseModel):
 
 
 class SubstanceStatusChange(BaseModel):
-    """状态机端点（:approve / :activate / :restrict / :deprecate / :obsolete）的请求体
+    """状态机端点请求体（API-MDM-001 V1.1 §6.5）
 
-    GxP 关键动作（approve / activate / deprecate / obsolete）要求电子签名，
-    必须提供 password。:restrict 是可逆的临时风控，不要求签名。
-    后端 service 会根据 action 是否在 SIGNATURE_REQUIRED 集合内决定是否校验 password。
+    GxP 关键动作（approve / activate / deprecate / obsolete）必传 signature 嵌套对象；
+    :restrict 是可逆的临时风控，不要求 signature（service 层据此校验 SignatureRequiredError）。
     """
 
-    change_reason: str = Field(..., min_length=5, max_length=2000)
-    password: str | None = Field(
-        None, min_length=1, max_length=128,
-        description="当前用户密码；仅 GxP 关键动作要求（21 CFR Part 11 §11.200）",
-    )
-    signature_reason: str | None = Field(
-        None, min_length=1, max_length=2000,
-        description="电子签名理由（21 CFR Part 11 §11.50，独立于 change_reason）；"
-                    "未传则 fallback 到 change_reason 以保证向后兼容",
-    )
+    comment: str = Field(..., min_length=5, max_length=2000, description="状态变更原因（写入审计 + status_history）")
+    signature: SignatureBlock | None = None
 
 
 class SubstanceDelete(BaseModel):

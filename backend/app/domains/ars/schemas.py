@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.domains.audit.schemas import SignatureBlock
+
 AssetType = Literal[
     "mab", "bispecific", "adc", "fusion", "small_molecule", "combination", "other",
 ]
@@ -123,21 +125,13 @@ class AssetFilter(BaseModel):
 
 # ============== 状态机 ==============
 class AssetStatusChange(BaseModel):
-    """状态机端点（:hold / :resume / :terminate）请求体
+    """状态机端点（:hold / :resume / :terminate）请求体（API-MDM-001 V1.1 §8.x）
 
-    terminate 是 GxP 关键动作要求电子签名；hold / resume 不要求。
+    terminate 是 GxP 关键动作必传 signature；hold / resume 可逆动作不需要。
     """
 
-    change_reason: str = Field(..., min_length=5, max_length=2000)
-    password: str | None = Field(
-        None, min_length=1, max_length=128,
-        description="当前用户密码；仅 :terminate 要求电子签名",
-    )
-    signature_reason: str | None = Field(
-        None, min_length=1, max_length=2000,
-        description="电子签名理由（21 CFR Part 11 §11.50，独立于 change_reason）；"
-                    "未传则 fallback 到 change_reason",
-    )
+    comment: str = Field(..., min_length=5, max_length=2000)
+    signature: SignatureBlock | None = None
 
 
 # ============== 多市场注册号（§8.3）==============

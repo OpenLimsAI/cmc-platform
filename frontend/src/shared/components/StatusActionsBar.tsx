@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Space, message } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
+import type { SignatureBlock } from '@/api/types';
 
 const { TextArea } = Input;
 
@@ -16,16 +17,16 @@ export interface StatusActionDef {
   requiresSignature?: boolean;
 }
 
-interface Props<TDetail extends { status: string }> {
+interface Props {
   /** 当前 status 下可执行的动作列表（按 status 查表后传入；空数组时整组不渲染）*/
   actions: StatusActionDef[];
-  /** 调用后端冒号端点的函数；签名场景多传 password + signature_reason（21 CFR Part 11 §11.50）*/
+  /** 调用后端冒号端点的函数；payload = { comment, signature?: {password, reason, meaning?} }
+   *  对齐 API-MDM-001 V1.1 §6.5 / §7.4 / §8.x；返回 StateChangeResponse（含 new_status）*/
   changeStatusFn: (
     action: string,
-    change_reason: string,
-    password?: string,
-    signature_reason?: string,
-  ) => Promise<TDetail>;
+    comment: string,
+    signature?: SignatureBlock,
+  ) => Promise<{ new_status: string }>;
   /** 触发动作所需权限码（如 'project:approve'）*/
   permission: string;
   /** 用于 invalidate 缓存的 queryKey（详情）*/
@@ -41,7 +42,7 @@ interface Props<TDetail extends { status: string }> {
 /**
  * 通用状态机按钮组 + 变更原因弹窗。SRS/PRS/未来 ARS/MM 共用。
  */
-export function StatusActionsBar<TDetail extends { status: string }>({
+export function StatusActionsBar({
   actions,
   changeStatusFn,
   permission,
@@ -49,12 +50,12 @@ export function StatusActionsBar<TDetail extends { status: string }>({
   listQueryKey,
   entityCode,
   entityTypeLabel = '对象',
-}: Props<TDetail>) {
+}: Props) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<StatusActionDef | null>(null);
   const [form] = Form.useForm<{
-    change_reason: string;
+    comment: string;
     password?: string;
     signature_reason?: string;
   }>();
@@ -64,18 +65,16 @@ export function StatusActionsBar<TDetail extends { status: string }>({
   const mutation = useMutation({
     mutationFn: ({
       action,
-      reason,
-      password,
-      signature_reason,
+      comment,
+      signature,
     }: {
       action: string;
-      reason: string;
-      password?: string;
-      signature_reason?: string;
-    }) => changeStatusFn(action, reason, password, signature_reason),
+      comment: string;
+      signature?: SignatureBlock;
+    }) => changeStatusFn(action, comment, signature),
     onSuccess: (data, vars) => {
       const def = actions.find((a) => a.action === vars.action);
-      message.success(`已${def?.label ?? vars.action}：状态变为 ${data.status}`);
+      message.success(`已${def?.label ?? vars.action}：状态变为 ${data.new_status}`);
       queryClient.invalidateQueries({ queryKey: detailQueryKey });
       queryClient.invalidateQueries({ queryKey: listQueryKey });
       setPending(null);
@@ -97,16 +96,19 @@ export function StatusActionsBar<TDetail extends { status: string }>({
   if (actions.length === 0) return null;
 
   const submit = (values: {
-    change_reason: string;
+    comment: string;
     password?: string;
     signature_reason?: string;
   }) => {
     if (!pending) return;
+    const signature =
+      pending.requiresSignature && values.password && values.signature_reason
+        ? { password: values.password, reason: values.signature_reason }
+        : undefined;
     mutation.mutate({
       action: pending.action,
-      reason: values.change_reason,
-      password: pending.requiresSignature ? values.password : undefined,
-      signature_reason: pending.requiresSignature ? values.signature_reason : undefined,
+      comment: values.comment,
+      signature,
     });
   };
 
@@ -182,7 +184,7 @@ export function StatusActionsBar<TDetail extends { status: string }>({
         />
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
-            name="change_reason"
+            name="comment"
             label="变更原因（最少 5 字）"
             rules={[
               { required: true, message: '必须填写变更原因' },

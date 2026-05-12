@@ -239,11 +239,11 @@ export function AssetDetailPage() {
                   requiresSignature: ASSET_ACTION_LABELS[a].requiresSignature,
                 })
               )}
-              changeStatusFn={(action, change_reason, password, signature_reason) =>
+              changeStatusFn={(action, comment, signature) =>
                 assetsApi.changeStatus(
                   asset.asset_code,
                   action as AssetAction,
-                  { change_reason, password, signature_reason }
+                  { comment, signature }
                 )
               }
               permission="asset:update"

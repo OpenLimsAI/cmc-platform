@@ -145,7 +145,10 @@ async def test_terminated_asset_forbids_new_link(admin_client, unique_suffix):
     # terminate the asset
     r = await admin_client.post(
         f"/api/v1/assets/{acode}:terminate",
-        json={"change_reason": "pytest terminate before link", "password": ADMIN_PASSWORD},
+        json={
+            "comment": "pytest terminate before link",
+            "signature": {"password": ADMIN_PASSWORD, "reason": "pytest terminate 签名"},
+        },
     )
     assert r.status_code == 200
     # 再绑定应被拒
@@ -164,7 +167,10 @@ async def test_obsoleted_substance_forbids_new_link(admin_client, unique_suffix)
     for action in ["approve", "activate", "deprecate", "obsolete"]:
         r = await admin_client.post(
             f"/api/v1/substances/{scode}:{action}",
-            json={"change_reason": f"pytest 推 {action}", "password": ADMIN_PASSWORD},
+            json={
+                "comment": f"pytest 推 {action}",
+                "signature": {"password": ADMIN_PASSWORD, "reason": f"pytest {action} 签名"},
+            },
         )
         assert r.status_code == 200
     resp = await admin_client.post(

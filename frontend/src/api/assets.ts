@@ -15,6 +15,7 @@ import type {
   AuditLogItem,
   ProjectAssetLink,
   ProjectAssetLinkFromAssetPayload,
+  StateChangeResponse,
   StatusHistoryItem,
 } from './types';
 
@@ -46,7 +47,7 @@ export const assetsApi = {
 
   // 状态机
   changeStatus: (code: string, action: AssetAction, payload: AssetStatusChangePayload) =>
-    unwrap<AssetDetail>(
+    unwrap<StateChangeResponse>(
       api.post(`/assets/${encodeURIComponent(code)}:${action}`, payload)
     ),
 

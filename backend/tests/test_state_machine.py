@@ -27,10 +27,15 @@ async def _change(
     action: str,
     reason: str = "test reason ≥ 5",
     password: str | None = None,
+    signature_reason: str | None = None,
 ):
-    body: dict = {"change_reason": reason}
+    # API-MDM-001 V1.1 §6.5：comment + signature 嵌套
+    body: dict = {"comment": reason}
     if action in SIGNATURE_REQUIRED:
-        body["password"] = password or ADMIN_PASSWORD
+        body["signature"] = {
+            "password": password or ADMIN_PASSWORD,
+            "reason": signature_reason or f"pytest 签名理由 - {action}",
+        }
     return await client.post(
         f"/api/v1/substances/{code}:{action}",
         json=body,
@@ -49,7 +54,7 @@ async def test_full_lifecycle(admin_client, unique_suffix):
     ]:
         r = await _change(admin_client, code, action)
         assert r.status_code == 200, f"{action} 失败: {r.status_code} {r.text}"
-        actual = r.json()["data"]["status"]
+        actual = r.json()["data"]["new_status"]
         assert actual == expected, (
             f"{action}: got {actual}, expected {expected}. "
             f"Full body: {r.text}"
@@ -85,8 +90,8 @@ async def test_restrict_then_deprecate(admin_client, unique_suffix):
     code = await _create(admin_client, unique_suffix)
     await _change(admin_client, code, "approve")
     await _change(admin_client, code, "activate")
-    assert (await _change(admin_client, code, "restrict")).json()["data"]["status"] == "restricted"
-    assert (await _change(admin_client, code, "deprecate")).json()["data"]["status"] == "deprecated"
+    assert (await _change(admin_client, code, "restrict")).json()["data"]["new_status"] == "restricted"
+    assert (await _change(admin_client, code, "deprecate")).json()["data"]["new_status"] == "deprecated"
 
 
 @pytest.mark.asyncio

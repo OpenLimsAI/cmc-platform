@@ -22,9 +22,12 @@ async def _new_asset(client, suffix: str, name_suffix: str = "") -> str:
 
 
 async def _state(client, code: str, action: str, reason: str = "pytest state test", password: str | None = None):
-    body: dict = {"change_reason": reason}
+    body: dict = {"comment": reason}
     if password is not None or action == "terminate":
-        body["password"] = password or ADMIN_PASSWORD
+        body["signature"] = {
+            "password": password or ADMIN_PASSWORD,
+            "reason": f"pytest 签名理由 - {action}",
+        }
     return await client.post(f"/api/v1/assets/{code}:{action}", json=body)
 
 
@@ -35,20 +38,20 @@ async def test_hold_resume_roundtrip(admin_client, unique_suffix):
     # active → hold → on_hold
     r1 = await _state(admin_client, code, "hold")
     assert r1.status_code == 200, r1.text
-    assert r1.json()["data"]["status"] == "on_hold"
+    assert r1.json()["data"]["new_status"] == "on_hold"
     # on_hold → resume → active
     r2 = await _state(admin_client, code, "resume")
     assert r2.status_code == 200
-    assert r2.json()["data"]["status"] == "active"
+    assert r2.json()["data"]["new_status"] == "active"
 
 
 @pytest.mark.asyncio
 async def test_terminate_requires_signature(admin_client, unique_suffix):
     code = await _new_asset(admin_client, unique_suffix, "term")
-    # 缺 password
+    # 缺 signature
     r = await admin_client.post(
         f"/api/v1/assets/{code}:terminate",
-        json={"change_reason": "pytest 缺签名"},
+        json={"comment": "pytest 缺签名"},
     )
     assert r.status_code == 422
     assert r.json()["meta"]["error"]["type"] == "signature_required"
@@ -59,7 +62,10 @@ async def test_terminate_wrong_password_rejected(admin_client, unique_suffix):
     code = await _new_asset(admin_client, unique_suffix, "wrongpw")
     r = await admin_client.post(
         f"/api/v1/assets/{code}:terminate",
-        json={"change_reason": "pytest 错密码", "password": "WRONG"},
+        json={
+            "comment": "pytest 错密码",
+            "signature": {"password": "WRONG", "reason": "pytest 错密码签名理由"},
+        },
     )
     assert r.status_code == 401
     assert r.json()["meta"]["error"]["type"] == "signature_invalid"
@@ -73,7 +79,7 @@ async def test_terminate_correct_password_signs_and_transitions(admin_client, un
     code = await _new_asset(admin_client, unique_suffix, "term_ok")
     r = await _state(admin_client, code, "terminate", "pytest 正常终止")
     assert r.status_code == 200
-    assert r.json()["data"]["status"] == "terminated"
+    assert r.json()["data"]["new_status"] == "terminated"
 
     hist = (
         await admin_client.get(f"/api/v1/assets/{code}/status-history")
@@ -89,7 +95,7 @@ async def test_terminate_from_on_hold(admin_client, unique_suffix):
     await _state(admin_client, code, "hold")
     r = await _state(admin_client, code, "terminate", "终止暂停中的资产")
     assert r.status_code == 200
-    assert r.json()["data"]["status"] == "terminated"
+    assert r.json()["data"]["new_status"] == "terminated"
 
 
 @pytest.mark.asyncio

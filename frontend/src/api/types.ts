@@ -269,14 +269,36 @@ export interface SubstanceUpdatePayload {
 
 export type SubstanceAction = 'approve' | 'activate' | 'restrict' | 'deprecate' | 'obsolete';
 
+// API-MDM-001 V1.1 §6.5 / §7.4 / §8.x 状态机端点公用契约
+export type SignatureMeaning = 'approve' | 'review' | 'release' | 'witness' | 'reject';
+
+export interface SignatureBlock {
+  /** 当前用户密码（21 CFR Part 11 §11.200）*/
+  password: string;
+  /** 签名含义（可选，后端按 action 推断默认值）*/
+  meaning?: SignatureMeaning;
+  /** 签名理由（21 CFR Part 11 §11.50，独立于 comment）*/
+  reason: string;
+}
+
+export interface StateChangeResponse {
+  // 三域共用响应；其中一个 entity_code 字段非空
+  substance_code?: string;
+  project_code?: string;
+  asset_code?: string;
+  old_status: string;
+  new_status: string;
+  signature_id?: number | null;
+  registered_at?: string | null;
+  registered_by?: number | null;
+  version: number;
+}
+
 export interface SubstanceStatusChangePayload {
-  change_reason: string;
-  // GxP 关键动作（approve / activate / deprecate / obsolete）必填；
-  // 21 CFR Part 11 §11.200 电子签名验证用当前用户密码
-  password?: string;
-  // 21 CFR Part 11 §11.50 要求记录独立的签名理由（与 change_reason 分离）；
-  // 不传则后端 fallback 到 change_reason（向后兼容）
-  signature_reason?: string;
+  // 业务变更原因（写 audit_log.reason + status_history.change_reason）
+  comment: string;
+  // GxP 关键动作必传（approve / activate / deprecate / obsolete）
+  signature?: SignatureBlock;
 }
 
 export interface SubstanceXrefCreateInput extends SubstanceXrefInput {}
@@ -456,11 +478,9 @@ export type ProjectAction =
   | 'terminate';
 
 export interface ProjectStatusChangePayload {
-  change_reason: string;
-  // GxP 关键动作（approve / complete / terminate）必填
-  password?: string;
-  // 21 CFR Part 11 §11.50 签名理由（独立于 change_reason）
-  signature_reason?: string;
+  comment: string;
+  // GxP 关键动作（approve / complete / terminate）必传 signature 嵌套对象
+  signature?: SignatureBlock;
 }
 
 // ============== Project milestones (DM-MDM-001 §9.3) ==============
@@ -759,10 +779,9 @@ export interface AssetUpdatePayload {
 export type AssetAction = 'hold' | 'resume' | 'terminate';
 
 export interface AssetStatusChangePayload {
-  change_reason: string;
-  password?: string;
-  // 21 CFR Part 11 §11.50 签名理由（独立于 change_reason）
-  signature_reason?: string;
+  comment: string;
+  // 仅 :terminate 是 GxP 关键动作必传 signature
+  signature?: SignatureBlock;
 }
 
 // §8.3 asset_market_id

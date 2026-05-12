@@ -256,11 +256,11 @@ export function ProjectDetailPage() {
                   requiresSignature: PROJECT_ACTION_LABELS[a].requiresSignature,
                 })
               )}
-              changeStatusFn={(action, change_reason, password, signature_reason) =>
+              changeStatusFn={(action, comment, signature) =>
                 projectsApi.changeStatus(
                   proj.project_code,
                   action as ProjectAction,
-                  { change_reason, password, signature_reason }
+                  { comment, signature }
                 )
               }
               permission="project:approve"

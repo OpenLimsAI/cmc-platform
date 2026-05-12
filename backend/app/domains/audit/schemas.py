@@ -2,9 +2,52 @@
 Audit & status-history Pydantic schemas
 """
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# ============== 状态机端点公用：嵌套签名块 + 通用响应 ==============
+# 对齐 API-MDM-001 V1.1 §6.5 / §7.4 / §8.x 状态机端点契约
+
+SignatureMeaning = Literal["approve", "review", "release", "witness", "reject"]
+
+
+class SignatureBlock(BaseModel):
+    """电子签名请求块（21 CFR Part 11 §11.50 / §11.200）
+
+    GxP 关键动作必传；hold/resume/restrict 等可逆动作不需要。
+    """
+
+    password: str = Field(..., min_length=1, max_length=128)
+    meaning: SignatureMeaning | None = Field(
+        None, description="签名含义；未传时按 action 推断默认值（approve/review/release/witness/reject）",
+    )
+    reason: str = Field(..., min_length=5, max_length=2000, description="签名理由（独立于业务 comment）")
+
+
+class StateChangeResponse(BaseModel):
+    """状态机端点统一成功响应（API-MDM-001 V1.1 §6.5 行 1140-1155 等）"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    # 实体编码：三域中只一个非 None
+    substance_code: str | None = None
+    project_code: str | None = None
+    asset_code: str | None = None
+
+    old_status: str
+    new_status: str
+
+    # 签名 id：仅 GxP 关键动作非 None
+    signature_id: int | None = None
+
+    # 仅 substance approve / project approve / asset approve 等"注册"动作非 None
+    registered_at: datetime | None = None
+    registered_by: int | None = None
+
+    # 乐观锁版本号（变更后的新值）
+    version: int
 
 
 class ChangeHistoryItem(BaseModel):

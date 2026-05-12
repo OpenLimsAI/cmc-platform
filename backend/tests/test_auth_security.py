@@ -196,7 +196,10 @@ async def test_signature_failure_persists_audit_independently(admin_client, uniq
     # 错密码 :approve
     r = await admin_client.post(
         f"/api/v1/substances/{scode}:approve",
-        json={"change_reason": "测试签名失败旁路审计", "password": "wrong_pwd"},
+        json={
+            "comment": "测试签名失败旁路审计",
+            "signature": {"password": "wrong_pwd", "reason": "测试签名失败旁路审计签名理由"},
+        },
     )
     assert r.status_code == 401
     assert r.json()["meta"]["error"]["type"] == "signature_invalid"

@@ -17,6 +17,7 @@ import type {
   ProjectTeamMember,
   ProjectTeamMemberCreatePayload,
   ProjectUpdatePayload,
+  StateChangeResponse,
   StatusHistoryItem,
 } from './types';
 
@@ -49,7 +50,7 @@ export const projectsApi = {
 
   // 状态机端点（冒号语法，encodeURIComponent 把 : 编为 %3A，浏览器/FastAPI 都能解析）
   changeStatus: (code: string, action: ProjectAction, payload: ProjectStatusChangePayload) =>
-    unwrap<ProjectDetail>(
+    unwrap<StateChangeResponse>(
       api.post(`/projects/${encodeURIComponent(code)}:${action}`, payload)
     ),
 

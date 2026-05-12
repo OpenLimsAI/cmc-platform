@@ -22,9 +22,12 @@ ADMIN_PASSWORD = "__REDACTED_SEED_PASSWORD_1__"
 
 
 async def _state_post(client, code: str, action: str, reason: str):
-    body: dict = {"change_reason": reason}
+    body: dict = {"comment": reason}
     if action in SIGNATURE_REQUIRED:
-        body["password"] = ADMIN_PASSWORD
+        body["signature"] = {
+            "password": ADMIN_PASSWORD,
+            "reason": f"pytest 签名理由 - {action}",
+        }
     return await client.post(f"/api/v1/projects/{code}:{action}", json=body)
 
 
@@ -46,8 +49,8 @@ async def test_full_lifecycle(admin_client, unique_suffix):
             admin_client, code, action, f"pytest 状态机 {action} 推进"
         )
         assert resp.status_code == 200, f"{action} 失败: {resp.text}"
-        assert resp.json()["data"]["status"] == expected, (
-            f"{action} 后预期 {expected}，实际 {resp.json()['data']['status']}"
+        assert resp.json()["data"]["new_status"] == expected, (
+            f"{action} 后预期 {expected}，实际 {resp.json()['data']['new_status']}"
         )
 
     detail = (await admin_client.get(f"/api/v1/projects/{code}")).json()["data"]
@@ -75,7 +78,7 @@ async def test_terminate_from_any_open_state(admin_client, unique_suffix):
         assert resp.status_code == 200, (
             f"terminate from {from_status} 失败: {resp.text}"
         )
-        assert resp.json()["data"]["status"] == "terminated"
+        assert resp.json()["data"]["new_status"] == "terminated"
 
 
 @pytest.mark.asyncio
@@ -84,7 +87,7 @@ async def test_invalid_transition_rejected(admin_client, unique_suffix):
     code = await _create_project(admin_client, unique_suffix, "invalid")
     resp = await admin_client.post(
         f"/api/v1/projects/{code}:start",
-        json={"change_reason": "pytest 应拒绝"},
+        json={"comment": "pytest 应拒绝"},
     )
     assert resp.status_code == 422
     assert resp.json()["meta"]["error"]["type"] == "state_invalid"
@@ -94,7 +97,7 @@ async def test_invalid_transition_rejected(admin_client, unique_suffix):
 async def test_reason_too_short(admin_client, unique_suffix):
     code = await _create_project(admin_client, unique_suffix, "short")
     resp = await admin_client.post(
-        f"/api/v1/projects/{code}:approve", json={"change_reason": "no"}
+        f"/api/v1/projects/{code}:approve", json={"comment": "no"}
     )
     assert resp.status_code == 422
 
@@ -132,6 +135,6 @@ async def test_state_change_requires_approve_permission(
     code = await _create_project(admin_client, unique_suffix, "perm")
     resp = await readonly_client.post(
         f"/api/v1/projects/{code}:approve",
-        json={"change_reason": "pytest 应拒绝"},
+        json={"comment": "pytest 应拒绝"},
     )
     assert resp.status_code == 403

@@ -144,13 +144,12 @@ async def _state_change(
     db: AsyncSession,
 ):
     service = SubstanceService(db)
-    detail = await service.change_status(
-        code, action, payload.change_reason, user,
-        password=payload.password, signature_reason=payload.signature_reason,
+    result = await service.change_status(
+        code, action, payload.comment, user, signature=payload.signature,
     )
     return success(
-        data=detail.model_dump(mode="json"),
-        message=f"状态已变更为 {detail.status}",
+        data=result.model_dump(mode="json"),
+        message=f"状态已变更为 {result.new_status}",
         request_id=getattr(request.state, "request_id", None),
     )
 

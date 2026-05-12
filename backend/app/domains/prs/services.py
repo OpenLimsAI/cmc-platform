@@ -267,79 +267,70 @@ class ProjectService:
         self,
         code: str,
         action: str,
-        reason: str,
+        comment: str,
         current_user: User,
-        password: str | None = None,
-        signature_reason: str | None = None,
-    ) -> ProjectDetail:
+        signature: "SignatureBlock | None" = None,
+    ) -> "StateChangeResponse":
+        """状态机入口（API-MDM-001 V1.1 §7.4）"""
+        from app.domains.audit.schemas import SignatureBlock, StateChangeResponse  # 局部导入避免循环
+
         transitions = STATE_MACHINE.get(action)
         if not transitions:
             raise StateInvalidError(f"未知动作: {action}")
 
         requires_sig = action in SIGNATURE_REQUIRED_ACTIONS
-        if requires_sig and not password:
+        if requires_sig and signature is None:
             raise SignatureRequiredError(
-                f"动作 '{action}' 为 GxP 关键转移，必须提供 password 进行电子签名"
+                f"动作 '{action}' 为 GxP 关键转移，必须提供 signature 对象进行电子签名"
             )
 
         proj = await self._get_project_or_404(code)
-
-        next_status = transitions.get(proj.status)
+        old_status = proj.status
+        next_status = transitions.get(old_status)
         if not next_status:
             raise StateInvalidError(
-                f"当前状态 '{proj.status}' 不能执行 '{action}'"
+                f"当前状态 '{old_status}' 不能执行 '{action}'"
                 f"（允许的起始状态：{list(transitions)}）"
             )
 
-        # 写入 change_reason GUC — 仅 audit.fn_audit_trigger 仍读（写 audit_log.reason）
-        # prs.fn_project_status_change 已不读 GUC（migration 0029），改为 service 后置 UPDATE
         await self.db.execute(
             text("SELECT set_config('app.change_reason', :r, true)"),
-            {"r": reason},
+            {"r": comment},
         )
 
-        # 电子签名（signature_reason 独立于 change_reason；未传则 fallback）
-        sig_reason = signature_reason or reason
         sig = None
-        if requires_sig:
+        if signature is not None:
             sig_service = ESignatureService(self.db)
             sig = await sig_service.sign(
                 user=current_user,
-                password=password,
+                password=signature.password,
                 entity_schema="prs",
                 entity_table="project",
                 entity_id=proj.project_id,
                 entity_code=proj.project_code,
-                meaning=ACTION_TO_MEANING[action],
-                reason=sig_reason,
+                meaning=signature.meaning or ACTION_TO_MEANING[action],
+                reason=signature.reason,
                 content_for_hash={
                     "project_code": proj.project_code,
                     "project_name": proj.project_name,
-                    "current_status": proj.status,
+                    "current_status": old_status,
                     "target_status": next_status,
                     "version": proj.version,
-                    "change_reason": reason,
-                    "signature_reason": sig_reason,
+                    "comment": comment,
+                    "signature_reason": signature.reason,
                 },
             )
 
         proj.status = next_status
         proj.updated_by = current_user.user_id
-        now_utc = datetime.now(UTC)
         today = date.today()
-
-        # 按动作回填业务时间字段
-        # M3.0.2：approved_at/by 字段已移除（§9.2 不含）；审批时间从 status_history 推断
+        # M3.0.2：approved_at/by 字段已移除；审批时间从 status_history 推断
         if action == "start" and proj.actual_start_date is None:
             proj.actual_start_date = today
         elif action == "complete" and proj.actual_end_date is None:
             proj.actual_end_date = today
-        _ = now_utc  # 留作未来需要时使用
 
         await self.db.flush()
-        # 触发器写入 project_status_history（change_reason='status changed', e_signature_id=NULL）
-        # service 显式回填实际 change_reason 与 e_signature_id：与 §9.5 V1.1 DDL/注释一致，
-        # 同时规避 asyncpg SET LOCAL GUC 在连接复用下的偶发泄漏
         await self.db.execute(
             text(
                 """
@@ -354,19 +345,22 @@ class ProjectService:
                 """
             ),
             {
-                "reason": reason,
+                "reason": comment,
                 "sid": sig.signature_id if sig is not None else None,
                 "proj_id": proj.project_id,
             },
         )
-        # 触发器维护字段：
-        #   prs.fn_project_before_update → version / updated_at
-        #   prs.fn_project_status_change → 写入 project_status_history（service 后置回填 sig_id）
-        #   audit.fn_audit_trigger → 写入 audit_log（旁路）
         await self.db.refresh(proj, ["version", "updated_at"])
-        # 显式 commit：避免 FastAPI yield 依赖在 response 发送后才 commit 导致下一请求读到 pre-commit 状态
         await self.db.commit()
-        return ProjectDetail.model_validate(proj)
+        # PRS approve 把 proposed → initiated（不是 registered），但仍是注册流程的一部分；
+        # registered_at/by 字段 PRS 表中不存在（V1.1 §9.2 没有），保持 None
+        return StateChangeResponse(
+            project_code=proj.project_code,
+            old_status=old_status,
+            new_status=proj.status,
+            signature_id=sig.signature_id if sig is not None else None,
+            version=proj.version,
+        )
 
     # ----------- 状态历史 -----------
     async def get_status_history(self, code: str) -> list[StatusHistoryItem]:
