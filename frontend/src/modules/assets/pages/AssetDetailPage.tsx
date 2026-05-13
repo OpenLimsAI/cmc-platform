@@ -9,6 +9,7 @@ import {
   Space,
   Tabs,
   Tag,
+  Timeline,
   Typography,
   message,
 } from 'antd';
@@ -83,12 +84,70 @@ export function AssetDetailPage() {
   const typeLabel = ASSET_TYPE_OPTIONS.find((o) => o.value === asset.asset_type)?.label ?? asset.asset_type;
   const phaseDef = ASSET_PHASE_OPTIONS.find((o) => o.value === asset.current_phase);
 
+  // UI8（V1.1 §7.3 行 925 / V1.2 评审 UI8:A）：当前阶段时间线
+  // 9 个 phase（discovery → marketed）顺序展示；discontinued 单独显示
+  const PHASE_ORDER: string[] = [
+    'discovery', 'preclinical', 'phase_1', 'phase_2', 'phase_3',
+    'submission', 'approved', 'marketed',
+  ];
+  const currentIdx = PHASE_ORDER.indexOf(asset.current_phase);
+  const isDiscontinued = asset.current_phase === 'discontinued';
+  const phaseTimeline = PHASE_ORDER.map((p, i) => {
+    const def = ASSET_PHASE_OPTIONS.find((o) => o.value === p);
+    let color: string;
+    let dotLabel: string;
+    if (isDiscontinued) {
+      color = 'gray';
+      dotLabel = '—';
+    } else if (i < currentIdx) {
+      color = 'green';
+      dotLabel = '✓';
+    } else if (i === currentIdx) {
+      color = 'blue';
+      dotLabel = '●';
+    } else {
+      color = 'gray';
+      dotLabel = '○';
+    }
+    return {
+      color,
+      label: i === currentIdx && asset.phase_change_at ? (
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {new Date(asset.phase_change_at).toLocaleDateString('zh-CN')}
+        </Typography.Text>
+      ) : undefined,
+      children: (
+        <span>
+          <Tag color={def?.color ?? 'default'} style={{ marginRight: 8 }}>{dotLabel}</Tag>
+          <Typography.Text strong={i === currentIdx}>
+            {def?.label ?? p}
+          </Typography.Text>
+          {i === currentIdx && (
+            <Typography.Text type="success" style={{ marginLeft: 8, fontSize: 12 }}>
+              · 当前
+            </Typography.Text>
+          )}
+        </span>
+      ),
+    };
+  });
+
   const tabs = [
     {
       key: 'basic',
       label: '基本信息',
       children: (
-        <Card>
+        <>
+          <Card style={{ marginBottom: 16 }} title="当前阶段时间线">
+            {isDiscontinued ? (
+              <Typography.Text type="danger">
+                ✗ 已停止上市（discontinued）
+              </Typography.Text>
+            ) : (
+              <Timeline mode="left" items={phaseTimeline} />
+            )}
+          </Card>
+          <Card title="详细信息">
           <Descriptions
             bordered
             column={2}
@@ -158,7 +217,8 @@ export function AssetDetailPage() {
               },
             ]}
           />
-        </Card>
+          </Card>
+        </>
       ),
     },
     {

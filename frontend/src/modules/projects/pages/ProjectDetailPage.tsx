@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import {
   Card,
+  Col,
   Descriptions,
+  Progress,
+  Row,
+  Statistic,
   Tabs,
   Typography,
   Space,
@@ -32,6 +36,7 @@ import { MilestoneTable } from '../components/MilestoneTable';
 import { TeamTable } from '../components/TeamTable';
 import { ProjectAssetTab } from '../components/ProjectAssetTab';
 import { ProjectSubstanceTab } from '../components/ProjectSubstanceTab';
+import type { ProjectDetail } from '@/api/types';
 import {
   AVAILABLE_PROJECT_ACTIONS,
   PROJECT_ACTION_LABELS,
@@ -41,6 +46,20 @@ import {
 } from '../constants';
 
 const { Title, Paragraph } = Typography;
+
+// UI7（V1.2 评审 UI7:A）：基于 planned_start/end + 今日推算进度百分比
+function computeProjectProgress(proj: ProjectDetail): number {
+  if (proj.status === 'completed') return 100;
+  if (proj.status === 'terminated') return 100;
+  if (!proj.planned_start_date || !proj.planned_end_date) return 0;
+  const start = new Date(proj.planned_start_date).getTime();
+  const end = new Date(proj.planned_end_date).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+  const now = Date.now();
+  if (now < start) return 0;
+  if (now > end) return 100;
+  return Math.round(((now - start) / (end - start)) * 100);
+}
 
 export function ProjectDetailPage() {
   const { code } = useParams<{ code: string }>();
@@ -85,12 +104,77 @@ export function ProjectDetailPage() {
     ? PROJECT_PHASE_OPTIONS.find((o) => o.value === proj.project_phase)?.label ?? proj.project_phase
     : '—';
 
+  // UI7（V1.1 §7.2.1 行 859-887 / V1.2 评审 UI7:A 决议）：概览 Tab 1
+  // = 进度条 + 团队/关联预览统计 + 详细字段表（甘特图保持 Phase 5 推迟）
+  const progressPct = computeProjectProgress(proj);
+
   const tabs = [
     {
       key: 'basic',
-      label: '基本信息',
+      label: '概览',
       children: (
-        <Card>
+        <>
+          <Card style={{ marginBottom: 16 }} title="项目概览">
+            <Row gutter={[24, 16]}>
+              <Col xs={24} md={12}>
+                <div style={{ marginBottom: 8 }}>
+                  <Typography.Text type="secondary">推进进度</Typography.Text>
+                </div>
+                <Progress
+                  percent={progressPct}
+                  status={
+                    proj.status === 'terminated' ? 'exception'
+                      : proj.status === 'completed' ? 'success'
+                      : 'active'
+                  }
+                  format={(p) =>
+                    proj.status === 'terminated' ? '已终止'
+                      : proj.status === 'completed' ? '已完成'
+                      : `${p}%`
+                  }
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {proj.planned_start_date ?? '?'} → {proj.planned_end_date ?? '?'}
+                </Typography.Text>
+              </Col>
+              <Col xs={24} md={12}>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Statistic title="阶段" value={phaseLabel} valueStyle={{ fontSize: 16 }} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="优先级"
+                      value={proj.priority ?? '—'}
+                      valueStyle={{ fontSize: 16 }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="版本"
+                      value={`v${proj.version}`}
+                      valueStyle={{ fontSize: 16 }}
+                    />
+                  </Col>
+                </Row>
+                <Space style={{ marginTop: 16 }}>
+                  <Button size="small" onClick={() => setActiveTab('team')}>
+                    团队 →
+                  </Button>
+                  <Button size="small" onClick={() => setActiveTab('substances')}>
+                    关联物质 →
+                  </Button>
+                  <Button size="small" onClick={() => setActiveTab('assets')}>
+                    关联资产 →
+                  </Button>
+                  <Button size="small" onClick={() => setActiveTab('milestones')}>
+                    里程碑 →
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+          <Card title="详细信息">
           <Descriptions
             bordered
             column={2}
@@ -174,7 +258,8 @@ export function ProjectDetailPage() {
               },
             ]}
           />
-        </Card>
+          </Card>
+        </>
       ),
     },
     {

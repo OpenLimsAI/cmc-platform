@@ -218,6 +218,139 @@ async def test_xref_effective_expiry_dates(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_put_protein_independent_endpoint(admin_client, unique_suffix):
+    """API13:A（V1.2 评审 / V1.1 §5.1.3 行 750）：PUT /substances/{code}/protein 独立写端点"""
+    code = (
+        await admin_client.post(
+            "/api/v1/substances",
+            json={
+                "substance_type": "mab",
+                "internal_code": f"TEST-PUT-PROT-{unique_suffix}",
+                "preferred_name": f"pytest put protein {unique_suffix}",
+            },
+        )
+    ).json()["data"]["substance_code"]
+
+    resp = await admin_client.put(
+        f"/api/v1/substances/{code}/protein",
+        json={
+            "isotype": "IgG1",
+            "expression_system": "CHO",
+            "molecular_weight_da": 150000.0,
+            "heavy_chain_sequence": "EVQLVESGGGLVQPGGSLRLSC",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    p = resp.json()["data"]["protein"]
+    assert p["isotype"] == "IgG1"
+    assert p["sequence_length_hc"] == 22
+
+    # small_molecule 类型应被拒
+    sm_code = (
+        await admin_client.post(
+            "/api/v1/substances",
+            json={
+                "substance_type": "small_molecule",
+                "internal_code": f"TEST-PUT-SM-{unique_suffix}",
+                "preferred_name": "sm",
+            },
+        )
+    ).json()["data"]["substance_code"]
+    r2 = await admin_client.put(
+        f"/api/v1/substances/{sm_code}/protein",
+        json={"isotype": "IgG1"},
+    )
+    assert r2.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_put_adc_independent_endpoint(admin_client, unique_suffix):
+    """API13:A：PUT /substances/{code}/adc 独立写端点；父子 substance_code 解析"""
+    # 准备 ADC + antibody 两个 substance
+    adc_code = (
+        await admin_client.post(
+            "/api/v1/substances",
+            json={
+                "substance_type": "adc",
+                "internal_code": f"TEST-PUT-ADC-{unique_suffix}",
+                "preferred_name": f"pytest adc {unique_suffix}",
+            },
+        )
+    ).json()["data"]["substance_code"]
+    ab_code = (
+        await admin_client.post(
+            "/api/v1/substances",
+            json={
+                "substance_type": "mab",
+                "internal_code": f"TEST-AB-{unique_suffix}",
+                "preferred_name": f"pytest ab {unique_suffix}",
+            },
+        )
+    ).json()["data"]["substance_code"]
+    payload_code = (
+        await admin_client.post(
+            "/api/v1/substances",
+            json={
+                "substance_type": "small_molecule",
+                "internal_code": f"TEST-PL-{unique_suffix}",
+                "preferred_name": "payload",
+            },
+        )
+    ).json()["data"]["substance_code"]
+
+    resp = await admin_client.put(
+        f"/api/v1/substances/{adc_code}/adc",
+        json={
+            "antibody_substance_code": ab_code,
+            "payload_substance_code": payload_code,
+            "dar_average": 4.0,
+            "dar_method": "HIC",
+            "conjugation_chemistry": "maleimide-thiol",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["dar_average"] == 4.0
+    assert data["antibody_substance_id"] is not None
+    assert data["payload_substance_id"] is not None
+
+    # mab 类型应被拒
+    r2 = await admin_client.put(
+        f"/api/v1/substances/{ab_code}/adc",
+        json={"dar_average": 4.0},
+    )
+    assert r2.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_lookups_endpoint(admin_client):
+    """API11:B 部分立即做：GET /api/v1/lookups/{type} 从 meta.lookup_value 读"""
+    resp = await admin_client.get("/api/v1/lookups/substance_status")
+    assert resp.status_code == 200
+    items = resp.json()["data"]
+    codes = {it["code"] for it in items}
+    # M3.11 seed 至少含 6 个 substance_status 项
+    assert {"draft", "registered", "active", "deprecated"} <= codes
+    # 按 sort_order 升序
+    sort_orders = [it["sort_order"] for it in items]
+    assert sort_orders == sorted(sort_orders)
+
+
+@pytest.mark.asyncio
+async def test_system_info_endpoint(admin_client):
+    """API11:B 部分立即做：GET /api/v1/system/info"""
+    resp = await admin_client.get("/api/v1/system/info")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["database"] == "ok"
+    assert "app" in data
+    assert "version" in data
+    assert "config_summary" in data
+    # is_sensitive=FALSE 的几个公开 config 应在 summary 里
+    assert "password.min_length" in data["config_summary"]
+
+
+@pytest.mark.asyncio
 async def test_soft_delete_requires_reason(admin_client, unique_suffix):
     """M2.0：DELETE 必须带 change_reason body（21 CFR Part 11 §11.10）"""
     code = (

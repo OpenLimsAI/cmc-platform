@@ -480,6 +480,144 @@ class SubstanceService:
             protein.sequence_length_lc = len(cleaned) if cleaned else None
             protein.sequence_hash_lc = _hash_sequence(data["light_chain_sequence"])
 
+    # ----------- API13:A 子资源 PUT 端点 -----------
+    async def update_protein(self, code: str, payload, current_user: User):
+        """V1.1 §5.1.3 行 750：PUT /substances/{code}/protein 独立子资源端点
+        V1.2 评审 API13:A 决议（2026-05-13）"""
+        from app.domains.srs.schemas import SubstanceDetail  # 局部避免循环
+
+        sub = await self._get_substance_or_404(code)
+        if sub.substance_type not in ("mab", "bispecific", "fusion"):
+            raise BadRequestError(
+                f"PUT /protein 不适用于 substance_type={sub.substance_type}"
+            )
+        await self._upsert_protein(sub.substance_id, payload)
+        sub.updated_by = current_user.user_id
+        await self.db.flush()
+        await self.db.commit()
+        return await self.get_by_code(code, expand=["protein"])
+
+    async def update_adc(self, code: str, payload, current_user: User):
+        """V1.1 §5.1.3 行 752：PUT /substances/{code}/adc 独立子资源端点
+        V1.2 评审 API13:A 决议（2026-05-13）
+
+        父子 substance 用 code 表达（前端友好），service 内查 ID。
+        """
+        from app.domains.srs.models import SubstanceADC
+
+        sub = await self._get_substance_or_404(code)
+        if sub.substance_type != "adc":
+            raise BadRequestError(
+                f"PUT /adc 仅适用于 substance_type='adc'，当前 {sub.substance_type}"
+            )
+
+        # 把 *_substance_code 解析为 substance_id
+        data = payload.model_dump(exclude_unset=True)
+        for code_key, id_key in [
+            ("antibody_substance_code", "antibody_substance_id"),
+            ("linker_substance_code", "linker_substance_id"),
+            ("payload_substance_code", "payload_substance_id"),
+        ]:
+            if code_key in data:
+                ref_code = data.pop(code_key)
+                if ref_code is None:
+                    data[id_key] = None
+                    continue
+                r = await self.db.execute(
+                    select(Substance.substance_id).where(
+                        Substance.substance_code == ref_code,
+                        Substance.deleted_at.is_(None),
+                    )
+                )
+                rid = r.scalar_one_or_none()
+                if rid is None:
+                    raise SubstanceNotFoundError(
+                        f"父/子 substance {code_key}={ref_code} 不存在"
+                    )
+                data[id_key] = rid
+
+        # upsert SubstanceADC
+        result = await self.db.execute(
+            select(SubstanceADC).where(SubstanceADC.substance_id == sub.substance_id)
+        )
+        adc = result.scalar_one_or_none()
+        if adc is None:
+            adc = SubstanceADC(substance_id=sub.substance_id)
+            self.db.add(adc)
+        for k, v in data.items():
+            setattr(adc, k, v)
+
+        sub.updated_by = current_user.user_id
+        await self.db.flush()
+        await self.db.commit()
+        return adc
+
+    # ----------- UI9 父子 substance 血缘（V1.2 评审 UI9:B）-----------
+    async def get_lineage(self, code: str) -> dict:
+        """返回当前 substance 的父/子 substance 血缘（ADC 关系树）
+
+        - parents: 当前 ADC 的 antibody / linker / payload 父物质（仅 ADC 类型时有）
+        - children: 反向 — 哪些 ADC 把当前 substance 当 antibody/linker/payload
+        """
+        from app.domains.srs.models import SubstanceADC
+
+        sub = await self._get_substance_or_404(code)
+
+        def _to_brief(s: Substance) -> dict:
+            return {
+                "substance_code": s.substance_code,
+                "preferred_name": s.preferred_name,
+                "substance_type": s.substance_type,
+                "status": s.status,
+            }
+
+        parents: dict[str, dict | None] = {"antibody": None, "linker": None, "payload": None}
+        if sub.substance_type == "adc":
+            adc_result = await self.db.execute(
+                select(SubstanceADC).where(SubstanceADC.substance_id == sub.substance_id)
+            )
+            adc = adc_result.scalar_one_or_none()
+            if adc:
+                for role, sid in [
+                    ("antibody", adc.antibody_substance_id),
+                    ("linker", adc.linker_substance_id),
+                    ("payload", adc.payload_substance_id),
+                ]:
+                    if sid is None:
+                        continue
+                    r = await self.db.execute(
+                        select(Substance).where(Substance.substance_id == sid)
+                    )
+                    parent = r.scalar_one_or_none()
+                    if parent:
+                        parents[role] = _to_brief(parent)
+
+        # 子方向：哪些 ADC 引用了当前 substance
+        children_result = await self.db.execute(
+            select(SubstanceADC, Substance)
+            .join(Substance, Substance.substance_id == SubstanceADC.substance_id)
+            .where(
+                (SubstanceADC.antibody_substance_id == sub.substance_id)
+                | (SubstanceADC.linker_substance_id == sub.substance_id)
+                | (SubstanceADC.payload_substance_id == sub.substance_id),
+                Substance.deleted_at.is_(None),
+            )
+        )
+        children = []
+        for adc, child in children_result.all():
+            role = (
+                "antibody" if adc.antibody_substance_id == sub.substance_id
+                else "linker" if adc.linker_substance_id == sub.substance_id
+                else "payload"
+            )
+            children.append({**_to_brief(child), "as_role": role})
+
+        return {
+            "self_type": sub.substance_type,
+            "parents": parents,
+            "children": children,
+        }
+
     # ----------- 软删除 -----------
     async def soft_delete(self, code: str, current_user: User, reason: str | None = None):
         if reason:

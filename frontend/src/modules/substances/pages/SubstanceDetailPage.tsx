@@ -32,6 +32,7 @@ import { ACTION_LABELS, AVAILABLE_ACTIONS } from '../constants';
 import { XrefEditor } from '../components/XrefEditor';
 import { RelatedAssetsTab } from '../components/RelatedAssetsTab';
 import { RelatedProjectsTab } from '../components/RelatedProjectsTab';
+import { LineageTab } from '../components/LineageTab';
 import type { SubstanceAction, SubstanceStatus } from '@/api/types';
 
 const SUBSTANCE_STATUS_COLOR: Record<string, string> = {
@@ -214,6 +215,12 @@ export function SubstanceDetailPage() {
       key: 'related_assets',
       label: '关联资产',
       children: <RelatedAssetsTab substanceCode={sub.substance_code} />,
+    },
+    {
+      // UI9（V1.2 评审 UI9:B 决议 2026-05-13）：父/子 substance 血缘
+      key: 'lineage',
+      label: '血缘关系',
+      children: <LineageTab substanceCode={sub.substance_code} />,
     },
     {
       key: 'history',

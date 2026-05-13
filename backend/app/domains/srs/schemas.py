@@ -59,6 +59,25 @@ class ProteinExtension(BaseModel):
     extinction_coefficient: int | None = None
 
 
+# V1.2 评审 API13:A 决议 — PUT /substances/{code}/adc 独立写端点
+class AdcExtension(BaseModel):
+    """ADC 扩展（§7.4）
+
+    父子 substance 用 substance_code 表达（前端友好），service 内查 ORM 转 ID。
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    antibody_substance_code: str | None = None
+    linker_substance_code: str | None = None
+    payload_substance_code: str | None = None
+    dar_average: float | None = Field(None, ge=0, le=30)
+    dar_distribution: dict | None = None
+    dar_method: str | None = Field(None, max_length=64)
+    conjugation_chemistry: str | None = Field(None, max_length=64)
+    conjugation_site: str | None = Field(None, max_length=128)
+
+
 class SubstanceXrefBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

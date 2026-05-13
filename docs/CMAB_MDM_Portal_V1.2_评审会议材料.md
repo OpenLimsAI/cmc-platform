@@ -4,11 +4,12 @@
 |---|---|
 | 文档编号 | REV-MDM-001 |
 | 版本 | V1.2 Draft |
-| 状态 | 待 CMC IT 架构组 + QA + 业务跟头评审 |
+| 状态 | ✅ 评审完成（2026-05-13）|
 | 上位文档 | DEV-MDM-001 V1.2 Draft（偏离说明）|
 | 编制 | CMC R&D 实施侧 |
 | 日期 | 2026-05-13 |
 | 用途 | 一页纸决议表，逐项打勾 |
+| 决议结果 | 13 项全部完成；A 决议 5 项（P3/R8/API13/UI7/UI8）已通过 Batch H 落地代码；B 决议 8 项（S5/S6/P8/ARCH9/API4/API10/API11/UI9）按各自方式登记 — UI9:B 折中方案补父/子 substance 视图也已通过 H3 落地 |
 
 ## 0. 已落地内容（无需评审，仅备查）
 
@@ -22,45 +23,45 @@
 
 ---
 
-## 1. 待评审决议项（共 13 项）
+## 1. 评审决议结果（2026-05-13 完成，13 项）
 
 ### 1.1 数据模型 / 跨域引用（4 项）
 
-| # | V1.1 出处 | 设计 vs 实施 | 处置选项 | **决议** |
-|---|---|---|---|---|
-| **S5** | DM §7.3 | `srs.substance_protein.molecular_weight_da` 设计 `NUMERIC(10,2)`，实施 `DOUBLE PRECISION`（Float）| A. 回归 NUMERIC（dev 库精度截断验证）<br>B. 永久接受 Float（更新文档备注质谱测定值容差范围）| ☐ A ☐ B |
-| **S6** | DM §7.3 | `pi_theoretical` 设计 `NUMERIC(5,2)`，实施 Float | 同 S5 | ☐ A ☐ B |
-| **P3** | DM §9.4 | `project_team UNIQUE (project_id, user_id, role)` 绝对唯一 → "离职后再加入"被代码堵死 | A. 改 partial UNIQUE `WHERE left_at IS NULL`（允许重新加入）<br>B. 保持绝对唯一 + 明确"同人同角色再加入须新建 user 记录" | ☐ A ☐ B |
-| **R8** | DM §11.x | 三张 ref 表 `created_by` / `updated_by` 均无 FK 到 auth.user（设计未显式列）| A. 加 FK 约束（建 migration，与 deleted_by 一致）<br>B. 永久接受（语义 FK 由 service 层 current_user.user_id 保证） | ☐ A ☐ B |
+| # | V1.1 出处 | **决议** | 落地状态 |
+|---|---|---|---|
+| **S5** | DM §7.3 | **B**：永久接受 Float（V1.1 §7.3 下版加质谱容差备注）| ✅ 决议（仅文档登记） |
+| **S6** | DM §7.3 | **B**：同 S5 | ✅ 决议（仅文档登记） |
+| **P3** | DM §9.4 | **A**：partial UNIQUE WHERE left_at IS NULL | ✅ migration 0031 + service + test 重写 |
+| **R8** | DM §11.x | **A**：ref 三表 created_by/updated_by 各加 FK（共 6 个） | ✅ migration 0031 |
 
 ### 1.2 PRS 上层未实施（1 项）
 
-| # | V1.1 出处 | 设计 vs 实施 | 处置选项 | **决议** |
-|---|---|---|---|---|
-| **P8** | DM §9.5 | `prs.project_relationship` 表 + CHECK + UNIQUE + FK 已建（migration 0016），**无 audit trigger / service / API / 前端** | A. Phase 3+ 立即上 service/API/UI（项目血缘 / 衍生关系业务）<br>B. 推迟到 Phase 5 数据治理工具阶段<br>C. 永久不做（删表） | ☐ A ☐ B ☐ C |
+| # | V1.1 出处 | **决议** | 落地状态 |
+|---|---|---|---|
+| **P8** | DM §9.5 | **B**：project_relationship 上层推迟 Phase 5 | ✅ 决议（写入 §10 时间表） |
 
 ### 1.3 架构 ARCH 待评审（1 项）
 
-| # | V1.1 出处 | 设计 vs 实施 | 处置选项 | **决议** |
-|---|---|---|---|---|
-| **ARCH9** | ARCH §5.1 行 655-657 | 前端技术栈 V1.1 列：React Hook Form + Zod / ECharts / Recharts / React Flow / Ant Design Pro Components。当前 `frontend/package.json` **均无**；表单走 antd 原生 Form，图表与血缘图组件均无 | A. 全部引入（5 个包）<br>B. 评审挑必要项（如 ECharts 用于仪表盘 Phase 5，React Flow 物质/项目血缘图 Phase 5；其他放弃）<br>C. 全部不引入（永久接受差异，理由：antd Form 工作良好；甘特/血缘图已推迟）| ☐ A ☐ B ☐ C |
+| # | V1.1 出处 | **决议** | 落地状态 |
+|---|---|---|---|
+| **ARCH9** | ARCH §5.1 | **B**：仅引入 ECharts（Phase 5 仪表盘）+ React Flow（Phase 5 血缘图）；其他 3 项放弃 | ✅ 决议（Phase 5 实施时再装包） |
 
 ### 1.4 API V1.1 待评审（4 项）
 
-| # | V1.1 出处 | 设计 vs 实施 | 处置选项 | **决议** |
-|---|---|---|---|---|
-| **API4** | API §7.2 行 1346-1382 | 项目创建 V1.1 用 `project_manager_username` / `sponsor_username` + 嵌套 `related_substances` / `related_assets` / `team`；实施只接 ID，无嵌套子资源 | A. 改回嵌套（Breaking change，影响 PRS 前端 + 测试，同 G1.B 性质）<br>B. 保持扁平 ID（实施侧简化，写入 V1.2 §8.2 简化条目）| ☐ A ☐ B |
-| **API10** | API §5.1.2 行 720-735 | 用户 / 角色 / 权限 12 端点（list/create/lock/unlock/reset-password/角色分配等）全部缺 | A. Phase 4 一并建（与 Admin UI 同步）<br>B. Phase 5/6 推迟（V1.2_draft §9.2.6 UI 已推迟）| ☐ A ☐ B |
-| **API11** | API §5.1.7 行 821-832 + §8.4-§8.6 | 全局功能 5 端点：`GET /audit-logs` / `POST /audit-logs:export` / `GET /lookups/{type}` / `GET/POST /signatures` / `GET /system/info` | A. Phase 4 立即做（已有 lookup_value/system_config 表，lookups 端点简单）<br>B. 拆分：lookups/system 端点立即做（ARCH12 已建表），audit-logs/signatures 推迟 Phase 5<br>C. 全部 Phase 5 推迟 | ☐ A ☐ B ☐ C |
-| **API13** | API §5.1.3 行 750-756 | `GET/PUT /substances/{code}/protein` / `/adc`、`GET /substances/{code}/xrefs` 独立子资源端点；V1.2 §8.2 已记 GET 用 expand 替代，写端点也未实现 | A. 加写端点（PUT /protein, PUT /adc）<br>B. 永久接受 expand 简化模式（V1.2 §8.2 正式入文档）| ☐ A ☐ B |
+| # | V1.1 出处 | **决议** | 落地状态 |
+|---|---|---|---|
+| **API4** | API §7.2 | **B**：保持扁平 ID + 无嵌套子资源（V1.2 §8.2 简化条目） | ✅ 决议（仅文档登记） |
+| **API10** | API §5.1.2 | **B**：用户/角色/权限 12 端点 Phase 5/6 推迟 | ✅ 决议（与 Admin UI 同步） |
+| **API11** | API §5.1.7 | **B**：拆分 — lookups/system 立即做，audit-logs/signatures 推 Phase 5 | ✅ H2 落地 lookups + system；其余 Phase 5 |
+| **API13** | API §5.1.3 | **A**：加 PUT /protein 和 PUT /adc 独立写端点 | ✅ H2 落地（含 AdcExtension schema）|
 
 ### 1.5 UI 信息架构待评审（3 项 — UX 重大改版）
 
-| # | V1.1 出处 | 设计 vs 实施 | 处置选项 | **决议** |
-|---|---|---|---|---|
-| **UI7** | UI §7.2.1 行 859-887 | 项目详情 Tab 1「概览」V1.1 要求含进度条 / 时间轴 / 团队预览卡 / 关联预览卡；实施仅 Descriptions 字段表 | A. 重构 Tab 1（加进度条 + 团队预览 + 关联预览；甘特图保持推迟）<br>B. 推迟到 Phase 5（与甘特图一起）<br>C. 永久接受现状（写入 V1.2 §9.x 简化条目）| ☐ A ☐ B ☐ C |
-| **UI8** | UI §7.3 行 925 | 资产详情 Tab 1 V1.1 要求含「当前阶段时间线」；实施仅 `phase_change_at` 单字段 | A. 加阶段时间线 Timeline 组件<br>B. 推迟到 Phase 5<br>C. 永久接受现状 | ☐ A ☐ B ☐ C |
-| **UI9** | UI §6.2.5 行 648-677 | 物质详情「关联」V1.1 设计是 1 Tab × 5 分组（项目/资产/物料/父substance/子substance），实施拆为 2 Tab，缺**父/子 substance 视图**（ADC ↔ antibody 反向引用）| A. 回退合并为 1 Tab × 5 分组 + 补父/子 substance 视图（ADC 业务必需）<br>B. 保持 2 Tab + 补父/子 substance（折中）<br>C. 永久接受现状（不补父/子 substance，ADC 反向追溯能力缺失） | ☐ A ☐ B ☐ C |
+| # | V1.1 出处 | **决议** | 落地状态 |
+|---|---|---|---|
+| **UI7** | UI §7.2.1 | **A**：重构 Tab 1（加 Progress + Statistic + 关联跳转；甘特图保持 Phase 5 推迟） | ✅ H3 落地（computeProjectProgress + Row/Col 布局） |
+| **UI8** | UI §7.3 | **A**：加 9-phase Timeline 组件 | ✅ H3 落地（Timeline mode="left"） |
+| **UI9** | UI §6.2.5 | **B**：保持 2 Tab + 补父/子 substance（折中）| ✅ H3 落地（新加"血缘关系" Tab + `/substances/{code}/lineage` endpoint + LineageTab.tsx 组件） |
 
 ---
 

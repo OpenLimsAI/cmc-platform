@@ -9,7 +9,9 @@ from app.core.responses import Pagination, success
 from app.domains.audit.services import AuditService
 from app.domains.auth.models import User
 from app.domains.srs.schemas import (
+    AdcExtension,
     CheckSamenessRequest,
+    ProteinExtension,
     SubstanceCreate,
     SubstanceDelete,
     SubstanceFilter,
@@ -268,6 +270,70 @@ async def delete_substance_xref(
     service = SubstanceService(db)
     await service.delete_xref(code, xref_id, user)
     return None
+
+
+# ============== API13:A 子资源独立写端点（V1.2 评审决议 2026-05-13）==============
+@router.put("/{code}/protein", summary="更新 Substance 蛋白扩展（独立子资源）")
+async def update_substance_protein(
+    code: str,
+    payload: ProteinExtension,
+    request: Request,
+    user: User = Depends(require_permission("substance:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    service = SubstanceService(db)
+    detail = await service.update_protein(code, payload, user)
+    return success(
+        data=detail.model_dump(mode="json"),
+        message="protein 已更新",
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.put("/{code}/adc", summary="更新 Substance ADC 扩展（独立子资源）")
+async def update_substance_adc(
+    code: str,
+    payload: AdcExtension,
+    request: Request,
+    user: User = Depends(require_permission("substance:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    service = SubstanceService(db)
+    adc = await service.update_adc(code, payload, user)
+    return success(
+        data={
+            "substance_id": adc.substance_id,
+            "antibody_substance_id": adc.antibody_substance_id,
+            "linker_substance_id": adc.linker_substance_id,
+            "payload_substance_id": adc.payload_substance_id,
+            "dar_average": float(adc.dar_average) if adc.dar_average is not None else None,
+            "dar_distribution": adc.dar_distribution,
+            "dar_method": adc.dar_method,
+            "conjugation_chemistry": adc.conjugation_chemistry,
+            "conjugation_site": adc.conjugation_site,
+        },
+        message="adc 已更新",
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+# ============== UI9 父子 substance 血缘（V1.2 评审 UI9:B 决议）==============
+@router.get(
+    "/{code}/lineage",
+    summary="物质血缘关系（ADC 父结构 + 反向 ADC 子引用）",
+)
+async def get_substance_lineage(
+    code: str,
+    request: Request,
+    user: User = Depends(require_permission("substance:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    service = SubstanceService(db)
+    lineage = await service.get_lineage(code)
+    return success(
+        data=lineage,
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 # ============== 审计与状态历史 ==============

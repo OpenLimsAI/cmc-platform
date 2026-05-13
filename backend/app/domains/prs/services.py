@@ -479,17 +479,21 @@ class ProjectService:
         if u_result.scalar_one_or_none() is None:
             raise BadRequestError(f"user_id={payload.user_id} 不存在或已停用")
 
-        # 预检 (project, user, role) 绝对唯一性（§9.4 普通 UNIQUE，无 partial WHERE 子句）
+        # 预检 (project, user, role) 在"未离职"范围内唯一
+        # V1.2 评审 P3:A 决议（2026-05-13）：partial UNIQUE WHERE left_at IS NULL
+        # 业务上允许离职后用同角色再加入
         existing = await self.db.execute(
             select(ProjectTeam.team_id).where(
                 ProjectTeam.project_id == proj.project_id,
                 ProjectTeam.user_id == payload.user_id,
                 ProjectTeam.role == payload.role,
+                ProjectTeam.left_at.is_(None),
             )
         )
         if existing.scalar_one_or_none():
             raise ConflictError(
-                f"该用户已是 {code} 的 {payload.role}（按 §9.4 唯一约束不可重复）"
+                f"该用户当前已是 {code} 的活跃 {payload.role}"
+                f"（按 V1.2 §9.4 P3:A partial unique 决议：离职后可再加入）"
             )
 
         member = ProjectTeam(

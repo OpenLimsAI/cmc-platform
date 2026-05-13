@@ -158,11 +158,18 @@ class ProjectMilestone(Base):
 
 
 class ProjectTeam(Base):
-    """§9.4 项目团队（role 为任意字符串，无 CHECK 约束）"""
+    """§9.4 项目团队（role 为任意字符串，无 CHECK 约束）
+
+    V1.2 评审 P3:A 决议（migration 0031）：
+    唯一性约束改为 partial unique index uq_project_team_active
+    WHERE left_at IS NULL（DB 层独立 index，不在 ORM 层声明）。
+    业务上允许离职后用同角色再加入。
+    """
 
     __tablename__ = "project_team"
     __table_args__ = (
-        UniqueConstraint("project_id", "user_id", "role", name="uq_project_team"),
+        # 注：DB 实际为 partial unique index uq_project_team_active WHERE left_at IS NULL
+        # ORM 不声明 UniqueConstraint，由 service 层 + DB index 双重保证
         CheckConstraint(
             "allocation_pct IS NULL OR (allocation_pct BETWEEN 0 AND 100)",
             name="ck_project_team_alloc",

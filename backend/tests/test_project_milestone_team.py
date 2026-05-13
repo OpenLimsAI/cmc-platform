@@ -163,23 +163,33 @@ async def test_team_add_and_remove(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
-async def test_team_duplicate_role_rejected_absolutely(admin_client, unique_suffix):
-    """§9.4：(project_id, user_id, role) 绝对唯一，即使离开后再加同样组合也应拒绝"""
+async def test_team_active_role_uniqueness(admin_client, unique_suffix):
+    """V1.2 评审 P3:A 决议（migration 0031）：
+    (project_id, user_id, role) partial UNIQUE WHERE left_at IS NULL —
+    "已离职"行不参与去重，离职后可用同角色再加入。
+    """
     code = await _create_project(admin_client, unique_suffix)
     payload = {"user_id": 2, "role": "PM"}
+
+    # 1) 第一次加入：成功
     first = await admin_client.post(f"/api/v1/projects/{code}/team", json=payload)
     assert first.status_code == 201
     tid = first.json()["data"]["team_id"]
 
-    # 移除
+    # 2) 在活跃状态下重复加入：409（partial UNIQUE 在 left_at IS NULL 范围内）
+    dup_active = await admin_client.post(f"/api/v1/projects/{code}/team", json=payload)
+    assert dup_active.status_code == 409, "活跃成员重复加入应被拒"
+
+    # 3) 移除（left_at 置为今天）
     await admin_client.delete(
         f"/api/v1/projects/{code}/team/{tid}",
-        json={"change_reason": "pytest 移除"},
+        json={"change_reason": "pytest 离职"},
     )
 
-    # 再添加同组合（§9.4 绝对唯一应拒绝）
-    dup = await admin_client.post(f"/api/v1/projects/{code}/team", json=payload)
-    assert dup.status_code == 409
+    # 4) 再加同组合：P3:A 决议允许（已离职行不参与 partial UNIQUE）
+    rejoin = await admin_client.post(f"/api/v1/projects/{code}/team", json=payload)
+    assert rejoin.status_code == 201, "离职后用同角色再加入应被允许"
+    assert rejoin.json()["data"]["team_id"] != tid, "应是新行而非重置原行"
 
 
 @pytest.mark.asyncio
