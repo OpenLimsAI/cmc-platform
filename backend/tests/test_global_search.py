@@ -1,7 +1,30 @@
 """
-全局搜索 /api/v1/search 测试（M2.3）
+全局搜索 /api/v1/search 测试（M2.3 / G2-API6 V1.1 §8.3 分组结构）
+
+API-MDM-001 V1.1 §8.3 行 1688-1721 响应：
+  data: {
+    query, total,
+    results: {
+      substance: {total, items: [...]},
+      project: {total, items: [...]},
+      asset: {total, items: [...]},
+    }
+  }
 """
 import pytest
+
+
+def _all_hits(payload: dict) -> list:
+    """从分组结构提取所有 hits（测试方便）"""
+    data = payload["data"]
+    out: list = []
+    for group_key in ("substance", "project", "asset"):
+        out.extend(data["results"][group_key]["items"])
+    return out
+
+
+def _group_items(payload: dict, group: str) -> list:
+    return payload["data"]["results"][group]["items"]
 
 
 @pytest.mark.asyncio
@@ -20,7 +43,7 @@ async def test_search_finds_substance_by_name(admin_client, unique_suffix):
         "/api/v1/search", params={"q": f"SearchableSub {unique_suffix}", "limit": 10}
     )
     assert resp.status_code == 200
-    hits = resp.json()["data"]
+    hits = _all_hits(resp.json())
     assert any(
         h["entity_type"] == "substance" and h["name"] == name for h in hits
     )
@@ -37,10 +60,11 @@ async def test_search_finds_project_by_code(admin_client, unique_suffix):
     resp = await admin_client.get(
         "/api/v1/search", params={"q": pcode, "limit": 5}
     )
-    hits = resp.json()["data"]
-    assert hits[0]["entity_type"] == "project"
-    assert hits[0]["code"] == pcode
-    assert hits[0]["matched_field"] == "code"
+    # G2-API6 后：每个分组内部按权重排序，code 精确命中是第一条
+    proj_items = _group_items(resp.json(), "project")
+    assert proj_items, "应命中 project 分组"
+    assert proj_items[0]["code"] == pcode
+    assert proj_items[0]["matched_field"] == "code"
 
 
 @pytest.mark.asyncio
@@ -64,7 +88,7 @@ async def test_search_finds_substance_by_xref(admin_client, unique_suffix):
     resp = await admin_client.get(
         "/api/v1/search", params={"q": inn_val, "limit": 5}
     )
-    hits = resp.json()["data"]
+    hits = _all_hits(resp.json())
     match = next((h for h in hits if h["code"] == scode), None)
     assert match is not None, f"xref 搜索应命中 {scode}，实际命中 {hits}"
     assert match["matched_field"] == "xref"
@@ -73,7 +97,7 @@ async def test_search_finds_substance_by_xref(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_search_types_filter(admin_client, unique_suffix):
-    """types=substance 只返回 substance"""
+    """types=substance 只返回 substance 分组有 items，其他分组 items 为空"""
     await admin_client.post(
         "/api/v1/substances",
         json={
@@ -90,15 +114,15 @@ async def test_search_types_filter(admin_client, unique_suffix):
         "/api/v1/search",
         params={"q": f"tf both {unique_suffix}", "types": "substance", "limit": 10},
     )
-    hits = resp.json()["data"]
-    assert all(h["entity_type"] == "substance" for h in hits)
-    assert len(hits) >= 1
+    data = resp.json()["data"]
+    assert data["results"]["substance"]["total"] >= 1
+    assert data["results"]["project"]["total"] == 0
+    assert data["results"]["asset"]["total"] == 0
 
 
 @pytest.mark.asyncio
 async def test_search_respects_permissions(readonly_client, admin_client, unique_suffix):
-    """readonly 同时有 substance:read 和 project:read，应能搜到两者；
-    但若过滤 types=project 也只返回 project。回归点是权限过滤不会误伤合法用户。"""
+    """readonly 同时有 substance:read 和 project:read，应能搜到两者"""
     await admin_client.post(
         "/api/v1/substances",
         json={
@@ -115,7 +139,7 @@ async def test_search_respects_permissions(readonly_client, admin_client, unique
         "/api/v1/search", params={"q": f"perm both {unique_suffix}", "limit": 10}
     )
     assert resp.status_code == 200
-    hits = resp.json()["data"]
+    hits = _all_hits(resp.json())
     entity_types = {h["entity_type"] for h in hits}
     assert "substance" in entity_types
     assert "project" in entity_types
@@ -131,7 +155,6 @@ async def test_search_requires_auth(http_client):
 # ============== M3.4 资产搜索 ==============
 @pytest.mark.asyncio
 async def test_search_finds_asset_by_name(admin_client, unique_suffix):
-    """资产 internal_name 命中"""
     name = f"SearchableAsset {unique_suffix}"
     await admin_client.post(
         "/api/v1/assets",
@@ -140,7 +163,7 @@ async def test_search_finds_asset_by_name(admin_client, unique_suffix):
     resp = await admin_client.get(
         "/api/v1/search", params={"q": f"SearchableAsset {unique_suffix}", "limit": 10}
     )
-    hits = resp.json()["data"]
+    hits = _all_hits(resp.json())
     assert any(
         h["entity_type"] == "asset" and h["name"] == name for h in hits
     )
@@ -148,7 +171,7 @@ async def test_search_finds_asset_by_name(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_search_finds_asset_by_code(admin_client, unique_suffix):
-    """AST-XXXXXXX 精确命中应排在最前"""
+    """AST-XXXXXXX 精确命中应排在分组最前"""
     create = await admin_client.post(
         "/api/v1/assets",
         json={"internal_name": f"sr asset code {unique_suffix}", "asset_type": "mab"},
@@ -157,10 +180,10 @@ async def test_search_finds_asset_by_code(admin_client, unique_suffix):
     resp = await admin_client.get(
         "/api/v1/search", params={"q": acode, "limit": 5}
     )
-    hits = resp.json()["data"]
-    assert hits[0]["entity_type"] == "asset"
-    assert hits[0]["code"] == acode
-    assert hits[0]["matched_field"] == "code"
+    asset_items = _group_items(resp.json(), "asset")
+    assert asset_items, "应命中 asset 分组"
+    assert asset_items[0]["code"] == acode
+    assert asset_items[0]["matched_field"] == "code"
 
 
 @pytest.mark.asyncio
@@ -178,7 +201,7 @@ async def test_search_finds_asset_by_trade_name(admin_client, unique_suffix):
     resp = await admin_client.get(
         "/api/v1/search", params={"q": trade, "limit": 5}
     )
-    hits = resp.json()["data"]
+    hits = _all_hits(resp.json())
     match = next((h for h in hits if h["entity_type"] == "asset"), None)
     assert match is not None, f"应命中资产 trade_name={trade}"
     assert match["matched_field"] == "trade_name"
@@ -187,7 +210,7 @@ async def test_search_finds_asset_by_trade_name(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_search_types_filter_asset_only(admin_client, unique_suffix):
-    """types=asset 只返回 asset"""
+    """types=asset 只返回 asset 分组有 items"""
     await admin_client.post(
         "/api/v1/substances",
         json={
@@ -208,9 +231,10 @@ async def test_search_types_filter_asset_only(admin_client, unique_suffix):
         "/api/v1/search",
         params={"q": f"t4 all {unique_suffix}", "types": "asset", "limit": 10},
     )
-    hits = resp.json()["data"]
-    assert all(h["entity_type"] == "asset" for h in hits)
-    assert len(hits) >= 1
+    data = resp.json()["data"]
+    assert data["results"]["asset"]["total"] >= 1
+    assert data["results"]["substance"]["total"] == 0
+    assert data["results"]["project"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -236,5 +260,29 @@ async def test_search_default_returns_all_three_types(admin_client, unique_suffi
     resp = await admin_client.get(
         "/api/v1/search", params={"q": tag, "limit": 20}
     )
-    entity_types = {h["entity_type"] for h in resp.json()["data"]}
-    assert entity_types == {"substance", "project", "asset"}
+    data = resp.json()["data"]
+    assert data["query"] == tag
+    assert data["results"]["substance"]["total"] >= 1
+    assert data["results"]["project"]["total"] >= 1
+    assert data["results"]["asset"]["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_search_response_structure(admin_client):
+    """API6（V1.1 §8.3 行 1688-1721）：响应分组结构严格断言"""
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": "SUB-", "limit": 5}
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert set(data.keys()) == {"query", "total", "results"}
+    assert data["query"] == "SUB-"
+    assert isinstance(data["total"], int)
+    assert set(data["results"].keys()) == {"substance", "project", "asset"}
+    for group_key in ("substance", "project", "asset"):
+        group = data["results"][group_key]
+        assert set(group.keys()) == {"total", "items"}
+        assert isinstance(group["total"], int)
+        assert isinstance(group["items"], list)
+        # total 与 items 长度一致
+        assert group["total"] == len(group["items"])

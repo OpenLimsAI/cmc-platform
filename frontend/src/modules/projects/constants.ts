@@ -43,6 +43,20 @@ export const PROJECT_STATUS_OPTIONS: { value: ProjectStatus; label: string }[] =
   { value: 'terminated', label: '已终止' },
 ];
 
+// UI10：V1.1 §7.2 / §9.2 项目优先级 + 保密等级（Batch F 后端已暴露）
+export const PROJECT_PRIORITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'low', label: '低' },
+  { value: 'medium', label: '中' },
+  { value: 'high', label: '高' },
+  { value: 'critical', label: '紧急' },
+];
+
+export const PROJECT_CONFIDENTIALITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'public', label: '公开' },
+  { value: 'internal', label: '内部' },
+  { value: 'restricted', label: '受限' },
+];
+
 // ============== 状态机 ==============
 // 与 backend STATE_MACHINE 对齐（prs/services.py）
 export const AVAILABLE_PROJECT_ACTIONS: Record<ProjectStatus, ProjectAction[]> = {

@@ -29,8 +29,8 @@ async def global_search(
 ):
     type_list = [t.strip() for t in types.split(",")] if types else None
     service = GlobalSearchService(db)
-    hits = await service.search(q, type_list, limit, current_user=user)
+    result = await service.search(q, type_list, limit, current_user=user)
     return success(
-        data=[h.model_dump(mode="json") for h in hits],
+        data=result.model_dump(mode="json"),
         request_id=getattr(request.state, "request_id", None),
     )

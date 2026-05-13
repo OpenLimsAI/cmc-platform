@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Card,
   Descriptions,
@@ -8,10 +9,17 @@ import {
   Skeleton,
   Result,
   Button,
+  message,
 } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  AuditOutlined,
+  CopyOutlined,
+  EditOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons';
 import { projectsApi } from '@/api/projects';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
@@ -37,6 +45,7 @@ const { Title, Paragraph } = Typography;
 export function ProjectDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('basic');
 
   const {
     data: proj,
@@ -272,6 +281,30 @@ export function ProjectDetailPage() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/projects')}>
               返回列表
             </Button>
+            {/* UI11（V1.1 §3.4.2）：详情页头部动作组 */}
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => {
+                void navigator.clipboard.writeText(proj.project_code);
+                message.success(`已复制编码: ${proj.project_code}`);
+              }}
+            >
+              复制编码
+            </Button>
+            <Button
+              size="small"
+              icon={<ShareAltOutlined />}
+              onClick={() => {
+                void navigator.clipboard.writeText(window.location.href);
+                message.success('已复制详情页链接');
+              }}
+            >
+              分享
+            </Button>
+            <Button size="small" icon={<AuditOutlined />} onClick={() => setActiveTab('audit')}>
+              查看审计
+            </Button>
             <PermissionGuard permission="project:update">
               <Button
                 type="primary"
@@ -285,7 +318,7 @@ export function ProjectDetailPage() {
         </div>
       </Card>
 
-      <Tabs items={tabs} defaultActiveKey="basic" />
+      <Tabs items={tabs} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   );
 }

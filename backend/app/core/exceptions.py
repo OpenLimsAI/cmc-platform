@@ -39,6 +39,41 @@ class BadRequestError(AppError):
     default_message = "请求格式错误"
 
 
+class MissingRequiredError(AppError):
+    code = 40002
+    http_status = 400
+    error_type = "missing_required"
+    default_message = "必填参数缺失"
+
+
+class InvalidValueError(AppError):
+    code = 40003
+    http_status = 400
+    error_type = "invalid_value"
+    default_message = "字段值不合法"
+
+
+class WeakPasswordError(AppError):
+    code = 40010
+    http_status = 400
+    error_type = "weak_password"
+    default_message = "密码强度不足"
+
+
+class PasswordInHistoryError(AppError):
+    code = 40011
+    http_status = 400
+    error_type = "password_in_history"
+    default_message = "新密码与历史密码重复"
+
+
+class CodeFormatInvalidError(AppError):
+    code = 40020
+    http_status = 400
+    error_type = "code_format_invalid"
+    default_message = "业务编码格式错误"
+
+
 class InvalidCredentialsError(AppError):
     code = 40101
     http_status = 401
@@ -88,11 +123,31 @@ class AccountDisabledError(AppError):
     default_message = "账户已禁用"
 
 
+class DataAccessDeniedError(AppError):
+    code = 40303
+    http_status = 403
+    error_type = "data_access_denied"
+    default_message = "数据级权限不足"
+
+
+class OperationNotAllowedError(AppError):
+    code = 40304
+    http_status = 403
+    error_type = "operation_not_allowed"
+    default_message = "当前状态下不允许此操作"
+
+
 class NotFoundError(AppError):
     code = 40400
     http_status = 404
     error_type = "not_found"
     default_message = "资源不存在"
+
+
+class UserNotFoundError(NotFoundError):
+    code = 40401
+    error_type = "user_not_found"
+    default_message = "用户不存在"
 
 
 class SubstanceNotFoundError(NotFoundError):
@@ -134,10 +189,22 @@ class DuplicateCodeError(ConflictError):
     default_message = "业务编码已存在"
 
 
+class DuplicateNameError(ConflictError):
+    code = 40903
+    error_type = "duplicate_name"
+    default_message = "名称重复"
+
+
 class VersionConflictError(ConflictError):
     code = 40904
     error_type = "version_conflict"
     default_message = "数据已被他人修改，请刷新后重试"
+
+
+class DuplicateRequestError(ConflictError):
+    code = 40905
+    error_type = "duplicate_request"
+    default_message = "幂等键冲突，相同请求已被处理"
 
 
 class AccountLockedError(AppError):
@@ -159,6 +226,13 @@ class StateInvalidError(AppError):
     http_status = 422
     error_type = "state_invalid"
     default_message = "状态机不允许的状态变更"
+
+
+class ReferenceInUseError(AppError):
+    code = 42202
+    http_status = 422
+    error_type = "reference_in_use"
+    default_message = "资源被其他对象引用，无法删除"
 
 
 class XrefNotFoundError(NotFoundError):

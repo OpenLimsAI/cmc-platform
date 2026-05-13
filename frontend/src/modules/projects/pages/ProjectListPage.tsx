@@ -19,7 +19,9 @@ import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { EntityCodeLink } from '@/shared/components/EntityCodeLink';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
+  PROJECT_CONFIDENTIALITY_OPTIONS,
   PROJECT_PHASE_OPTIONS,
+  PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   PROJECT_TYPE_OPTIONS,
 } from '../constants';
@@ -35,6 +37,10 @@ export function ProjectListPage() {
     project_type?: string;
     project_phase?: string;
     status?: string;
+    priority?: string;
+    program_name?: string;
+    parent_project_id?: number;
+    confidentiality?: string;
   }>({});
   const [pendingQ, setPendingQ] = useState('');
 
@@ -180,6 +186,53 @@ export function ProjectListPage() {
               setFilters((f) => ({ ...f, status: v }));
             }}
             options={PROJECT_STATUS_OPTIONS}
+          />
+          {/* UI10（V1.1 §9.2 / Batch F）：priority / program_name / parent_project_id / confidentiality */}
+          <Select
+            placeholder="优先级"
+            allowClear
+            style={{ width: 120 }}
+            value={filters.priority}
+            onChange={(v) => {
+              setPage(1);
+              setFilters((f) => ({ ...f, priority: v }));
+            }}
+            options={PROJECT_PRIORITY_OPTIONS}
+          />
+          <Select
+            placeholder="保密"
+            allowClear
+            style={{ width: 110 }}
+            value={filters.confidentiality}
+            onChange={(v) => {
+              setPage(1);
+              setFilters((f) => ({ ...f, confidentiality: v }));
+            }}
+            options={PROJECT_CONFIDENTIALITY_OPTIONS}
+          />
+          <Input
+            placeholder="项目群"
+            allowClear
+            style={{ width: 160 }}
+            value={filters.program_name ?? ''}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, program_name: e.target.value || undefined }))
+            }
+            onPressEnter={() => setPage(1)}
+          />
+          <Input
+            placeholder="父项目 ID"
+            allowClear
+            type="number"
+            style={{ width: 120 }}
+            value={filters.parent_project_id ?? ''}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                parent_project_id: e.target.value ? Number(e.target.value) : undefined,
+              }))
+            }
+            onPressEnter={() => setPage(1)}
           />
           <Button
             onClick={() => {

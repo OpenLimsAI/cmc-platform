@@ -163,6 +163,37 @@ class SubstanceService:
                 # 同类型多条只取第一条（与原 _get_xref limit(1) 行为一致）
                 xref_map.setdefault(sub_id, {}).setdefault(xtype, xval)
 
+        # UI6（V1.1 §6.1 行 420-426）：批量聚合 ref.project_substance / ref.asset_substance
+        # 计 project_count / asset_count；material_count 留 0（MM 域 Phase 4 时补）
+        project_count_map: dict[int, int] = {}
+        asset_count_map: dict[int, int] = {}
+        if substances:
+            from app.domains.ref.models import (
+                AssetSubstanceLink,
+                ProjectSubstanceLink,
+            )
+
+            sub_ids = [s.substance_id for s in substances]
+            proj_count_result = await self.db.execute(
+                select(ProjectSubstanceLink.substance_id, func.count())
+                .where(
+                    ProjectSubstanceLink.substance_id.in_(sub_ids),
+                    ProjectSubstanceLink.deleted_at.is_(None),
+                )
+                .group_by(ProjectSubstanceLink.substance_id)
+            )
+            project_count_map = {sid: cnt for sid, cnt in proj_count_result.all()}
+
+            asset_count_result = await self.db.execute(
+                select(AssetSubstanceLink.substance_id, func.count())
+                .where(
+                    AssetSubstanceLink.substance_id.in_(sub_ids),
+                    AssetSubstanceLink.deleted_at.is_(None),
+                )
+                .group_by(AssetSubstanceLink.substance_id)
+            )
+            asset_count_map = {sid: cnt for sid, cnt in asset_count_result.all()}
+
         items: list[SubstanceBrief] = []
         for sub in substances:
             xrefs_for_sub = xref_map.get(sub.substance_id, {})
@@ -178,8 +209,8 @@ class SubstanceService:
                     confidentiality=sub.confidentiality,
                     inn=xrefs_for_sub.get("INN"),
                     cas_number=xrefs_for_sub.get("CAS"),
-                    project_count=0,
-                    asset_count=0,
+                    project_count=project_count_map.get(sub.substance_id, 0),
+                    asset_count=asset_count_map.get(sub.substance_id, 0),
                     material_count=0,
                     created_at=sub.created_at,
                     updated_at=sub.updated_at,

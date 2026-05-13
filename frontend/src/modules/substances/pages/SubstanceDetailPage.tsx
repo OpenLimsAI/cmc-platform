@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Card,
   Descriptions,
@@ -8,10 +9,17 @@ import {
   Skeleton,
   Result,
   Button,
+  message,
 } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  AuditOutlined,
+  CopyOutlined,
+  EditOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons';
 import { substancesApi } from '@/api/substances';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { SubstanceTypeTag } from '@/shared/components/SubstanceTypeTag';
@@ -40,6 +48,7 @@ const { Title, Text, Paragraph } = Typography;
 export function SubstanceDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('basic');
 
   const {
     data: sub,
@@ -249,10 +258,40 @@ export function SubstanceDetailPage() {
       />
 
       <Card style={{ marginBottom: 16 }}>
-        <Space style={{ marginBottom: 8 }}>
+        <Space style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', width: '100%' }}>
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/substances')}>
             返回
           </Button>
+          {/* UI11（V1.1 §3.4.2）：详情页右上角动作组 */}
+          <Space size="small">
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => {
+                void navigator.clipboard.writeText(sub.substance_code);
+                message.success(`已复制编码: ${sub.substance_code}`);
+              }}
+            >
+              复制编码
+            </Button>
+            <Button
+              size="small"
+              icon={<ShareAltOutlined />}
+              onClick={() => {
+                void navigator.clipboard.writeText(window.location.href);
+                message.success('已复制详情页链接');
+              }}
+            >
+              分享
+            </Button>
+            <Button
+              size="small"
+              icon={<AuditOutlined />}
+              onClick={() => setActiveTab('audit')}
+            >
+              查看审计
+            </Button>
+          </Space>
         </Space>
         <Space align="start" size={16} style={{ display: 'flex', justifyContent: 'space-between' }}>
           <div>
@@ -307,7 +346,7 @@ export function SubstanceDetailPage() {
         </Space>
       </Card>
 
-      <Tabs items={tabItems} />
+      <Tabs items={tabItems} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   );
 }

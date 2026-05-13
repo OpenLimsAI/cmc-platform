@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Layout, Menu, theme } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Badge, Layout, Menu, Tooltip, Typography, theme } from 'antd';
 import {
   DashboardOutlined,
   ExperimentOutlined,
@@ -11,8 +11,10 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { api } from '@/api/client';
 
 const { Sider } = Layout;
+const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string) || 'V1.2-draft';
 
 interface MenuItem {
   key: string;
@@ -68,6 +70,8 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+type HealthStatus = 'checking' | 'ok' | 'down';
+
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,7 +79,26 @@ export function Sidebar() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const { token } = theme.useToken();
 
-  // 按权限过滤菜单
+  // UI1（V1.1 §3.3）：Sidebar 底部健康检查绿点
+  const [health, setHealth] = useState<HealthStatus>('checking');
+  useEffect(() => {
+    let cancelled = false;
+    const probe = async () => {
+      try {
+        await api.get('/../health', { timeout: 3000 });
+        if (!cancelled) setHealth('ok');
+      } catch {
+        if (!cancelled) setHealth('down');
+      }
+    };
+    probe();
+    const t = setInterval(probe, 30000); // 30s 一次
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
   const items = useMemo(
     () =>
       MENU_ITEMS.filter((m) => !m.permission || isAdmin || hasPermission(m.permission)).map((m) => ({
@@ -86,9 +109,13 @@ export function Sidebar() {
     [hasPermission, isAdmin]
   );
 
-  // 当前激活：路径前缀匹配
   const selectedKey =
     items.find((i) => location.pathname.startsWith(i.key as string))?.key ?? '/dashboard';
+
+  const healthBadge =
+    health === 'ok' ? 'success' : health === 'down' ? 'error' : 'processing';
+  const healthLabel =
+    health === 'ok' ? '后端正常' : health === 'down' ? '后端不可用' : '健康检查中…';
 
   return (
     <Sider
@@ -96,6 +123,8 @@ export function Sidebar() {
       style={{
         background: '#fff',
         borderRight: `1px solid ${token.colorBorderSecondary}`,
+        display: 'flex',
+        flexDirection: 'column',
       }}
       breakpoint="lg"
       collapsedWidth={64}
@@ -104,9 +133,26 @@ export function Sidebar() {
         mode="inline"
         selectedKeys={[selectedKey as string]}
         items={items}
-        style={{ borderRight: 0, paddingTop: 8 }}
+        style={{ borderRight: 0, paddingTop: 8, flex: 1 }}
         onClick={({ key }) => navigate(key as string)}
       />
+      <div
+        style={{
+          padding: '8px 12px',
+          borderTop: '1px solid #f0f0f0',
+          fontSize: 12,
+          color: '#8c8c8c',
+        }}
+      >
+        <div style={{ marginBottom: 4 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {APP_VERSION}
+          </Typography.Text>
+        </div>
+        <Tooltip title={healthLabel}>
+          <Badge status={healthBadge} text={<span style={{ fontSize: 12 }}>{healthLabel}</span>} />
+        </Tooltip>
+      </div>
     </Sider>
   );
 }

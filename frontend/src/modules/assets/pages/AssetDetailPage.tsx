@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Breadcrumb,
   Button,
@@ -9,8 +10,15 @@ import {
   Tabs,
   Tag,
   Typography,
+  message,
 } from 'antd';
-import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  AuditOutlined,
+  CopyOutlined,
+  EditOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
@@ -37,6 +45,7 @@ const { Title, Paragraph } = Typography;
 export function AssetDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('basic');
 
   const {
     data: asset,
@@ -255,6 +264,30 @@ export function AssetDetailPage() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/assets')}>
               返回列表
             </Button>
+            {/* UI11（V1.1 §3.4.2）：详情页头部动作组 */}
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => {
+                void navigator.clipboard.writeText(asset.asset_code);
+                message.success(`已复制编码: ${asset.asset_code}`);
+              }}
+            >
+              复制编码
+            </Button>
+            <Button
+              size="small"
+              icon={<ShareAltOutlined />}
+              onClick={() => {
+                void navigator.clipboard.writeText(window.location.href);
+                message.success('已复制详情页链接');
+              }}
+            >
+              分享
+            </Button>
+            <Button size="small" icon={<AuditOutlined />} onClick={() => setActiveTab('audit')}>
+              查看审计
+            </Button>
             <PermissionGuard permission="asset:update">
               <Button
                 type="primary"
@@ -268,7 +301,7 @@ export function AssetDetailPage() {
         </div>
       </Card>
 
-      <Tabs items={tabs} defaultActiveKey="basic" />
+      <Tabs items={tabs} activeKey={activeTab} onChange={setActiveTab} />
     </div>
   );
 }

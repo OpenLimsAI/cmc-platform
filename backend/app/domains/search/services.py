@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domains.ars.models import Asset
 from app.domains.auth.models import User
 from app.domains.prs.models import Project
-from app.domains.search.schemas import SearchHit
+from app.domains.search.schemas import GlobalSearchResponse, SearchGroup, SearchHit
 from app.domains.srs.models import Substance, SubstanceXref
 from app.shared.permissions import get_user_permissions
 
@@ -29,10 +29,23 @@ class GlobalSearchService:
         types: list[str] | None,
         limit: int,
         current_user: User,
-    ) -> list[SearchHit]:
+    ) -> GlobalSearchResponse:
+        """API-MDM-001 V1.1 §8.3：响应按 entity_type 分组返回，
+        含 query / total / results: {substance: {total, items}, project: {...}, asset: {...}}
+        """
         q = q.strip()
+        empty = GlobalSearchResponse(
+            query=q,
+            total=0,
+            results={
+                "substance": SearchGroup(total=0, items=[]),
+                "project": SearchGroup(total=0, items=[]),
+                "asset": SearchGroup(total=0, items=[]),
+            },
+        )
         if not q:
-            return []
+            return empty
+
         per_type_limit = max(limit, 20)
         is_sys_admin = any(r.role_code == "SYS_ADMIN" for r in current_user.roles)
         perms = await get_user_permissions(current_user, self.db)
@@ -41,16 +54,33 @@ class GlobalSearchService:
         can_read_ast = is_sys_admin or "asset:read" in perms
         wanted = set(types) if types else {"substance", "project", "asset"}
 
-        hits: list[SearchHit] = []
+        sub_hits: list[SearchHit] = []
+        prj_hits: list[SearchHit] = []
+        ast_hits: list[SearchHit] = []
         if "substance" in wanted and can_read_sub:
-            hits.extend(await self._search_substance(q, per_type_limit))
+            sub_hits = await self._search_substance(q, per_type_limit)
         if "project" in wanted and can_read_prj:
-            hits.extend(await self._search_project(q, per_type_limit))
+            prj_hits = await self._search_project(q, per_type_limit)
         if "asset" in wanted and can_read_ast:
-            hits.extend(await self._search_asset(q, per_type_limit))
+            ast_hits = await self._search_asset(q, per_type_limit)
 
-        hits.sort(key=lambda h: _rank(h, q))
-        return hits[:limit]
+        # 每组内部按权重排序 + 截断到 limit
+        sub_hits.sort(key=lambda h: _rank(h, q))
+        prj_hits.sort(key=lambda h: _rank(h, q))
+        ast_hits.sort(key=lambda h: _rank(h, q))
+        sub_hits = sub_hits[:limit]
+        prj_hits = prj_hits[:limit]
+        ast_hits = ast_hits[:limit]
+
+        return GlobalSearchResponse(
+            query=q,
+            total=len(sub_hits) + len(prj_hits) + len(ast_hits),
+            results={
+                "substance": SearchGroup(total=len(sub_hits), items=sub_hits),
+                "project": SearchGroup(total=len(prj_hits), items=prj_hits),
+                "asset": SearchGroup(total=len(ast_hits), items=ast_hits),
+            },
+        )
 
     async def _search_substance(self, q: str, lim: int) -> list[SearchHit]:
         pat = f"%{q}%"

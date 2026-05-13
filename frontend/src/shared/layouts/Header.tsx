@@ -1,5 +1,5 @@
-import { Layout, Avatar, Dropdown, Space, theme } from 'antd';
-import { UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined } from '@ant-design/icons';
+import { Layout, Avatar, Dropdown, Space, message, theme } from 'antd';
+import { UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/auth';
@@ -23,6 +23,7 @@ export function Header() {
     navigate('/login');
   };
 
+  // V1.1 §3.2.3：用户菜单四项（个人中心 / 偏好设置 / 修改密码 / 退出）
   const userMenu = {
     items: [
       {
@@ -30,6 +31,13 @@ export function Header() {
         icon: <UserOutlined />,
         label: '个人中心',
         onClick: () => navigate('/profile'),
+      },
+      {
+        key: 'preferences',
+        icon: <SettingOutlined />,
+        label: '偏好设置',
+        // UI2：Phase 4-5 个人偏好（主题/语言/时区）页未实现，先占位
+        onClick: () => message.info('偏好设置（Phase 4-5 后实现）'),
       },
       {
         key: 'change-pwd',

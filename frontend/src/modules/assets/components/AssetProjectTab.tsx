@@ -245,7 +245,7 @@ export function AssetProjectTab({ assetCode, assetStatus }: Props) {
             <AutoComplete
               placeholder="搜索 PRJ-YYYY-XXXX 或项目名称..."
               onSearch={setSearchQ}
-              options={(searchHits ?? []).map((h) => ({
+              options={(searchHits?.results.project.items ?? []).map((h) => ({
                 value: h.code,
                 label: (
                   <Space>

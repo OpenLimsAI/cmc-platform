@@ -8,8 +8,10 @@ import {
   Space,
   Typography,
   Breadcrumb,
+  Drawer,
+  Form,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { FilterOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { substancesApi } from '@/api/substances';
@@ -30,8 +32,11 @@ export function SubstanceListPage() {
     q?: string;
     substance_type?: string;
     status?: string;
+    target?: string;
+    confidentiality?: string;
   }>({});
   const [pendingQ, setPendingQ] = useState('');
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['substances', page, pageSize, filters],
@@ -82,6 +87,23 @@ export function SubstanceListPage() {
       key: 'confidentiality',
       width: 80,
       render: (c: string) => (c === 'restricted' ? '🔒 受限' : c === 'public' ? '公开' : '内部'),
+    },
+    {
+      // UI6（V1.1 §6.1 行 420-426）：关联项目计数
+      title: '关联项目',
+      dataIndex: 'project_count',
+      key: 'project_count',
+      width: 90,
+      align: 'center' as const,
+      render: (n: number) => (n > 0 ? n : '—'),
+    },
+    {
+      title: '关联资产',
+      dataIndex: 'asset_count',
+      key: 'asset_count',
+      width: 90,
+      align: 'center' as const,
+      render: (n: number) => (n > 0 ? n : '—'),
     },
     {
       title: '更新时间',
@@ -164,6 +186,20 @@ export function SubstanceListPage() {
               { value: 'deprecated', label: '已弃用' },
             ]}
           />
+          {/* UI5（V1.1 §6.1.1 行 545）：靶点是常用筛选项 */}
+          <Input
+            placeholder="靶点（如 PD-L1）"
+            allowClear
+            style={{ width: 180 }}
+            value={filters.target ?? ''}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, target: e.target.value || undefined }))
+            }
+            onPressEnter={() => setPage(1)}
+          />
+          <Button icon={<FilterOutlined />} onClick={() => setMoreFiltersOpen(true)}>
+            更多筛选
+          </Button>
           <Button
             onClick={() => {
               setPendingQ('');
@@ -181,6 +217,53 @@ export function SubstanceListPage() {
           </Button>
         </Space>
       </Card>
+
+      {/* UI5（V1.1 §6.1.1 行 545）：「更多筛选」抽屉
+          常用筛选放主区，深度筛选放抽屉；保密 / 是否专有 已接入 Batch F 后端，
+          表达系统 / 创建人 / 日期范围 需要 SubstanceFilter 扩展（Phase 4 物料域时一起加）*/}
+      <Drawer
+        title="更多筛选"
+        open={moreFiltersOpen}
+        onClose={() => setMoreFiltersOpen(false)}
+        width={360}
+      >
+        <Form layout="vertical">
+          <Form.Item label="保密等级">
+            <Select
+              placeholder="选择保密等级"
+              allowClear
+              value={filters.confidentiality}
+              onChange={(v) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, confidentiality: v }));
+              }}
+              options={[
+                { value: 'public', label: '公开' },
+                { value: 'internal', label: '内部' },
+                { value: 'restricted', label: '受限' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="表达系统 / 创建人 / 日期范围">
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Phase 4 SubstanceFilter 扩展时接入（V1.1 §6.1.1 行 545）
+            </Typography.Text>
+          </Form.Item>
+          <Space>
+            <Button
+              onClick={() => {
+                setFilters((f) => ({ ...f, confidentiality: undefined }));
+                setMoreFiltersOpen(false);
+              }}
+            >
+              清空抽屉项
+            </Button>
+            <Button type="primary" onClick={() => setMoreFiltersOpen(false)}>
+              完成
+            </Button>
+          </Space>
+        </Form>
+      </Drawer>
 
       <Card>
         <Table<SubstanceBrief>

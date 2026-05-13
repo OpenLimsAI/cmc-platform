@@ -260,7 +260,7 @@ export function AssetSubstanceTab({ assetCode, assetStatus }: Props) {
             <AutoComplete
               placeholder="搜索 SUB-XXXXXXX、preferred name 或 INN..."
               onSearch={setSearchQ}
-              options={(searchHits ?? []).map((h) => ({
+              options={(searchHits?.results.substance.items ?? []).map((h) => ({
                 value: h.code,
                 label: (
                   <Space>

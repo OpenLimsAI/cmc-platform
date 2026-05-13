@@ -24,3 +24,18 @@ class SearchHit(BaseModel):
     matched_field: MatchedField
     sub_type: str | None = None  # substance_type / project_type / asset_type
     snippet: str | None = None  # 命中字段的局部值（xref 命中时显示 xref_value）
+
+
+class SearchGroup(BaseModel):
+    """单个 entity_type 分组"""
+
+    total: int
+    items: list[SearchHit]
+
+
+class GlobalSearchResponse(BaseModel):
+    """全局搜索响应（API-MDM-001 V1.1 §8.3 行 1688-1721）"""
+
+    query: str
+    total: int
+    results: dict[SearchEntityType, SearchGroup]

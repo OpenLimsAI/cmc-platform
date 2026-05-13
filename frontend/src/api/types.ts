@@ -850,6 +850,22 @@ export interface SearchHit {
   snippet?: string | null;
 }
 
+// API-MDM-001 V1.1 §8.3 行 1688-1721 响应分组结构
+export interface SearchGroup {
+  total: number;
+  items: SearchHit[];
+}
+
+export interface GlobalSearchResponse {
+  query: string;
+  total: number;
+  results: {
+    substance: SearchGroup;
+    project: SearchGroup;
+    asset: SearchGroup;
+  };
+}
+
 // ============== Audit & status history ==============
 export interface ChangeHistoryItem {
   field_name: string;

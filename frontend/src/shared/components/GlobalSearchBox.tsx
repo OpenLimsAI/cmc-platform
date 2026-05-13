@@ -63,37 +63,41 @@ export function GlobalSearchBox() {
   });
 
   const options = useMemo(() => {
-    const hits: SearchHit[] = data ?? [];
-    const grouped: Record<string, SearchHit[]> = {};
-    for (const h of hits) {
-      (grouped[h.entity_type] ??= []).push(h);
-    }
-    return Object.entries(grouped).map(([type, list]) => ({
-      label: (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {ENTITY_LABEL[type] ?? type}（{list.length}）
-        </Text>
-      ),
-      options: list.map((h) => ({
-        value: `${h.entity_type}:${h.code}`,
-        hit: h,
+    // G2-API6（V1.1 §8.3）：分组结构 {substance, project, asset} 各含 items
+    if (!data) return [];
+    const groups: Array<['substance' | 'project' | 'asset', SearchHit[]]> = [
+      ['substance', data.results.substance.items],
+      ['project', data.results.project.items],
+      ['asset', data.results.asset.items],
+    ];
+    return groups
+      .filter(([, list]) => list.length > 0)
+      .map(([type, list]) => ({
         label: (
-          <Space size="small" style={{ width: '100%' }}>
-            <Tag color={ENTITY_COLOR[h.entity_type]} style={{ marginRight: 0 }}>
-              {ENTITY_LABEL[h.entity_type] ?? h.entity_type}
-            </Tag>
-            <Text code style={{ fontSize: 12 }}>
-              {h.code}
-            </Text>
-            <Text>{h.name}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              · {FIELD_LABEL[h.matched_field] ?? h.matched_field}
-              {h.snippet ? `: ${h.snippet}` : ''}
-            </Text>
-          </Space>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {ENTITY_LABEL[type] ?? type}（{list.length}）
+          </Text>
         ),
-      })),
-    }));
+        options: list.map((h) => ({
+          value: `${h.entity_type}:${h.code}`,
+          hit: h,
+          label: (
+            <Space size="small" style={{ width: '100%' }}>
+              <Tag color={ENTITY_COLOR[h.entity_type]} style={{ marginRight: 0 }}>
+                {ENTITY_LABEL[h.entity_type] ?? h.entity_type}
+              </Tag>
+              <Text code style={{ fontSize: 12 }}>
+                {h.code}
+              </Text>
+              <Text>{h.name}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                · {FIELD_LABEL[h.matched_field] ?? h.matched_field}
+                {h.snippet ? `: ${h.snippet}` : ''}
+              </Text>
+            </Space>
+          ),
+        })),
+      }));
   }, [data]);
 
   const handleSelect = (_: unknown, option: any) => {
