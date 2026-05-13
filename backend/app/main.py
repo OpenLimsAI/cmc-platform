@@ -90,14 +90,25 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # ============== 健康检查 ==============
-@app.get("/health", tags=["system"], summary="健康检查")
-async def health_check():
+async def _health_payload():
     """供负载均衡和监控系统调用，无需认证"""
     return {
         "status": "healthy",
         "version": "1.0.0",
         "app": settings.APP_NAME,
     }
+
+
+@app.get("/health", tags=["system"], summary="健康检查（无前缀）")
+async def health_check():
+    return await _health_payload()
+
+
+# /api/v1 alias —— 让前端可以走统一的 /api/v1 base URL 探测健康
+# （vite dev proxy 只代理 /api/*，独立 /health 在 dev 拿不到）
+@app.get("/api/v1/health", tags=["system"], summary="健康检查（带前缀 alias）")
+async def health_check_api():
+    return await _health_payload()
 
 
 # ============== 路由 ==============

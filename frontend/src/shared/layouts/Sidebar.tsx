@@ -80,12 +80,13 @@ export function Sidebar() {
   const { token } = theme.useToken();
 
   // UI1（V1.1 §3.3）：Sidebar 底部健康检查绿点
+  // 后端在 /api/v1/health 暴露 alias（main.py），走 axios api baseURL 自动拼到 /api/v1/health
   const [health, setHealth] = useState<HealthStatus>('checking');
   useEffect(() => {
     let cancelled = false;
     const probe = async () => {
       try {
-        await api.get('/../health', { timeout: 3000 });
+        await api.get('/health', { timeout: 3000 });
         if (!cancelled) setHealth('ok');
       } catch {
         if (!cancelled) setHealth('down');
