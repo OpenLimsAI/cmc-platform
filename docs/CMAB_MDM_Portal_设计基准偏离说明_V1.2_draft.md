@@ -9,7 +9,7 @@
 | 编制 | CMC R&D（实施侧） |
 | 日期 | 2026-05-13 |
 | 分类 | 合规审计配套文档 |
-| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订一，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地 — 推翻 §2/§3/§6 原"100% 对齐"声明，重列 SRS/PRS/ARS/REF 共 39 项偏离与处置）<br>V1.2 Draft（2026-05-13 修订二，**架构 / API / UI 三上位文档独立复核 + Batch G1.A/G1.B 落地** — 推翻 §7/§8/§9 原"~95%/~85%/~82%"自报对齐率，重列 30+ 项偏离；G1.A 修复 API1 错误码错位 + UI3 签名理由独立字段 + UI4 二次确认；G1.B 状态机契约硬切回归 V1.1 嵌套 `{comment, signature:{password,meaning,reason}}` + 响应 `StateChangeResponse`）<br>V1.2 Draft（2026-05-13 修订三，**Batch G2 中优先级 8 项落地** — API6 全局搜索响应改 V1.1 §8.3 分组结构 + API9 补 11 错误码定义；UI1 Footer/Sidebar 底部 + UI2 偏好设置 + UI5 物质列表靶点筛选+更多筛选 Drawer + UI6 列表关联计数列 + UI10 PRS 列表 4 过滤接入 + UI11 详情页头部 3 动作） |
+| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订一，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地）<br>V1.2 Draft（2026-05-13 修订二，架构 / API / UI 三上位文档独立复核 + Batch G1.A/G1.B 落地）<br>V1.2 Draft（2026-05-13 修订三，Batch G2 中优先级 8 项落地）<br>V1.2 Draft（2026-05-13 修订四，**Batch G3.A 零评审依赖 2 项落地** — ARCH12 meta.lookup_value + meta.system_config 建表 + DM V1.1 §5.2/§5.3 seed（migration 0030，33 lookup + 10 config 行）；API5 三域 POST 主资源加 V1.1 §6.2 Location 头；G3.B 2 项（ARCH11 限流 + API7 幂等）正式推迟到 Phase 4；G3.C 9 项进 **REV-MDM-001 V1.2 评审会议材料**：S5/S6 类型回归 / P3 团队 unique / P8 project_relationship 上层 / R8 ref FK / ARCH9 前端技术栈 / API4 项目嵌套 / API10 用户角色权限 / API11 全局功能 / API13 protein/adc 写端点 / UI7 项目概览 / UI8 资产阶段时间线 / UI9 物质关联 Tab） |
 
 ## 1. 文档目的
 
@@ -27,6 +27,9 @@
 - **Batch G1.B**：API2 状态机请求嵌套 `{comment, signature}` + API3 响应 `StateChangeResponse` 硬切回归 V1.1 §6.5/§7.4/§8.x — ✅ 已落地（2026-05-13，**Breaking change** vs V1.0/V1.2_draft §8.2 扁平契约，详见 §8.5）
 - **Batch C**：SRS §7.3 `molecular_weight_da / pi_theoretical` NUMERIC 类型回归 — 待评估
 - **Batch G2**：API9 补 11 错误码 + API6 全局搜索响应分组 + UI1 Footer/Sidebar 底部 + UI2 偏好设置 + UI5 物质列表筛选 + UI6 列表关联计数 + UI10 PRS 列表 4 过滤接入 + UI11 详情页头部 3 动作 — ✅ 已落地（2026-05-13）
+- **Batch G3.A**：ARCH12 meta.lookup_value + meta.system_config 建表 + seed（migration 0030）+ API5 三域 POST 主资源 Location 头 — ✅ 已落地（2026-05-13）
+- **Batch G3.B**：ARCH11 API 限流 + API7 Idempotency-Key — 🚧 推迟到 Phase 4（强依赖 Redis 应用层接入）
+- **Batch G3.C**：9 项进 V1.2 评审会议（见 `docs/CMAB_MDM_Portal_V1.2_评审会议材料.md`）— ARCH9 前端技术栈 / API4 项目嵌套 / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API13 protein/adc 写端点 / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分
 - **Batch G3**：架构/API/UI 推迟与评审决策类（API10/API11 用户角色权限端点、ARCH9 前端技术栈、ARCH11 限流、UI7 项目概览 Tab 重构、UI9 物质关联 Tab 拆分等）
 - **评审决策类**：P3 team unique 业务语义、P8 project_relationship 上层、各 🟢 加强项吸收等
 
@@ -596,6 +599,9 @@ UI 实际对齐率：G1.A 前 ~70-72%，G1.A 后回升到 **~76%**；非"~82%"�
 | **M3.8 (Batch G1.A)** | **架构/API/UI 三上位文档独立复核 + 21 CFR Part 11 §11.50 合规必修**：API1 错误码 40404/40405 错位修正（asset→40404 / xref→40406 / 新增 Material 占位）；UI3 StatusActionsBar 加独立"签名理由" TextArea + 后端 schema/service 透传 e_signature.signature_reason 与 change_reason 分离；UI4 GxP 关键动作二次确认 Modal.confirm | ✅ 2026-05-13 完成 |
 | **M3.9 (Batch G1.B)** | **状态机契约硬切回归 V1.1 嵌套**：请求 `{comment, signature: {password, meaning, reason}}` + 响应 `StateChangeResponse`（含 entity_code / old_status / new_status / signature_id / registered_at? / registered_by? / version）；audit/schemas.py 新增 SignatureBlock + SignatureMeaning + StateChangeResponse；后端 3 schema/3 service/3 router；前端 types.ts + 3 API client + StatusActionsBar + 3 DetailPage；测试 ~28 处 json body + 12 处 data["new_status"]。**Breaking change vs V1.0 扁平契约**，本仓库内全栈同步切换 | ✅ 2026-05-13 完成 |
 | **M3.10 (Batch G2)** | **中优先级 8 项**：API9 补 11 错误码（exceptions.py 18→35 类）+ API6 全局搜索响应改 V1.1 §8.3 分组结构（audit/schemas 新增 SearchGroup + GlobalSearchResponse，前后端 + 4 个 link Tab AutoComplete 全部适配）+ UI1 MainLayout Footer + Sidebar 底部健康检查 + UI2 用户菜单加偏好设置 + UI5 物质列表加靶点 input + 更多筛选 Drawer + UI6 物质列表加关联项目/资产计数列（srs.list_substances 改聚合查询）+ UI10 PRS 列表加 priority/program_name/parent/confidentiality 4 过滤 + UI11 三域 DetailPage 头部加复制编码/分享/查看审计 3 按钮 + Tabs 改受控；test_global_search 11→12 用例 | ✅ 2026-05-13 完成 |
+| **M3.11 (Batch G3.A)** | **零评审依赖 2 项**：ARCH12 建 meta.lookup_value + meta.system_config（migration 0030，DM V1.1 §5.2/§5.3 完整 seed：33 lookup + 10 config）+ API5 三域 POST 主资源（substance/project/asset）加 V1.1 §6.2 Location 响应头；test_substance_crud test_create_substance_returns_code 加 Location 头断言 | ✅ 2026-05-13 完成 |
+| **Batch G3.B** | **推迟到 Phase 4**：ARCH11 API 限流（slowapi + 4 档 + X-RateLimit-* + 42901 + Retry-After）+ API7 Idempotency-Key 24h 幂等 + 40905；强依赖 Redis 应用层接入 | 🚧 Phase 4 |
+| **Batch G3.C** | **9 项进 V1.2 评审会**：ARCH9 前端技术栈 5 项 / API4 项目嵌套子资源 / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API13 protein/adc 写端点 / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分回归。详见 docs/CMAB_MDM_Portal_V1.2_评审会议材料.md | 🚧 待评审 |
 | **Batch G3** | **推迟与评审决策**：API4 项目嵌套子资源 / API5 Location 头 / API7 Idempotency-Key / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API12 substances/{}/materials / API13 protein/adc 独立写端点 / ARCH9 前端技术栈 5 项 / ARCH11 限流 / ARCH12 meta lookup_value + system_config / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分回 1 Tab 5 组 | 🚧 评审决定 |
 | **Batch C** | **SRS §7.3 molecular_weight_da / pi_theoretical 从 Float 回归 NUMERIC** | 🚧 待评估（dev 库精度截断验证） |
 | **V1.1 / V1.2 评审** | **IT 架构组评审本偏离说明 + 决定吸收哪些"实施侧合理加强"到上位文档；PRS P3 团队 unique 业务语义拍板；PRS P8 project_relationship 上层是否进 Phase 3+；UI7/UI8/UI9 重大改版决定** | 🚧 待安排 |
@@ -633,20 +639,25 @@ V1.1 §7 内容不变。新增风险：
 
 ---
 
-## 附录 A：跨文档对齐率汇总（2026-05-13 修订三）
+## 附录 A：跨文档对齐率汇总（2026-05-13 修订四）
 
-> **说明**：本表对齐率已基于 §7 / §8 / §9 / §11 + 架构 / API / UI 三上位文档完整独立复核 + G1.A/G1.B/G2 落地后重新计算。修订三在修订二基础上反映 Batch G2 8 项落地（API6 / API9 / UI1 / UI2 / UI5 / UI6 / UI10 / UI11）。
+> **说明**：本表对齐率已基于 §7 / §8 / §9 / §11 + 架构 / API / UI 三上位文档完整独立复核 + G1.A/G1.B/G2/G3.A 落地后重新计算。
 
-| 上位文档 | 修订二 | 修订三 | 主要缺口 |
+| 上位文档 | 修订三 | 修订四 | 主要缺口 |
 |---|---|---|---|
 | DM-MDM-001 V1.1（数据模型）| ~97% | **~97%** | 已修：Batch A/B/S8/D/E/F；待修：Batch C / P3 / P8 / R8（评审）；推迟：§10 物料域（Phase 4）|
-| ARCH-MDM-001 V1.1（架构）| ~85% | **~85%** _未推进_ | 缺前端技术栈 5 项（ARCH9）+ 缺 API 限流（ARCH11）+ Refresh Token（ARCH2）+ 中间件链非一对一（ARCH1）+ meta 表只 1/3（ARCH12）+ RequestID ContextVar 泄漏（ARCH3）— 全部待 Batch G3 / Phase 4 |
-| API-MDM-001 V1.1（API）| ~78% _G1.A/G1.B 后_ | **~83%** _G2 后_ | G2 修 API6（搜索响应分组）+ API9（11 错误码定义）；剩余 Batch G3 API4/5/7/10/11/12/13（用户角色权限 12 + 全局功能 5 + 嵌套子资源 + Location 头 + Idempotency 等）|
-| UI-MDM-001 V1.1（UI 信息架构）| ~76% _G1.A 后_ | **~82%** _G2 后_ | G2 修 UI1/UI2/UI5/UI6/UI10/UI11 六项；剩余 Batch G3 UI7/UI8/UI9（项目概览 Tab 重构 / 资产阶段时间线 / 物质关联 Tab 拆分回归 1 Tab 5 组）|
+| ARCH-MDM-001 V1.1（架构）| ~85% | **~87%** _G3.A 后_ | G3.A 修 ARCH12（meta 2 表落地，3/3 完整）；剩余 G3.B（ARCH11 限流 Phase 4）+ G3.C（ARCH9 前端技术栈待评审）+ ARCH2/3 中间件链与 Refresh Token |
+| API-MDM-001 V1.1（API）| ~83% | **~84%** _G3.A 后_ | G3.A 修 API5（POST 主资源 Location 头）；剩余 G3.B（API7 Idempotency Phase 4）+ G3.C 7 项待评审（API4/10/11/12/13 等）|
+| UI-MDM-001 V1.1（UI 信息架构）| ~82% | **~82%** _G3.A 不影响 UI_ | G3.C 3 项待评审（UI7/UI8/UI9）|
 
-**整体加权对齐率**：**~87%**（修订二 ~84% + Batch G2 落地 +3pp；架构未推进保持 ~85%；数据模型保持 ~97%；API/UI 各提 ~5-6pp）。Phase 1-3 核心路径已闭环 + 合规必修（G1.A/G1.B）+ 中优先级 8 项（G2）全部落地。剩余 Batch G3 + Batch C + Phase 4-5 推迟项决定**仍不能表述为生产级 GxP 全面完成**。
+**整体加权对齐率**：**~88%**（修订三 ~87% + Batch G3.A 落地 +1pp；架构 +2pp，API +1pp，UI 不变；数据模型保持 ~97%）。Phase 1-3 核心路径已闭环 + 合规必修（G1.A/G1.B）+ 中优先级 8 项（G2）+ 零评审依赖 2 项（G3.A）全部落地。剩余 G3.B/G3.C + Batch C + Phase 4-5 推迟项**仍不能表述为生产级 GxP 全面完成**。
 
-**评审建议**：V1.2 评审会重点决议（a）G1.B 状态机嵌套契约是否作为正式 API 基准；（b）Batch G3 哪些列入 Phase 4 / 哪些推迟到 Phase 5；（c）UI7/UI8/UI9 重大改版决定；（d）SRS Batch C 类型回归是否优先做；（e）ARCH9 前端技术栈 5 项是否真需要（React Hook Form / Zod / ECharts / Recharts / React Flow / Pro Components）。
+**评审建议**：V1.2 评审会重点决议见 `docs/CMAB_MDM_Portal_V1.2_评审会议材料.md`（一页纸 13 项决议表 + 签字栏）：
+- 数据模型 4 项（S5/S6 类型回归、P3 团队 unique、R8 ref FK）
+- PRS 上层 1 项（P8 project_relationship）
+- 架构 1 项（ARCH9 前端技术栈 5 项是否引入）
+- API 4 项（API4 项目嵌套 / API10 用户角色权限 / API11 全局功能 / API13 protein/adc 写端点）
+- UI 3 项（UI7 项目概览 / UI8 资产阶段时间线 / UI9 物质关联 Tab）
 
 ---
 
@@ -654,7 +665,7 @@ V1.1 §7 内容不变。新增风险：
 
 V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Phase 4 / CI 门禁建设计划。
 
-当前回归依赖 `backend/tests/` 中 **126 条** pytest 用例（M3.10 完成时计数，比 M3.4 的 117 条新增 9 条：S10 / S11 / R5×2 / P9+P10 联合 / R6 + G1.A API1 错误码 + G1.B signature_reason 独立 + G2 API6 search 响应分组结构）。每次 alembic upgrade head + pytest 全量通过作为 M3.x 各里程碑验收门禁。
+当前回归依赖 `backend/tests/` 中 **126 条** pytest 用例（M3.11 完成时计数，比 M3.4 的 117 条新增 9 条：S10 / S11 / R5×2 / P9+P10 联合 / R6 + G1.A API1 错误码 + G1.B signature_reason 独立 + G2 API6 search 响应分组结构；M3.11 G3.A 的 API5 Location 头断言加入现有 test_create_substance_returns_code，不增用例数）。每次 alembic upgrade head + pytest 全量通过作为 M3.x 各里程碑验收门禁。
 
 详细的「偏离项 → 测试覆盖」映射见**附录 C**（CSV 验证 IQ/OQ 阶段证据链）。
 

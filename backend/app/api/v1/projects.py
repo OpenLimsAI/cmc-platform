@@ -5,7 +5,7 @@ M2.1：CRUD + 审计查询
 M2.2：状态机 + status-history + milestones / team 子资源
 M2.3 起：/projects/{code}/substances 绑定/解绑 + 反向查询
 """
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -83,11 +83,14 @@ async def list_projects(
 async def create_project(
     payload: ProjectCreate,
     request: Request,
+    response: Response,
     user: User = Depends(require_permission("project:create")),
     db: AsyncSession = Depends(get_db),
 ):
     service = ProjectService(db)
     detail = await service.create(payload, user)
+    # API5 / V1.1 §6.2：POST 创建必须设 Location 头
+    response.headers["Location"] = f"/api/v1/projects/{detail.project_code}"
     return success(
         data=detail.model_dump(mode="json"),
         message="Project 创建成功",

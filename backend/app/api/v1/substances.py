@@ -1,7 +1,7 @@
 """
 /api/v1/substances 路由
 """
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -73,11 +73,14 @@ async def check_substance_sameness(
 async def create_substance(
     payload: SubstanceCreate,
     request: Request,
+    response: Response,
     user: User = Depends(require_permission("substance:create")),
     db: AsyncSession = Depends(get_db),
 ):
     service = SubstanceService(db)
     detail = await service.create(payload, user)
+    # API5 / V1.1 §6.2 行 971-972：POST 创建必须设 Location 头
+    response.headers["Location"] = f"/api/v1/substances/{detail.substance_code}"
     return success(
         data=detail.model_dump(mode="json"),
         message="Substance 创建成功",

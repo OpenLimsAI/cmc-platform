@@ -21,6 +21,9 @@ async def test_create_substance_returns_code(admin_client, unique_suffix):
     assert body["data"]["substance_code"].startswith("SUB-")
     assert body["data"]["status"] == "draft"
     assert body["data"]["version"] == 1
+    # API5（V1.1 §6.2 行 971-972 / Batch G3.A）：POST 创建必须设 Location 头
+    code = body["data"]["substance_code"]
+    assert resp.headers.get("location") == f"/api/v1/substances/{code}"
 
 
 @pytest.mark.asyncio

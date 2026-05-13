@@ -5,7 +5,7 @@ M3.1：CRUD + 审计查询
 M3.2：状态机 + market-id 子资源
 M3.3：跨域绑定 ref.asset_substance / ref.project_asset
 """
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -74,11 +74,14 @@ async def list_assets(
 async def create_asset(
     payload: AssetCreate,
     request: Request,
+    response: Response,
     user: User = Depends(require_permission("asset:create")),
     db: AsyncSession = Depends(get_db),
 ):
     service = AssetService(db)
     detail = await service.create(payload, user)
+    # API5 / V1.1 §8.2：POST 创建必须设 Location 头
+    response.headers["Location"] = f"/api/v1/assets/{detail.asset_code}"
     return success(
         data=detail.model_dump(mode="json"),
         message="Asset 创建成功",
