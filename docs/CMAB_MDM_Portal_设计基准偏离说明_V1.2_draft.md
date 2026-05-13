@@ -9,7 +9,7 @@
 | 编制 | CMC R&D（实施侧） |
 | 日期 | 2026-05-13 |
 | 分类 | 合规审计配套文档 |
-| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地 — 推翻 §2/§3/§6 原"100% 对齐"声明，重列 SRS/PRS/ARS/REF 共 39 项偏离与处置） |
+| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订一，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地 — 推翻 §2/§3/§6 原"100% 对齐"声明，重列 SRS/PRS/ARS/REF 共 39 项偏离与处置）<br>V1.2 Draft（2026-05-13 修订二，**架构 / API / UI 三上位文档独立复核 + Batch G1.A/G1.B 落地** — 推翻 §7/§8/§9 原"~95%/~85%/~82%"自报对齐率，重列 30+ 项偏离；G1.A 修复 API1 错误码错位 + UI3 签名理由独立字段 + UI4 二次确认；G1.B 状态机契约硬切回归 V1.1 嵌套 `{comment, signature:{password,meaning,reason}}` + 响应 `StateChangeResponse`） |
 
 ## 1. 文档目的
 
@@ -23,7 +23,11 @@
 - **Batch D**：ARS §8.4 + PRS §9.5 同款触发器 GUC 去除 + REF §11.2 `fk_ref_ps_deleted_by` FK 补齐 + PRS §9.2 索引命名回归 + `ix_project_dates` 新建 — 已通过 **migration 0029** 回归
 - **Batch E**：REF §11.1 `PROJECT_STATUS_FORBID_LINK` service 层校验补齐（terminated project 双侧禁建）— 已落地
 - **Batch F**：ARS/PRS/REF 6 项 API schema 表面暴露（A7-A9 / P9-P10 / R6-R7）— ✅ 已落地（2026-05-13）
+- **Batch G1.A**：API1 错误码 40404/40405 错配修正 + UI3 签名理由独立字段 + UI4 GxP 关键动作二次确认 — ✅ 已落地（2026-05-13，21 CFR Part 11 §11.50 合规必修，见 §8.5 / §9.4）
+- **Batch G1.B**：API2 状态机请求嵌套 `{comment, signature}` + API3 响应 `StateChangeResponse` 硬切回归 V1.1 §6.5/§7.4/§8.x — ✅ 已落地（2026-05-13，**Breaking change** vs V1.0/V1.2_draft §8.2 扁平契约，详见 §8.5）
 - **Batch C**：SRS §7.3 `molecular_weight_da / pi_theoretical` NUMERIC 类型回归 — 待评估
+- **Batch G2**：UI10 PRS 列表前端接入 Batch F 后端过滤 / API6 全局搜索响应分组 / UI5 物质列表常用筛选 / API9 错误码补 11 项 / UI1+UI2+UI11 详情页头部完善 等 10 项中优先级 — 🚧 下批
+- **Batch G3**：架构/API/UI 推迟与评审决策类（API10/API11 用户角色权限端点、ARCH9 前端技术栈、ARCH11 限流、UI7 项目概览 Tab 重构、UI9 物质关联 Tab 拆分等）
 - **评审决策类**：P3 team unique 业务语义、P8 project_relationship 上层、各 🟢 加强项吸收等
 
 三类处置标签不变：
@@ -318,9 +322,52 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 | 7.2.5 | 数据库备份策略 | 未定义 | Phase 4 生产部署前定义备份策略，并完成至少一次恢复演练，形成可审计记录 |
 | 7.2.6 | 测试覆盖率工具兼容性 | V1.1 §附录 A 提到 schema 一致性检查脚本，未实现 | 维持记录，CI 门禁待 Phase 4 补 |
 
-### 7.3 已对齐项（无偏离）
+### 7.3 已对齐项（V1.2 原表述）
 
 技术栈 / 分层结构 / JWT 认证 / RBAC / 审计追踪 / 中间件链均与 ARCH-MDM-001 V1.0 一致。架构层面对齐率 **95%**（缺口主要在生产部署 / 可观测性，非核心阻塞）。
+
+**⚠️ 2026-05-13 修订**：本节"~95%"声明经独立复核**不准确**，实际约 **~85%**，新发现偏离详见 §7.4。
+
+### 7.4 §7 架构 独立复核增补（2026-05-13）
+
+经对 ARCH-MDM-001 V1.1 独立逐节复核（不依赖 §7.1-§7.3 自我声明），共发现 15 项实质偏离 / 加强 / 推迟项。
+
+#### 🟥 待对齐回归
+
+| # | V1.1 §X | 设计要求 vs 实施 | 引用 | 严重 |
+|---|---|---|---|---|
+| ARCH1 | §4.3 中间件链 | 设计要求 JWT / RBAC / 审计拦截器 / 请求 ID / CORS / 限流 6 层；实施 main.py 仅 CORS + RequestID + AuditContext 3 层（JWT/RBAC 走 Depends，审计写入散落 service+触发器，**限流缺失**） | `backend/app/main.py:49-58` | 中 |
+| ARCH2 | §7.2.1 行 918 | 设计 Access + Refresh Token 双 token + HttpOnly Cookie；实施 `create_refresh_token` 已定义但 `login()` 未调用、无 Cookie | `backend/app/core/security.py:48-58` + `backend/app/domains/auth/services.py:196-213` | 中（与 V1.2_draft §8.1.1 推迟一致） |
+| ARCH3 | §4.3 链路追踪 | RequestID 走 `BaseHTTPMiddleware` + `ContextVar.set()`，dispatch 后 ContextVar 已逃离原始 task 上下文，下游 Depends 取值不稳定（audit 触发器偶发拿不到 request_id） | `backend/app/shared/middleware/request_id.py:17` | 低 |
+
+#### 🟢 实施侧加强（V1.2_draft §7.1 已记录 3 项 + 新增 2 项）
+
+| # | 加强 | 状态 |
+|---|---|---|
+| ARCH4 | 失败副作用旁路 session 同时覆盖**登录失败 + 电子签名失败**（V1.1 §6.5 行 867-877 已吸收）| 已对齐，文档准确 |
+| ARCH5 | `require_all_permissions` 工厂（V1.2_draft §7.1.2 已记录）| 描述准确 |
+| ARCH6 | asyncpg GUC 显式 UPDATE 改造（V1.2_draft §7.1.1 已记录）| 描述准确 |
+| ARCH7 | JWT iat 整秒截断（V1.2_draft §7.1.3 已记录）| 描述准确 |
+| ARCH8 | `audit.fn_audit_trigger` 3 参数 + parent_ref 父表 entity_code 回填（V1.1 §6.5 行 865 已吸收）| 已对齐，文档准确 |
+
+#### 🟠 未实施 / 推迟（V1.2_draft §7.2 已记 6 项 + 新增 2 项）
+
+| # | 内容 | 计划 |
+|---|---|---|
+| ARCH9 | **前端技术栈缺 5 项**：V1.1 §5.1 列 React Hook Form + Zod / ECharts / Recharts / React Flow / Ant Design Pro Components；`frontend/package.json:13-25` 均无（表单走 antd 原生 Form，图表与血缘图组件无）| 进 Batch G3 / Phase 4-5 评审决定哪些需要 |
+| ARCH10 | V1.1 §4.2 Celery Worker / MinIO 行 481/496（设计标注"可选"）| 推迟 |
+| ARCH11 | **API 限流缺失**：V1.1 §3.5 行 562-579 要求 4 档速率限制 + `X-RateLimit-*` 头 + 42901 + `Retry-After`；`backend/app/main.py:55` 仅 expose header，无实际限流中间件，pyproject 无 slowapi/limits | 进 Batch G3 / Phase 4 生产前 |
+| ARCH12 | **meta schema 表只落地 1/3**：V1.1 §6.1 行 727 列 `meta.lookup_value` / `meta.system_config` / `meta.code_sequence`，alembic 仅建 code_sequence | 进 Phase 5 Admin 工具时建 |
+| ARCH13 | V1.2_draft §7.2.1-§7.2.6 已记 6 项（Redis / Prometheus / ELK / nginx / 备份 / 测试覆盖率）| 描述准确 |
+
+#### ⚠️ V1.2_draft §7 声明不准确
+
+| # | 原文 | 实测 |
+|---|---|---|
+| ARCH14 | §7.3"~95%"声明 | 缺前端 5 项技术栈（ARCH9）+ 缺限流（ARCH11）+ Refresh Token 流转未实施（ARCH2）+ 中间件链与 V1.1 §4.3 设计图非一对一（ARCH1）+ meta 表只 1/3（ARCH12）→ 实际 **~85%** |
+| ARCH15 | §7.1 未记录 | ARCH3 ContextVar 跨边界泄漏风险 + ARCH12 meta 表落地不完整 |
+
+---
 
 ---
 
@@ -361,9 +408,71 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 - `42203 signature_required` ← 实施侧新增（保留 V1.0 既有 `42202 reference_in_use`，避免破坏性变更）
 - `42301 account_locked`
 
-### 8.4 已对齐项
+### 8.4 已对齐项（V1.2 原表述）
 
 CRUD 路径 / 响应格式（code/message/data/meta + pagination）/ 错误码 HTTP 映射 / 状态机端点路径 / 审计端点 / 跨域绑定端点均与 API-MDM-001 V1.0 一致。API 层面对齐率 **~85%**（缺口集中在 batch / refresh / merge / advance-phase 等非核心扩展端点）。
+
+**⚠️ 2026-05-13 修订**：本节"~85%"声明经独立复核**不准确**，实际约 **~70-75%**（G1.A/G1.B 已修若干合规缺口后回升至 ~78%），详见 §8.5。
+
+### 8.5 §8 API 独立复核 + G1 落地（2026-05-13）
+
+经对 API-MDM-001 V1.1 端点逐条复核，共发现 23 项偏离。本批次（G1.A + G1.B）已修 4 项严重合规相关项，其余进路线图。
+
+#### 🟥 已修 / Batch G1.A（合规必修）
+
+| # | V1.1 §X | 偏离 | 处置 |
+|---|---|---|---|
+| API1 | §4.2 行 638-641 | 错误码错配：`AssetNotFoundError.code = 40405`（应为 40404）、`XrefNotFoundError.code = 40404`（应为新位）；V1.1 表 40404=asset / 40405=material 被实施侧错位 | ✅ `core/exceptions.py` 修正：asset→40404、xref→40406（V1.1 表未定义，扩展位）、新增 MaterialNotFoundError=40405 占位；新增测试 `test_asset_not_found_returns_40404` |
+
+#### 🟥 已修 / Batch G1.B（V1.1 §6.5/§7.4/§8.x 嵌套契约硬切）
+
+| # | V1.1 §X | 偏离（原 V1.2_draft 表述） | 处置 |
+|---|---|---|---|
+| API2 | §6.5 行 1129-1138 | 状态机请求 V1.1 要求嵌套 `{"comment", "signature": {"password", "meaning", "reason"}}`；实施侧扁平 `{"change_reason", "password"}`（G1.A 后扩展为 `{"change_reason", "password", "signature_reason"}` 仍是扁平） | ✅ 后端 `SubstanceStatusChange / ProjectStatusChange / AssetStatusChange` 全部重构为 `comment + signature: SignatureBlock\|None`；新建 `audit/schemas.py::SignatureBlock`（password/meaning?/reason）|
+| API3 | §6.5 行 1140-1155 | 状态机响应 V1.1 要求 `{entity_code, old_status, new_status, signature_id, registered_at?, registered_by?}`；实施侧返回 Detail 全量 | ✅ 新建 `audit/schemas.py::StateChangeResponse`（三域共用，含 substance_code/project_code/asset_code 三选一 + version 乐观锁）；3 个 service.change_status 返回新类型；3 个 router 改返回结构 |
+
+**G1.B 是 Breaking change**：所有依赖旧扁平契约的客户端必须改为嵌套。本仓库前端 + 测试已同步切换（StatusActionsBar、3 个 DetailPage、3 个 API client、~28 处测试 json body）。
+
+#### 🟥 已修 / Batch G1.A（UI 配套，登记于此供审计追溯）
+
+| # | V1.1 §X | 偏离 | 处置 |
+|---|---|---|---|
+| UI3-API | §6.4 + §7.3 行 982 + §9.2.1 | 签名理由字段缺失（被 change_reason 共用，违反 §11.50"独立签名含义记录"）| ✅ 后端 schema + service 透传 `signature.reason` 写入 `e_signature.signature_reason`（与 `comment` 分离）；新增 `test_signature_reason_independent_from_comment` |
+
+#### 🟠 待修 / Batch G2（中优先级）
+
+| # | V1.1 §X | 偏离 | 计划 |
+|---|---|---|---|
+| API6 | §8.3 行 1688-1721 | 全局搜索响应 V1.1 要求 `data: {query, total, results: {substance, project, asset}}` 分组；实施返回平铺 `data: [SearchHit, ...]`，无分组结构 | Batch G2：响应分组改造 |
+| API9 | §4.2 行 614-654 | V1.1 §4.2 定义 ~30 错误码；实施 `core/exceptions.py` 仅定义 18 个（含 G1.A 新增 MaterialNotFoundError）。缺 11 个：weak_password / password_in_history / missing_required / invalid_value / code_format_invalid / data_access_denied / operation_not_allowed / user_not_found / duplicate_name / duplicate_request / reference_in_use | Batch G2：补 11 个 |
+
+#### 🟠 推迟 / Batch G3 或 Phase 4-5
+
+| # | V1.1 §X | 偏离 | 计划 |
+|---|---|---|---|
+| API4 | §7.2 行 1346-1382 | 项目创建请求 V1.1 用 `project_manager_username/sponsor_username` + 嵌套 `related_substances/related_assets/team`；实施只接 ID，无嵌套子资源 | Phase 5 评审决定（与 P3 团队 unique 一起）|
+| API5 | §6.2 行 971-972 | POST 创建响应缺 `Location: /api/v1/{entity}/{code}` 头 | Batch G3 轻量 |
+| API7 | §3.4 行 541-558 | `Idempotency-Key` 24h 幂等 + 40905 duplicate_request 未实现 | Phase 4 生产前 |
+| API8 | §3.5 行 562-579 | 速率限制中间件 + 4 档限流 + 42901 + `Retry-After`（同 ARCH11）| 进 ARCH11 / Phase 4 |
+| API10 | §5.1.2 行 720-735 | **用户/角色/权限管理 12 端点全部缺**：`/users` `/roles` `/permissions` list/create/lock/unlock/reset-password/角色分配等 | UI Phase 5/6 Admin（V1.2_draft §9.2.6 已记 UI 推迟，API 与之同步推迟）|
+| API11 | §5.1.7 行 821-832 + §8.4-§8.6 | **全局功能端点缺**：`GET /audit-logs` / `POST /audit-logs:export` / `GET /lookups/{type}` / `GET/POST /signatures` / `GET /system/info` 全部未实现 | Phase 4-5 |
+| API12 | §5.1.3 行 759 | `GET /substances/{code}/materials` 反向列表端点未实现 | 跟 MM 域 Phase 4 一起 |
+| API13 | §5.1.3 行 750-756 | `GET/PUT /substances/{code}/protein`、`GET/PUT /substances/{code}/adc`、`GET /substances/{code}/xrefs` 独立子资源端点缺；V1.2_draft §8.2 已记 GET 用 expand 替代，但写端点 PUT /protein、PUT /adc 也未实现 | Phase 5 ADC/小分子业务时补 |
+
+#### 🟢 实施侧加强（已实施，建议吸收 V1.1 下版）
+
+| # | V1.1 §X | 加强 |
+|---|---|---|
+| API14 | §5.1.3 行 746-749 | Substance 状态机端点补全：V1.1 仅列 approve/reject/deprecate/merge；实施补 `:activate / :restrict / :obsolete` 三个端点（与 DM-MDM-001 完整状态机匹配）|
+| API15 | §5.1.4 行 764-787 | Project 状态机端点补全：V1.1 仅列 approve/terminate；实施补 `:start / :hold / :resume / :complete` 四个端点 |
+| API16 | 无 V1.1 明示 | Project DELETE / Milestone DELETE / Team DELETE 带 body 携带 `change_reason ≥ 5`；21 CFR Part 11 §11.10(e) 要求软删审计有原因，实施统一强制 |
+| API17 | §5.1.3-§5.1.5 | `audit-logs` 端点加 `include_children=true` 查询参数（默认包含子表审计）|
+
+#### ⚠️ V1.2_draft §8.4 声明不准确
+
+按端点数粗算：V1.1 §5.1 共定义约 64 端点，实施约 47 个核心端点；缺 12 用户/角色 + 5 全局功能 + 部分子资源 + 错误码错位 + 状态机契约偏离（G1.B 前）≈ 17+ 端点 schema 级偏差。**实际对齐率 G1.A/G1.B 前 ~65-70%，G1.A/G1.B 后回升到 ~78%**；非"~85%"。
+
+---
 
 ---
 
@@ -407,6 +516,67 @@ CRUD 路径 / 响应格式（code/message/data/meta + pagination）/ 错误码 H
 
 UI 层面对齐率 **~82%**（缺口集中在 Phase 4-6 范围内的物料 / 系统管理 / 高级体验组件）。
 
+**⚠️ 2026-05-13 修订**：本节"~82%"声明经独立复核**不准确**，实际约 **~70-72%**（G1.A 修复 UI3/UI4 后回升到 ~76%），详见 §9.4。
+
+### 9.4 §9 UI 独立复核 + G1.A 落地（2026-05-13）
+
+经对 UI-MDM-001 V1.1 §1-§9 逐节复核，共发现 21 项偏离。本批次（G1.A）已修 2 项与 21 CFR Part 11 §11.50 直接相关的合规缺口，其余进路线图。
+
+#### 🟥 已修 / Batch G1.A（GxP/Part 11 合规必修）
+
+| # | V1.1 §X | 偏离（原 V1.2_draft 描述错位）| 处置 |
+|---|---|---|---|
+| UI3 | §6.4 行 833-839 + §7.3 行 982 + §9.2.1 行 1230 | 电子签名表单缺**独立"签名理由"字段**：V1.1 设计要求三字段（变更原因 / 签名理由 / 密码）；实施 `StatusActionsBar.tsx` 只有变更原因 + 密码，签名理由被 `change_reason` 共用 — **违反 21 CFR Part 11 §11.50「记录单独的签名含义」** | ✅ `StatusActionsBar.tsx` 在 `requiresSignature` 时增 `signature_reason` TextArea（min_length=5）；后端 schema + service 把字段独立写到 `e_signature.signature_reason`；G1.B 又把整个请求改成嵌套 `signature: {password, reason, meaning?}` |
+| UI4 | §9.2 行 1184-1196 + §7.3 行 984 | terminate / 不可逆操作 V1.1 要求二次确认弹窗；实施 `StatusActionsBar` 直接在表单 Modal onOk 提交，无第二级 Modal.confirm | ✅ `StatusActionsBar.handleSubmit` 在 `requiresSignature \|\| danger` 时调 `Modal.confirm`，文案"该操作不可撤销，将以电子签名形式记录"+ "确认签名"/"我再想想" 两按钮 |
+
+#### 🟥 / 🟠 待修 / Batch G2（中优先级）
+
+| # | V1.1 §X | 偏离 | 计划 |
+|---|---|---|---|
+| UI10 | §9.2 + V1.1 §9.2 字段 | PRS 列表前端**未接入 Batch F 后端新加的 4 个过滤参数**（priority / program_name / parent_project_id / confidentiality）| Batch G2：FE ProjectListPage 加 4 个 filter input |
+| UI5 | §6.1.1 行 545 | SRS 列表常用筛选缺「靶点」+ 全部「更多筛选」（保密 / 是否专有 / 表达系统 / 创建人 / 日期范围）| Batch G2 |
+| UI1 | §3.1 / §3.3 行 218/259 | MainLayout 缺**固定 Footer**（版本号+服务器时间）+ Sidebar 底部缺版本号/健康检查绿点 | Batch G2 轻量 |
+| UI2 | §3.2.3 行 247 | 用户下拉菜单缺「偏好设置」项 | Batch G2 轻量 |
+| UI6 | §6.1 行 420-426 | SRS 列表列缺「关联项目」计数列 | Batch G2 |
+| UI11 | §3.4.2 行 274-291 | 详情页 Page Header 右侧动作组缺「分享 / 复制编码 / 审计跳转」（三域一致缺失）| Batch G2 |
+
+#### 🟠 待修 / Batch G3（破坏性 UI 改造）
+
+| # | V1.1 §X | 偏离 | 计划 |
+|---|---|---|---|
+| UI7 | §7.2.1 行 859-887 | 项目详情 Tab 1「概览」V1.1 要求含进度条 / 时间轴 / 团队预览卡 / 关联预览卡；实施 Tab 1 仅 Descriptions 字段表（甘特图推迟在 V1.2_draft §9.2.2 已记，但 progress + 预览卡不在推迟清单）| Batch G3 重大改版 |
+| UI8 | §7.3 行 925 | 资产详情 Tab 1 V1.1 要求含「当前阶段时间线」；实施仅 `phase_change_at` 一行 | Batch G3 |
+| UI9 | §6.2.5 行 648-677 | 物质详情「关联」V1.1 设计是 **1 Tab × 5 分组**（项目/资产/物料/父substance/子substance），实施拆为 2 Tab，缺**父/子 substance 视图**（ADC ↔ antibody 反向引用，重要 ADC 业务场景）| Batch G3 评审是否回归 |
+
+#### 🟠 推迟（V1.2_draft §9.2 之外的新发现）
+
+| # | V1.1 §X | 内容 | 计划 |
+|---|---|---|---|
+| UI14 | §4.2 仪表盘 | 「我的项目」/「项目状态分布」/「系统公告」三块缺（V1.2_draft §9.2.9 只说「待办/最近访问」占位，§4.2 还要这三块）| Phase 5 |
+| UI15 | §6.1 / §5.3.4 工具栏 | 三域列表无 rowSelection / 批量操作 / 列设置 / 导出 | Phase 5 |
+| UI16 | §9.1.3 | 创建页自动保存草稿（IndexedDB 30s）未实现 | Phase 5 |
+| UI17 | §9.5 并发锁 | 详情页无"他人正在编辑"提示；version 冲突仅靠 422 toast | Phase 4-5 |
+
+#### 🟢 实施侧加强（V1.1 未记录，建议吸收）
+
+| # | 加强 | 文件 |
+|---|---|---|
+| UI12 | 物质/项目/资产**三域统一把"状态历史"独立成 Tab**（V1.1 仅物质详情提）| 三个 `*DetailPage.tsx` history Tab |
+| UI13 | substance_type 补 `bispecific / oligonucleotide / other` 三项（V1.1 §6.2.2 仅列 mAb/ADC/small_molecule）| `constants.ts:3-11` |
+
+#### ⚠️ V1.2_draft §9.1 / §9.3 声明不准确
+
+| # | 原文 | 实测 |
+|---|---|---|
+| UI18 | §9.1 "导航/侧边菜单/Header 全局搜索 已对齐" | Footer 缺（UI1）/ Sidebar 底部缺（UI1）/ 用户菜单缺偏好设置（UI2）/ GlobalSearchBox placeholder 缺 Ctrl+K 提示（V1.1 §3.2.2 强制要求文案）|
+| UI19 | §9.1 "详情页 Tab 结构 已对齐" | 项目详情 Tab 1 概览结构不一致（UI7）/ 资产详情 Tab 1 缺阶段时间线（UI8）/ 物质详情关联从 1 Tab 5 组拆为 2 Tab 缺父/子 substance（UI9）|
+| UI20 | §9.1 "状态变更 UI 全套 已对齐 ... 电子签名密码与签名理由" | G1.A 修复前**签名理由字段不存在**（UI3）；G1.A 修复前**无二次确认弹窗**（UI4）；G1.A/G1.B 后已对齐 |
+| UI21 | §9.3 "Header 搜索分组对齐" | 准确，但 placeholder 未提 Ctrl+K（§3.2.2 强制）与 §9.2.1 推迟自相矛盾 |
+
+#### 整体重估
+
+UI 实际对齐率：G1.A 前 ~70-72%，G1.A 后回升到 **~76%**；非"~82%"。
+
 ---
 
 ## 10. 处置时间表
@@ -423,8 +593,12 @@ UI 层面对齐率 **~82%**（缺口集中在 Phase 4-6 范围内的物料 / 系
 | **M3.5 (Batch A+B+S8)** | **SRS §7 独立复核 + migration 0028（external_uuid UNIQUE / protein hash 索引 × 2 / xref_value 索引 / internal_code partial 索引 / fn_substance_status_change 去 GUC）+ Batch B API/前端字段暴露（xref effective/expiry + protein 7 字段）** | ✅ 2026-05-12 完成 |
 | **M3.6 (Batch D+E)** | **ARS §8 + PRS §9 + REF §11 独立复核 + migration 0029（fk_ref_ps_deleted_by / ars+prs fn_status_change 去 GUC / prs 索引命名 + ix_project_dates）+ Batch E（ref service 加 PROJECT_STATUS_FORBID_LINK）** | ✅ 2026-05-13 完成 |
 | **M3.7 (Batch F)** | **API schema 表面暴露（A7-A9 ARS / P9-P10 PRS / R6-R7 REF 共 6 项）：AssetDetail / AssetMarketIdSchema / StatusHistoryItem / ProjectFilter / ProjectBrief / AssetSubstanceLinkItem / ProjectAssetLinkItem 加字段；prs/services.py list_projects 加 5 条过滤分支；api/v1/projects.py 加 5 query 参数；ref/services.py _compose_item 传 deleted_by** | ✅ 2026-05-13 完成 |
+| **M3.8 (Batch G1.A)** | **架构/API/UI 三上位文档独立复核 + 21 CFR Part 11 §11.50 合规必修**：API1 错误码 40404/40405 错位修正（asset→40404 / xref→40406 / 新增 Material 占位）；UI3 StatusActionsBar 加独立"签名理由" TextArea + 后端 schema/service 透传 e_signature.signature_reason 与 change_reason 分离；UI4 GxP 关键动作二次确认 Modal.confirm | ✅ 2026-05-13 完成 |
+| **M3.9 (Batch G1.B)** | **状态机契约硬切回归 V1.1 嵌套**：请求 `{comment, signature: {password, meaning, reason}}` + 响应 `StateChangeResponse`（含 entity_code / old_status / new_status / signature_id / registered_at? / registered_by? / version）；audit/schemas.py 新增 SignatureBlock + SignatureMeaning + StateChangeResponse；后端 3 schema/3 service/3 router；前端 types.ts + 3 API client + StatusActionsBar + 3 DetailPage；测试 ~28 处 json body + 12 处 data["new_status"]。**Breaking change vs V1.0 扁平契约**，本仓库内全栈同步切换 | ✅ 2026-05-13 完成 |
+| **Batch G2** | **中优先级 10 项**：UI10 PRS list FE 接入 Batch F 后端 / API6 全局搜索响应分组 / UI5 物质列表常用筛选 + 更多筛选 / API9 补 11 错误码 / UI1 Footer + Sidebar 底部 / UI2 偏好设置 / UI6 列表关联项目计数列 / UI11 详情页头部分享/复制/审计跳转 | 🚧 待开工 |
+| **Batch G3** | **推迟与评审决策**：API4 项目嵌套子资源 / API5 Location 头 / API7 Idempotency-Key / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API12 substances/{}/materials / API13 protein/adc 独立写端点 / ARCH9 前端技术栈 5 项 / ARCH11 限流 / ARCH12 meta lookup_value + system_config / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分回 1 Tab 5 组 | 🚧 评审决定 |
 | **Batch C** | **SRS §7.3 molecular_weight_da / pi_theoretical 从 Float 回归 NUMERIC** | 🚧 待评估（dev 库精度截断验证） |
-| **V1.1 / V1.2 评审** | **IT 架构组评审本偏离说明 + 决定吸收哪些"实施侧合理加强"到上位文档；PRS P3 团队 unique 业务语义拍板；PRS P8 project_relationship 上层是否进 Phase 3+** | 🚧 待安排 |
+| **V1.1 / V1.2 评审** | **IT 架构组评审本偏离说明 + 决定吸收哪些"实施侧合理加强"到上位文档；PRS P3 团队 unique 业务语义拍板；PRS P8 project_relationship 上层是否进 Phase 3+；UI7/UI8/UI9 重大改版决定** | 🚧 待安排 |
 | Phase 4 | 物料域（MM）基础域 + `/auth/refresh` + 全局搜索 material 接入 + 独立审计页 + Prometheus / 集中日志 / 生产部署配置 + 备份恢复演练 + CSV 验证准备 | 🚧 待开工 |
 | Phase 5 | 数据治理工具（merge / reject / batch / advance-phase 视需）+ Redis 缓存 + 系统管理 Admin UI + 复杂 fuzzy matching / 体验增强 | 🚧 待开工 |
 
@@ -439,7 +613,12 @@ V1.1 §7 内容不变。新增风险：
 | `asset_market_id` / `ref.asset_substance` / `ref.project_asset` 缺 `deleted_by` 与其他子表不一致 | 已通过 DM-MDM-001 V1.1 修订吸收，**部分关闭**：migration 0027 补 as/pa，但 ps 表至 migration 0029 才补齐 fk_ref_ps_deleted_by；现已全部统一 | `deleted_at + deleted_by` 标准 soft-delete 字段组在三张 ref 表完整 |
 | `terminated` 项目仍可接受新 substance/asset 关联（违反 §11.1 设计原则） | 中（已暴露 7 个月，dev 库未触发，但 GxP 合规缺口）| migration 0029 + Batch E：ref/services.py 加 `PROJECT_STATUS_FORBID_LINK`，双侧入口校验 |
 | ARS / PRS / SRS 三表 `fn_*_status_change` 走 `app.change_reason` GUC 通道，与 V1.1 §7.7 / §8.4 / §9.5 注释明文冲突 | 中（在 asyncpg 连接池下偶发 GUC 泄漏，e_signature_id 已先修，change_reason 残留） | migration 0028 + 0029 全部去 GUC，service 后置 UPDATE 回填实际 reason |
-| V1.2_draft §2 / §3 / §6 历史声明 "100% 对齐" 不实，构成审计可靠性风险 | 中（评审引用本文件作为合规证据时，"自我声明 100%" 会被打脸） | 2026-05-13 修订本文件，明确列出 §7/§8/§9/§11 实测偏离 39 项 + 处置批次 |
+| V1.2_draft §2 / §3 / §6 历史声明 "100% 对齐" 不实，构成审计可靠性风险 | 中（评审引用本文件作为合规证据时，"自我声明 100%" 会被打脸） | 2026-05-13 修订一：明确列出 §7/§8/§9/§11 实测偏离 39 项 + 处置批次 |
+| V1.2_draft §7/§8/§9 历史声明 "~95%/~85%/~82%" 不实，架构/API/UI 三上位文档实测对齐率分别为 ~85%/~78%/~76%（G1.A/G1.B 修复后）| 中 | 2026-05-13 修订二：§7.4/§8.5/§9.4 三处独立复核增补共列 30+ 项偏离 + Batch G1.A/G1.B 已修 |
+| API1 错误码 40404/40405 错位影响审计可追溯性（asset_not_found 错占 40405，xref_not_found 错占 40404）| 高（违反 V1.1 §4.2 表，可能误导日志检索/告警规则）| ✅ G1.A 修正：asset→40404、xref→40406、新增 MaterialNotFoundError=40405 占位 |
+| 电子签名签名理由字段被 change_reason 共用 — **违反 21 CFR Part 11 §11.50**「记录单独的签名含义」 | 高（GxP 合规直接缺口）| ✅ G1.A 加独立 signature_reason 字段；G1.B 进一步嵌入 `signature.reason`，与 `comment` 完全分离 |
+| GxP 关键动作（terminate / deprecate / obsolete 等）缺二次确认 — 违反 V1.1 §7.3 行 984 / §9.2.1 设计 | 中 | ✅ G1.A：StatusActionsBar 加 Modal.confirm 二次确认 |
+| **G1.B 状态机契约从扁平改为嵌套是 Breaking change**，依赖旧契约的外部调用方需要同步修改 | 中（dev/uat 阶段；生产前应通知所有客户端 SDK / 集成点）| 本仓库内前后端 + 测试已全部同步切换；外部集成方在 V1.2 评审通过后通知 |
 | `/auth/refresh` 缺失，access_token 30 min 过期需重登 | 低（dev / UAT 阶段）| 生产前补 refresh 端点 |
 | Redis 部署但未用，docker-compose 资源浪费 | 极低 | Phase 5 接入或先从 dev compose 移除 |
 
@@ -454,20 +633,20 @@ V1.1 §7 内容不变。新增风险：
 
 ---
 
-## 附录 A：跨文档对齐率汇总（2026-05-13 修订）
+## 附录 A：跨文档对齐率汇总（2026-05-13 修订二）
 
-> **说明**：本表对齐率已根据 §7 / §8 / §9 / §11 独立复核结果重新计算。Phase 1-3 范围 SRS/PRS/ARS/REF 已修项均纳入"已对齐"；待评审、Batch C、Batch F、🟠 Phase 推迟项均按缺口比例下调对齐率。架构 / API / UI 三个文档**尚未做同等级别的独立复核**，对齐率维持 V1.2_draft §7-§9 自我声明值，标注 ⚠️ 提示可信度低。
+> **说明**：本表对齐率已基于 §7 / §8 / §9 / §11 + 架构 / API / UI 三上位文档完整独立复核结果重新计算。G1.A/G1.B 已修项体现在对齐率回升中；Batch G2/G3/C 与待评审项按缺口比例下调。**首次实现"无 ⚠️ 未独立复核"标记的全口径数据**。
 
-| 上位文档 | 修订前 | 修订后 | 主要缺口 |
+| 上位文档 | 修订一 | 修订二 | 主要缺口 |
 |---|---|---|---|
-| DM-MDM-001 V1.1（数据模型）| ~99% | **~97%** | 已修：Batch A/B/S8/D/E/F（migration 0028 + 0029 + Batch F schema 暴露，共 9 项 🟥 + 6 项 ⚠️ 全部落地）；待修：Batch C（S5/S6 类型回归）+ P3 团队 unique 评审 + P8 project_relationship 上层 Phase 3+ + R8 created/updated_by FK 评审；推迟：§10 物料域整域（Phase 4）|
-| ARCH-MDM-001 V1.1（架构）| ~95% | ⚠️ ~95% _未独立复核_ | Redis 应用层 / Prometheus / 集中日志 / 生产部署配置未做（Phase 4-5）|
-| API-MDM-001 V1.1（API）| ~85% | ⚠️ ~85% _未独立复核_ | refresh / reject / merge / advance-phase / batch CRUD 推迟（Phase 4-5）|
-| UI-MDM-001 V1.1（UI 信息架构）| ~82% | ⚠️ ~82% _未独立复核_ | 物料域 UI / 系统管理 Admin / 项目甘特图 / 多视图切换 / Ctrl+K 等推迟 |
+| DM-MDM-001 V1.1（数据模型）| ~97% | **~97%** | 已修：Batch A/B/S8/D/E/F（migration 0028 + 0029 + schema 暴露，9 🟥 + 6 ⚠️ 落地）；待修：Batch C / P3 / P8 / R8（评审）；推迟：§10 物料域（Phase 4）|
+| ARCH-MDM-001 V1.1（架构）| ⚠️ ~95% _未复核_ | **~85%** _已复核_ | 缺前端技术栈 5 项（ARCH9）+ 缺 API 限流（ARCH11）+ Refresh Token 未实施（ARCH2）+ 中间件链非一对一（ARCH1）+ meta 表只 1/3（ARCH12）+ RequestID ContextVar 跨边界泄漏（ARCH3）|
+| API-MDM-001 V1.1（API）| ⚠️ ~85% _未复核_ | **~78%** _G1.A/G1.B 后_ | G1.A 修 API1 错误码；G1.B 修 API2/API3 状态机契约嵌套；剩余 Batch G2 API6/API9，Batch G3 API4/5/7/10/11/12/13（用户角色权限 12 + 全局功能 5 + 嵌套子资源 + Location 头 + Idempotency 等）|
+| UI-MDM-001 V1.1（UI 信息架构）| ⚠️ ~82% _未复核_ | **~76%** _G1.A 后_ | G1.A 修 UI3 签名理由 + UI4 二次确认；剩余 Batch G2 UI1/UI2/UI5/UI6/UI10/UI11；Batch G3 UI7/UI8/UI9（项目概览 Tab / 资产阶段时间线 / 物质关联 Tab 拆分回归）|
 
-**整体加权对齐率**：**~91%**（按当前 Phase 1-3 功能范围加权；Batch F 完成后数据模型对齐率回升到 ~97%，整体上调 3pp；Batch C 与 P3/P8/R8 待评审项继续拉低 ~2pp；架构/API/UI 三文档未独立复核继续下调 ~2pp）。Phase 1-3 范围（substance / project / asset / ref）的核心设计路径已形成闭环，包括审计追踪、电子签名、权限控制、失败留痕与状态历史；但生产部署级控制、备份恢复演练、集中日志、完整 CSV 文档包以及 Phase 4-5 范围（material / admin / batch / 缓存 / 监控）仍按计划推迟，不能表述为生产级 GxP 全面完成。
+**整体加权对齐率**：**~84%**（修订一 ~91% 基于架构/API/UI 三文档未经独立复核的自我声明，修订二经独立复核后下调 ~7pp）。Phase 1-3 核心路径（审计追踪 + 电子签名 + 权限 + 失败留痕 + 状态历史 + G1.A/G1.B 合规必修）已闭环；但 Batch G2/G3 缺口与 Phase 4-5 推迟项决定**不能表述为生产级 GxP 全面完成**。
 
-**已识别风险**：架构 / API / UI 三文档在 SRS/PRS/ARS/REF 独立复核之前的自我声明可信度低（§2/§3/§6 数据模型自我声明已被打脸）。建议下一里程碑做架构 / API / UI 三文档同等深度的独立复核。
+**评审建议**：V1.2 评审会重点决议（a）G1.B 状态机嵌套契约是否作为正式 API 基准；（b）Batch G3 哪些列入 Phase 4 / 哪些推迟到 Phase 5；（c）UI7/UI8/UI9 重大改版决定；（d）SRS Batch C 类型回归是否优先做。
 
 ---
 
@@ -475,7 +654,7 @@ V1.1 §7 内容不变。新增风险：
 
 V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Phase 4 / CI 门禁建设计划。
 
-当前回归依赖 `backend/tests/` 中 **123 条** pytest 用例（M3.7 完成时计数，比 M3.4 的 117 条新增：S10 / S11 / R5 × 2 / P9+P10 联合 / R6 共 6 条）。每次 alembic upgrade head + pytest 全量通过作为 M3.x 各里程碑验收门禁。
+当前回归依赖 `backend/tests/` 中 **125 条** pytest 用例（M3.9 完成时计数，比 M3.4 的 117 条新增 8 条：S10 / S11 / R5×2 / P9+P10 联合 / R6 + G1.A 的 API1 错误码 + G1.B 的 signature_reason 独立校验）。每次 alembic upgrade head + pytest 全量通过作为 M3.x 各里程碑验收门禁。
 
 详细的「偏离项 → 测试覆盖」映射见**附录 C**（CSV 验证 IQ/OQ 阶段证据链）。
 
@@ -526,11 +705,11 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 | V1.2 偏离项 | 测试文件 | 用例数 | 关键用例 |
 |---|---|---|---|
 | §6.1 asset 主表 + §6.2 market_id（CRUD）| `test_asset_crud.py` | 11 | create AST-XXXXXXX / get / update（version+1） / phase_change_at / soft delete / 枚举校验 |
-| §6.4 状态机（hold/resume/terminate）+ §6.3 status_history + §6.4.2 电签 + §6.4.3 双权限 + **A3 status_history change_reason 实值（M3.6）**| `test_asset_state_machine.py` | 11 | hold/resume 往返；terminate 需 password；密码错 401 signature_invalid；缺 password 422 signature_required；asset:sign 权限缺失 403；status_history 含 e_signature_id；**status_history_recorded 加 A3 断言：change_reason 必须实值，非占位** |
+| §6.4 状态机（hold/resume/terminate）+ §6.3 status_history + §6.4.2 电签 + §6.4.3 双权限 + **A3 change_reason 实值（M3.6）+ API1 错误码 40404（M3.8）**| `test_asset_state_machine.py` | 12 | hold/resume 往返；terminate 需 signature 嵌套对象（G1.B 后）；密码错 401 signature_invalid；缺 signature 422 signature_required；asset:sign 权限缺失 403；status_history 含 e_signature_id；status_history_recorded 加 A3 断言；**test_asset_not_found_returns_40404（API1）**|
 
-**ARS 小计**：22 条用例（其中 status_history_recorded 加 A3 断言）
+**ARS 小计**：23 条用例
 
-### C.5 跨主题实施侧加强
+### C.5 跨主题实施侧加强 + G1 合规必修
 
 | V1.1/V1.2 加强项 | 测试文件 | 用例数 | 关键用例 |
 |---|---|---|---|
@@ -539,8 +718,10 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 | V1.1 §5.1 service-level 显式 commit（响应后立即可见）| 隐式覆盖 | — | 全部状态机 + link 测试均依赖此（无失败说明已生效）|
 | V1.1 §5.4 status_history.e_signature_id | `test_signature.py` + `test_project_state_machine.py` + `test_asset_state_machine.py` | 多处 | 签名后 status_history.e_signature_id 非空 |
 | V1.1 §5.5 `meta.error.type` 401 分流 | `test_signature.py` + `test_auth_security.py` | 多处 | signature_invalid vs token_expired 区分；FE 不一刀切跳登录 |
+| **UI3 / G1.A / G1.B 签名理由与 comment 分离（§11.50）**| `test_signature.py::test_signature_reason_independent_from_comment` | 1 | signature.reason ≠ comment 各自落到独立字段；signature 缺失 → 422 signature_required；signature.reason 缺失 → 422 pydantic |
+| **G1.B 嵌套契约校验（隐式覆盖）**| 全部状态机 + 签名测试 | 多处 | 全部 json body 用 `{comment, signature:{password, reason}}`；响应用 `data.new_status`；无失败说明 schema/service 嵌套已生效 |
 
-**跨主题加强**：直接专项 7 用例 + 多处间接覆盖
+**跨主题加强**：直接专项 8 用例 + 多处间接覆盖
 
 ### C.6 全局搜索（API §3.2.2 + V1.2 §6.7）
 
@@ -560,18 +741,18 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 
 | 域 | 用例数 | 增量来源 |
 |---|---|---|
-| SRS（§7：state_machine + substance_crud + check_sameness + signature + audit_trigger × 2） | 34 | M3.4 32 + **M3.5 +2（S10 / S11）** |
-| PRS（§9：project_crud + state_machine + milestone_team） | 25 | M3.4 24 + **M3.7 +1（P9/P10 联合）**；M3.6 加 P1 断言（不增用例） |
-| ARS（§8：asset_crud + asset_state_machine） | 22 | M3.4 22，M3.6 加 A3 断言（不增用例） |
-| REF（§11：3 张 link 表） | 25 | M3.4 22 + **M3.6 +2（R5 双侧）+ M3.7 +1（R6 deleted_by 暴露）** |
+| SRS（§7：state_machine + substance_crud + check_sameness + signature + audit_trigger × 2） | 35 | M3.4 32 + **M3.5 +2（S10/S11）+ M3.9 重写 signature_reason 测试（替换旧用例，net +1：用例从 2 个断言升级为 3 个断言：signature 缺失 + signature.reason 缺失）** |
+| PRS（§9：project_crud + state_machine + milestone_team） | 25 | M3.4 24 + M3.7 +1（P9/P10 联合）；M3.6 加 P1 断言（不增用例）|
+| ARS（§8：asset_crud + asset_state_machine） | 23 | M3.4 22 + **M3.8 +1（API1 错误码 40404）**；M3.6 加 A3 断言（不增用例）|
+| REF（§11：3 张 link 表） | 25 | M3.4 22 + M3.6 +2（R5 双侧）+ M3.7 +1（R6 deleted_by 暴露） |
 | auth_security（V1.1 §5.2 失败副作用旁路） | 4 | — |
 | 全局搜索（test_global_search） | 11 | — |
 | 冒烟（test_smoke） | 2 | — |
-| **合计** | **123** | ✅ M3.7 全量通过（2026-05-13）|
+| **合计** | **125** | ✅ M3.9 全量通过（2026-05-13）|
 
 ### C.9 验证门禁
 
-- **每次 alembic upgrade head 后**：`make test-be` 全量 123 用例必须 100% 通过
+- **每次 alembic upgrade head 后**：`make test-be` 全量 125 用例必须 100% 通过
 - **生产部署前**：在生产基线数据库快照上跑全量 + 数据迁移演练（Phase 4 计划）
 - **CI 门禁**（Phase 4 建设）：PR 合并前必须跑全量 + schema 一致性检查脚本
 
