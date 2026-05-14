@@ -17,6 +17,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { Dayjs } from 'dayjs';
 import { projectsApi } from '@/api/projects';
+import { applyFormErrors } from '@/shared/utils/formErrors';
 import type { ProjectUpdatePayload } from '@/api/types';
 import {
   PROJECT_PHASE_OPTIONS,
@@ -87,6 +88,7 @@ export function ProjectEditPage() {
       navigate(`/projects/${encodeURIComponent(detail.project_code)}`);
     },
     onError: (err: any) => {
+      if (applyFormErrors(form, err)) return;
       const status = err?.response?.status;
       if (status === 409) {
         message.error('数据已被他人修改，请刷新后重试');

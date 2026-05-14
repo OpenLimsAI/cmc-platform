@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
+import { materialsApi } from '@/api/materials';
 import { projectsApi } from '@/api/projects';
 import { substancesApi } from '@/api/substances';
 
@@ -31,6 +32,10 @@ export function DashboardPage() {
   const { data: assetStats } = useQuery({
     queryKey: ['stats', 'assets'],
     queryFn: () => assetsApi.list({ page: 1, page_size: 1 }),
+  });
+  const { data: materialStats } = useQuery({
+    queryKey: ['stats', 'materials'],
+    queryFn: () => materialsApi.list({ page: 1, page_size: 1 }),
   });
 
   const greeting = (() => {
@@ -70,8 +75,7 @@ export function DashboardPage() {
     },
     {
       title: '物料',
-      value: 0,
-      suffix: '（开发中）',
+      value: materialStats?.pagination.total ?? 0,
       icon: <InboxOutlined style={{ fontSize: 28, color: '#722ED1' }} />,
       onClick: () => navigate('/materials'),
     },
@@ -91,17 +95,7 @@ export function DashboardPage() {
           <Col xs={24} sm={12} lg={6} key={c.title}>
             <Card hoverable onClick={c.onClick} style={{ marginBottom: 16 }}>
               <Space size="large" style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Statistic
-                  title={c.title}
-                  value={c.value}
-                  suffix={
-                    'suffix' in c && c.suffix ? (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {c.suffix}
-                      </Text>
-                    ) : undefined
-                  }
-                />
+                <Statistic title={c.title} value={c.value} />
                 {c.icon}
               </Space>
             </Card>

@@ -207,6 +207,21 @@ class DuplicateRequestError(ConflictError):
     default_message = "幂等键冲突，相同请求已被处理"
 
 
+class MaterialBatchNumberDuplicateError(ConflictError):
+    # API-MDM-001 V1.1 §4.4 业务错误码：44001 物料批号重复
+    code = 44001
+    error_type = "material_batch_number_duplicate"
+    default_message = "同一物料下批号已存在"
+
+
+class MaterialBatchDepletedError(AppError):
+    # API-MDM-001 V1.1 §4.4 业务错误码：44002 物料已耗尽
+    code = 44002
+    http_status = 422
+    error_type = "material_batch_depleted"
+    default_message = "物料批次已耗尽，不允许此操作"
+
+
 class AccountLockedError(AppError):
     code = 42301
     http_status = 423

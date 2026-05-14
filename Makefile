@@ -1,4 +1,4 @@
-.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be lint-be lint-fe gen-types docs-extract docs-check
+.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be lint-be lint-fe gen-types docs-extract docs-check backup restore check-schema
 
 COMPOSE := docker compose -f deploy/docker-compose.dev.yml
 
@@ -23,6 +23,11 @@ help:
 	@echo ""
 	@echo "  make docs-extract 从 V1.1+ docx 派生 markdown（双轨同步）"
 	@echo "  make docs-check   校验 markdown 与 docx 一致性（CI 门禁）"
+	@echo ""
+	@echo "  make backup      跑 pg_dump（dev 写到 backups/ 目录）"
+	@echo "  make restore F=<dump>  从 backups/F 恢复（dev 测试用）"
+	@echo ""
+	@echo "  make check-schema 对比 DB schema 与 V1.1 DM 设计基线（CSV CI 门禁）"
 
 up:
 	$(COMPOSE) up -d --build
@@ -92,3 +97,37 @@ docs-extract:
 
 docs-check:
 	@python3 scripts/docs/check_consistency.py
+
+# ============== 备份 / 恢复（P4.B-6） ==============
+# dev 模式无 /backups 挂载，pg_dump 写到容器 /tmp 再 docker cp 出来；prod 走 backup_db.sh
+backup:
+	@mkdir -p backups
+	@TS=$$(date -u +"%Y%m%d_%H%M") && \
+	  $(COMPOSE) exec -T postgres pg_dump -U postgres -d cmab_mdm -F c -Z 6 -f "/tmp/cmab_mdm_$$TS.dump" && \
+	  docker cp cmab-mdm-postgres:/tmp/cmab_mdm_$$TS.dump backups/ && \
+	  $(COMPOSE) exec -T postgres rm -f /tmp/cmab_mdm_$$TS.dump && \
+	  echo "✓ 备份完成：backups/cmab_mdm_$$TS.dump"
+
+# ============== schema 一致性 CI 门禁（P4.D-3） ==============
+# 把 scripts/ + docs/ 临时拷到 backend 容器，连容器内 DATABASE_URL_SYNC 跑
+# 注意：docker cp 进已存在目录会嵌套，所以每次先 rm 清空
+check-schema:
+	@docker exec cmab-mdm-backend rm -rf /tmp/csv_check 2>/dev/null || true
+	@docker cp scripts/csv cmab-mdm-backend:/tmp/csv_check
+	@docker cp docs/CMAB_MDM_Portal_数据模型设计文档_V1_1.md cmab-mdm-backend:/tmp/csv_check/dm_v1_1.md
+	@$(COMPOSE) exec -T -e DM_MD_OVERRIDE=/tmp/csv_check/dm_v1_1.md \
+	    -e DATABASE_URL_SYNC=postgresql://postgres:__REDACTED_POSTGRES_DBA_PASSWORD__@postgres:5432/cmab_mdm \
+	    backend python -B /tmp/csv_check/check_schema_alignment.py
+	@docker exec cmab-mdm-backend rm -rf /tmp/csv_check
+
+restore:
+	@if [ -z "$(F)" ]; then echo "用法：make restore F=<dump-file>（在 backups/ 下）"; exit 1; fi
+	@if [ ! -s "backups/$(F)" ]; then echo "ERROR：backups/$(F) 不存在或为空"; exit 2; fi
+	@docker cp "backups/$(F)" cmab-mdm-postgres:/tmp/restore.dump
+	@$(COMPOSE) exec -T postgres psql -U postgres -d postgres -c \
+	    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'cmab_mdm' AND pid <> pg_backend_pid();" >/dev/null
+	@$(COMPOSE) exec -T postgres psql -U postgres -d postgres -c "DROP DATABASE IF EXISTS cmab_mdm;"
+	@$(COMPOSE) exec -T postgres psql -U postgres -d postgres -c "CREATE DATABASE cmab_mdm WITH ENCODING='UTF8';"
+	@$(COMPOSE) exec -T postgres pg_restore -U postgres -d cmab_mdm --no-owner --no-privileges /tmp/restore.dump
+	@$(COMPOSE) exec -T postgres rm -f /tmp/restore.dump
+	@echo "✓ 恢复完成。建议跑 make test-be 验证完整性"

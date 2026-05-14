@@ -20,6 +20,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { substancesApi } from '@/api/substances';
+import { applyFormErrors } from '@/shared/utils/formErrors';
 import type {
   Confidentiality,
   ProteinExtensionInput,
@@ -81,6 +82,10 @@ export function SubstanceCreatePage() {
     onSuccess: (data) => {
       message.success(`物质 ${data.substance_code} 创建成功`);
       navigate(`/substances/${data.substance_code}`);
+    },
+    onError: (err: any) => {
+      if (applyFormErrors(form, err)) return;
+      message.error(err?.response?.data?.message ?? '创建失败');
     },
   });
 
@@ -326,7 +331,7 @@ export function SubstanceCreatePage() {
                   <InputNumber style={{ width: '100%' }} min={0} max={14} step={0.01} placeholder="如：8.45" />
                 </Form.Item>
                 <Form.Item name={['protein', 'extinction_coefficient']} label="消光系数 (M⁻¹cm⁻¹)" style={{ flex: 1 }}>
-                  <InputNumber style={{ width: '100%' }} min={0} placeholder="如：215000" />
+                  <InputNumber style={{ width: '100%' }} min={0} step={0.1} placeholder="如：215000.5" />
                 </Form.Item>
               </Space>
 

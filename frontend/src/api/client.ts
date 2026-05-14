@@ -8,16 +8,24 @@ export const api = axios.create({
   baseURL: '/api/v1',
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
+  // P4.B：refresh token 走 HttpOnly Cookie，必须带 credentials 才能跨域携带
+  withCredentials: true,
 });
+
+// 标记：内部触发的 refresh 请求 / 已重试过的请求，避免拦截器递归
+interface RetryFlag {
+  _skipAuthRefresh?: boolean;
+  _retried?: boolean;
+}
+type AxiosRequestConfigEx = InternalAxiosRequestConfig & RetryFlag;
 
 // ============== 请求拦截器 ==============
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  (config: AxiosRequestConfigEx) => {
     const token = useAuthStore.getState().token;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // 自动生成请求 ID（用于链路追踪）
     if (config.headers && !config.headers['X-Request-ID']) {
       config.headers['X-Request-ID'] = `req_${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
     }
@@ -25,6 +33,38 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+// ============== Refresh 串行化 ==============
+// 同时多请求遇到 401 时，只触发一次 /auth/refresh；其他请求等待结果
+let refreshPromise: Promise<string> | null = null;
+
+async function performRefresh(): Promise<string> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const resp = await api.post(
+        '/auth/refresh',
+        null,
+        { _skipAuthRefresh: true } as AxiosRequestConfigEx,
+      );
+      const newToken: string = resp.data.data.access_token;
+      useAuthStore.getState().updateToken(newToken);
+      return newToken;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+function gotoLogin() {
+  if (!window.location.pathname.startsWith('/login')) {
+    const redirect = encodeURIComponent(
+      window.location.pathname + window.location.search,
+    );
+    window.location.href = `/login?redirect=${redirect}`;
+  }
+}
 
 // ============== 响应拦截器 ==============
 type BackendErrorBody = {
@@ -35,9 +75,8 @@ type BackendErrorBody = {
 };
 
 api.interceptors.response.use(
-  // 成功直接透传
   (response: AxiosResponse) => response,
-  (error: AxiosError<BackendErrorBody>) => {
+  async (error: AxiosError<BackendErrorBody>) => {
     // 网络错误
     if (!error.response) {
       antdMessage.error('网络异常，请检查网络连接');
@@ -47,22 +86,51 @@ api.interceptors.response.use(
     const { status, data } = error.response;
     const errorMessage = data?.message || `请求失败（${status}）`;
     const errorType = data?.meta?.error?.type;
+    const originalConfig = error.config as AxiosRequestConfigEx | undefined;
 
-    // 401 未登录或 token 过期：清除状态并跳转登录
-    // 例外：signature_invalid（电子签名密码错）不是会话失效，由调用方处理
-    if (status === 401 && errorType !== 'signature_invalid') {
+    // 401 token_expired：尝试静默 refresh + retry
+    // 排除：refresh 端点自身、已重试过的请求、电子签名 401（业务身份再验证）
+    const isAuthRefreshUrl = originalConfig?.url?.includes('/auth/refresh');
+    const canTryRefresh =
+      status === 401 &&
+      errorType === 'token_expired' &&
+      !!originalConfig &&
+      !originalConfig._skipAuthRefresh &&
+      !originalConfig._retried &&
+      !isAuthRefreshUrl;
+
+    if (canTryRefresh) {
+      try {
+        const newToken = await performRefresh();
+        originalConfig._retried = true;
+        if (originalConfig.headers) {
+          originalConfig.headers.Authorization = `Bearer ${newToken}`;
+        }
+        return api(originalConfig);
+      } catch {
+        // refresh 失败 → 清状态跳登录
+        const authStore = useAuthStore.getState();
+        if (authStore.token) {
+          antdMessage.warning('登录已过期，请重新登录');
+          authStore.logout();
+        }
+        gotoLogin();
+        return Promise.reject(error);
+      }
+    }
+
+    // 401 其他场景（token_missing / token_invalid / signature_invalid）
+    if (status === 401) {
+      // signature_invalid：业务身份再验证，不是会话失效，交给调用方
+      if (errorType === 'signature_invalid') {
+        return Promise.reject(error);
+      }
       const authStore = useAuthStore.getState();
       if (authStore.token) {
         antdMessage.warning('登录已过期，请重新登录');
         authStore.logout();
       }
-      // 避免在登录页时还跳转
-      if (!window.location.pathname.startsWith('/login')) {
-        const redirect = encodeURIComponent(
-          window.location.pathname + window.location.search
-        );
-        window.location.href = `/login?redirect=${redirect}`;
-      }
+      gotoLogin();
       return Promise.reject(error);
     }
 
@@ -78,38 +146,33 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 422 / 409 / 400 业务错误：在表单页通常自定义处理；这里统一兜底
-    // 签名相关错误交给 StatusActionsBar 自己处理（避免重复 toast）
+    // 422 / 409 / 400 业务错误
     if (status >= 400 && status < 500) {
       if (errorType === 'signature_invalid' || errorType === 'signature_required') {
         return Promise.reject(error);
       }
-      // 校验错误：列出字段
+      // validation_failed：让 Form 调用方用 applyFormErrors 接管字段级红色高亮；
+      // 拦截器不再统一 toast（避免与字段级提示重复）。caller 若不处理则什么都不出，
+      // 但通常每个 mutation onError 都会 fallback 到 antdMessage.error。
       if (errorType === 'validation_failed' && data?.meta?.error?.details?.length) {
-        const lines = data.meta.error.details
-          .map((d) => `${d.field || ''} ${d.message}`.trim())
-          .join('\n');
-        antdMessage.error(`校验失败：${lines}`);
-      } else {
-        antdMessage.error(errorMessage);
+        return Promise.reject(error);
       }
+      antdMessage.error(errorMessage);
       return Promise.reject(error);
     }
 
-    // 5xx 服务器错误
+    // 5xx
     antdMessage.error('服务器错误，请稍后重试或联系管理员');
     return Promise.reject(error);
   }
 );
 
 // ============== 工具方法 ==============
-/** 解包后端 ApiResponse，直接返回 data 字段 */
 export async function unwrap<T>(promise: Promise<AxiosResponse<ApiResponse<T>>>): Promise<T> {
   const res = await promise;
   return res.data.data;
 }
 
-/** 解包列表响应，返回 { items, pagination } */
 export async function unwrapList<T>(
   promise: Promise<AxiosResponse<{ data: T[]; meta: { pagination?: import('./types').Pagination } }>>
 ): Promise<{ items: T[]; pagination: import('./types').Pagination }> {

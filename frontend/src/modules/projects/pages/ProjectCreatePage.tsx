@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import type { Dayjs } from 'dayjs';
 import { projectsApi } from '@/api/projects';
+import { applyFormErrors } from '@/shared/utils/formErrors';
 import type { ProjectCreatePayload } from '@/api/types';
 import {
   PROJECT_PHASE_OPTIONS,
@@ -47,6 +48,7 @@ export function ProjectCreatePage() {
       navigate(`/projects/${encodeURIComponent(detail.project_code)}`);
     },
     onError: (err: any) => {
+      if (applyFormErrors(form, err)) return;
       message.error(err?.response?.data?.message ?? '创建失败');
     },
   });

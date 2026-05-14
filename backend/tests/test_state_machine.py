@@ -78,10 +78,10 @@ async def test_invalid_transition_rejected(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_reason_too_short(admin_client, unique_suffix):
-    """pydantic 应在 reason < 5 字时拦下"""
+    """Pydantic 应在 reason < 5 字时拦下 → V1.1 §4.1 validation_failed → 400"""
     code = await _create(admin_client, unique_suffix)
     r = await _change(admin_client, code, "approve", reason="hi")
-    assert r.status_code == 422
+    assert r.status_code == 400
 
 
 @pytest.mark.asyncio

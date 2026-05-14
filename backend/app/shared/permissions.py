@@ -23,6 +23,7 @@ from app.shared.audit_context import (
 
 
 async def get_current_user(
+    request: Request,
     authorization: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
@@ -78,6 +79,9 @@ async def get_current_user(
     audit_user_id.set(user.user_id)
     audit_username.set(user.username)
     await set_audit_session_vars(db)
+
+    # P4.B：限流按已认证用户分桶（slowapi key_func 读 request.state.rate_limit_user_id）
+    request.state.rate_limit_user_id = user.user_id
 
     return user
 

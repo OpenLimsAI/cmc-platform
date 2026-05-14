@@ -224,7 +224,7 @@ async def test_signature_reason_independent_from_comment(admin_client, unique_su
     assert r2.status_code == 422
     assert r2.json()["meta"]["error"]["type"] == "signature_required"
 
-    # 3) signature.reason 缺失 → 422 pydantic（reason 是必填字段）
+    # 3) signature.reason 缺失 → V1.1 §4.1 Pydantic validation_failed → 400
     r3 = await admin_client.post(
         f"/api/v1/substances/{code2}:approve",
         json={
@@ -232,7 +232,7 @@ async def test_signature_reason_independent_from_comment(admin_client, unique_su
             "signature": {"password": ADMIN_PASSWORD},
         },
     )
-    assert r3.status_code == 422
+    assert r3.status_code == 400
 
 
 @pytest.mark.asyncio

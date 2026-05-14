@@ -23,7 +23,8 @@ function formatValue(v: unknown): string {
 
 function ChangesView({ changes }: { changes: ChangeHistoryItem[] }) {
   if (changes.length === 0) {
-    return <Text type="secondary">（无字段级变更，可能是 CREATE / DELETE 整行操作）</Text>;
+    // v3 起 CREATE/DELETE 也展开字段；这里通常只在很老的历史日志（v2 时期）出现
+    return <Text type="secondary">（该记录无字段级展开 — 早期 CREATE/DELETE 历史日志或纯状态翻转）</Text>;
   }
   return (
     <Table

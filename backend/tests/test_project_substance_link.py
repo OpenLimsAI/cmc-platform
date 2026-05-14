@@ -145,14 +145,14 @@ async def test_relink_after_unlink_restores_record(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_invalid_relation_type_rejected(admin_client, unique_suffix):
-    """非法 relation_type 应 422"""
+    """非法 relation_type → V1.1 §4.1 validation_failed → 400"""
     pcode = await _new_project(admin_client, unique_suffix)
     scode = await _new_substance(admin_client, unique_suffix)
     r = await admin_client.post(
         f"/api/v1/projects/{pcode}/substances",
         json={"substance_code": scode, "relation_type": "primary_target"},  # 旧值
     )
-    assert r.status_code == 422
+    assert r.status_code == 400
 
 
 @pytest.mark.asyncio

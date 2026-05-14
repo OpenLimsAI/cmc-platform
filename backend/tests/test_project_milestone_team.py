@@ -83,7 +83,7 @@ async def test_milestone_invalid_type_rejected(admin_client, unique_suffix):
             "planned_date": "2026-12-31",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed
 
 
 @pytest.mark.asyncio
@@ -94,7 +94,7 @@ async def test_milestone_planned_date_required(admin_client, unique_suffix):
         f"/api/v1/projects/{code}/milestones",
         json={"milestone_name": "X", "milestone_type": "gate"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed
 
 
 @pytest.mark.asyncio
@@ -113,7 +113,7 @@ async def test_milestone_delete_requires_reason(admin_client, unique_suffix):
     resp = await admin_client.delete(
         f"/api/v1/projects/{code}/milestones/{mid}"
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed
 
 
 # ============== Team ==============
@@ -200,7 +200,7 @@ async def test_team_allocation_pct_bounds(admin_client, unique_suffix):
         f"/api/v1/projects/{code}/team",
         json={"user_id": 2, "role": "PM", "allocation_pct": 150},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed
 
 
 @pytest.mark.asyncio

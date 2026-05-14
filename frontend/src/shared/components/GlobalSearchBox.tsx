@@ -12,18 +12,21 @@ const ENTITY_LABEL: Record<string, string> = {
   substance: '物质',
   project: '项目',
   asset: '资产',
+  material: '物料',
 };
 
 const ENTITY_PATH: Record<string, string> = {
   substance: '/substances',
   project: '/projects',
   asset: '/assets',
+  material: '/materials',
 };
 
 const ENTITY_COLOR: Record<string, string> = {
   substance: 'geekblue',
   project: 'green',
   asset: 'purple',
+  material: 'cyan',
 };
 
 const FIELD_LABEL: Record<string, string> = {
@@ -36,6 +39,7 @@ const FIELD_LABEL: Record<string, string> = {
   inn_name: 'INN',
   objective: '目标',
   xref: '标识符',
+  source_name: '来源',
 };
 
 /**
@@ -63,12 +67,13 @@ export function GlobalSearchBox() {
   });
 
   const options = useMemo(() => {
-    // G2-API6（V1.1 §8.3）：分组结构 {substance, project, asset} 各含 items
+    // G2-API6（V1.1 §8.3）+ M4.4：分组结构 {substance, project, asset, material} 各含 items
     if (!data) return [];
-    const groups: Array<['substance' | 'project' | 'asset', SearchHit[]]> = [
+    const groups: Array<['substance' | 'project' | 'asset' | 'material', SearchHit[]]> = [
       ['substance', data.results.substance.items],
       ['project', data.results.project.items],
       ['asset', data.results.asset.items],
+      ['material', data.results.material.items],
     ];
     return groups
       .filter(([, list]) => list.length > 0)
@@ -132,7 +137,7 @@ export function GlobalSearchBox() {
         size="middle"
         allowClear
         prefix={<SearchOutlined style={{ color: token.colorTextSecondary }} />}
-        placeholder="搜索物质 / 项目 / 资产编码、名称、INN..."
+        placeholder="搜索物质 / 项目 / 资产 / 物料编码、名称、INN..."
         onFocus={() => setOpen(true)}
       />
     </AutoComplete>

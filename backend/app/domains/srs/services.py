@@ -164,10 +164,12 @@ class SubstanceService:
                 xref_map.setdefault(sub_id, {}).setdefault(xtype, xval)
 
         # UI6（V1.1 §6.1 行 420-426）：批量聚合 ref.project_substance / ref.asset_substance
-        # 计 project_count / asset_count；material_count 留 0（MM 域 Phase 4 时补）
+        # + mm.material 反查（M4.3 启用 material_count）
         project_count_map: dict[int, int] = {}
         asset_count_map: dict[int, int] = {}
+        material_count_map: dict[int, int] = {}
         if substances:
+            from app.domains.mm.models import Material
             from app.domains.ref.models import (
                 AssetSubstanceLink,
                 ProjectSubstanceLink,
@@ -194,6 +196,16 @@ class SubstanceService:
             )
             asset_count_map = {sid: cnt for sid, cnt in asset_count_result.all()}
 
+            mat_count_result = await self.db.execute(
+                select(Material.substance_id, func.count())
+                .where(
+                    Material.substance_id.in_(sub_ids),
+                    Material.deleted_at.is_(None),
+                )
+                .group_by(Material.substance_id)
+            )
+            material_count_map = {sid: cnt for sid, cnt in mat_count_result.all() if sid}
+
         items: list[SubstanceBrief] = []
         for sub in substances:
             xrefs_for_sub = xref_map.get(sub.substance_id, {})
@@ -211,7 +223,7 @@ class SubstanceService:
                     cas_number=xrefs_for_sub.get("CAS"),
                     project_count=project_count_map.get(sub.substance_id, 0),
                     asset_count=asset_count_map.get(sub.substance_id, 0),
-                    material_count=0,
+                    material_count=material_count_map.get(sub.substance_id, 0),
                     created_at=sub.created_at,
                     updated_at=sub.updated_at,
                 )

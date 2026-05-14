@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
     AssetNotFoundError,
+    MaterialNotFoundError,
     ProjectNotFoundError,
     SubstanceNotFoundError,
 )
 from app.domains.ars.models import Asset, AssetMarketId
 from app.domains.audit.models import AuditLog, ChangeHistory
 from app.domains.audit.schemas import AuditLogItem, ChangeHistoryItem
+from app.domains.mm.models import Material, MaterialBatch
 from app.domains.prs.models import Project, ProjectMilestone, ProjectTeam
 from app.domains.ref.models import ProjectSubstanceLink
 from app.domains.srs.models import Substance, SubstanceXref
@@ -188,6 +190,93 @@ class AuditService:
 
         where_clause = or_(*conditions)
 
+        total = (
+            await self.db.execute(select(func.count()).select_from(AuditLog).where(where_clause))
+        ).scalar_one()
+
+        page_result = await self.db.execute(
+            select(AuditLog)
+            .where(where_clause)
+            .order_by(AuditLog.log_id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        logs = list(page_result.scalars())
+
+        log_ids = [log.log_id for log in logs]
+        changes_by_log: dict[int, list[ChangeHistoryItem]] = {}
+        if log_ids:
+            ch_result = await self.db.execute(
+                select(ChangeHistory)
+                .where(ChangeHistory.audit_log_id.in_(log_ids))
+                .order_by(ChangeHistory.history_id)
+            )
+            for ch in ch_result.scalars():
+                changes_by_log.setdefault(ch.audit_log_id, []).append(
+                    ChangeHistoryItem(
+                        field_name=ch.field_name,
+                        old_value=ch.old_value,
+                        new_value=ch.new_value,
+                    )
+                )
+
+        items = [
+            AuditLogItem(
+                log_id=log.log_id,
+                user_id=log.user_id,
+                username=log.username,
+                action=log.action,
+                entity_schema=log.entity_schema,
+                entity_table=log.entity_table,
+                entity_id=log.entity_id,
+                entity_code=log.entity_code,
+                reason=log.reason,
+                ip_address=str(log.ip_address) if log.ip_address else None,
+                request_id=log.request_id,
+                timestamp=log.timestamp,
+                changes=changes_by_log.get(log.log_id, []),
+            )
+            for log in logs
+        ]
+        return items, total
+
+    async def get_material_audit_logs(
+        self,
+        material_code: str,
+        page: int,
+        page_size: int,
+        include_children: bool = True,
+    ) -> tuple[list[AuditLogItem], int]:
+        """查询某 material 的审计日志（M4.1 仅 material 主表；M4.2 起加 material_batch 子表）"""
+        mat_result = await self.db.execute(
+            select(Material.material_id).where(
+                Material.material_code == material_code,
+                Material.deleted_at.is_(None),
+            )
+        )
+        material_id = mat_result.scalar_one_or_none()
+        if material_id is None:
+            raise MaterialNotFoundError()
+
+        conditions = [
+            and_(AuditLog.entity_table == "material", AuditLog.entity_id == material_id)
+        ]
+        if include_children:
+            bid_result = await self.db.execute(
+                select(MaterialBatch.batch_id).where(
+                    MaterialBatch.material_id == material_id
+                )
+            )
+            bids = [r[0] for r in bid_result]
+            if bids:
+                conditions.append(
+                    and_(
+                        AuditLog.entity_table == "material_batch",
+                        AuditLog.entity_id.in_(bids),
+                    )
+                )
+
+        where_clause = or_(*conditions)
         total = (
             await self.db.execute(select(func.count()).select_from(AuditLog).where(where_clause))
         ).scalar_one()

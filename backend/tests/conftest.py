@@ -43,18 +43,27 @@ class _AuthedClient:
         self._client = client
         self._headers = {"Authorization": f"Bearer {token}"}
 
+    def _merge(self, extra: dict | None) -> dict:
+        if not extra:
+            return self._headers
+        return {**self._headers, **extra}
+
     async def get(self, url, **kw):
-        return await self._client.get(url, headers=self._headers, **kw)
+        extra = kw.pop("headers", None)
+        return await self._client.get(url, headers=self._merge(extra), **kw)
 
     async def post(self, url, **kw):
-        return await self._client.post(url, headers=self._headers, **kw)
+        extra = kw.pop("headers", None)
+        return await self._client.post(url, headers=self._merge(extra), **kw)
 
     async def put(self, url, **kw):
-        return await self._client.put(url, headers=self._headers, **kw)
+        extra = kw.pop("headers", None)
+        return await self._client.put(url, headers=self._merge(extra), **kw)
 
     async def delete(self, url, **kw):
         # httpx.AsyncClient.delete 不直收 json 参数；走 request() 以支持 body
-        return await self._client.request("DELETE", url, headers=self._headers, **kw)
+        extra = kw.pop("headers", None)
+        return await self._client.request("DELETE", url, headers=self._merge(extra), **kw)
 
 
 @pytest_asyncio.fixture

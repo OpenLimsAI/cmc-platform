@@ -99,7 +99,8 @@ async def test_reason_too_short(admin_client, unique_suffix):
     resp = await admin_client.post(
         f"/api/v1/projects/{code}:approve", json={"comment": "no"}
     )
-    assert resp.status_code == 422
+    # Pydantic min_length 校验 → V1.1 §4.1 validation_failed → 400
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio

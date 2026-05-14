@@ -9,7 +9,7 @@
 | 编制 | CMC R&D（实施侧） |
 | 日期 | 2026-05-13 |
 | 分类 | 合规审计配套文档 |
-| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订一，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地）<br>V1.2 Draft（2026-05-13 修订二，架构 / API / UI 三上位文档独立复核 + Batch G1.A/G1.B 落地）<br>V1.2 Draft（2026-05-13 修订三，Batch G2 中优先级 8 项落地）<br>V1.2 Draft（2026-05-13 修订四，Batch G3.A 零评审依赖 2 项落地 + 评审会材料就位）<br>V1.2 Draft（2026-05-13 修订五，**V1.2 评审会 13 项决议落地（Batch H）** — H1 migration 0031：P3:A team partial UNIQUE + R8:A ref 三表 created/updated_by 共 6 个 FK；H2 4 新端点：API11:B 部分立即做 `GET /lookups/{type}` + `GET /system/info` + API13:A `PUT /substances/{code}/protein` + `PUT /substances/{code}/adc`；H3 三 UI 改版：UI7:A 项目概览 Tab 加进度条+统计预览+关联跳转、UI8:A 资产阶段 Timeline、UI9:B 物质血缘 Tab（ADC 父结构 + 反向 ADC 引用，新 endpoint `/substances/{code}/lineage`）；B 决议项（S5/S6/P8/ARCH9/API4/API10/API11-rest）按各自方式登记）|
+| 历史 | V1.1 Draft（2026-05-11，覆盖 Phase 1-2.5 + M3.0 回归）<br>V1.2 Draft（2026-05-12，新增 M3.1-M3.4 ARS 资产域 + 跨域引用补齐 + 跨文档检查）<br>V1.2 Draft（2026-05-13 修订一，完整 §7/§8/§9/§11 独立复核 + Batch A/B/D/E/F 落地）<br>V1.2 Draft（2026-05-13 修订二，架构 / API / UI 三上位文档独立复核 + Batch G1.A/G1.B 落地）<br>V1.2 Draft（2026-05-13 修订三，Batch G2 中优先级 8 项落地）<br>V1.2 Draft（2026-05-13 修订四，Batch G3.A 零评审依赖 2 项落地 + 评审会材料就位）<br>V1.2 Draft（2026-05-13 修订五，**V1.2 评审会 13 项决议落地（Batch H）** — H1 migration 0031：P3:A team partial UNIQUE + R8:A ref 三表 created/updated_by 共 6 个 FK；H2 4 新端点：API11:B 部分立即做 `GET /lookups/{type}` + `GET /system/info` + API13:A `PUT /substances/{code}/protein` + `PUT /substances/{code}/adc`；H3 三 UI 改版：UI7:A 项目概览 Tab 加进度条+统计预览+关联跳转、UI8:A 资产阶段 Timeline、UI9:B 物质血缘 Tab（ADC 父结构 + 反向 ADC 引用，新 endpoint `/substances/{code}/lineage`）；B 决议项（S5/S6/P8/ARCH9/API4/API10/API11-rest）按各自方式登记）<br>**V1.2 Draft（2026-05-14 修订十二，audit trigger v3 — CREATE/DELETE 字段级展开）** — 用户反映新增 xref 后审计 Tab 显示"无字段级变更，可能是 CREATE/DELETE 整行操作"。v2 触发器仅 UPDATE 写 change_history。修：migration **0036** 升级 `audit.fn_audit_trigger` 到 v3，INSERT 时写 NEW 全字段（old=NULL）+ DELETE 时写 OLD 全字段（new=NULL），过滤 `created_at/updated_at/updated_by/version` 自动字段；UPDATE 行为不变；软删除（UPDATE 设 deleted_at，action=DELETE）保持 UPDATE diff 写法。前端 ChangesView 空值文案微调（v3 后极少出现）。test 174 全过；GxP 角度更接近 21 CFR Part 11 §11.10(e) "完整记录副本"语义。**性能影响**：change_history 增量约 10-30 行/CREATE；生产监控表大小，超 100M 时考虑分区。<br>**V1.2 Draft（2026-05-13 修订十一，业务 bug 修复 + 字段级错误反馈）** — 修 3 处：(1) `extinction_coefficient INT → double precision`（migration 0035，附录 D.4 S7 决议）；(2) FastAPI `RequestValidationError` 统一转 V1.1 §4.1 业务格式（40001 + meta.error.details[field, message]，HTTP 400）— 19 个测试断言从 422 回归到 400 对齐 V1.1 字面；(3) 前端 `shared/utils/formErrors.ts` `applyFormErrors(form, error)` + 8 个 Form 页面 mutation.onError 接入 + 全局 CSS `.ant-form-item-has-error` 浅红背景 `#fff5f5`，校验失败直接定位到红色字段并附错误文字。测试 174 全过，head migration 0035。<br>**V1.2 Draft（2026-05-13 修订十，Phase 4.D CSV 验证准备）** — 4 项交付：（1）`deploy/checklist_iq.md` IQ 环境基线清单（OS/中间件/应用依赖/配置/数据库/服务/安全/备份 8 大类 46 项检查 + 关键执行命令附录）；（2）`docs/csv_oq_traceability.md` OQ 测试追溯矩阵（174 pytest 用例 → V1.1 章节 + GxP 风险等级：107 Critical + 72 Major + 4 Minor）；（3）`scripts/csv/check_schema_alignment.py` schema 一致性 CI 门禁脚本 + `make check-schema` target（DB ↔ V1.1 DM §7-§11 字段集对比，含 V1.2 已登记的实施侧补齐豁免；当前 dev 跑通"完全对齐"）；（4）`docs/RUNBOOK_DATA_MIGRATION.md` 数据迁移演练 SOP（含 34 个 migration 全景表 + 首次部署 / 升级 / 跨环境迁移 3 套路径 + 抽检模板 + 失败回滚 + 演练频率）。**Phase 4 整体收官**：A/B/C/D 全部完成。<br>**V1.2 Draft（2026-05-13 修订九，Phase 4.C B 决议建议吸收文字）** — 附录 D 给出 3 项 B 决议（S5/S6 / API4 / ARCH9）的 V1.3 docx 修订**建议吸收文字原文**，供秘书直接复制到 V1.1 上位文档下一版 docx。决议本身不动代码、不动 V1.1 docx；仅为 V1.3 修订准备语料。<br>**V1.2 Draft（2026-05-13 修订八，Phase 4.B 生产化基础全部落地）** — Refresh Token + Prometheus metrics + Redis 接入 + ARCH11 限流（slowapi 4 档）+ API7 Idempotency-Key（24h 窗口）+ 集中日志 JSON 化 + 生产部署清单（docker-compose.prod + nginx 反代 HTTPS）+ 备份策略（pg_dump cron + Runbook）。测试 174 全过；migration 0034 head；对齐率 ~94% → ~97%。<br>**V1.2 Draft（2026-05-13 修订六，Phase 4.A 物料域 MM 落地）** — migration 0032/0033 建 mm.material + mm.material_batch；后端 domains/mm 完整套件 + 9 个 API 端点；substance 反向查询 `GET /substances/{code}/materials` + `material_count` 真填 + obsoleted 物质禁绑业务规则；GlobalSearchService 加 material 分组（4 类齐）；前端 modules/materials List/Create/Detail/Edit + BatchTable 组件 + StatusBadge 主表 5 值映射；seed `DEMO_MATERIALS=4`（candidate / reference / stability / buffer，含 5 批次）；测试 130 → 159 全过（+29）。**§10 实施侧补齐：** material_batch 加 `deleted_by` FK + audit trigger（V1.1 §10.2 两项均未列）|
 
 ## 1. 文档目的
 
@@ -31,7 +31,19 @@
 - **Batch G3.B**：ARCH11 API 限流 + API7 Idempotency-Key — 🚧 推迟到 Phase 4（强依赖 Redis 应用层接入）
 - **Batch G3.C**：9 项进 V1.2 评审会议（见 `docs/CMAB_MDM_Portal_V1.2_评审会议材料.md`）— ARCH9 前端技术栈 / API4 项目嵌套 / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API13 protein/adc 写端点 / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分
 - **Batch H（评审决议落地）**：H1 migration 0031（P3:A team partial UNIQUE + R8:A ref 6 FK）+ H2 4 个新 endpoint（API11:B 部分 lookups/system + API13:A protein/adc PUT）+ H3 三 UI 改版（UI7:A 项目概览 / UI8:A 资产阶段 Timeline / UI9:B 物质血缘 Tab） — ✅ 已落地（2026-05-13）
+- **Phase 4.A 物料域（MM）**：V1.1 §10 整域落地 — migration 0032 mm.material（7 类型 / 4 等级 / 5 状态 / MAT-yyyy 年度序列编码 / audit trigger v2）+ migration 0033 mm.material_batch（5 状态批次，UNIQUE batch_number）+ domains/mm 完整套件 + 9 API 端点（CRUD + audit-logs + batches + substance 反向）+ 全局搜索接入（substance/project/asset/material 4 分组）+ 前端 4 页面 + BatchTable + DEMO_MATERIALS=4 — ✅ 已落地（2026-05-13）
+- **Phase 4.B-1 Refresh Token**：V1.1 §7.2 + ARCH §7.2.1 + API §2 — migration 0034 auth.refresh_token（jti PK + 旋转链审计字段 rotated_to_jti + revoked_reason 字典 + ip/ua）+ /auth/refresh /auth/logout 端点 + HttpOnly Cookie（SameSite=Strict, Path=/api/v1/auth）+ 改密自动撤销该 user 全部活跃 refresh + 前端 axios 拦截器 401 token_expired 静默 refresh + 串行化（多并发只触发一次 refresh）— ✅ 已落地（2026-05-13，DB 表实现 Redis 黑名单语义；Redis 接入仍是 Phase 5 目标）
+- **Phase 4.B-2 Prometheus metrics**：prometheus-fastapi-instrumentator 接入 + /metrics 端点（exclude /health/metrics 自身）— 含 http_requests_total / duration histogram / inprogress gauge / python_gc / process_* — ✅ 已落地（2026-05-13）
+- **Dashboard 物料计数修复**：占位 0（开发中）→ 接 materialsApi.list 真值 — ✅ 已落地（2026-05-13）
+- **Phase 4.B-3 Redis 应用层接入**：V1.1 ARCH §7.2.1 把 Redis 完整缓存层定为 Phase 5；本期**仅为限流 + Idempotency 两个用例**提前接入 `redis.asyncio` client（app/core/redis_client.py），不引入业务缓存 — ✅ 已落地（2026-05-13）
+- **Phase 4.B-3 ARCH11 限流**：slowapi + Redis storage + fixed-window；4 档（V1.1 §3.5）：未认证 10/min/IP（生产严守，dev 1000/min）/ 普通用户 300/min/user（生产，dev 10000/min）/ 内部 service token Phase 5 / 批量端点 Phase 5；429 + 42901 + `X-RateLimit-Limit/Remaining/Reset` + `Retry-After`；`/auth/login` + `/auth/refresh` 用 @login_rate_limit / @public_rate_limit 装饰按 IP 分桶；其它端点走 default_limits 按 user_id 分桶（permissions.get_current_user 写 request.state.rate_limit_user_id）— ✅ 已落地（2026-05-13）
+- **Phase 4.B-3 API7 Idempotency-Key**：V1.1 §3.4 24h 窗口；POST 主资源 4 端点（substance/project/asset/material）接入；Redis key `idem:{user_id}:{idempotency_key}` 存 `{body_hash, status_code, response_body, headers.Location}`；同 key + 同 body 直接返回缓存；同 key + 不同 body → 40905 `duplicate_request`；key 强制 UUID 格式（防注入，非法 → 40003 invalid_value）；key 命名空间含 user_id 隔离不同用户 — ✅ 已落地（2026-05-13）
+- **Phase 4.B-4 集中日志**：`app/core/logging.py` setup_logging() 双模式 — `APP_LOG_FORMAT=json`（生产，单行 JSON 给 ELK/Splunk 抓取）/`human`（开发彩色）；request_id/user_id/username/ip 通过 ContextVar 自动注入到每条 record；`logger.bind(custom=...)` 业务字段同样进 JSON — ✅ 已落地（2026-05-13）
+- **Phase 4.B-5 生产部署清单**：`deploy/docker-compose.prod.yml`（pg+redis+backend+frontend+gateway 5 服务，无代码 volume mount，restart=always，pg shared_buffers=1G + max_connections=200，backend 走 production stage + APP_LOG_FORMAT=json + RATE_LIMIT_ENABLED=true）+ `deploy/nginx/nginx.prod.conf`（HTTP→HTTPS 强跳，TLS 1.2/1.3，OWASP Intermediate cipher，HSTS+X-Frame-Options+CSP，JSON access log，nginx 层限流兜底：general 50r/s + login 5r/m）+ `deploy/nginx/conf.d/cmab-mdm.conf`（/api 反代+/health+/metrics 仅内网 RFC1918+前端静态）+ `.env.prod.example`（密钥模板带 _CHANGE_ME 占位） — ✅ 已落地（2026-05-13）
+- **Phase 4.B-6 备份策略**：`scripts/backup_db.sh`（pg_dump custom 格式 Z=6 + 30 天滚动保留 + 失败退出码区分 + 日志写 `${BACKUP_DIR}/backup.log`）+ `scripts/restore_db.sh`（DROP + CREATE + pg_restore + YES 二次确认 + 后置校验提示）+ `Makefile` 加 `backup` / `restore F=<dump>` target（dev 路径走 docker cp）+ `docs/RUNBOOK_BACKUP_RESTORE.md`（cron / systemd timer 配置示例 + 灾难恢复 4 步 + 季度演练 7 项 + 21 CFR Part 11 §11.10(c) 引用）— ✅ 已落地（2026-05-13，dev smoke 备份产出 2.8M custom dump 含 384 TOC entries）
 - **B 决议接受/推迟项**：S5/S6（永久接受 Float）+ P8（Phase 5）+ ARCH9（只引入 ECharts+React Flow，Phase 5）+ API4（永久接受扁平 ID）+ API10（Phase 5/6 Admin）+ API11 audit-logs/signatures 部分（Phase 5）— 文档登记，不动代码
+- **Phase 4.C B 决议建议吸收文字（修订九，2026-05-13）**：附录 D 给出 S5/S6 / API4 / ARCH9 三项 B 决议的 V1.3 docx 修订建议吸收文字原文（含 V1.1 现位置 / V1.1 原文 / 实施偏离 / 评审决议 / 建议吸收文字字面）；V1.3 docx 修订建议与 Phase 4.D CSV 验证同期做，需走 IT 架构组评审 + QA 会签
+- **Phase 4.D CSV 验证准备（修订十，2026-05-13）**：4 件交付支撑 GAMP 5 IQ/OQ 阶段：(1) `deploy/checklist_iq.md` IQ 清单（46 项检查 / 8 类别）；(2) `docs/csv_oq_traceability.md` OQ 追溯矩阵（174 pytest 用例 ↔ V1.1 章节，按 GxP 风险分级 107C / 72M / 4Minor）；(3) `scripts/csv/check_schema_alignment.py` + `make check-schema` 自动化门禁（DB schema ↔ V1.1 DM §7-§11 字段集对比，dev 实跑"完全对齐"）；(4) `docs/RUNBOOK_DATA_MIGRATION.md` 数据迁移演练 SOP（含 34 个 migration 全景 + 首次部署 / 升级 / 跨环境 3 套路径 + 抽检模板）
 - **Batch G3**：架构/API/UI 推迟与评审决策类（API10/API11 用户角色权限端点、ARCH9 前端技术栈、ARCH11 限流、UI7 项目概览 Tab 重构、UI9 物质关联 Tab 拆分等）
 - **评审决策类**：P3 team unique 业务语义、P8 project_relationship 上层、各 🟢 加强项吸收等
 
@@ -634,6 +646,59 @@ V1.1 §7 内容不变。新增风险：
 
 ---
 
+## 11.5 Phase 4.A 物料域（MM）落地（修订六）
+
+**落地日期**：2026-05-13
+**migration**：0032（mm.material 主表）+ 0033（mm.material_batch 子表）
+**测试**：130 → **159** 全过（+29 用例：12 CRUD + 8 batch + 5 substance link + 4 search）
+
+### 11.5.1 🟢 §10.1 mm.material 主表 — 完全按 V1.1 §10.1 落地
+
+| # | V1.1 §10.1 设计 | 实施 | 备注 |
+|---|---|---|---|
+| MM-1 | 7 类型 CHECK / 4 等级 CHECK / 5 状态 CHECK | ✅ migration 0032 三个 CHECK 与 §10.1 字面一致 | — |
+| MM-2 | `MAT-yyyyXXXXXX` 年度序列 | ✅ `mm.fn_material_assign_code` 走 `meta.fn_ensure_year_sequence('material','MAT-',v_year,6)` | 模式与 prs.project PRJ-yyyy 完全一致 |
+| MM-3 | audit trigger v2 `('material_id','material_code')` | ✅ 接入 | 与 substance/project/asset 主表同模式 |
+| MM-4 | `substance_id` 可空 FK → srs.substance | ✅ 直接 FK，**无 ref 中间表** | 按 §10 设计原意，跨域引用最简模式 |
+| MM-5 | 无版本号 / 无状态机 / 无 status_history | ✅ 实施侧严格遵守（§10.1 字段集无 `version` 列 + §10 无状态机表） | 与 SRS/ARS/PRS 关键差异点 |
+
+### 11.5.2 🟢 §10.2 material_batch 子表 — 实施侧补齐两项
+
+| # | V1.1 §10.2 设计 | 实施 | 备注 |
+|---|---|---|---|
+| MM-6 | `deleted_at` 软删除，**无 `deleted_by`** | ✅ 实施侧已按 V1.1 全表统一原则补 `deleted_by BIGINT REFERENCES auth.user(user_id)` | 与 §11.3 asset_substance / project_asset / asset_market_id 等子表 soft-delete 字段组保持一致；建议 V1.1 §10.2 下一版正式补 `deleted_by` |
+| MM-7 | **未列 audit trigger** | ✅ 实施侧补挂 `audit.fn_audit_trigger('batch_id','','mm.material:material_id:material_code:material_id')` | 与 prs.project_milestone / ars.asset_market_id 等子表同模式；详情页"审计 Tab"需要批次变更链 |
+| MM-8 | UNIQUE (material_id, batch_number) | ✅ 错误码 44001 `material_batch_number_duplicate` 入 service 预检 | API §4.4 已列 |
+
+### 11.5.3 🟢 跨域反向 + 业务规则
+
+| # | 来源 | 实施 | 备注 |
+|---|---|---|---|
+| MM-9 | API §5.1.2 `GET /substances/{code}/materials` | ✅ 落地 | 走 `MaterialService.list_for_substance`，复用 `MaterialBrief` |
+| MM-10 | §11.1 业务规则：obsoleted 物质禁绑 | ✅ service 层 `_resolve_substance_ref` 校验 `substance.status='obsoleted'` 抛 `OperationNotAllowedError`(40304) | 与 ARS/PRS link 服务同模式（应用层校验，DB 不加 CHECK） |
+| MM-11 | UI6 `SubstanceBrief.material_count` | ✅ `SubstanceService.list_substances` 批量聚合 `mm.material` 计数（M3.4 时预留为 0，本次真填） | — |
+
+### 11.5.4 🟢 全局搜索接入（API §8.3 第 4 分组）
+
+| # | 来源 | 实施 |
+|---|---|---|
+| MM-12 | `SearchEntityType` += `material` + 响应 `results.material: SearchGroup` | ✅ 后端 schemas + service + 排序权重；前端 `GlobalSearchBox` material 分组（cyan Tag）+ `MatchedField` += `source_name` |
+
+### 11.5.5 🟢 前端 UI（UI §7.4 整套）
+
+| # | UI §7.4 设计 | 实施 |
+|---|---|---|
+| MM-13 | 路由 `/materials` `/materials/new` `/materials/:code` `/materials/:code/edit` | ✅ App.tsx 替换占位 PlaceholderPage |
+| MM-14 | 详情 3 Tab：基本信息 / 批次列表 / 审计 | ✅ 与 UI §7.4 字面一致；无关联 Tab、无状态历史 Tab（与无状态机一致） |
+| MM-15 | StatusBadge 5 值映射 | ✅ 修正原占位（in_stock/in_use/disposed 等 batch 值）改为 §10.1 主表 5 值 active/quarantine/released/rejected/retired |
+| MM-16 | BatchTable 组件（CRUD + 44001 友好提示） | ✅ Modal 表单 + UNIQUE 重复提示 + 软删除二次确认 |
+
+### 11.5.6 🟢 演示数据扩充
+
+`DEMO_MATERIALS = 4`（candidate 工程批 / reference 国家参考标准品 / stability 加速稳定性样品 / buffer DPBS）+ **5 个批次**；与 `DEMO_SUBSTANCES` CMAB-D01/D04 串联（substance.status='active' 满足绑定）。`_seed_demo_materials` 函数按 `material_name` 幂等。
+
+---
+
 ## 12. 评审记录
 
 | 评审人 | 日期 | 决议 |
@@ -643,23 +708,23 @@ V1.1 §7 内容不变。新增风险：
 
 ---
 
-## 附录 A：跨文档对齐率汇总（2026-05-13 修订五）
+## 附录 A：跨文档对齐率汇总（2026-05-13 修订六）
 
-> **说明**：本表对齐率已基于完整独立复核 + Batch A/B/S8/D/E/F/G1.A/G1.B/G2/G3.A/H 全部落地 + V1.2 评审会 13 项决议后重新计算。
+> **说明**：本表对齐率已基于完整独立复核 + Batch A/B/S8/D/E/F/G1.A/G1.B/G2/G3.A/H 全部落地 + V1.2 评审会 13 项决议 + **Phase 4.A MM 物料域整域落地**后重新计算。
 
-| 上位文档 | 修订四 | 修订五 | 主要缺口 |
-|---|---|---|---|
-| DM-MDM-001 V1.1（数据模型）| ~97% | **~99%** _H1 后_ | H1 修 P3:A（team partial UNIQUE）+ R8:A（ref 6 FK 全补齐）；S5/S6 永久接受 Float（B 决议，文档备注 §7.3 加容差说明）；P8 推迟 Phase 5（B 决议）；§10 物料域 Phase 4 |
-| ARCH-MDM-001 V1.1（架构）| ~87% | **~88%** _H1+H2 后_ | H2 部分修 API11 lookups/system → 间接降低架构缺口；ARCH9 决议 B（只引入 ECharts+React Flow Phase 5）；剩 ARCH11 Phase 4 + ARCH2/3 |
-| API-MDM-001 V1.1（API）| ~84% | **~90%** _H2 后_ | H2 修 API13:A（PUT protein/adc 独立写端点）+ API11:B 部分（lookups + system/info 立即做）；API4:B 永久接受扁平 ID；API10:B + API11 rest Phase 5；剩 API7 Phase 4 + API5 子资源 |
-| UI-MDM-001 V1.1（UI 信息架构）| ~82% | **~92%** _H3 后_ | H3 修 UI7:A（项目概览 Progress+Statistic+跳转）+ UI8:A（资产 9-phase Timeline）+ UI9:B（物质血缘 Tab + 父/子 ADC 视图）；剩物料域 UI / Admin UI / 仪表盘 Phase 5 |
+| 上位文档 | 修订四 | 修订五 | 修订六 | 修订八 | 主要缺口 |
+|---|---|---|---|---|---|
+| DM-MDM-001 V1.1（数据模型）| ~97% | ~99% | ~99.5% | **~99.5%** | §10 物料域整域落地；S5/S6 永久接受 Float；P8 推迟 Phase 5 |
+| ARCH-MDM-001 V1.1（架构）| ~87% | ~88% | ~88% | **~96%** _P4.B 后_ | Refresh Token / Prometheus / Redis（限流+幂等用例）/ ARCH11 限流 / JSON 日志 / nginx HTTPS 反代 / 备份策略 全部落地；剩 ARCH2 RS256 生产签名 + ARCH3 业务缓存层（Phase 5） |
+| API-MDM-001 V1.1（API）| ~84% | ~90% | ~92% | **~98%** _P4.B 后_ | §2 Refresh Token + §3.4 Idempotency-Key + §3.5 速率限制（4 档，dev 自动放宽）落地；剩 API10:B / API11-rest Phase 5 |
+| UI-MDM-001 V1.1（UI 信息架构）| ~82% | ~92% | ~95% | **~95%** | UI §7.4 物料 4 页面 + BatchTable + 全局搜索 4 分组；剩 Admin UI / 仪表盘 / 个人中心 Phase 5 |
 
-**整体加权对齐率**：**~92%**（修订四 ~88% + Batch H 落地 +4pp）。Phase 1-3 + 数据模型 + 主要 UX 路径已**全部完整对齐 V1.1**（含 V1.2 评审决议的"实施侧简化"项 — S5/S6/API4/ARCH9 等）。剩余缺口集中在：
-- ARCH11 限流 + API7 Idempotency（Phase 4 与 Redis 应用层接入一起）
-- Phase 4 物料域整域 + 生产部署 + 监控 + Refresh Token + CSV 验证
-- Phase 5 Admin UI + API10 用户角色权限 + API11 全局功能 + 仪表盘 + 数据治理工具
+**整体加权对齐率**：**~97%**（修订六 ~94% + P4.B 全部落地 +3pp）。Phase 1-3 + Phase 4.A MM 物料域 + Phase 4.B 生产化基础全部完工。剩余缺口集中在：
+- Phase 4.D CSV 验证准备（IQ/OQ + schema 一致性 CI 门禁）
+- Phase 5 Admin UI + API10 用户角色权限 + API11 全局功能 + 仪表盘 + 业务缓存层
+- 离线备份归档（S3/磁带）— 运维侧 SOP
 
-**至此 V1.2 评审决议全部完成处置**，Phase 4 物料域可正式启动（无评审依赖阻塞）。
+**Phase 4.A + 4.B 全部收官**，可进 P4.D CSV 验证准备或 P4.C B 决议文档同步。
 
 ---
 
@@ -773,10 +838,158 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 
 | 项 | 当前状态 | 计划 |
 |---|---|---|
-| §10 物料域 | 未实施，无测试 | Phase 4 |
-| `/auth/refresh` | 未实施 | Phase 4 |
+| §10 物料域 | ✅ 已覆盖（Phase 4.A：material_crud 12 + material_batch 8 + material_substance_link 5 + search 4） | — |
+| `/auth/refresh` | ✅ 已覆盖（Phase 4.B-1：test_refresh_token 7 个） | — |
+| 限流 / Idempotency | ✅ 已覆盖（Phase 4.B-3：test_rate_limit 3 + test_idempotency 6） | — |
+| 业务缓存层（Redis）| 未集成 | Phase 5 |
 | substance `:reject` / `:merge` | 未实施 | Phase 5 |
 | asset `:advance-phase` | 未实施 | Phase 5 视业务必要性评估；当前 `current_phase` 由 PUT 直接更新，不等同于 `status` 状态机 |
-| batch CRUD | 未实施 | Phase 5 |
-| Redis 缓存层 / Prometheus 指标 | 未集成 | Phase 4-5 |
-| 数据迁移演练（生产场景）| 未做 | 生产部署前 |
+| 数据迁移演练（生产场景）| 未做 | Phase 4.D CSV 验证 |
+| 备份恢复演练（季度）| 脚本就绪未跑实战 | Phase 4.D CSV 验证 + 生产首次部署 |
+
+---
+
+## 附录 D：B 决议建议吸收文字（V1.3 docx 修订引用）
+
+V1.2 评审会通过的 8 项 B 决议中，3 项需在 V1.1 上位文档下一版（V1.3 / V2.0 docx）修订时正式吸收说明性文字（S5/S6 容差备注、API4 扁平 ID 备注、ARCH9 前端图表技术栈收敛）。本附录提供秘书可直接复制到 docx 的**建议吸收文字**，保持原文档章节编号与排版风格。
+
+### D.1 S5 / S6：DM-MDM-001 §7.3 数据类型 + 质谱测定容差备注
+
+**上位文档位置**：`DM-MDM-001 V1.1 §7.3 srs.substance_protein` 表 DDL
+
+**V1.1 原文（节选）**：
+```sql
+molecular_weight_da   NUMERIC(10, 2),  -- 计算或测定的分子量
+pi_theoretical        NUMERIC(5, 2),
+```
+
+**实施侧偏离**：Pydantic schema 使用 `float`，对应 PostgreSQL 实际写入 `double precision`（约 15-17 位十进制精度）；前端 / API 一致使用 `float`。
+
+**评审 B 决议（2026-05-13）**：永久接受 Float / double precision，不回归 NUMERIC。
+
+**建议吸收文字（V1.3 docx §7.3 表后追加备注）**：
+
+> **备注（V1.2 评审决议吸收，2026-05-13）**：本表字段 `molecular_weight_da` 与 `pi_theoretical` 实施侧采用 `double precision`（IEEE 754 双精度浮点）代替原 `NUMERIC(10,2)` / `NUMERIC(5,2)`，基于以下技术理由：
+> 1. **测定容差远大于存储精度**：LC-MS / MALDI-TOF 测定分子量典型相对误差 ±0.01%，约 ±15 Da（对于 150 kDa 抗体而言）；理论等电点（pi_theoretical）由 ProtParam 等工具计算误差 ±0.1 pI；存储精度 NUMERIC(10,2) 的 0.01 Da 区分度在工艺数据采集场景下无实际意义。
+> 2. **生物分析仪器输出格式兼容**：仪器原始 CSV / mzML 文件直接输出浮点数，存为 NUMERIC 需要应用层裁剪精度，反而引入风险。
+> 3. **GxP 合规性不受影响**：21 CFR Part 11 §11.10 要求"数据准确性"针对**测量精度**而非**存储类型**；现有审计日志（`audit.change_history`）记录变更前后值，可追溯任何精度损失。
+>
+> Phase 1-4 实施中 `molecular_weight_da` / `pi_theoretical` 已稳定使用 `double precision`，无回归计划。下一代上位文档（V1.3）正式吸收此选择。
+
+---
+
+### D.2 API4：API §7.2 项目创建保持扁平 ID 写入备注
+
+**上位文档位置**：`API-MDM-001 V1.1 §7.2 创建项目` 请求体示例
+
+**V1.1 原文（节选）**：
+```json
+{
+  "project_name": "...",
+  "project_manager_username": "wangwu",
+  "related_substances": [
+    { "substance_code": "SUB-0000124", "relation_type": "primary" }
+  ],
+  "related_assets": [
+    { "asset_code": "AST-0023", "relation_type": "primary" }
+  ],
+  "team": [
+    { "username": "wangwu", "role": "PM", "function_area": "CMC", "allocation_pct": 60 },
+    ...
+  ]
+}
+```
+
+**实施侧偏离**：项目主资源 POST 请求体**仅接基本字段 + manager 等扁平 ID**；`related_substances` / `related_assets` / `team` 子集合由独立子资源端点（POST `/projects/{code}/substances` / `/projects/{code}/team`）二次提交。前端创建页采用"先建项目，再补关联"的两步工作流。
+
+**评审 B 决议（2026-05-13）**：永久接受扁平 ID 写入；嵌套创建不回归。
+
+**建议吸收文字（V1.3 docx §7.2 末尾追加备注）**：
+
+> **备注（V1.2 评审决议吸收，2026-05-13）**：项目创建 POST 请求体在实施侧简化为**扁平字段集**，关联资源（`related_substances` / `related_assets` / `team`）由独立子资源端点二次提交。理由：
+> 1. **降低单次请求事务复杂度**：嵌套创建涉及 5+ 表（project / project_team / ref.project_substance / ref.project_asset / project_milestone），单事务回滚成本高；分步提交允许"先建主项目，业务用户再补关联"的真实工作流。
+> 2. **错误反馈更精准**：嵌套结构下任何一个子项校验失败（如 user_id 不存在）会导致整个请求 400，前端难以定位；分步提交每步独立错误码、独立 401/403/422 处置。
+> 3. **审计粒度更细**：每个子资源 INSERT 产生独立 audit_log，便于追溯"何时 + 何人 + 加/删了哪个团队成员"。
+>
+> 本节示例与 V1.1 §7.2 原描述保留作为"理想完整提交"的参考；实施侧推荐工作流：
+> 1. `POST /api/v1/projects`（仅基本字段 + manager_id）
+> 2. `POST /api/v1/projects/{code}/substances`（每条 substance 关联）
+> 3. `POST /api/v1/projects/{code}/team`（每条团队成员）
+> 4. `POST /api/v1/projects/{code}/milestones`（每条里程碑）
+>
+> Phase 4 实施全部走该扁平模式，前后端均无嵌套创建路径。
+
+---
+
+### D.3 ARCH9：ARCH §5.1 前端可视化技术栈收敛到 ECharts + React Flow
+
+**上位文档位置**：`ARCH-MDM-001 V1.1 §5.1 技术栈总览` 表
+
+**V1.1 原文（节选）**：
+
+| 层 | 技术 | 版本 | 选型理由 |
+|----|----|----|----|
+| 前端图表 | ECharts / Recharts | — | 大量图表场景 |
+| 前端图形 | React Flow | — | 血缘图、流程图、依赖图 |
+
+**实施侧偏离**：Phase 1-4 仅引入了 Ant Design 内置图表（Statistic / Progress / Timeline / Tag），未装 ECharts 与 Recharts；React Flow 也未装（V1.2 评审 UI9:B 决议把物质血缘 Tab 用 Ant Design Tree + Card 简化实现）。Phase 5 仪表盘真实部件（甘特图 / 趋势图 / 资产组合饼图）落地时计划装 ECharts；Phase 5 物质血缘可视化升级到 React Flow。
+
+**评审 B 决议（2026-05-13）**：仅引入 ECharts（不引入 Recharts）+ React Flow；明确标注 Phase 5 实施时再装包。
+
+**建议吸收文字（V1.3 docx §5.1 表中两行替换）**：
+
+| 层 | 技术 | 版本 | 选型理由 |
+|----|----|----|----|
+| 前端图表 | **ECharts** | 5.x（Phase 5 装包）| Apache 顶级项目、企业级图表能力全面；Recharts 评估后放弃（仅 React 生态、复杂图表能力弱于 ECharts，无引入价值）|
+| 前端图形 | **React Flow** | 11.x（Phase 5 装包）| 血缘图 / 流程图首选；Phase 1-4 物质血缘 Tab 用 Ant Design 内置组件过渡，Phase 5 升级 |
+
+**建议吸收文字（V1.3 docx §5.1 表后追加备注）**：
+
+> **备注（V1.2 评审决议吸收，2026-05-13）**：前端可视化栈 Phase 1-4 仅用 Ant Design 内置组件（Statistic / Progress / Timeline / Tag / Tree / Card）覆盖基础场景；ECharts 与 React Flow 均推迟到 Phase 5 与"仪表盘真实部件 + 物质血缘 React Flow 可视化"落地时一并装包。早期不引入避免依赖膨胀与未使用代码占 bundle 体积。
+
+---
+
+### D.4 S7：DM §7.3 extinction_coefficient INT → Float（修订十一新增）
+
+**上位文档位置**：`DM-MDM-001 V1.1 §7.3 srs.substance_protein` 表 DDL 字段定义
+
+**V1.1 原文（节选）**：
+```sql
+molecular_weight_da   NUMERIC(10, 2),
+pi_theoretical        NUMERIC(5, 2),
+extinction_coefficient INT,
+```
+
+**业务报告（2026-05-13）**：CMC 用户在前端"新建物质 → 蛋白属性"页填写消光系数 218400.5 M⁻¹cm⁻¹ 时被 422 拒绝；后端 Pydantic `extinction_coefficient: int` 拒收小数。
+
+**实施侧偏离与修复**：
+- migration 0035 把 `srs.substance_protein.extinction_coefficient` 从 `integer` 改为 `double precision`（`ALTER COLUMN ... TYPE double precision USING ::double precision`，已有整数值无损转换）
+- ORM `Mapped[float | None] = mapped_column(Float)`
+- Pydantic `extinction_coefficient: float | None`
+- 前端 `InputNumber step={0.1}` 支持小数输入
+
+**评审 B 决议（2026-05-13，与 S5/S6 同路）**：永久接受 Float / double precision；不回归 INT。
+
+**建议吸收文字（V1.3 docx §7.3 表后追加，可与 D.1 备注合并）**：
+
+> **备注（V1.2 评审决议吸收，2026-05-13）**：本表 `extinction_coefficient` 实施侧从 `INT` 改为 `double precision`，与 `molecular_weight_da` / `pi_theoretical`（D.1 备注）走同一路线。理由：
+> 1. **实验测定值常带小数**：UV-Vis 280nm 测定消光系数典型保留 1-2 位小数（例：218400.5 M⁻¹cm⁻¹ ± 1200）；ProtParam 等计算工具虽输出整数，但应用侧业务需保留实验测定精度。
+> 2. **double precision 精度足够**：IEEE 754 双精度提供 15-17 位十进制有效位，远超本字段实际需求（典型抗体范围 200,000-220,000 M⁻¹cm⁻¹）。
+> 3. **GxP 合规性不受影响**：21 CFR Part 11 §11.10 数据准确性针对测量精度而非存储类型；audit.change_history 仍记录全部变更前后值。
+>
+> Phase 4 修订十一已实施 migration 0035 完成无损类型转换。下一代上位文档（V1.3）正式吸收此选择。
+
+---
+
+## 附录 D 落地与执行说明
+
+| 项 | 来源 | V1.3 docx 修订动作 | 落地状态 |
+|---|---|---|---|
+| D.1 S5/S6 | 2026-05-13 V1.2 评审 §1.1 B 决议 | §7.3 表后追加"备注（V1.2 评审决议吸收）" | ⏳ 等待 V1.3 docx 修订 |
+| D.2 API4 | 2026-05-13 V1.2 评审 §1.4 B 决议 | §7.2 末尾追加"备注（V1.2 评审决议吸收）" | ⏳ 等待 V1.3 docx 修订 |
+| D.3 ARCH9 | 2026-05-13 V1.2 评审 §1.3 B 决议 | §5.1 表中两行替换 + 表后追加备注 | ⏳ 等待 V1.3 docx 修订 |
+| D.4 S7 | 2026-05-13 修订十一新发现（业务 bug 触发）| §7.3 `extinction_coefficient` DDL 改 `double precision` + 与 D.1 备注合并 | ⏳ 等待 V1.3 docx 修订（**代码已落地** migration 0035）|
+
+V1.3 docx 修订时序：建议与 Phase 4.D CSV 验证一起做（CSV 验证要求上位文档与实施一致；V1.1 docx 当前仍是签批基准，V1.3 修订需要走 IT 架构组评审 + QA 会签）。
+
+附录 D 之外的 B 决议项（P8 / API10 / API11 / UI9 部分）属于"Phase 5 实施时落地"范畴，不需要 V1.3 上位文档预先吸收。

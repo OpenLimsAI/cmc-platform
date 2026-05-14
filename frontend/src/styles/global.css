@@ -81,3 +81,24 @@ a {
   justify-content: center;
   height: 100vh;
 }
+
+/* ============== Antd Form 字段级错误视觉强化 ==============
+ * 默认 Antd 仅给输入框红色边框；这里加浅红背景便于快速定位（P4.B Bug 修复期落地）
+ * 选择器对应 Input / InputNumber / TextArea / Select / DatePicker / AutoComplete
+ */
+.ant-form-item-has-error .ant-input,
+.ant-form-item-has-error .ant-input-affix-wrapper,
+.ant-form-item-has-error .ant-input-number,
+.ant-form-item-has-error .ant-input-number-affix-wrapper,
+.ant-form-item-has-error .ant-input-number-input,
+.ant-form-item-has-error textarea.ant-input,
+.ant-form-item-has-error .ant-select:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer) .ant-select-selector,
+.ant-form-item-has-error .ant-picker {
+  background-color: #fff5f5 !important;
+}
+
+/* InputNumber / Select 等容器是 wrapper；让里面的真实 input 也带浅红 */
+.ant-form-item-has-error .ant-input-number .ant-input-number-input,
+.ant-form-item-has-error .ant-input-affix-wrapper .ant-input {
+  background-color: #fff5f5 !important;
+}

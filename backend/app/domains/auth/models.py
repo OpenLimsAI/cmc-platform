@@ -165,3 +165,31 @@ class LoginHistory(Base):
     login_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class RefreshToken(Base):
+    """Phase 4.B：refresh token 持久化（jti 旋转 + DB 撤销列表）"""
+
+    __tablename__ = "refresh_token"
+    __table_args__ = (
+        CheckConstraint(
+            "revoked_reason IS NULL OR revoked_reason IN "
+            "('rotated','logout','password_changed','admin','expired')",
+            name="ck_refresh_token_reason",
+        ),
+        {"schema": "auth"},
+    )
+
+    jti: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("auth.user.user_id"), nullable=False
+    )
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_reason: Mapped[str | None] = mapped_column(String(32))
+    rotated_to_jti: Mapped[str | None] = mapped_column(String(36))
+    ip_address: Mapped[str | None] = mapped_column(String(45))
+    user_agent: Mapped[str | None] = mapped_column(String(512))

@@ -9,6 +9,7 @@ interface AuthState {
   isAdmin: boolean;
 
   setAuth: (token: string, user: LoginResponseUser) => void;
+  updateToken: (token: string) => void;
   logout: () => void;
   hasPermission: (perm: string) => boolean;
 }
@@ -28,6 +29,11 @@ export const useAuthStore = create<AuthState>()(
           permissions: new Set(user.permissions),
           isAdmin: user.roles.includes('SYS_ADMIN'),
         });
+      },
+
+      // P4.B：refresh 路径只更新 access token，权限/用户信息保持
+      updateToken: (token) => {
+        set({ token });
       },
 
       logout: () => {

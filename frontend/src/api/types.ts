@@ -831,14 +831,18 @@ export interface AssetMarketIdUpdatePayload {
 }
 
 // ============== 全局搜索 ==============
-export type SearchEntityType = 'substance' | 'project' | 'asset';
+export type SearchEntityType = 'substance' | 'project' | 'asset' | 'material';
 export type SearchMatchedField =
   | 'code'
   | 'name'
   | 'name_en'
   | 'internal_code'
   | 'indication'
-  | 'xref';
+  | 'xref'
+  | 'trade_name'
+  | 'inn_name'
+  | 'objective'
+  | 'source_name';
 
 export interface SearchHit {
   entity_type: SearchEntityType;
@@ -850,7 +854,7 @@ export interface SearchHit {
   snippet?: string | null;
 }
 
-// API-MDM-001 V1.1 §8.3 行 1688-1721 响应分组结构
+// API-MDM-001 V1.1 §8.3 行 1688-1721 响应分组结构（M4.4 起含 material）
 export interface SearchGroup {
   total: number;
   items: SearchHit[];
@@ -863,7 +867,174 @@ export interface GlobalSearchResponse {
     substance: SearchGroup;
     project: SearchGroup;
     asset: SearchGroup;
+    material: SearchGroup;
   };
+}
+
+// ============== Material（DM §10）==============
+export type MaterialType =
+  | 'candidate'
+  | 'reference'
+  | 'stability'
+  | 'buffer'
+  | 'raw'
+  | 'intermediate'
+  | 'other';
+
+export type MaterialGrade = 'RUO' | 'GMP' | 'Reference Standard' | 'Working Standard';
+
+export type MaterialStatus =
+  | 'active'
+  | 'quarantine'
+  | 'released'
+  | 'rejected'
+  | 'retired';
+
+export interface MaterialBrief {
+  material_code: string;
+  material_name: string;
+  material_name_en?: string | null;
+  material_type: MaterialType;
+  grade?: MaterialGrade | null;
+  status: MaterialStatus;
+  physical_form?: string | null;
+  source_name?: string | null;
+  substance_id?: number | null;
+  substance_code?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaterialDetail {
+  material_id: number;
+  material_code: string;
+  material_name: string;
+  material_name_en?: string | null;
+  material_type: MaterialType;
+  substance_id?: number | null;
+  substance_code?: string | null;
+  physical_form?: string | null;
+  storage_condition?: string | null;
+  source_type?: string | null;
+  source_name?: string | null;
+  grade?: MaterialGrade | null;
+  status: MaterialStatus;
+  description?: string | null;
+  notes?: string | null;
+  extra?: Record<string, unknown> | null;
+  created_at: string;
+  created_by: number;
+  updated_at: string;
+  updated_by: number;
+  deleted_at?: string | null;
+  deleted_by?: number | null;
+}
+
+export interface MaterialListQuery {
+  q?: string;
+  material_type?: string;
+  status?: string;
+  grade?: string;
+  substance_code?: string;
+  source_type?: string;
+  page?: number;
+  page_size?: number;
+  sort?: string;
+}
+
+export interface MaterialCreatePayload {
+  material_name: string;
+  material_name_en?: string;
+  material_type: MaterialType;
+  substance_id?: number;
+  substance_code?: string;
+  physical_form?: string;
+  storage_condition?: string;
+  source_type?: string;
+  source_name?: string;
+  grade?: MaterialGrade;
+  description?: string;
+  notes?: string;
+  extra?: Record<string, unknown>;
+}
+
+export interface MaterialUpdatePayload {
+  change_reason?: string;
+  material_name?: string;
+  material_name_en?: string;
+  material_type?: MaterialType;
+  substance_id?: number | null;
+  substance_code?: string | null;
+  physical_form?: string;
+  storage_condition?: string;
+  source_type?: string;
+  source_name?: string;
+  grade?: MaterialGrade;
+  status?: MaterialStatus;
+  description?: string;
+  notes?: string;
+  extra?: Record<string, unknown>;
+}
+
+// material_batch (§10.2)
+export type MaterialBatchStatus =
+  | 'in_stock'
+  | 'in_use'
+  | 'depleted'
+  | 'expired'
+  | 'recalled';
+
+export interface MaterialBatch {
+  batch_id: number;
+  material_id: number;
+  batch_number: string;
+  quantity_value?: string | null;
+  quantity_unit?: string | null;
+  manufacture_date?: string | null;
+  expiry_date?: string | null;
+  receive_date?: string | null;
+  status: MaterialBatchStatus;
+  source_batch_ref?: string | null;
+  coa_url?: string | null;
+  storage_location?: string | null;
+  notes?: string | null;
+  extra?: Record<string, unknown> | null;
+  created_at: string;
+  created_by: number;
+  updated_at: string;
+  updated_by: number;
+  deleted_at?: string | null;
+  deleted_by?: number | null;
+}
+
+export interface MaterialBatchCreatePayload {
+  batch_number: string;
+  quantity_value?: string | number;
+  quantity_unit?: string;
+  manufacture_date?: string;
+  expiry_date?: string;
+  receive_date?: string;
+  source_batch_ref?: string;
+  coa_url?: string;
+  storage_location?: string;
+  notes?: string;
+  extra?: Record<string, unknown>;
+}
+
+export interface MaterialBatchUpdatePayload {
+  change_reason?: string;
+  batch_number?: string;
+  quantity_value?: string | number;
+  quantity_unit?: string;
+  manufacture_date?: string;
+  expiry_date?: string;
+  receive_date?: string;
+  status?: MaterialBatchStatus;
+  source_batch_ref?: string;
+  coa_url?: string;
+  storage_location?: string;
+  notes?: string;
+  extra?: Record<string, unknown>;
 }
 
 // ============== Audit & status history ==============

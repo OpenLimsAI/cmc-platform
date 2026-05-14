@@ -1,7 +1,7 @@
 """
 /api/v1/substances 路由
 """
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -21,6 +21,7 @@ from app.domains.srs.schemas import (
     SubstanceXrefUpdate,
 )
 from app.domains.srs.services import SubstanceService
+from app.shared.idempotency import IdempotencyService
 from app.shared.permissions import require_all_permissions, require_permission
 
 router = APIRouter()
@@ -76,18 +77,35 @@ async def create_substance(
     payload: SubstanceCreate,
     request: Request,
     response: Response,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
     user: User = Depends(require_permission("substance:create")),
     db: AsyncSession = Depends(get_db),
 ):
+    # API §3.4：Idempotency-Key 24h 窗口（命中且 body 一致直接返回缓存；body 不同 → 40905）
+    if idempotency_key:
+        cached = await IdempotencyService.check(user.user_id, idempotency_key, payload.model_dump())
+        if cached:
+            if cached.headers.get("Location"):
+                response.headers["Location"] = cached.headers["Location"]
+            return cached.body
+
     service = SubstanceService(db)
     detail = await service.create(payload, user)
     # API5 / V1.1 §6.2 行 971-972：POST 创建必须设 Location 头
-    response.headers["Location"] = f"/api/v1/substances/{detail.substance_code}"
-    return success(
+    location = f"/api/v1/substances/{detail.substance_code}"
+    response.headers["Location"] = location
+
+    body = success(
         data=detail.model_dump(mode="json"),
         message="Substance 创建成功",
         request_id=getattr(request.state, "request_id", None),
     )
+    if idempotency_key:
+        await IdempotencyService.save(
+            user.user_id, idempotency_key, payload.model_dump(),
+            status_code=201, response_body=body, location=location,
+        )
+    return body
 
 
 @router.get("/{code}", summary="Substance 详情")
@@ -364,6 +382,23 @@ async def list_substance_assets(
 ):
     from app.domains.ref.services import AssetSubstanceLinkService
     service = AssetSubstanceLinkService(db)
+    items = await service.list_for_substance(code, include_deleted=include_deleted)
+    return success(
+        data=[i.model_dump(mode="json") for i in items],
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/{code}/materials", summary="该物质相关的物料列表（反向查询，M4.3）")
+async def list_substance_materials(
+    code: str,
+    request: Request,
+    include_deleted: bool = Query(False, description="是否包含已软删除的物料"),
+    user: User = Depends(require_permission("material:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.domains.mm.services import MaterialService
+    service = MaterialService(db)
     items = await service.list_for_substance(code, include_deleted=include_deleted)
     return success(
         data=[i.model_dump(mode="json") for i in items],

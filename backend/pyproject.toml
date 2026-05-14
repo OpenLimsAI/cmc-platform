@@ -37,6 +37,12 @@ dependencies = [
     "loguru>=0.7.0",
     "httpx>=0.27.0",
     "tenacity>=8.2.0",                # 重试装饰器
+
+    # 可观测性（P4.B Prometheus 指标）
+    "prometheus-fastapi-instrumentator>=7.0.0",
+
+    # 限流（P4.B ARCH11，依赖 Redis storage）
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

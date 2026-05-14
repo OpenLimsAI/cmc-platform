@@ -134,8 +134,9 @@ async def test_invalid_project_type_rejected(admin_client, unique_suffix):
             "project_type": "invented_bad_value",
         },
     )
-    # Pydantic 在 schema 层先拦截
-    assert resp.status_code == 422
+    # Pydantic 在 schema 层先拦截 → V1.1 §4.1 validation_failed → 400
+    assert resp.status_code == 400
+    assert resp.json()["code"] == 40001
 
 
 @pytest.mark.asyncio
@@ -179,15 +180,14 @@ async def test_soft_delete_requires_reason(admin_client, unique_suffix):
         )
     ).json()["data"]["project_code"]
 
-    # 缺 body
+    # 缺 body / reason 太短 → V1.1 §4.1 validation_failed → 400
     resp = await admin_client.delete(f"/api/v1/projects/{code}")
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
-    # reason 太短
     resp = await admin_client.delete(
         f"/api/v1/projects/{code}", json={"change_reason": "no"}
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio

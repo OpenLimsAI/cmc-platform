@@ -20,6 +20,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { substancesApi } from '@/api/substances';
+import { applyFormErrors } from '@/shared/utils/formErrors';
 import type {
   Confidentiality,
   ProteinExtensionInput,
@@ -109,6 +110,15 @@ export function SubstanceEditPage() {
       queryClient.invalidateQueries({ queryKey: ['substance', code] });
       queryClient.invalidateQueries({ queryKey: ['substances'] });
       navigate(`/substances/${data.substance_code}`);
+    },
+    onError: (err: any) => {
+      if (applyFormErrors(form, err)) return;
+      const status = err?.response?.status;
+      if (status === 409) {
+        message.error('数据已被他人修改，请刷新后重试');
+      } else {
+        message.error(err?.response?.data?.message ?? '更新失败');
+      }
     },
   });
 
@@ -312,7 +322,7 @@ export function SubstanceEditPage() {
                 label="消光系数 (M⁻¹cm⁻¹)"
                 style={{ flex: 1 }}
               >
-                <InputNumber style={{ width: '100%' }} min={0} />
+                <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
               </Form.Item>
             </Space>
 

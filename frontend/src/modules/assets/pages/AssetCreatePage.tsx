@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
+import { applyFormErrors } from '@/shared/utils/formErrors';
 import type { AssetCreatePayload } from '@/api/types';
 import { ASSET_PHASE_OPTIONS, ASSET_TYPE_OPTIONS } from '../constants';
 
@@ -45,6 +46,7 @@ export function AssetCreatePage() {
       navigate(`/assets/${encodeURIComponent(detail.asset_code)}`);
     },
     onError: (err: any) => {
+      if (applyFormErrors(form, err)) return;
       message.error(err?.response?.data?.message ?? '创建失败');
     },
   });

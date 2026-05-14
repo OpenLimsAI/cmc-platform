@@ -32,6 +32,7 @@ from app.domains.prs.models import (
     ProjectTeam,
 )
 from app.domains.ars.models import Asset, AssetMarketId
+from app.domains.mm.models import Material, MaterialBatch
 from app.domains.ref.models import (
     AssetSubstanceLink,
     ProjectAssetLink,
@@ -642,8 +643,120 @@ DEMO_ASSETS = [
 ]
 
 
+# 物料：每个以 (material_name) 作幂等识别（material_code 由触发器分配，幂等用 name）
+# 跨域绑定：substance_internal_code → DEMO_SUBSTANCES 中的物质
+DEMO_MATERIALS = [
+    {
+        "material_name": "[DEMO] CMAB-D01 工程批 EB-001",
+        "material_name_en": "Anti-PD-1 EB-001",
+        "material_type": "candidate",
+        "grade": "RUO",
+        "physical_form": "liquid",
+        "storage_condition": "-80°C",
+        "source_type": "internal",
+        "source_name": "Pilot Plant 北区",
+        "substance_internal_code": "CMAB-D01",
+        "description": "CMAB-D01 早期工程批，用于工艺开发",
+        "batches": [
+            {
+                "batch_number": "EB-001-A",
+                "quantity_value": "120.0000",
+                "quantity_unit": "mL",
+                "manufacture_date": "2025-08-15",
+                "expiry_date": "2026-08-15",
+                "receive_date": "2025-08-22",
+                "storage_location": "BLDG-1 -80FZ-03",
+                "status": "in_use",
+            },
+            {
+                "batch_number": "EB-001-B",
+                "quantity_value": "85.0000",
+                "quantity_unit": "mL",
+                "manufacture_date": "2025-10-02",
+                "expiry_date": "2026-10-02",
+                "receive_date": "2025-10-10",
+                "storage_location": "BLDG-1 -80FZ-03",
+                "status": "in_stock",
+            },
+        ],
+    },
+    {
+        "material_name": "[DEMO] Anti-PD-1 Reference Standard",
+        "material_name_en": "PD-1 mAb Reference Standard",
+        "material_type": "reference",
+        "grade": "Reference Standard",
+        "physical_form": "lyophilized",
+        "storage_condition": "2-8°C",
+        "source_type": "internal",
+        "source_name": "QC Reference 实验室",
+        "substance_internal_code": "CMAB-D01",
+        "description": "PD-1 mAb 国家参考标准品，用于含量与生物学活性测定",
+        "batches": [
+            {
+                "batch_number": "RS-2025-01",
+                "quantity_value": "50",
+                "quantity_unit": "vial",
+                "manufacture_date": "2025-03-15",
+                "expiry_date": "2027-03-15",
+                "receive_date": "2025-04-01",
+                "source_batch_ref": "NIFDC-RS-2025-PD1",
+                "storage_location": "BLDG-2 RS-cabinet-01",
+                "status": "in_stock",
+            },
+        ],
+    },
+    {
+        "material_name": "[DEMO] HER2-DXd Stability Sample S-007",
+        "material_type": "stability",
+        "grade": "GMP",
+        "physical_form": "liquid",
+        "storage_condition": "25°C/60%RH",
+        "source_type": "internal",
+        "source_name": "Stability Chamber A",
+        "substance_internal_code": "CMAB-D04",
+        "description": "HER2-DXd ADC 加速稳定性样品（25°C/60%RH 6 个月）",
+        "batches": [
+            {
+                "batch_number": "STAB-S-007-M3",
+                "quantity_value": "8",
+                "quantity_unit": "vial",
+                "manufacture_date": "2025-11-01",
+                "expiry_date": "2026-05-01",
+                "receive_date": "2025-11-01",
+                "storage_location": "Stability Chamber A-shelf-02",
+                "status": "in_use",
+            },
+        ],
+    },
+    {
+        "material_name": "[DEMO] DPBS 1× pH 7.4 Buffer",
+        "material_name_en": "DPBS 1x pH 7.4",
+        "material_type": "buffer",
+        "grade": "GMP",
+        "physical_form": "solution",
+        "storage_condition": "2-8°C",
+        "source_type": "vendor",
+        "source_name": "Gibco / Thermo Fisher",
+        "description": "无菌过滤 DPBS 缓冲液，用于制剂与稀释",
+        "batches": [
+            {
+                "batch_number": "GIBCO-2025-DPBS-B12",
+                "quantity_value": "500",
+                "quantity_unit": "mL",
+                "manufacture_date": "2025-09-01",
+                "expiry_date": "2026-09-01",
+                "receive_date": "2025-09-20",
+                "source_batch_ref": "Lot 2384567",
+                "storage_location": "BLDG-1 Cold Room 01",
+                "status": "in_stock",
+            },
+        ],
+    },
+]
+
+
 async def seed_demo_data(db: AsyncSession):
-    """演示数据集：物质 + 项目 + 里程碑 + 团队 + 资产 + 跨域绑定"""
+    """演示数据集：物质 + 项目 + 里程碑 + 团队 + 资产 + 物料 + 跨域绑定"""
     logger.info("Seeding demo data (--demo)...")
 
     # 1) 物质（DEMO_SUBSTANCES）
@@ -830,6 +943,71 @@ async def seed_demo_data(db: AsyncSession):
     # 4) 资产 + 多市场注册号 + 跨域绑定（asset_substance / project_asset）
     await _seed_demo_assets(db, admin, sub_code_by_internal)
 
+    # 5) 物料 + 批次 + 物质引用（Phase 4.A M4.5）
+    await _seed_demo_materials(db, admin, sub_code_by_internal)
+
+
+async def _seed_demo_materials(
+    db: AsyncSession,
+    admin: User,
+    sub_code_by_internal: dict[str, tuple[int, str]],
+) -> None:
+    for mat_def in DEMO_MATERIALS:
+        # 幂等：按 material_name 查
+        existing = await db.execute(
+            select(Material).where(Material.material_name == mat_def["material_name"])
+        )
+        material = existing.scalar_one_or_none()
+        if not material:
+            sub_id: int | None = None
+            sub_internal = mat_def.get("substance_internal_code")
+            if sub_internal and sub_internal in sub_code_by_internal:
+                sub_id, _ = sub_code_by_internal[sub_internal]
+
+            material = Material(
+                material_name=mat_def["material_name"],
+                material_name_en=mat_def.get("material_name_en"),
+                material_type=mat_def["material_type"],
+                substance_id=sub_id,
+                physical_form=mat_def.get("physical_form"),
+                storage_condition=mat_def.get("storage_condition"),
+                source_type=mat_def.get("source_type"),
+                source_name=mat_def.get("source_name"),
+                grade=mat_def.get("grade"),
+                description=mat_def.get("description"),
+                created_by=admin.user_id,
+                updated_by=admin.user_id,
+            )
+            db.add(material)
+            await db.flush()
+
+        for b_def in mat_def.get("batches", []):
+            b_existing = await db.execute(
+                select(MaterialBatch).where(
+                    MaterialBatch.material_id == material.material_id,
+                    MaterialBatch.batch_number == b_def["batch_number"],
+                )
+            )
+            if b_existing.scalar_one_or_none():
+                continue
+            db.add(MaterialBatch(
+                material_id=material.material_id,
+                batch_number=b_def["batch_number"],
+                quantity_value=b_def.get("quantity_value"),
+                quantity_unit=b_def.get("quantity_unit"),
+                manufacture_date=_to_date(b_def.get("manufacture_date")),
+                expiry_date=_to_date(b_def.get("expiry_date")),
+                receive_date=_to_date(b_def.get("receive_date")),
+                status=b_def.get("status", "in_stock"),
+                source_batch_ref=b_def.get("source_batch_ref"),
+                storage_location=b_def.get("storage_location"),
+                notes=b_def.get("notes"),
+                created_by=admin.user_id,
+                updated_by=admin.user_id,
+            ))
+
+    await db.flush()
+
 
 async def _seed_demo_assets(
     db: AsyncSession,
@@ -976,7 +1154,8 @@ async def main(seed_demo: bool = False):
                 logger.info("")
                 logger.info(
                     f"✓ 演示数据：{len(DEMO_SUBSTANCES)} 物质 + {len(DEMO_PROJECTS)} 项目 + "
-                    f"{len(DEMO_ASSETS)} 资产（含里程碑/团队/市场注册号/跨域绑定）"
+                    f"{len(DEMO_ASSETS)} 资产 + {len(DEMO_MATERIALS)} 物料"
+                    f"（含里程碑/团队/市场注册号/批次/跨域绑定）"
                 )
         except Exception as e:
             await db.rollback()

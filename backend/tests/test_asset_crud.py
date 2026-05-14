@@ -134,7 +134,9 @@ async def test_invalid_asset_type_rejected(admin_client, unique_suffix):
             "asset_type": "invented",
         },
     )
-    assert resp.status_code == 422
+    # V1.1 §4.1：40001 validation_failed → HTTP 400
+    assert resp.status_code == 400
+    assert resp.json()["code"] == 40001
 
 
 @pytest.mark.asyncio
@@ -148,7 +150,8 @@ async def test_invalid_phase_rejected_by_check(admin_client, unique_suffix):
             "current_phase": "not-a-phase",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
+    assert resp.json()["code"] == 40001
 
 
 @pytest.mark.asyncio
@@ -190,7 +193,7 @@ async def test_soft_delete_requires_reason(admin_client, unique_suffix):
     ).json()["data"]["asset_code"]
 
     resp = await admin_client.delete(f"/api/v1/assets/{code}")
-    assert resp.status_code == 422
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed → 400
 
 
 @pytest.mark.asyncio

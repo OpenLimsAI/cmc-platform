@@ -134,7 +134,7 @@ async def test_invalid_component_role_rejected(admin_client, unique_suffix):
         f"/api/v1/assets/{acode}/substances",
         json={"substance_code": scode, "component_role": "vehicle"},  # 不在枚举
     )
-    assert r.status_code == 422
+    assert r.status_code == 400  # V1.1 §4.1 validation_failed → 400
 
 
 @pytest.mark.asyncio

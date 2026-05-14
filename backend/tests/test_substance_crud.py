@@ -364,16 +364,15 @@ async def test_soft_delete_requires_reason(admin_client, unique_suffix):
         )
     ).json()["data"]["substance_code"]
 
-    # 缺 body
+    # 缺 body / reason 太短 → V1.1 §4.1 validation_failed → 400
     resp = await admin_client.delete(f"/api/v1/substances/{code}")
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
-    # reason 太短（min_length=5）
     resp = await admin_client.delete(
         f"/api/v1/substances/{code}",
         json={"change_reason": "no"},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 400
 
     # 合法 reason
     resp = await admin_client.delete(

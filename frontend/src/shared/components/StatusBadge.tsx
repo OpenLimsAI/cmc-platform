@@ -46,13 +46,13 @@ export const ASSET_PHASE_LABELS: Record<string, string> = {
   discontinued: '已终止',
 };
 
+// §10.1 ck_material_status（主表 5 值）
 const MATERIAL_STATUS: Record<string, StatusMapping> = {
-  in_stock: { text: '在库', color: 'success' },
-  in_use: { text: '使用中', color: 'processing' },
+  active: { text: '在用', color: 'success' },
   quarantine: { text: '隔离', color: 'warning' },
-  expired: { text: '过期', color: 'error' },
+  released: { text: '已放行', color: 'blue' },
   rejected: { text: '不合格', color: 'error' },
-  disposed: { text: '已处置', color: 'default' },
+  retired: { text: '已退役', color: 'default' },
 };
 
 const MAPPING: Record<EntityType, Record<string, StatusMapping>> = {

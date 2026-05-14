@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     APP_DEBUG: bool = True
     APP_LOG_LEVEL: str = "INFO"
+    # 日志格式：human（开发彩色可读）/ json（生产单行 JSON 给 ELK/Splunk）
+    APP_LOG_FORMAT: str = "human"
     APP_TIMEZONE: str = "Asia/Shanghai"
 
     # ----------- 安全 -----------
@@ -46,6 +48,10 @@ class Settings(BaseSettings):
     PASSWORD_MIN_LENGTH: int = 12
     LOGIN_MAX_FAILED_ATTEMPTS: int = 5
     LOGIN_LOCK_DURATION_MINUTES: int = 30
+
+    # ----------- 限流 -----------
+    # 默认开启；测试 / 内网批量任务等可通过 env 关闭
+    RATE_LIMIT_ENABLED: bool = True
 
     @property
     def cors_origins_list(self) -> list[str]:

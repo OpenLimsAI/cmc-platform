@@ -8,6 +8,7 @@ API-MDM-001 V1.1 §8.3 行 1688-1721 响应：
       substance: {total, items: [...]},
       project: {total, items: [...]},
       asset: {total, items: [...]},
+      material: {total, items: [...]},   -- M4.4 起加入
     }
   }
 """
@@ -18,7 +19,7 @@ def _all_hits(payload: dict) -> list:
     """从分组结构提取所有 hits（测试方便）"""
     data = payload["data"]
     out: list = []
-    for group_key in ("substance", "project", "asset"):
+    for group_key in ("substance", "project", "asset", "material"):
         out.extend(data["results"][group_key]["items"])
     return out
 
@@ -118,6 +119,7 @@ async def test_search_types_filter(admin_client, unique_suffix):
     assert data["results"]["substance"]["total"] >= 1
     assert data["results"]["project"]["total"] == 0
     assert data["results"]["asset"]["total"] == 0
+    assert data["results"]["material"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -235,17 +237,18 @@ async def test_search_types_filter_asset_only(admin_client, unique_suffix):
     assert data["results"]["asset"]["total"] >= 1
     assert data["results"]["substance"]["total"] == 0
     assert data["results"]["project"]["total"] == 0
+    assert data["results"]["material"]["total"] == 0
 
 
 @pytest.mark.asyncio
-async def test_search_default_returns_all_three_types(admin_client, unique_suffix):
-    """缺省 types 时三种实体都应能返回"""
-    tag = f"AllThree{unique_suffix}"
+async def test_search_default_returns_all_four_types(admin_client, unique_suffix):
+    """缺省 types 时四种实体都应能返回（M4.4 起加 material）"""
+    tag = f"AllFour{unique_suffix}"
     await admin_client.post(
         "/api/v1/substances",
         json={
             "substance_type": "mab",
-            "internal_code": f"TEST-A3-{unique_suffix}",
+            "internal_code": f"TEST-A4-{unique_suffix}",
             "preferred_name": tag,
         },
     )
@@ -257,6 +260,10 @@ async def test_search_default_returns_all_three_types(admin_client, unique_suffi
         "/api/v1/assets",
         json={"internal_name": tag, "asset_type": "mab"},
     )
+    await admin_client.post(
+        "/api/v1/materials",
+        json={"material_name": tag, "material_type": "candidate"},
+    )
     resp = await admin_client.get(
         "/api/v1/search", params={"q": tag, "limit": 20}
     )
@@ -265,11 +272,12 @@ async def test_search_default_returns_all_three_types(admin_client, unique_suffi
     assert data["results"]["substance"]["total"] >= 1
     assert data["results"]["project"]["total"] >= 1
     assert data["results"]["asset"]["total"] >= 1
+    assert data["results"]["material"]["total"] >= 1
 
 
 @pytest.mark.asyncio
 async def test_search_response_structure(admin_client):
-    """API6（V1.1 §8.3 行 1688-1721）：响应分组结构严格断言"""
+    """API6（V1.1 §8.3 行 1688-1721）：响应分组结构严格断言（M4.4 起含 material）"""
     resp = await admin_client.get(
         "/api/v1/search", params={"q": "SUB-", "limit": 5}
     )
@@ -278,11 +286,94 @@ async def test_search_response_structure(admin_client):
     assert set(data.keys()) == {"query", "total", "results"}
     assert data["query"] == "SUB-"
     assert isinstance(data["total"], int)
-    assert set(data["results"].keys()) == {"substance", "project", "asset"}
-    for group_key in ("substance", "project", "asset"):
+    assert set(data["results"].keys()) == {"substance", "project", "asset", "material"}
+    for group_key in ("substance", "project", "asset", "material"):
         group = data["results"][group_key]
         assert set(group.keys()) == {"total", "items"}
         assert isinstance(group["total"], int)
         assert isinstance(group["items"], list)
         # total 与 items 长度一致
         assert group["total"] == len(group["items"])
+
+
+# ============== M4.4 物料搜索 ==============
+@pytest.mark.asyncio
+async def test_search_finds_material_by_name(admin_client, unique_suffix):
+    name = f"SearchableMat {unique_suffix}"
+    await admin_client.post(
+        "/api/v1/materials",
+        json={"material_name": name, "material_type": "candidate"},
+    )
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": f"SearchableMat {unique_suffix}", "limit": 10}
+    )
+    hits = _all_hits(resp.json())
+    assert any(
+        h["entity_type"] == "material" and h["name"] == name for h in hits
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_finds_material_by_code(admin_client, unique_suffix):
+    """MAT-yyyyXXXXXX 精确命中排在分组最前"""
+    create = await admin_client.post(
+        "/api/v1/materials",
+        json={"material_name": f"sr mat code {unique_suffix}", "material_type": "buffer"},
+    )
+    mcode = create.json()["data"]["material_code"]
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": mcode, "limit": 5}
+    )
+    mat_items = resp.json()["data"]["results"]["material"]["items"]
+    assert mat_items
+    assert mat_items[0]["code"] == mcode
+    assert mat_items[0]["matched_field"] == "code"
+
+
+@pytest.mark.asyncio
+async def test_search_finds_material_by_source_name(admin_client, unique_suffix):
+    """source_name 应能命中，matched_field=source_name"""
+    src = f"PilotPlant{unique_suffix}"
+    await admin_client.post(
+        "/api/v1/materials",
+        json={
+            "material_name": f"sr mat src {unique_suffix}",
+            "material_type": "candidate",
+            "source_name": src,
+        },
+    )
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": src, "limit": 5}
+    )
+    hits = _all_hits(resp.json())
+    match = next((h for h in hits if h["entity_type"] == "material"), None)
+    assert match is not None
+    assert match["matched_field"] == "source_name"
+    assert src in (match["snippet"] or "")
+
+
+@pytest.mark.asyncio
+async def test_search_types_filter_material_only(admin_client, unique_suffix):
+    """types=material 只返回 material 分组有 items"""
+    tag = f"MatOnly{unique_suffix}"
+    await admin_client.post(
+        "/api/v1/substances",
+        json={
+            "substance_type": "mab",
+            "internal_code": f"TEST-MO-{unique_suffix}",
+            "preferred_name": tag,
+        },
+    )
+    await admin_client.post(
+        "/api/v1/materials",
+        json={"material_name": tag, "material_type": "candidate"},
+    )
+    resp = await admin_client.get(
+        "/api/v1/search",
+        params={"q": tag, "types": "material", "limit": 10},
+    )
+    data = resp.json()["data"]
+    assert data["results"]["material"]["total"] >= 1
+    assert data["results"]["substance"]["total"] == 0
+    assert data["results"]["project"]["total"] == 0
+    assert data["results"]["asset"]["total"] == 0

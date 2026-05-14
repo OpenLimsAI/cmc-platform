@@ -12,6 +12,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -119,7 +120,8 @@ class SubstanceProtein(Base):
 
     molecular_weight_da: Mapped[float | None] = mapped_column()
     pi_theoretical: Mapped[float | None] = mapped_column()
-    extinction_coefficient: Mapped[int | None] = mapped_column(Integer)
+    # V1.2 §S7 决议（修订十一）：永久接受 Float — 实验测定值常带小数
+    extinction_coefficient: Mapped[float | None] = mapped_column(Float)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

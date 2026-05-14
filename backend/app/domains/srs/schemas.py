@@ -56,7 +56,8 @@ class ProteinExtension(BaseModel):
     expression_vector: str | None = None
     molecular_weight_da: float | None = None
     pi_theoretical: float | None = None
-    extinction_coefficient: int | None = None
+    # V1.2 §S7 决议（修订十一）：与 S5/S6 同路线，永久接受 Float
+    extinction_coefficient: float | None = None
 
 
 # V1.2 评审 API13:A 决议 — PUT /substances/{code}/adc 独立写端点

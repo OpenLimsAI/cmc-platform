@@ -16,14 +16,23 @@ from app.core.exceptions import (
     AccountLockedError,
     InvalidCredentialsError,
     OldPasswordWrongError,
+    TokenExpiredError,
+    TokenInvalidError,
 )
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     hash_password,
     verify_password,
 )
-from app.domains.auth.models import LoginHistory, Permission, RolePermission, User
+from app.domains.auth.models import (
+    LoginHistory,
+    Permission,
+    RefreshToken,
+    RolePermission,
+    User,
+)
 from app.domains.auth.schemas import (
     LoginResponse,
     LoginResponseUser,
@@ -116,10 +125,34 @@ class AuthService:
             await side.commit()
         return locked_now, False
 
+    # ----------- 内部：refresh token 持久化 -----------
+    async def _issue_refresh_token(
+        self,
+        user_id: int,
+        ip: str | None,
+        ua: str | None,
+    ) -> str:
+        """生成新 refresh token + 落库；返回原始 JWT 字符串"""
+        jti = str(uuid4())
+        token = create_refresh_token(subject=user_id, jti=jti)
+        expires_at = datetime.now(UTC) + timedelta(
+            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+        )
+        self.db.add(RefreshToken(
+            jti=jti,
+            user_id=user_id,
+            expires_at=expires_at,
+            ip_address=ip,
+            user_agent=(ua or "")[:512] if ua else None,
+        ))
+        await self.db.flush()
+        return token
+
     # ----------- 公共方法 -----------
     async def login(
         self, username: str, password: str, ip: str | None, ua: str | None
-    ) -> LoginResponse:
+    ) -> tuple[LoginResponse, str]:
+        """返回 (LoginResponse, refresh_token)。refresh 由路由层写 HttpOnly Cookie。"""
         result = await self.db.execute(
             select(User)
             .options(selectinload(User.roles))
@@ -198,18 +231,23 @@ class AuthService:
             extra_claims={"username": user.username, "roles": roles},
         )
 
-        return LoginResponse(
-            access_token=access_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            user=LoginResponseUser(
-                user_id=user.user_id,
-                username=user.username,
-                full_name=user.full_name,
-                department=user.department,
-                title=user.title,
-                roles=roles,
-                permissions=permissions,
+        refresh_token = await self._issue_refresh_token(user.user_id, ip, ua)
+
+        return (
+            LoginResponse(
+                access_token=access_token,
+                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                user=LoginResponseUser(
+                    user_id=user.user_id,
+                    username=user.username,
+                    full_name=user.full_name,
+                    department=user.department,
+                    title=user.title,
+                    roles=roles,
+                    permissions=permissions,
+                ),
             ),
+            refresh_token,
         )
 
     async def get_me(self, user: User) -> dict:
@@ -240,4 +278,134 @@ class AuthService:
         user.password_hash = hash_password(new_password)
         user.password_changed_at = datetime.now(UTC)
         user.password_expires_at = datetime.now(UTC) + timedelta(days=90)
+        # 撤销该用户全部活跃 refresh token（同 access token 黑名单语义）
+        await self.db.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.user_id == user.user_id,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(
+                revoked_at=datetime.now(UTC),
+                revoked_reason="password_changed",
+            )
+        )
         await self.db.flush()
+
+    # ----------- Refresh / Logout -----------
+    async def refresh(
+        self,
+        refresh_token: str,
+        ip: str | None,
+        ua: str | None,
+    ) -> tuple[RefreshTokenResponse, str]:
+        """旋转 refresh token：校验 → 撤销旧 jti → 签发新 access+refresh。
+
+        返回 (RefreshTokenResponse, new_refresh_token)。新 refresh 由路由层
+        写回 HttpOnly Cookie 覆盖旧值。
+
+        失败场景：
+        - JWT 解码失败 / 不是 refresh 类型 → TokenInvalidError(40103)
+        - JWT 已过期 → TokenExpiredError(40102)（decode_token 自抛）
+        - 数据库找不到 jti → TokenInvalidError（极少见，可能伪造）
+        - jti 已被撤销 → TokenInvalidError + 写审计：可能是 refresh 重放
+        - 关联用户已删/disabled → TokenInvalidError
+        """
+        payload = decode_token(refresh_token)  # 过期/无效会抛
+        if payload.get("type") != "refresh":
+            raise TokenInvalidError("token_type 不是 refresh")
+
+        jti = payload.get("jti")
+        if not jti:
+            raise TokenInvalidError("refresh token 缺少 jti")
+
+        # 查 DB：jti 必须存在 + 未撤销 + 未过期（DB 表的 expires_at 与 JWT exp 双校验）
+        result = await self.db.execute(
+            select(RefreshToken).where(RefreshToken.jti == jti)
+        )
+        rt = result.scalar_one_or_none()
+        if rt is None:
+            raise TokenInvalidError("refresh token 不存在")
+        now = datetime.now(UTC)
+        if rt.revoked_at is not None:
+            # 已撤销但仍被用——可能是 refresh 重放攻击；记录 warn
+            logger.warning(
+                f"refresh token 重放尝试：jti={jti} user_id={rt.user_id} "
+                f"revoked_reason={rt.revoked_reason}"
+            )
+            raise TokenInvalidError("refresh token 已被撤销")
+        if rt.expires_at <= now:
+            raise TokenExpiredError("refresh token 已过期")
+
+        # 拉用户 + roles
+        user_result = await self.db.execute(
+            select(User)
+            .options(selectinload(User.roles))
+            .where(User.user_id == rt.user_id, User.deleted_at.is_(None))
+        )
+        user = user_result.scalar_one_or_none()
+        if user is None or user.status != "active":
+            raise TokenInvalidError("用户不存在或已禁用")
+
+        # 旋转：撤销旧 jti
+        new_jti = str(uuid4())
+        rt.revoked_at = now
+        rt.revoked_reason = "rotated"
+        rt.rotated_to_jti = new_jti
+
+        # 签发新 refresh
+        new_refresh = create_refresh_token(subject=user.user_id, jti=new_jti)
+        new_expires_at = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        self.db.add(RefreshToken(
+            jti=new_jti,
+            user_id=user.user_id,
+            expires_at=new_expires_at,
+            ip_address=ip,
+            user_agent=(ua or "")[:512] if ua else None,
+        ))
+
+        # 签发新 access
+        roles = [r.role_code for r in user.roles]
+        new_access = create_access_token(
+            subject=user.user_id,
+            extra_claims={"username": user.username, "roles": roles},
+        )
+
+        # 强一致：refresh 端点必须 commit 后才返回（避免 yield 依赖 commit 时机坑）
+        await self.db.flush()
+        await self.db.commit()
+
+        return (
+            RefreshTokenResponse(
+                access_token=new_access,
+                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            ),
+            new_refresh,
+        )
+
+    async def logout(self, refresh_token: str | None) -> None:
+        """登出：撤销 cookie 中携带的 refresh token（如果有效则 revoke；无则静默）"""
+        if not refresh_token:
+            return
+        try:
+            payload = decode_token(refresh_token)
+        except (TokenInvalidError, TokenExpiredError):
+            return
+        if payload.get("type") != "refresh":
+            return
+        jti = payload.get("jti")
+        if not jti:
+            return
+        await self.db.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.jti == jti,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(
+                revoked_at=datetime.now(UTC),
+                revoked_reason="logout",
+            )
+        )
+        await self.db.flush()
+        await self.db.commit()

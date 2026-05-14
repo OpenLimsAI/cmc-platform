@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.ars.models import Asset
 from app.domains.auth.models import User
+from app.domains.mm.models import Material
 from app.domains.prs.models import Project
 from app.domains.search.schemas import GlobalSearchResponse, SearchGroup, SearchHit
 from app.domains.srs.models import Substance, SubstanceXref
@@ -41,6 +42,7 @@ class GlobalSearchService:
                 "substance": SearchGroup(total=0, items=[]),
                 "project": SearchGroup(total=0, items=[]),
                 "asset": SearchGroup(total=0, items=[]),
+                "material": SearchGroup(total=0, items=[]),
             },
         )
         if not q:
@@ -52,33 +54,40 @@ class GlobalSearchService:
         can_read_sub = is_sys_admin or "substance:read" in perms
         can_read_prj = is_sys_admin or "project:read" in perms
         can_read_ast = is_sys_admin or "asset:read" in perms
-        wanted = set(types) if types else {"substance", "project", "asset"}
+        can_read_mat = is_sys_admin or "material:read" in perms
+        wanted = set(types) if types else {"substance", "project", "asset", "material"}
 
         sub_hits: list[SearchHit] = []
         prj_hits: list[SearchHit] = []
         ast_hits: list[SearchHit] = []
+        mat_hits: list[SearchHit] = []
         if "substance" in wanted and can_read_sub:
             sub_hits = await self._search_substance(q, per_type_limit)
         if "project" in wanted and can_read_prj:
             prj_hits = await self._search_project(q, per_type_limit)
         if "asset" in wanted and can_read_ast:
             ast_hits = await self._search_asset(q, per_type_limit)
+        if "material" in wanted and can_read_mat:
+            mat_hits = await self._search_material(q, per_type_limit)
 
         # 每组内部按权重排序 + 截断到 limit
         sub_hits.sort(key=lambda h: _rank(h, q))
         prj_hits.sort(key=lambda h: _rank(h, q))
         ast_hits.sort(key=lambda h: _rank(h, q))
+        mat_hits.sort(key=lambda h: _rank(h, q))
         sub_hits = sub_hits[:limit]
         prj_hits = prj_hits[:limit]
         ast_hits = ast_hits[:limit]
+        mat_hits = mat_hits[:limit]
 
         return GlobalSearchResponse(
             query=q,
-            total=len(sub_hits) + len(prj_hits) + len(ast_hits),
+            total=len(sub_hits) + len(prj_hits) + len(ast_hits) + len(mat_hits),
             results={
                 "substance": SearchGroup(total=len(sub_hits), items=sub_hits),
                 "project": SearchGroup(total=len(prj_hits), items=prj_hits),
                 "asset": SearchGroup(total=len(ast_hits), items=ast_hits),
+                "material": SearchGroup(total=len(mat_hits), items=mat_hits),
             },
         )
 
@@ -199,6 +208,36 @@ class GlobalSearchService:
         return items
 
 
+    async def _search_material(self, q: str, lim: int) -> list[SearchHit]:
+        pat = f"%{q}%"
+        result = await self.db.execute(
+            select(Material)
+            .where(
+                Material.deleted_at.is_(None),
+                (Material.material_code.ilike(pat))
+                | (Material.material_name.ilike(pat))
+                | (Material.material_name_en.ilike(pat))
+                | (Material.source_name.ilike(pat)),
+            )
+            .limit(lim)
+        )
+        items = []
+        for mat in result.scalars():
+            field = _which_field_material(q, mat)
+            items.append(
+                SearchHit(
+                    entity_type="material",
+                    code=mat.material_code,
+                    name=mat.material_name,
+                    status=mat.status,
+                    matched_field=field,
+                    sub_type=mat.material_type,
+                    snippet=mat.source_name if field == "source_name" else None,
+                )
+            )
+        return items
+
+
 def _which_field_substance(q: str, sub: Substance) -> str:
     ql = q.lower()
     if sub.substance_code and ql in sub.substance_code.lower():
@@ -238,6 +277,19 @@ def _which_field_asset(q: str, asset: Asset) -> str:
     return "name"
 
 
+def _which_field_material(q: str, mat: Material) -> str:
+    ql = q.lower()
+    if mat.material_code and ql in mat.material_code.lower():
+        return "code"
+    if mat.material_name and ql in mat.material_name.lower():
+        return "name"
+    if mat.material_name_en and ql in mat.material_name_en.lower():
+        return "name_en"
+    if mat.source_name and ql in mat.source_name.lower():
+        return "source_name"
+    return "name"
+
+
 def _rank(hit: SearchHit, q: str) -> tuple[int, int]:
     """排序键：(权重, 名称长度) 双关键字升序。权重越小越靠前。"""
     ql = q.lower()
@@ -255,7 +307,7 @@ def _rank(hit: SearchHit, q: str) -> tuple[int, int]:
         weight = 4
     elif hit.matched_field in ("name_en", "internal_code", "trade_name", "inn_name"):
         weight = 5
-    elif hit.matched_field in ("xref", "objective"):
+    elif hit.matched_field in ("xref", "objective", "source_name"):
         weight = 6
     else:
         weight = 9

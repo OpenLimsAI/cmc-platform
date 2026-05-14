@@ -16,6 +16,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
+import { applyFormErrors } from '@/shared/utils/formErrors';
 import type { AssetUpdatePayload } from '@/api/types';
 import { ASSET_PHASE_OPTIONS, ASSET_TYPE_OPTIONS } from '../constants';
 
@@ -83,6 +84,7 @@ export function AssetEditPage() {
       navigate(`/assets/${encodeURIComponent(detail.asset_code)}`);
     },
     onError: (err: any) => {
+      if (applyFormErrors(form, err)) return;
       const status = err?.response?.status;
       if (status === 409) {
         message.error('数据已被他人修改，请刷新后重试');
