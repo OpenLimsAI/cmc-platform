@@ -1,12 +1,12 @@
 """
 /api/v1/auth 路由
 """
-from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.responses import success
+from app.core.responses import Pagination, success
 from app.domains.auth.models import User
 from app.domains.auth.schemas import (
     ChangePasswordRequest,
@@ -138,4 +138,43 @@ async def change_password(
         data=None,
         message="密码修改成功，请重新登录",
         request_id=getattr(request.state, "request_id", None),
+    )
+
+
+# =============================================================================
+# Phase 5.A / M5.4：个人中心（用户看自己）
+# =============================================================================
+
+
+@router.get("/me/login-history", summary="我的登录历史")
+async def my_login_history(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    items, total = await service.get_my_login_history(user, page, page_size)
+    return success(
+        data=[i.model_dump(mode="json") for i in items],
+        request_id=getattr(request.state, "request_id", None),
+        pagination=Pagination.make(page, page_size, total),
+    )
+
+
+@router.get("/me/signatures", summary="我的电子签名记录")
+async def my_signatures(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    items, total = await service.get_my_signatures(user, page, page_size)
+    return success(
+        data=[i.model_dump(mode="json") for i in items],
+        request_id=getattr(request.state, "request_id", None),
+        pagination=Pagination.make(page, page_size, total),
     )

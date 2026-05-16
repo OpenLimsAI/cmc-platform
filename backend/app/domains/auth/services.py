@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,6 +26,8 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.domains.audit.models import ESignature
+from app.domains.audit.schemas import ESignatureItem
 from app.domains.auth.models import (
     LoginHistory,
     Permission,
@@ -34,6 +36,7 @@ from app.domains.auth.models import (
     User,
 )
 from app.domains.auth.schemas import (
+    LoginHistoryItem,
     LoginResponse,
     LoginResponseUser,
     RefreshTokenResponse,
@@ -243,6 +246,7 @@ class AuthService:
                     full_name=user.full_name,
                     department=user.department,
                     title=user.title,
+                    must_change_password=user.force_password_change,
                     roles=roles,
                     permissions=permissions,
                 ),
@@ -264,6 +268,7 @@ class AuthService:
             "phone": user.phone,
             "status": user.status,
             "mfa_enabled": user.mfa_enabled,
+            "force_password_change": user.force_password_change,
             "last_login_at": user.last_login_at,
             "roles": [
                 {"role_id": r.role_id, "role_code": r.role_code, "role_name": r.role_name}
@@ -278,6 +283,8 @@ class AuthService:
         user.password_hash = hash_password(new_password)
         user.password_changed_at = datetime.now(UTC)
         user.password_expires_at = datetime.now(UTC) + timedelta(days=90)
+        # 管理员重置密码后用户首次改密，清空强制改密标记
+        user.force_password_change = False
         # 撤销该用户全部活跃 refresh token（同 access token 黑名单语义）
         await self.db.execute(
             update(RefreshToken)
@@ -409,3 +416,69 @@ class AuthService:
         )
         await self.db.flush()
         await self.db.commit()
+
+    # ----------- Phase 5.A / M5.4：个人中心（只看自己）-----------
+
+    async def get_my_login_history(
+        self,
+        user: User,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[LoginHistoryItem], int]:
+        """当前用户的登录历史（成功 + 失败均显示，按 login_at 倒序）。
+
+        合规：审计层面用户应可见自己的登录历史以便发现被盗号迹象（NIST 800-63B §5.2.6）。
+        过滤强制 user_id == 当前用户，不允许传 username 看别人的（admin 想看别人走
+        /audit-logs 走 audit:read 权限路径）。
+        """
+        base_stmt = select(LoginHistory).where(LoginHistory.user_id == user.user_id)
+        count_stmt = (
+            select(func.count(LoginHistory.login_id))
+            .where(LoginHistory.user_id == user.user_id)
+        )
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        result = await self.db.execute(
+            base_stmt
+            .order_by(LoginHistory.login_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = list(result.scalars())
+        items = [
+            LoginHistoryItem(
+                login_id=r.login_id,
+                username_input=r.username_input,
+                success=r.success,
+                failure_reason=r.failure_reason,
+                ip_address=str(r.ip_address) if r.ip_address else None,
+                user_agent=r.user_agent,
+                login_at=r.login_at,
+            )
+            for r in rows
+        ]
+        return items, total
+
+    async def get_my_signatures(
+        self,
+        user: User,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ESignatureItem], int]:
+        """当前用户的电子签名历史（21 CFR Part 11 §11.10(e) 用户自查权）"""
+        base_stmt = select(ESignature).where(ESignature.user_id == user.user_id)
+        count_stmt = (
+            select(func.count(ESignature.signature_id))
+            .where(ESignature.user_id == user.user_id)
+        )
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        result = await self.db.execute(
+            base_stmt
+            .order_by(ESignature.signature_id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = list(result.scalars())
+        items = [ESignatureItem.model_validate(r) for r in rows]
+        return items, total

@@ -21,7 +21,7 @@ function formatValue(v: unknown): string {
   return String(v);
 }
 
-function ChangesView({ changes }: { changes: ChangeHistoryItem[] }) {
+export function ChangesView({ changes }: { changes: ChangeHistoryItem[] }) {
   if (changes.length === 0) {
     // v3 起 CREATE/DELETE 也展开字段；这里通常只在很老的历史日志（v2 时期）出现
     return <Text type="secondary">（该记录无字段级展开 — 早期 CREATE/DELETE 历史日志或纯状态翻转）</Text>;

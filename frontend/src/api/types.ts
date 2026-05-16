@@ -56,6 +56,7 @@ export interface UserMe {
   phone?: string | null;
   status: string;
   mfa_enabled: boolean;
+  force_password_change?: boolean;
   last_login_at?: string | null;
   roles: RoleBrief[];
   permissions: string[];
@@ -72,8 +73,240 @@ export interface LoginResponseUser {
   full_name: string;
   department?: string | null;
   title?: string | null;
+  must_change_password?: boolean;
   roles: string[];
   permissions: string[];
+}
+
+// ============== Admin: 用户管理（API10）==============
+export type UserStatus = 'active' | 'locked' | 'disabled';
+
+export interface UserListItem {
+  user_id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  department?: string | null;
+  title?: string | null;
+  status: UserStatus;
+  last_login_at?: string | null;
+  created_at: string;
+  roles: RoleBrief[];
+}
+
+export interface UserDetail {
+  user_id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  full_name_en?: string | null;
+  department?: string | null;
+  title?: string | null;
+  phone?: string | null;
+  status: UserStatus;
+  failed_login_count: number;
+  locked_at?: string | null;
+  last_login_at?: string | null;
+  password_changed_at?: string | null;
+  password_expires_at?: string | null;
+  force_password_change: boolean;
+  mfa_enabled: boolean;
+  created_at: string;
+  created_by?: number | null;
+  updated_at: string;
+  updated_by?: number | null;
+  roles: RoleBrief[];
+  permissions: string[];
+}
+
+export interface UserCreatePayload {
+  username: string;
+  email: string;
+  password: string;
+  full_name: string;
+  full_name_en?: string | null;
+  department?: string | null;
+  title?: string | null;
+  phone?: string | null;
+  role_codes: string[];
+}
+
+export interface UserUpdatePayload {
+  email?: string;
+  full_name?: string;
+  full_name_en?: string | null;
+  department?: string | null;
+  title?: string | null;
+  phone?: string | null;
+}
+
+export interface UserListQuery {
+  q?: string;
+  role_code?: string;
+  status?: UserStatus;
+  page?: number;
+  page_size?: number;
+}
+
+export interface ResetPasswordResult {
+  username: string;
+  temp_password: string;
+  force_password_change: boolean;
+}
+
+// ============== Admin: 角色与权限（M5.2）==============
+export interface PermissionItem {
+  permission_id: number;
+  permission_code: string;
+  resource: string;
+  action: string;
+  description?: string | null;
+  is_system: boolean;
+}
+
+export interface RoleListItem {
+  role_id: number;
+  role_code: string;
+  role_name: string;
+  description?: string | null;
+  is_system: boolean;
+  permission_count: number;
+  user_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleDetail {
+  role_id: number;
+  role_code: string;
+  role_name: string;
+  description?: string | null;
+  is_system: boolean;
+  permission_count: number;
+  user_count: number;
+  permissions: PermissionItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleCreatePayload {
+  role_code: string;
+  role_name: string;
+  description?: string | null;
+  permission_codes: string[];
+}
+
+export interface RoleUpdatePayload {
+  role_name?: string;
+  description?: string | null;
+  permission_codes?: string[];
+}
+
+// ============== Admin: 全局审计 + 签名（M5.3）==============
+export interface AuditLogQuery {
+  q?: string;
+  username?: string;
+  action?: string;
+  entity_table?: string;
+  entity_code?: string;
+  date_from?: string;  // ISO datetime
+  date_to?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface SignatureItem {
+  signature_id: number;
+  user_id: number;
+  username: string;
+  full_name: string;
+  entity_schema: string;
+  entity_table: string;
+  entity_id: number;
+  entity_code?: string | null;
+  signature_meaning: string;
+  signature_reason: string;
+  signed_content_hash: string;
+  signature_hash: string;
+  signed_at: string;
+}
+
+export interface SignatureQuery {
+  username?: string;
+  entity_table?: string;
+  entity_code?: string;
+  signature_meaning?: string;
+  date_from?: string;
+  date_to?: string;
+  page?: number;
+  page_size?: number;
+}
+
+// ============== Dashboard (Phase 5.B) ==============
+export interface DistributionItem {
+  key: string | null;
+  count: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  count: number;
+}
+
+export interface DashboardSummary {
+  totals: {
+    substance: number;
+    project: number;
+    asset: number;
+    material: number;
+  };
+  distributions: {
+    substance_by_type: DistributionItem[];
+    substance_by_status: DistributionItem[];
+    project_by_status: DistributionItem[];
+    project_by_priority: DistributionItem[];
+    asset_by_phase: DistributionItem[];
+    asset_by_status: DistributionItem[];
+    material_by_type: DistributionItem[];
+    material_by_grade: DistributionItem[];
+  };
+  trend_30d: {
+    substance: TrendPoint[];
+    project: TrendPoint[];
+    asset: TrendPoint[];
+    material: TrendPoint[];
+  };
+}
+
+export interface GanttMilestone {
+  milestone_id: number;
+  milestone_name: string;
+  planned_date: string | null;
+  actual_date: string | null;
+  status: string;
+}
+
+export interface GanttProject {
+  project_code: string;
+  project_name: string;
+  status: string;
+  priority?: string | null;
+  planned_start_date: string | null;
+  planned_end_date: string | null;
+  actual_start_date: string | null;
+  actual_end_date: string | null;
+  milestones: GanttMilestone[];
+}
+
+// ============== Profile (M5.4) ==============
+export interface LoginHistoryItem {
+  login_id: number;
+  username_input: string;
+  success: boolean;
+  failure_reason?: string | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  login_at: string;
 }
 
 export interface LoginResponse {

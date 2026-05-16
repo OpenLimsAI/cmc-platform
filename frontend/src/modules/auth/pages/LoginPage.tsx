@@ -20,6 +20,12 @@ export function LoginPage() {
     try {
       const result = await authApi.login(values);
       setAuth(result.access_token, result.user);
+      // 管理员重置后首次登录：强制跳改密页，绕过 redirect 目标（GxP）
+      if (result.user.must_change_password) {
+        message.warning('管理员已重置您的密码，请先设置新密码后再使用系统');
+        navigate('/profile/password?required=1', { replace: true });
+        return;
+      }
       message.success(`欢迎回来，${result.user.full_name}`);
       const redirect = searchParams.get('redirect');
       navigate(redirect ? decodeURIComponent(redirect) : '/dashboard');

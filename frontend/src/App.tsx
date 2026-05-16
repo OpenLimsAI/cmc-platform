@@ -18,8 +18,13 @@ import { MaterialListPage } from './modules/materials/pages/MaterialListPage';
 import { MaterialCreatePage } from './modules/materials/pages/MaterialCreatePage';
 import { MaterialDetailPage } from './modules/materials/pages/MaterialDetailPage';
 import { MaterialEditPage } from './modules/materials/pages/MaterialEditPage';
+import { UserListPage } from './modules/admin/pages/UserListPage';
+import { RoleListPage } from './modules/admin/pages/RoleListPage';
+import { PermissionListPage } from './modules/admin/pages/PermissionListPage';
+import { AuditLogPage } from './modules/admin/pages/AuditLogPage';
+import { SignatureListPage } from './modules/admin/pages/SignatureListPage';
+import { ProfilePage } from './modules/profile/pages/ProfilePage';
 import { NotFoundPage } from './modules/common/NotFoundPage';
-import { PlaceholderPage } from './modules/common/PlaceholderPage';
 import { MainLayout } from './shared/layouts/MainLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 
@@ -57,10 +62,18 @@ export default function App() {
           <Route path="/materials/:code" element={<MaterialDetailPage />} />
           <Route path="/materials/:code/edit" element={<MaterialEditPage />} />
 
-          {/* 占位 - 后续 Phase 实现 */}
-          <Route path="/audit/*" element={<PlaceholderPage title="审计模块" />} />
-          <Route path="/admin/*" element={<PlaceholderPage title="系统管理" />} />
-          <Route path="/profile" element={<PlaceholderPage title="个人中心" />} />
+          {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
+          <Route path="/admin/users" element={<UserListPage />} />
+          <Route path="/admin/roles" element={<RoleListPage />} />
+          <Route path="/admin/permissions" element={<PermissionListPage />} />
+          <Route path="/admin/audit-logs" element={<AuditLogPage />} />
+          <Route path="/admin/signatures" element={<SignatureListPage />} />
+          <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
+
+          {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}
+          <Route path="/audit/*" element={<Navigate to="/admin/audit-logs" replace />} />
+          {/* M5.4 个人中心 */}
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/password" element={<ChangePasswordPage />} />
 
           <Route path="*" element={<NotFoundPage />} />

@@ -4,8 +4,12 @@ API v1 路由聚合
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    admin_audit,
+    admin_roles,
+    admin_users,
     assets,
     auth,
+    dashboard,
     lookups,
     materials,
     projects,
@@ -25,3 +29,19 @@ api_router.include_router(search.router, prefix="/search", tags=["search"])
 # V1.2 评审 API11:B 部分立即做（2026-05-13）
 api_router.include_router(lookups.router, prefix="/lookups", tags=["lookups"])
 api_router.include_router(system.router, prefix="/system", tags=["system"])
+# Phase 5.A / M5.1：管理员侧 API10 用户管理
+api_router.include_router(admin_users.router, prefix="/users", tags=["admin-users"])
+# Phase 5.A / M5.2：管理员侧角色 & 权限管理
+api_router.include_router(admin_roles.roles_router, prefix="/roles", tags=["admin-roles"])
+api_router.include_router(
+    admin_roles.permissions_router, prefix="/permissions", tags=["admin-permissions"]
+)
+# Phase 5.A / M5.3：管理员侧全局审计 + 电子签名
+api_router.include_router(
+    admin_audit.audit_router, prefix="/audit-logs", tags=["admin-audit"]
+)
+api_router.include_router(
+    admin_audit.signatures_router, prefix="/signatures", tags=["admin-signatures"]
+)
+# Phase 5.B：仪表盘聚合
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])

@@ -118,3 +118,29 @@ class ESignatureItem(BaseModel):
     signed_content_hash: str
     signature_hash: str
     signed_at: datetime
+
+
+# ============== Phase 5.A / M5.3：全局审计 + 签名查询 ==============
+
+
+class AuditLogFilter(BaseModel):
+    """全局审计日志查询参数（GET /audit-logs）"""
+
+    q: str | None = Field(None, description="模糊搜索 entity_code / reason")
+    username: str | None = None
+    action: str | None = Field(None, description="CREATE / UPDATE / DELETE / SIGN / LOGIN / ...")
+    entity_table: str | None = Field(None, description="如 substance / project / asset / material")
+    entity_code: str | None = None
+    date_from: datetime | None = None
+    date_to: datetime | None = None
+
+
+class SignatureFilter(BaseModel):
+    """电子签名查询参数（GET /signatures）"""
+
+    username: str | None = None
+    entity_table: str | None = None
+    entity_code: str | None = None
+    signature_meaning: str | None = None
+    date_from: datetime | None = None
+    date_to: datetime | None = None

@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -25,8 +25,10 @@ interface FormValues {
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
   const [form] = Form.useForm<FormValues>();
+  const isForced = searchParams.get('required') === '1';
 
   const mutation = useMutation({
     mutationFn: (payload: { old_password: string; new_password: string }) =>
@@ -70,6 +72,16 @@ export function ChangePasswordPage() {
         <Title level={3} style={{ marginTop: 0 }}>
           修改密码
         </Title>
+
+        {isForced && (
+          <Alert
+            type="error"
+            showIcon
+            message="管理员已重置您的密码"
+            description="此密码为一次性临时凭证，必须设置新密码后才能正常使用系统。新密码长度 ≥ 12 位，包含大小写、数字与符号。"
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
         <Alert
           type="warning"
@@ -135,9 +147,11 @@ export function ChangePasswordPage() {
             <Button type="primary" htmlType="submit" loading={mutation.isPending}>
               提交修改
             </Button>
-            <Button onClick={() => navigate(-1)} disabled={mutation.isPending}>
-              取消
-            </Button>
+            {!isForced && (
+              <Button onClick={() => navigate(-1)} disabled={mutation.isPending}>
+                取消
+              </Button>
+            )}
           </Space>
 
           {mutation.isSuccess && (

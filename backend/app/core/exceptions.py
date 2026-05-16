@@ -137,6 +137,22 @@ class OperationNotAllowedError(AppError):
     default_message = "当前状态下不允许此操作"
 
 
+class CannotOperateSelfError(AppError):
+    """管理员不能对自己执行 lock / disable / reset-password 等危险操作（GxP 自我误操作防护）"""
+    code = 40305
+    http_status = 403
+    error_type = "cannot_operate_self"
+    default_message = "不能对自己执行此操作"
+
+
+class SystemRoleProtectedError(AppError):
+    """系统内置角色不可修改/删除（RBAC 通用约束）"""
+    code = 40306
+    http_status = 403
+    error_type = "system_role_protected"
+    default_message = "系统内置角色不可修改或删除"
+
+
 class NotFoundError(AppError):
     code = 40400
     http_status = 404
@@ -176,6 +192,20 @@ class MaterialNotFoundError(NotFoundError):
     default_message = "物料不存在"
 
 
+class RoleNotFoundError(NotFoundError):
+    """角色不存在（API10 / M5.2）"""
+    code = 40408
+    error_type = "role_not_found"
+    default_message = "角色不存在"
+
+
+class PermissionNotFoundError(NotFoundError):
+    """权限不存在（创建/更新角色时指定了未知 permission_code）"""
+    code = 40409
+    error_type = "permission_not_found"
+    default_message = "权限不存在"
+
+
 class ConflictError(AppError):
     code = 40901
     http_status = 409
@@ -205,6 +235,27 @@ class DuplicateRequestError(ConflictError):
     code = 40905
     error_type = "duplicate_request"
     default_message = "幂等键冲突，相同请求已被处理"
+
+
+class UsernameExistsError(ConflictError):
+    """创建用户时 username 重复"""
+    code = 40906
+    error_type = "username_exists"
+    default_message = "用户名已存在"
+
+
+class EmailExistsError(ConflictError):
+    """创建/更新用户时 email 重复"""
+    code = 40907
+    error_type = "email_exists"
+    default_message = "邮箱已被使用"
+
+
+class RoleCodeExistsError(ConflictError):
+    """创建角色时 role_code 重复"""
+    code = 40908
+    error_type = "role_code_exists"
+    default_message = "角色编码已存在"
 
 
 class MaterialBatchNumberDuplicateError(ConflictError):

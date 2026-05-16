@@ -1,6 +1,9 @@
 """
 审计查询服务
 """
+import csv
+import io
+
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,12 +14,39 @@ from app.core.exceptions import (
     SubstanceNotFoundError,
 )
 from app.domains.ars.models import Asset, AssetMarketId
-from app.domains.audit.models import AuditLog, ChangeHistory
-from app.domains.audit.schemas import AuditLogItem, ChangeHistoryItem
+from app.domains.audit.models import AuditLog, ChangeHistory, ESignature
+from app.domains.audit.schemas import (
+    AuditLogFilter,
+    AuditLogItem,
+    ChangeHistoryItem,
+    ESignatureItem,
+    SignatureFilter,
+)
 from app.domains.mm.models import Material, MaterialBatch
 from app.domains.prs.models import Project, ProjectMilestone, ProjectTeam
 from app.domains.ref.models import ProjectSubstanceLink
 from app.domains.srs.models import Substance, SubstanceXref
+
+
+# CSV 导出列定义（21 CFR Part 11 §11.10(c) 审计归档；用户决策 CSV-only）
+_AUDIT_CSV_HEADERS = [
+    "log_id",
+    "timestamp",
+    "username",
+    "user_id",
+    "action",
+    "entity_schema",
+    "entity_table",
+    "entity_id",
+    "entity_code",
+    "reason",
+    "ip_address",
+    "request_id",
+    "changes",  # 序列化为 "field1: old→new; field2: old→new"
+]
+
+# 导出上限：单次最多 50000 行（生产可由 settings 控制；超量请按时间段切片）
+AUDIT_EXPORT_MAX_ROWS = 50000
 
 
 class AuditService:
@@ -325,6 +355,190 @@ class AuditService:
             )
             for log in logs
         ]
+        return items, total
+
+    # ----------- Phase 5.A / M5.3：全局审计 + 签名查询 -----------
+
+    def _apply_audit_filters(self, stmt, filter: AuditLogFilter):
+        if filter.username:
+            stmt = stmt.where(AuditLog.username == filter.username)
+        if filter.action:
+            stmt = stmt.where(AuditLog.action == filter.action)
+        if filter.entity_table:
+            stmt = stmt.where(AuditLog.entity_table == filter.entity_table)
+        if filter.entity_code:
+            stmt = stmt.where(AuditLog.entity_code == filter.entity_code)
+        if filter.date_from:
+            stmt = stmt.where(AuditLog.timestamp >= filter.date_from)
+        if filter.date_to:
+            stmt = stmt.where(AuditLog.timestamp <= filter.date_to)
+        if filter.q:
+            pattern = f"%{filter.q}%"
+            stmt = stmt.where(
+                or_(
+                    AuditLog.entity_code.ilike(pattern),
+                    AuditLog.reason.ilike(pattern),
+                )
+            )
+        return stmt
+
+    async def list_global_audit_logs(
+        self,
+        filter: AuditLogFilter,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[AuditLogItem], int]:
+        """全局审计日志查询（API11 顶层端点）。结果含字段级 diff。"""
+        base_stmt = select(AuditLog)
+        base_stmt = self._apply_audit_filters(base_stmt, filter)
+        count_stmt = self._apply_audit_filters(
+            select(func.count()).select_from(AuditLog), filter
+        )
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        page_result = await self.db.execute(
+            base_stmt
+            .order_by(AuditLog.log_id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        logs = list(page_result.scalars())
+
+        log_ids = [log.log_id for log in logs]
+        changes_by_log: dict[int, list[ChangeHistoryItem]] = {}
+        if log_ids:
+            ch_result = await self.db.execute(
+                select(ChangeHistory)
+                .where(ChangeHistory.audit_log_id.in_(log_ids))
+                .order_by(ChangeHistory.history_id)
+            )
+            for ch in ch_result.scalars():
+                changes_by_log.setdefault(ch.audit_log_id, []).append(
+                    ChangeHistoryItem(
+                        field_name=ch.field_name,
+                        old_value=ch.old_value,
+                        new_value=ch.new_value,
+                    )
+                )
+
+        items = [
+            AuditLogItem(
+                log_id=log.log_id,
+                user_id=log.user_id,
+                username=log.username,
+                action=log.action,
+                entity_schema=log.entity_schema,
+                entity_table=log.entity_table,
+                entity_id=log.entity_id,
+                entity_code=log.entity_code,
+                reason=log.reason,
+                ip_address=str(log.ip_address) if log.ip_address else None,
+                request_id=log.request_id,
+                timestamp=log.timestamp,
+                changes=changes_by_log.get(log.log_id, []),
+            )
+            for log in logs
+        ]
+        return items, total
+
+    async def export_audit_logs_csv(self, filter: AuditLogFilter) -> tuple[str, int]:
+        """导出审计日志为 CSV 字符串。返回 (csv_text, row_count)。
+
+        合规：单次最多导出 AUDIT_EXPORT_MAX_ROWS 行（默认 50000）。超量提示用户按
+        date_from / date_to 切片再导。CSV 编码 UTF-8 BOM，Excel 直接打开不乱码。
+
+        实现注意：change_history 查询用 SQL 子查询（select(...).scalar_subquery()），
+        而不是先取 50000 个 log_id 再 IN 绑定 — asyncpg 单次 bind 参数上限 32767，
+        50000 行直接 IN 列表会 InterfaceError。
+        """
+        stmt = select(AuditLog)
+        stmt = self._apply_audit_filters(stmt, filter)
+        stmt = stmt.order_by(AuditLog.log_id.desc()).limit(AUDIT_EXPORT_MAX_ROWS)
+        result = await self.db.execute(stmt)
+        logs = list(result.scalars())
+
+        changes_by_log: dict[int, list[ChangeHistory]] = {}
+        if logs:
+            log_id_subq = (
+                self._apply_audit_filters(select(AuditLog.log_id), filter)
+                .order_by(AuditLog.log_id.desc())
+                .limit(AUDIT_EXPORT_MAX_ROWS)
+                .scalar_subquery()
+            )
+            ch_result = await self.db.execute(
+                select(ChangeHistory)
+                .where(ChangeHistory.audit_log_id.in_(log_id_subq))
+                .order_by(ChangeHistory.history_id)
+            )
+            for ch in ch_result.scalars():
+                changes_by_log.setdefault(ch.audit_log_id, []).append(ch)
+
+        def _format_change(ch: ChangeHistory) -> str:
+            def _v(x):
+                return "" if x is None else str(x)
+            return f"{ch.field_name}: {_v(ch.old_value)}→{_v(ch.new_value)}"
+
+        buf = io.StringIO()
+        buf.write("﻿")  # UTF-8 BOM（Excel 友好）
+        writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(_AUDIT_CSV_HEADERS)
+        for log in logs:
+            chs = changes_by_log.get(log.log_id, [])
+            changes_text = "; ".join(_format_change(c) for c in chs) if chs else ""
+            writer.writerow([
+                log.log_id,
+                log.timestamp.isoformat(),
+                log.username,
+                log.user_id or "",
+                log.action,
+                log.entity_schema or "",
+                log.entity_table or "",
+                log.entity_id or "",
+                log.entity_code or "",
+                log.reason or "",
+                str(log.ip_address) if log.ip_address else "",
+                log.request_id or "",
+                changes_text,
+            ])
+        return buf.getvalue(), len(logs)
+
+    def _apply_signature_filters(self, stmt, filter: SignatureFilter):
+        if filter.username:
+            stmt = stmt.where(ESignature.username == filter.username)
+        if filter.entity_table:
+            stmt = stmt.where(ESignature.entity_table == filter.entity_table)
+        if filter.entity_code:
+            stmt = stmt.where(ESignature.entity_code == filter.entity_code)
+        if filter.signature_meaning:
+            stmt = stmt.where(ESignature.signature_meaning == filter.signature_meaning)
+        if filter.date_from:
+            stmt = stmt.where(ESignature.signed_at >= filter.date_from)
+        if filter.date_to:
+            stmt = stmt.where(ESignature.signed_at <= filter.date_to)
+        return stmt
+
+    async def list_signatures(
+        self,
+        filter: SignatureFilter,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ESignatureItem], int]:
+        """电子签名全局列表（GxP 21 CFR Part 11 §11.50 监管查询）"""
+        base_stmt = select(ESignature)
+        base_stmt = self._apply_signature_filters(base_stmt, filter)
+        count_stmt = self._apply_signature_filters(
+            select(func.count()).select_from(ESignature), filter
+        )
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        page_result = await self.db.execute(
+            base_stmt
+            .order_by(ESignature.signature_id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        sigs = list(page_result.scalars())
+        items = [ESignatureItem.model_validate(s) for s in sigs]
         return items, total
 
     async def get_asset_audit_logs(

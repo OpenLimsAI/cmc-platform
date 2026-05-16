@@ -49,6 +49,7 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    force_password_change: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
