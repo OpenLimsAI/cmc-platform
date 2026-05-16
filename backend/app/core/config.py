@@ -27,8 +27,14 @@ class Settings(BaseSettings):
     APP_TIMEZONE: str = "Asia/Shanghai"
 
     # ----------- 安全 -----------
+    # HS256 时 SECRET_KEY 必填；RS256 时仅作 fallback / 旧 token 兼容
     SECRET_KEY: str = Field(..., min_length=32)
-    JWT_ALGORITHM: str = "HS256"
+    JWT_ALGORITHM: str = "HS256"  # 生产强烈建议 RS256（ARCH2）
+    # RS256 启用时必填：PEM 格式 RSA 私钥/公钥的路径（容器内绝对路径）
+    JWT_PRIVATE_KEY_PATH: str | None = None
+    JWT_PUBLIC_KEY_PATH: str | None = None
+    # JWT 头 kid 字段（启用 RS256 后用于密钥轮换；HS256 时忽略）
+    JWT_KEY_ID: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 

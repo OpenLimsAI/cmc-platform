@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.core.exceptions import TokenExpiredError, TokenInvalidError
+from app.core.jwt_keys import get_jwt_header_extras, get_signing_key, get_verifying_key
 
 # ============== 密码哈希 ==============
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
@@ -30,7 +31,7 @@ def create_access_token(
     extra_claims: dict[str, Any] | None = None,
     expires_minutes: int | None = None,
 ) -> str:
-    """生成 Access Token"""
+    """生成 Access Token（按 settings.JWT_ALGORITHM 选 HS256/RS256）"""
     expire = datetime.now(UTC) + timedelta(
         minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
@@ -42,7 +43,12 @@ def create_access_token(
     }
     if extra_claims:
         payload.update(extra_claims)
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload,
+        get_signing_key(),
+        algorithm=settings.JWT_ALGORITHM,
+        headers=get_jwt_header_extras() or None,
+    )
 
 
 def create_refresh_token(subject: int | str, jti: str) -> str:
@@ -55,13 +61,22 @@ def create_refresh_token(subject: int | str, jti: str) -> str:
         "exp": expire,
         "iat": datetime.now(UTC),
     }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload,
+        get_signing_key(),
+        algorithm=settings.JWT_ALGORITHM,
+        headers=get_jwt_header_extras() or None,
+    )
 
 
 def decode_token(token: str) -> dict[str, Any]:
     """解码并校验 Token"""
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return jwt.decode(
+            token,
+            get_verifying_key(),
+            algorithms=[settings.JWT_ALGORITHM],
+        )
     except jwt.ExpiredSignatureError as e:
         raise TokenExpiredError() from e
     except JWTError as e:

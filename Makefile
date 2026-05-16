@@ -108,6 +108,11 @@ backup:
 	  $(COMPOSE) exec -T postgres rm -f /tmp/cmab_mdm_$$TS.dump && \
 	  echo "✓ 备份完成：backups/cmab_mdm_$$TS.dump"
 
+# ============== JWT 密钥生成（Phase 5.C / ARCH2） ==============
+# 默认输出 deploy/jwt/jwt_{private,public}.pem；私钥 600 权限
+jwt-keys:
+	@bash scripts/gen_jwt_keys.sh
+
 # ============== schema 一致性 CI 门禁（P4.D-3） ==============
 # 把 scripts/ + docs/ 临时拷到 backend 容器，连容器内 DATABASE_URL_SYNC 跑
 # 注意：docker cp 进已存在目录会嵌套，所以每次先 rm 清空
