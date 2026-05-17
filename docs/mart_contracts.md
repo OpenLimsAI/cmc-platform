@@ -10,7 +10,7 @@
 2. **主数据全部来自 `cmc_mdm`**，通过 `cmc_analytics.snap_mdm.*` 每日快照或 `ext_mdm.*` FDW 视图引入 mart（按 v0.1 FDW 分级，字典类高频低变更走 snap）。
 3. **mart 同时提供"维度建模 + 兼容视图"两层**：
    - 维度建模层：`dim_*` / `fct_*`（v0.1 规范要求）
-   - 兼容视图层：`vw_*`（以 join 表达原 `app_rd.v_*` 的语义，看板直接消费，避免一次性重写 30+ SQL）
+   - 兼容视图层：`v_*`（以 join 表达原 `app_rd.v_*` 的语义，看板直接消费，避免一次性重写 30+ SQL）
 4. **粒度严格分离**：sample 与 test 各成事实表；宽表只在 view 层呈现。
 
 ## 1. 数据来源
@@ -132,10 +132,10 @@
 
 每张视图都是上面 fct/dim 的 join + 派生列。语义与旧 `app_rd.v_*` 严格一致，保证看板 SQL 改最少。
 
-### 4.1 `mart.vw_test_task_monitor`（核心宽表，对应旧 `v_test_task_monitor`）
+### 4.1 `mart.v_test_task_monitor`（核心宽表，对应旧 `v_test_task_monitor`）
 
 ```sql
-CREATE VIEW mart.vw_test_task_monitor AS
+CREATE VIEW mart.v_test_task_monitor AS
 SELECT
   t.test_id,
   t.sample_id,
@@ -168,18 +168,18 @@ FROM mart.fct_test t
 LEFT JOIN mart.fct_sample s ON t.sample_id = s.sample_id;
 ```
 
-### 4.2 `mart.vw_sample_overview`（对应旧 `v_sample_overview`）
+### 4.2 `mart.v_sample_overview`（对应旧 `v_sample_overview`）
 
 `SELECT ... FROM mart.fct_sample`（字段集见 §2.1，但保留旧视图列顺序）。
 
-### 4.3 `mart.vw_completed_tests` / `vw_pending_tests`
+### 4.3 `mart.v_completed_tests` / `v_pending_tests`
 
-`SELECT ... FROM mart.vw_test_task_monitor WHERE task_bucket = 'completed'` / `'pending'`。
+`SELECT ... FROM mart.v_test_task_monitor WHERE task_bucket = 'completed'` / `'pending'`。
 
-### 4.4 `mart.vw_overdue_snapshot`（对应旧 `v_overdue_snapshot`）
+### 4.4 `mart.v_overdue_snapshot`（对应旧 `v_overdue_snapshot`）
 
 ```sql
-CREATE VIEW mart.vw_overdue_snapshot AS
+CREATE VIEW mart.v_overdue_snapshot AS
 SELECT *,
   CASE
     WHEN sample_status = 'U' THEN 'unsubmitted'
@@ -188,23 +188,23 @@ SELECT *,
     WHEN test_completed_dt IS NOT NULL AND test_authorised_dt IS NULL THEN 'unauthorized'
     ELSE 'other'
   END AS overdue_bucket
-FROM mart.vw_test_task_monitor
+FROM mart.v_test_task_monitor
 WHERE test_status <> 'X';
 ```
 
-### 4.5 `mart.vw_turnaround_time`（对应旧 `v_turnaround_time`）
+### 4.5 `mart.v_turnaround_time`（对应旧 `v_turnaround_time`）
 
-在 `vw_test_task_monitor` 基础上加 6 个小时数列：`hr_receive_to_grouplead` / `hr_grouplead_to_assign` / `hr_assign_to_start` / `hr_start_to_complete` / `hr_complete_to_authorise` / `hr_total_tat`，公式见旧视图定义。
+在 `v_test_task_monitor` 基础上加 6 个小时数列：`hr_receive_to_grouplead` / `hr_grouplead_to_assign` / `hr_assign_to_start` / `hr_start_to_complete` / `hr_complete_to_authorise` / `hr_total_tat`，公式见旧视图定义。
 
-### 4.6 `mart.vw_daily_workload`（对应旧 `v_daily_workload`）
+### 4.6 `mart.v_daily_workload`（对应旧 `v_daily_workload`）
 
 ```sql
-CREATE VIEW mart.vw_daily_workload AS
+CREATE VIEW mart.v_daily_workload AS
 SELECT
   date(test_completed_dt) AS stat_date,
   project_id, group_id, tester, method_code, method_name,
   COUNT(*) AS completed_test_count
-FROM mart.vw_test_task_monitor
+FROM mart.v_test_task_monitor
 WHERE test_completed_dt IS NOT NULL
 GROUP BY 1,2,3,4,5,6;
 ```
@@ -228,21 +228,25 @@ MDM_DATABASE_URL=postgresql+asyncpg://mdm_admin:***@<mdm_pg>:5433/cmc_mdm
 
 | # | 对象 | 类型 | 状态 | 完成日期 | 备注 |
 |---|---|---|---|---|---|
-| 1 | `mart.fct_sample` | TABLE | ⬜ | | |
-| 2 | `mart.fct_test` | TABLE | ⬜ | | |
-| 3 | `mart.dim_method` | TABLE/VIEW | ⬜ | | 上游 `cmc_mdm.mdm_quality.method_master` |
-| 4 | `mart.dim_employee` | TABLE/VIEW | ⬜ | | 上游 `cmc_mdm.mdm_core.employee_master` |
-| 5 | `mart.dim_project` | TABLE/VIEW | ⬜ | | 上游待建；或先 `DISTINCT` 兜底 |
-| 6 | `mart.dim_group` | TABLE/VIEW | ⬜ | | 上游待建；或先 `DISTINCT` 兜底 |
-| 7 | `mart.vw_test_task_monitor` | VIEW | ⬜ | | 看板第一依赖 |
-| 8 | `mart.vw_sample_overview` | VIEW | ⬜ | | |
-| 9 | `mart.vw_completed_tests` | VIEW | ⬜ | | |
-| 10 | `mart.vw_pending_tests` | VIEW | ⬜ | | |
-| 11 | `mart.vw_overdue_snapshot` | VIEW | ⬜ | | |
-| 12 | `mart.vw_turnaround_time` | VIEW | ⬜ | | |
-| 13 | `mart.vw_daily_workload` | VIEW | ⬜ | | |
-| 14 | `analytics_reader` 账号 + 授权 | ROLE | ⬜ | | |
-| 15 | `mdm_admin` 账号 + 授权 | ROLE | ⬜ | | |
+> **dev 阶段（2026-05-17）**：mart 视图层通过 `postgres_fdw` 引用旧库 `cmc_data_platform.staging_rd` + `meta`，即时可用；Phase 1 当 `cmc_rd.raw_rd_lims_samplemanager` 字段补齐后，把 `staging.stg_*` 切到新库，mart 视图无感切换。
+
+| # | 对象 | 类型 | 状态 | 完成日期 | 备注 |
+|---|---|---|---|---|---|
+| 1 | `staging.stg_sample` | TABLE | ✅ | 2026-05 | 16573 行；外部 ETL 注入 |
+| 2 | `staging.stg_test` | TABLE | ✅ | 2026-05 | 37129 行 |
+| 3 | `mart.dim_method` | VIEW(FDW) | ✅ | 2026-05-17 | `ext_legacy_meta.dim_method`；后期切 `snap_mdm` |
+| 4 | `mart.dim_employee` | VIEW(FDW) | ✅ | 2026-05-17 | 同上 |
+| 5 | `mart.dim_project` | — | ⬜ | | 兜底 `SELECT DISTINCT project_id FROM staging.stg_sample` |
+| 6 | `mart.dim_group` | — | ⬜ | | 兜底 `SELECT DISTINCT group_id FROM staging.stg_sample` |
+| 7 | `mart.v_test_task_monitor` | VIEW | ✅ | 2026-05 | 看板第一依赖 |
+| 8 | `mart.v_sample_overview` | VIEW | ✅ | 2026-05 | |
+| 9 | `mart.v_completed_tests` | VIEW | ✅ | 2026-05 | |
+| 10 | `mart.v_pending_tests` | VIEW | ✅ | 2026-05 | |
+| 11 | `mart.v_overdue_snapshot` | VIEW | ✅ | 2026-05 | |
+| 12 | `mart.v_turnaround_time` | VIEW | ✅ | 2026-05 | |
+| 13 | `mart.v_daily_workload` | VIEW | ✅ | 2026-05 | |
+| 14 | `lims_reader` 授权读 mart/ext_* | ROLE | ✅ | 2026-05-17 | |
+| 15 | `legacy_rd_srv` FDW + user mapping | FDW | ✅ | 2026-05-17 | → `cmc_data_platform` |
 
 ## 7. 已知开放问题
 

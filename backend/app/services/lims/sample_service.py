@@ -10,7 +10,7 @@ async def get_sample_overview(
     page: int = 1,
     size: int = 20,
 ) -> tuple[int, list[SampleOverview]]:
-    """分页查询 mart.vw_sample_overview"""
+    """分页查询 mart.v_sample_overview"""
     offset = (page - 1) * size
 
     total_result = await db.execute(select(func.count()).select_from(SampleOverview))
