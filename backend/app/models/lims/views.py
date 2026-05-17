@@ -1,4 +1,4 @@
-# ORM 映射：app_rd schema 下的只读视图，不做任何写操作
+# ORM 映射：cmc_analytics.mart 下的兼容视图（vw_*），只读
 from sqlalchemy import Column, DateTime, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
@@ -8,11 +8,11 @@ class Base(DeclarativeBase):
 
 
 class TestTaskMonitor(Base):
-    """映射 app_rd.v_test_task_monitor 视图（37129行，主查询来源）"""
-    __tablename__ = "v_test_task_monitor"
-    __table_args__ = {"schema": "app_rd"}
+    """映射 mart.vw_test_task_monitor 视图（核心宽表，约 37k 行）"""
+    __tablename__ = "vw_test_task_monitor"
+    __table_args__ = {"schema": "mart"}
 
-    # 主键（视图无真实主键，用 test_id 作为映射主键）
+    # 视图无真实主键，用 test_id 作为映射主键
     test_id = Column(String, primary_key=True)
     sample_id = Column(String)
     sample_name = Column(Text)
@@ -34,9 +34,9 @@ class TestTaskMonitor(Base):
 
 
 class SampleOverview(Base):
-    """映射 app_rd.v_sample_overview 视图（16573行）"""
-    __tablename__ = "v_sample_overview"
-    __table_args__ = {"schema": "app_rd"}
+    """映射 mart.vw_sample_overview 视图（约 16k 行）"""
+    __tablename__ = "vw_sample_overview"
+    __table_args__ = {"schema": "mart"}
 
     sample_id = Column(String, primary_key=True)
     project_id = Column(String)

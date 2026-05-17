@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.admin.auth import verify_admin
-from app.core.database import get_admin_db
+from app.core.database import get_mdm_db
 from app.models.meta.dims import DimEmployee
 
 router = APIRouter()
@@ -32,7 +32,7 @@ class EmployeeUpdate(BaseModel):
 
 
 @router.get("", response_model=list[EmployeeItem], dependencies=[Depends(verify_admin)])
-async def list_employees(db: AsyncSession = Depends(get_admin_db)):
+async def list_employees(db: AsyncSession = Depends(get_mdm_db)):
     result = await db.execute(select(DimEmployee).order_by(DimEmployee.employee_id))
     return [EmployeeItem(
         employee_id=r.employee_id,
@@ -42,7 +42,7 @@ async def list_employees(db: AsyncSession = Depends(get_admin_db)):
 
 
 @router.post("", response_model=EmployeeItem, dependencies=[Depends(verify_admin)])
-async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_admin_db)):
+async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_mdm_db)):
     existing = await db.execute(select(DimEmployee).where(DimEmployee.employee_id == body.employee_id))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="该员工 ID 已存在")
@@ -57,7 +57,7 @@ async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_a
 async def update_employee(
     employee_id: str,
     body: EmployeeUpdate,
-    db: AsyncSession = Depends(get_admin_db),
+    db: AsyncSession = Depends(get_mdm_db),
 ):
     result = await db.execute(select(DimEmployee).where(DimEmployee.employee_id == employee_id))
     row = result.scalar_one_or_none()
@@ -73,7 +73,7 @@ async def update_employee(
 
 
 @router.post("/upload", dependencies=[Depends(verify_admin)])
-async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_admin_db)):
+async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_db)):
     content = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
 

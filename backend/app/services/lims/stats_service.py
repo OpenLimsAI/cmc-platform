@@ -20,8 +20,9 @@ async def get_health_stats(db: AsyncSession) -> dict:
 
 
 async def get_data_freshness(db: AsyncSession) -> dict:
-    # last_etl_at 取 raw_rd_lims schema 所有表 autoanalyze/analyze 时间的最大值。
-    # ETL 执行 TRUNCATE+COPY 时写入量远超 autovacuum 阈值，autoanalyze 在 ETL 完成后 1-2 min 内触发。
+    # 取 mart schema 下所有 fct_* 表 autoanalyze/analyze 时间的最大值，作为 mart 层刷新时间近似。
+    # TODO（mart 就绪后）：优先读 cmc_analytics.meta.dataset_version 的最新 refreshed_at；
+    # autoanalyze 兜底，避免 dataset_version 未启用时拿不到值。
     sql = """
     SELECT
         current_database() AS db_name,
@@ -29,7 +30,7 @@ async def get_data_freshness(db: AsyncSession) -> dict:
                     COALESCE(last_autoanalyze, 'epoch'::timestamptz),
                     COALESCE(last_analyze,     'epoch'::timestamptz)))
          FROM pg_stat_user_tables
-         WHERE schemaname = 'raw_rd_lims') AS last_etl_at
+         WHERE schemaname = 'mart' AND relname LIKE 'fct_%') AS last_etl_at
     """
     result = await db.execute(text(sql))
     row = result.mappings().first()
@@ -85,19 +86,19 @@ async def get_kpi(
     params = {"start": start, "end_date": end_date}
 
     sql_samples = f"""
-        SELECT COUNT(DISTINCT sample_id) FROM app_rd.v_test_task_monitor
+        SELECT COUNT(DISTINCT sample_id) FROM mart.vw_test_task_monitor
         WHERE {_DATE_WINDOW_RECEIVED} AND {_STATUS_EXCL_XU} AND {group_sql}
     """
     sql_tests = f"""
-        SELECT COUNT(DISTINCT test_id) FROM app_rd.v_test_task_monitor
+        SELECT COUNT(DISTINCT test_id) FROM mart.vw_test_task_monitor
         WHERE {_DATE_WINDOW_RECEIVED} AND {_STATUS_EXCL_XU} AND {group_sql}
     """
     sql_done = f"""
-        SELECT COUNT(DISTINCT test_id) FROM app_rd.v_test_task_monitor
+        SELECT COUNT(DISTINCT test_id) FROM mart.vw_test_task_monitor
         WHERE {_DATE_WINDOW_AUTHORISED} AND {_STATUS_EXCL_X} AND {group_sql}
     """
     sql_pending = f"""
-        SELECT COUNT(DISTINCT test_id) FROM app_rd.v_test_task_monitor
+        SELECT COUNT(DISTINCT test_id) FROM mart.vw_test_task_monitor
         WHERE sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND test_authorised_dt IS NULL
           AND {_STATUS_EXCL_XU} AND {group_sql}
@@ -151,7 +152,7 @@ async def get_monthly_trend(
           m.cutoff_date AS month_end,
 
           (SELECT COUNT(DISTINCT v.sample_id)
-           FROM app_rd.v_test_task_monitor v
+           FROM mart.vw_test_task_monitor v
            WHERE v.sample_received_dt::date >= m.m_start_date
              AND v.sample_received_dt::date < (m.cutoff_date + 1)
              AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
@@ -160,7 +161,7 @@ async def get_monthly_trend(
           ) AS sample_n,
 
           (SELECT COUNT(DISTINCT v.test_id)
-           FROM app_rd.v_test_task_monitor v
+           FROM mart.vw_test_task_monitor v
            WHERE v.sample_received_dt::date >= m.m_start_date
              AND v.sample_received_dt::date < (m.cutoff_date + 1)
              AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
@@ -169,7 +170,7 @@ async def get_monthly_trend(
           ) AS test_n,
 
           (SELECT COUNT(DISTINCT v.test_id)
-           FROM app_rd.v_test_task_monitor v
+           FROM mart.vw_test_task_monitor v
            WHERE v.sample_received_dt::date < (m.cutoff_date + 1)
              AND (v.test_authorised_dt IS NULL
                   OR v.test_authorised_dt::date >= (m.cutoff_date + 1))
@@ -225,7 +226,7 @@ async def get_cycle_time_by_method(
                 v.method_code,
                 v.test_id,
                 {_BIZ_DAYS_EXPR} AS biz_days
-            FROM app_rd.v_test_task_monitor v
+            FROM mart.vw_test_task_monitor v
             WHERE v.test_authorised_dt >= CAST(:start AS date)
               AND v.test_authorised_dt <  (CAST(:end_date AS date) + INTERVAL '1 day')
               AND {_CYCLE_BASE_FILTER}
@@ -239,7 +240,7 @@ async def get_cycle_time_by_method(
             ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY r.biz_days)::numeric, 1) AS median_cycle_days,
             MAX(r.biz_days)::int                                                        AS max_cycle_days
         FROM raw r
-        LEFT JOIN meta.dim_method m ON r.method_code = m.method_code
+        LEFT JOIN mart.dim_method m ON r.method_code = m.method_code
         GROUP BY r.method_code, m.method_name
         ORDER BY avg_cycle_days DESC
     """
@@ -273,7 +274,7 @@ async def get_cycle_time_monthly_trend(
                 v.test_id,
                 {_BIZ_DAYS_EXPR} AS biz_days
             FROM months m
-            JOIN app_rd.v_test_task_monitor v
+            JOIN mart.vw_test_task_monitor v
               ON  v.test_authorised_dt::date >= m.m_start
               AND v.test_authorised_dt::date <  m.m_end
             WHERE {_CYCLE_BASE_FILTER}
@@ -319,7 +320,7 @@ async def get_cycle_time_trend_by_method(
                 v.method_code,
                 {_BIZ_DAYS_EXPR} AS biz_days
             FROM months m
-            JOIN app_rd.v_test_task_monitor v
+            JOIN mart.vw_test_task_monitor v
               ON  v.test_authorised_dt::date >= m.m_start
               AND v.test_authorised_dt::date <  m.m_end
             WHERE {_CYCLE_BASE_FILTER}
@@ -332,7 +333,7 @@ async def get_cycle_time_trend_by_method(
             ROUND(AVG(r.biz_days), 1)                                                  AS avg_cycle_days,
             ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY r.biz_days)::numeric, 1) AS median_cycle_days
         FROM raw r
-        LEFT JOIN meta.dim_method dm ON r.method_code = dm.method_code
+        LEFT JOIN mart.dim_method dm ON r.method_code = dm.method_code
         GROUP BY r.ym, r.m_start, r.method_code, dm.method_name
         ORDER BY r.ym, dm.method_name
     """
@@ -356,8 +357,8 @@ async def get_project_distribution(
             COUNT(DISTINCT v.sample_id)                  AS sample_n,
             COUNT(DISTINCT v.test_id)                    AS test_n,
             ROUND(COALESCE(SUM(m.std_minutes), 0) / 60.0, 2) AS std_hours
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt >= CAST(:start AS date)
           AND v.sample_received_dt <  (CAST(:end_date AS date) + INTERVAL '1 day')
           AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
@@ -410,7 +411,7 @@ async def get_workload_summary(
 ) -> list[dict]:
     """
     员工工时汇总，支持三口径：submitted（到样）/ completed（完结）/ pending（待完成）。
-    JOIN meta.dim_method 取标准工时，JOIN meta.dim_employee 取姓名和部门。
+    JOIN mart.dim_method 取标准工时，JOIN mart.dim_employee 取姓名和部门。
     """
     group_sql, _ = _group_clause(groups)
     where = _workload_where(scope, group_sql)
@@ -422,9 +423,9 @@ async def get_workload_summary(
             COUNT(DISTINCT v.test_id)                                      AS test_n,
             COALESCE(SUM(m.std_minutes), 0)                                AS total_minutes,
             ROUND(COALESCE(SUM(m.std_minutes), 0) / 60.0, 1)              AS total_hours
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method   m ON v.method_code   = m.method_code
-        LEFT JOIN meta.dim_employee e ON v.tester        = e.employee_id
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method   m ON v.method_code   = m.method_code
+        LEFT JOIN mart.dim_employee e ON v.tester        = e.employee_id
         WHERE {where}
         GROUP BY v.tester, e.employee_name, e.department
         ORDER BY total_hours DESC
@@ -445,8 +446,8 @@ async def get_workload_kpi(
 
     sql_sub = f"""
         SELECT ROUND(COALESCE(SUM(m.std_minutes),0)/60.0,1)
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt >= CAST(:start AS date)
           AND v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND UPPER(COALESCE(v.sample_status,'')) NOT IN ('X','U')
@@ -455,8 +456,8 @@ async def get_workload_kpi(
     """
     sql_done = f"""
         SELECT ROUND(COALESCE(SUM(m.std_minutes),0)/60.0,1)
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.test_authorised_dt >= CAST(:start AS date)
           AND v.test_authorised_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND UPPER(COALESCE(v.test_status,'')) <> 'X'
@@ -464,8 +465,8 @@ async def get_workload_kpi(
     """
     sql_pend = f"""
         SELECT ROUND(COALESCE(SUM(m.std_minutes),0)/60.0,1)
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND v.test_authorised_dt IS NULL
           AND UPPER(COALESCE(v.sample_status,'')) NOT IN ('X','U')
@@ -476,8 +477,8 @@ async def get_workload_kpi(
     # method_codes that appear in the window but have no std_minutes defined
     sql_missing = f"""
         SELECT DISTINCT v.method_code
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE m.method_code IS NULL
           AND v.method_code IS NOT NULL
           AND (
@@ -522,8 +523,8 @@ async def get_workload_by_method(
             SELECT v.method_code,
                    v.test_id,
                    m.std_minutes
-            FROM app_rd.v_test_task_monitor v
-            LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+            FROM mart.vw_test_task_monitor v
+            LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
             WHERE {where}
         )
         SELECT
@@ -532,7 +533,7 @@ async def get_workload_by_method(
             COUNT(DISTINCT r.test_id)                           AS test_n,
             ROUND(COALESCE(SUM(r.std_minutes),0)/60.0,1)       AS total_hours
         FROM raw r
-        LEFT JOIN meta.dim_method dm ON r.method_code = dm.method_code
+        LEFT JOIN mart.dim_method dm ON r.method_code = dm.method_code
         GROUP BY r.method_code, dm.method_name
         ORDER BY total_hours DESC
     """
@@ -555,8 +556,8 @@ async def get_method_distribution(
             COALESCE(m.method_name, v.method_code, '（未知）') AS method_name,
             v.method_code,
             COUNT(DISTINCT v.test_id) AS test_count
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt >= CAST(:start AS date)
           AND v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
@@ -588,20 +589,20 @@ async def get_overdue(
     # 四类计数，UNION ALL 一次查完
     sql_summary = f"""
         SELECT 'unsubmitted' AS category, COUNT(DISTINCT test_id) AS n
-        FROM app_rd.v_test_task_monitor
+        FROM mart.vw_test_task_monitor
         WHERE test_status = 'U'
           AND request_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND {group_sql}
         UNION ALL
         SELECT 'unassigned', COUNT(DISTINCT test_id)
-        FROM app_rd.v_test_task_monitor
+        FROM mart.vw_test_task_monitor
         WHERE test_status = 'V'
           AND (tester IS NULL OR TRIM(tester) = '')
           AND sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND {group_sql}
         UNION ALL
         SELECT 'inprogress', COUNT(DISTINCT test_id)
-        FROM app_rd.v_test_task_monitor
+        FROM mart.vw_test_task_monitor
         WHERE test_status = 'V'
           AND (tester IS NOT NULL AND TRIM(tester) <> '')
           AND test_completed_dt IS NULL
@@ -609,7 +610,7 @@ async def get_overdue(
           AND {group_sql}
         UNION ALL
         SELECT 'unauthorized', COUNT(DISTINCT test_id)
-        FROM app_rd.v_test_task_monitor
+        FROM mart.vw_test_task_monitor
         WHERE test_status = 'C'
           AND sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND {group_sql}
@@ -618,8 +619,8 @@ async def get_overdue(
     sql_incomplete = f"""
         SELECT COALESCE(m.method_name, v.method_code, '（未知）') AS method_name,
                COUNT(DISTINCT v.test_id) AS test_count
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND UPPER(COALESCE(v.test_status, '')) NOT IN ('X','U')
           AND v.test_authorised_dt IS NULL
@@ -631,8 +632,8 @@ async def get_overdue(
     sql_unsubmitted = f"""
         SELECT COALESCE(m.method_name, v.method_code, '（未知）') AS method_name,
                COUNT(DISTINCT v.test_id) AS test_count
-        FROM app_rd.v_test_task_monitor v
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        FROM mart.vw_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.request_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND v.test_status = 'U'
           AND {group_sql}
@@ -687,7 +688,7 @@ async def get_pending_tests(
             v.test_status       AS "检项状态",
             v.tester            AS "检测员",
             v.test_completed_dt::date     AS "完成日期"
-        FROM app_rd.v_test_task_monitor v
+        FROM mart.vw_test_task_monitor v
         WHERE v.test_authorised_dt IS NULL
           AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
           AND UPPER(COALESCE(v.test_status,   '')) NOT IN ('X','U')
@@ -741,14 +742,14 @@ async def get_sample_list(
 
     where_sql = " AND ".join(where_parts)
 
-    sql_count = f"SELECT COUNT(*) FROM app_rd.v_sample_overview WHERE {where_sql}"
+    sql_count = f"SELECT COUNT(*) FROM mart.vw_sample_overview WHERE {where_sql}"
     sql_data = f"""
         SELECT sample_id, project_id, sample_name, batch_number, sample_type,
                received_dt::date AS received_dt,
                completed_dt::date AS completed_dt,
                authorised_dt::date AS authorised_dt,
                tester, group_id, status
-        FROM app_rd.v_sample_overview
+        FROM mart.vw_sample_overview
         WHERE {where_sql}
         ORDER BY received_dt DESC NULLS LAST, sample_id
         LIMIT :limit OFFSET :offset
@@ -793,9 +794,9 @@ async def get_method_monthly(
                 2
             ) AS std_hours
         FROM month_range mr
-        JOIN app_rd.v_test_task_monitor v
+        JOIN mart.vw_test_task_monitor v
             ON TO_CHAR(v.test_authorised_dt, 'YYYY-MM') = mr.ym
-        LEFT JOIN meta.dim_method m ON v.method_code = m.method_code
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE UPPER(COALESCE(v.test_status, '')) NOT IN ('X','U')
           AND {group_sql}
         GROUP BY mr.ym, v.method_code, m.method_name

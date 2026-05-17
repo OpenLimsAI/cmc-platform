@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_analytics_db
 from app.schemas.lims.stats import (
     CycleTimeByMethodResponse,
     CycleTimeMonthlyTrendResponse,
@@ -48,16 +48,16 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse, summary="健康检查（含数据库连通性）")
-async def health_check(db: AsyncSession = Depends(get_db)):
+async def health_check(db: AsyncSession = Depends(get_analytics_db)):
     return await get_health_stats(db)
 
 
 @router.get(
     "/lims/stats/data-freshness",
     response_model=DataFreshnessResponse,
-    summary="数据新鲜度：库名 + 最后一次 ETL 写入（以 raw_rd_lims autoanalyze 为近似）",
+    summary="数据新鲜度：库名 + mart 层最后刷新（以 mart.fct_* autoanalyze 为近似）",
 )
-async def data_freshness(db: AsyncSession = Depends(get_db)):
+async def data_freshness(db: AsyncSession = Depends(get_analytics_db)):
     return await get_data_freshness(db)
 
 
@@ -75,7 +75,7 @@ async def kpi_overview(
         default=None,
         description="检验组过滤，可多选，不传则查全部",
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -87,7 +87,7 @@ async def kpi_overview(
 async def monthly_trend(
     months: int = Query(default=12, ge=1, le=36, description="显示月数，默认12个月"),
     groups: list[str] | None = Query(default=None, description="检验组过滤，不传则查全部"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     items = await get_monthly_trend(db, months=months, groups=groups)
     return MonthlyTrendResponse(months=months, items=items)
@@ -102,7 +102,7 @@ async def cycle_time_by_method(
     start_date: date = Query(default=None, description="起始日期，默认今天往前30天"),
     end_date: date = Query(default=None, description="截止日期，默认今天"),
     groups: list[str] | None = Query(default=None, description="检验组过滤"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -119,7 +119,7 @@ async def cycle_time_by_method(
 async def cycle_time_monthly_trend(
     months: int = Query(default=12, ge=1, le=36, description="显示月数，默认12"),
     groups: list[str] | None = Query(default=None, description="检验组过滤"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     items = await get_cycle_time_monthly_trend(db, months=months, groups=groups)
     return CycleTimeMonthlyTrendResponse(months=months, items=items)
@@ -133,7 +133,7 @@ async def cycle_time_monthly_trend(
 async def cycle_time_trend_by_method(
     months: int = Query(default=12, ge=1, le=36, description="显示月数，默认12"),
     groups: list[str] | None = Query(default=None, description="检验组过滤"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     items = await get_cycle_time_trend_by_method(db, months=months, groups=groups)
     return CycleTimeTrendByMethodResponse(months=months, items=items)
@@ -148,7 +148,7 @@ async def method_distribution(
     start_date: date = Query(default=None, description="起始日期，默认今天往前30天"),
     end_date: date = Query(default=None, description="截止日期，默认今天"),
     groups: list[str] | None = Query(default=None, description="检验组过滤，不传则查全部"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -166,7 +166,7 @@ async def project_distribution(
     start_date: date = Query(default=None, description="起始日期，默认今天往前30天"),
     end_date: date = Query(default=None, description="截止日期，默认今天"),
     groups: list[str] | None = Query(default=None, description="检验组过滤，不传则查全部"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -185,7 +185,7 @@ async def workload_summary(
     end_date: date = Query(default=None, description="截止日期，默认今天"),
     groups: list[str] | None = Query(default=None, description="检验组过滤，不传则查全部"),
     scope: str = Query(default="completed", description="口径：submitted/completed/pending"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -203,7 +203,7 @@ async def workload_kpi(
     start_date: date = Query(default=None, description="起始日期，默认今天往前30天"),
     end_date: date = Query(default=None, description="截止日期，默认今天"),
     groups: list[str] | None = Query(default=None, description="检验组过滤，不传则查全部"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -221,7 +221,7 @@ async def workload_by_method(
     end_date: date = Query(default=None, description="截止日期，默认今天"),
     groups: list[str] | None = Query(default=None, description="检验组过滤，不传则查全部"),
     scope: str = Query(default="completed", description="口径：submitted/completed/pending"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or (today - timedelta(days=30))
@@ -241,7 +241,7 @@ async def overdue_summary(
         description="统计截止日期，默认今天",
     ),
     groups: list[str] | None = Query(default=None, description="检验组过滤"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     target = as_of or date.today()
     return await get_overdue(db, as_of=target, groups=groups)
@@ -253,7 +253,7 @@ async def overdue_summary(
 )
 async def pending_tests_csv(
     groups: list[str] | None = Query(default=None, description="检验组过滤"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     rows = await get_pending_tests(db, groups=groups)
     if not rows:
@@ -295,7 +295,7 @@ async def sample_list(
     project_search: str | None = Query(default=None, description="项目编号/样品编号模糊搜索"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     today = date.today()
     start = start_date or today - timedelta(days=30)
@@ -320,7 +320,7 @@ async def sample_list(
 async def method_monthly(
     months: int = Query(default=12, ge=1, le=36, description="统计月数"),
     groups: list[str] | None = Query(default=None, description="检验组过滤"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_analytics_db),
 ):
     items = await get_method_monthly(db, months=months, groups=groups)
     return MethodMonthlyResponse(months=months, items=items)
