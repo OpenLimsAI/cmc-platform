@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TT LIMS Platform — CMC 研发实验室信息管理系统。FastAPI 后端 + Next.js 前端，连接现有 PostgreSQL 16 实例（容器名 `postgres16`，库名 `cmc_data_platform`）。原 Streamlit 看板迁移项目，原版代码在 `/Users/qingcheng/Documents/Python/tt_lims_dashboard`，统计口径以原版为准。
+CMC R&D LIMS Dashboard — CMC 研发 LIMS 检验进度与考核看板。FastAPI 后端 + Next.js 16 前端。前身项目 `tt-lims-platform`，按 CMC 数据中台架构 v0.1 重建：
+
+- 看板**只读** `cmc_analytics.mart`（mart 由数据侧负责建设，看板侧只消费）
+- admin 面板**读写** `cmc_mdm`（主数据唯一事实源，由 MDM owner 负责库结构）
+- 本 app **不拥有任何 DB 表**，因此不带 alembic
+- 原 Streamlit 看板的统计口径仍是基准，在 `/Users/qingcheng/Documents/Python/tt_lims_dashboard`
+
+数据流向：
+```
+cmc_rd.raw_rd_lims_samplemanager  →  cmc_analytics.staging  →  cmc_analytics.mart  →  本看板
+cmc_mdm.mdm_*                     →  cmc_analytics.snap_mdm  →  mart.dim_*           →  本看板
+                                  ←——————————————— admin 面板 ←———————————————
+```
 
 ## Development Commands
 
@@ -12,10 +24,6 @@ TT LIMS Platform — CMC 研发实验室信息管理系统。FastAPI 后端 + Ne
 ```bash
 uv run uvicorn app.main:app --reload        # dev server
 uv run pytest                               # all tests
-uv run pytest tests/path/to/test.py::name  # single test
-uv run alembic upgrade head                 # apply migrations
-uv run alembic revision --autogenerate -m "desc"
-docker compose -f docker-compose.dev.yml up backend  # Docker mode
 ```
 
 ### Frontend (in `frontend/`)
@@ -31,50 +39,60 @@ pnpm lint
 
 ### Request flow
 
-Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) → FastAPI (`/api/v1/...`) → `services/lims/stats_service.py` (raw SQL via SQLAlchemy async) → PostgreSQL `app_rd` schema views
+Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) → FastAPI (`/api/v1/...`) → `services/lims/stats_service.py` (raw SQL via SQLAlchemy async) → `cmc_analytics.mart.*`
 
 ### Backend (`backend/app/`)
 
-- `api/v1/lims/stats.py` — all dashboard read endpoints; thin route handlers, business logic lives in `services/`
-- `api/v1/admin/` — auth + CRUD for `meta.dim_method` / `meta.dim_employee`; uses `get_admin_db()` → `lims_admin` account
-- `services/lims/stats_service.py` — all SQL query logic. Helper patterns:
-  - `_group_clause(groups)` — builds `group_id = ANY(ARRAY['TT1',...])` or `TRUE`; groups are inlined as literals (not bind params) to avoid asyncpg type inference errors
-  - `_workload_where(scope, group_sql)` — returns WHERE clause for the three workload scopes (submitted/completed/pending)
-  - `_STATUS_EXCL_XU` / `_STATUS_EXCL_X` — shared status filter strings
-  - `_DATE_WINDOW_RECEIVED` / `_DATE_WINDOW_AUTHORISED` — shared date window strings
-- `schemas/lims/stats.py` — all Pydantic response models for stats endpoints
-- `core/database.py` — two async engines: `engine` (reader, pool_size=5) and `admin_engine` (writer, pool_size=2)
-- `core/config.py` — pydantic-settings; reads `.env` or `../.env`
+- `api/v1/lims/stats.py` — 看板 read 端点；薄路由，业务逻辑在 `services/`，依赖 `get_analytics_db()`
+- `api/v1/admin/` — auth + CRUD for `cmc_mdm.mdm_quality.method_master` / `mdm_core.employee_master`；依赖 `get_mdm_db()`
+- `services/lims/stats_service.py` — 所有 SQL 查询逻辑。常用辅助：
+  - `_group_clause(groups)` — 构建 `group_id = ANY(ARRAY['TT1',...])` 或 `TRUE`；group 内联为字面量，避免 asyncpg 类型推断报错
+  - `_workload_where(scope, group_sql)` — 工时三口径 WHERE 子句
+  - `_STATUS_EXCL_XU` / `_STATUS_EXCL_X` — 状态过滤
+  - `_DATE_WINDOW_RECEIVED` / `_DATE_WINDOW_AUTHORISED` — 日期窗口
+- `schemas/lims/stats.py` — 所有 Pydantic 响应模型
+- `models/lims/views.py` — mart 视图 ORM（`mart.vw_test_task_monitor` / `mart.vw_sample_overview`）
+- `models/mdm/masters.py` — MDM 主数据 ORM（`mdm_quality.method_master` / `mdm_core.employee_master`）
+- `core/database.py` — 双异步引擎：`analytics_engine`（pool_size=5）+ `mdm_engine`（pool_size=2）
+- `core/config.py` — pydantic-settings；读 `.env` 或 `../.env`
 
 ### Frontend (`frontend/`)
 
-- `app/dashboard/layout.tsx` — dashboard shell: sidebar + main content area
-- `app/dashboard/*/page.tsx` — four pages: overview, workload, cycle-time, overdue. All are `"use client"` + `export const dynamic = "force-dynamic"` (required because they use `useSearchParams`)
-- `app/admin/page.tsx` — password-protected admin panel; token stored in `sessionStorage`
-- `lib/api.ts` — single axios instance + all typed fetch functions. Array params serialized as `?k=v1&k=v2` (FastAPI style). Add new fetch functions and TypeScript interfaces here.
-- `components/stat-card.tsx` — colored KPI card; 7 schemes (blue/green/lapis/orange/red/purple/gray) matching the original Streamlit palette. Used on all four dashboard pages.
-- `components/dashboard-sidebar.tsx` — date range pickers + group multiselect; propagates filters via URL search params to all pages
+- `app/dashboard/layout.tsx` — 看板壳：sidebar + 主内容
+- `app/dashboard/*/page.tsx` — 6 个看板页面（overview/cycle-time/overdue/workload/samples/monthly），全部 `"use client"` + `export const dynamic = "force-dynamic"`（用了 `useSearchParams`）
+- `app/admin/page.tsx` — 密码保护的 admin 面板；token 在 `sessionStorage`
+- `lib/api.ts` — 单 axios 实例 + 全部 typed fetch 函数。数组参数序列化为 `?k=v1&k=v2`（FastAPI 风格）
+- `components/stat-card.tsx` — 7 色 KPI 卡（blue/green/lapis/orange/red/purple/gray），对齐原 Streamlit 色板
+- `components/dashboard-sidebar.tsx` — 日期范围 + 检验组多选；通过 URL search params 传给所有页面
 
 ### Database
 
-Dashboard queries read from `app_rd` schema views (primarily `v_test_task_monitor`). Never query raw tables from dashboard routes — always use the views.
+看板只查 `cmc_analytics.mart.*` 视图；不要直接查 raw 库或 staging 层。
 
-| Account | Permission | Used by |
-|---------|-----------|---------|
-| `lims_reader` | read-only | Dashboard API (`get_db`) |
-| `lims_admin` | read-write | Admin API (`get_admin_db`) |
+| 账号 | 权限 | 用途 |
+|---|---|---|
+| `lims_reader`（或 `analytics_reader`） | read-only on `cmc_analytics` | 看板 API（`get_analytics_db`） |
+| `mdm_admin` | read-write on `cmc_mdm.mdm_quality` + `mdm_core` | admin API（`get_mdm_db`） |
 
-Key `.env` vars: `DATABASE_URL`, `ADMIN_DATABASE_URL`, `ADMIN_PASSWORD`
+`.env` 关键变量：`ANALYTICS_DATABASE_URL`、`MDM_DATABASE_URL`、`ADMIN_PASSWORD`
 
 ### API
 
-Backend: `http://localhost:8000` — Swagger docs at `/docs`  
-Frontend env var: `NEXT_PUBLIC_API_BASE_URL` (defaults to `http://localhost:8000`)
+Backend: `http://localhost:8000` — Swagger: `/docs`
+Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8000`）
 
 ## Known Gotchas
 
-- **asyncpg + group params**: Never pass `groups` as a bind parameter when it's a list. Use `_group_clause()` which inlines `ARRAY['TT1','TT5']` as a SQL literal. Passing `None` causes `AmbiguousParameterError`.
-- **SQLAlchemy async sessions**: Do not run concurrent queries on the same session with `asyncio.gather`. Always `await` sequentially.
-- **useSearchParams in Next.js**: Every component that calls `useSearchParams()` must be wrapped in `<Suspense>` and the page must export `const dynamic = "force-dynamic"`.
-- **Axios array params**: The custom `paramsSerializer` in `lib/api.ts` serializes arrays as `?k=v1&k=v2`. Do not use `k[]=v1` style.
-- **cycle-time page date range**: The date range on this page is controlled by the `trendMonths` slider, not the sidebar date pickers. `tableStart = dayjs().subtract(trendMonths-1, "month").startOf("month")` — this matches the backend SQL logic exactly.
+- **asyncpg + group params**：永远不要把 list 直接绑 group 参数。用 `_group_clause()` 把 `ARRAY['TT1','TT5']` 内联为 SQL 字面量。绑 `None` 会触发 `AmbiguousParameterError`。
+- **SQLAlchemy async sessions**：不要用 `asyncio.gather` 在同一 session 并发查询，要顺序 `await`
+- **useSearchParams in Next.js**：调 `useSearchParams()` 的组件必须包 `<Suspense>`，页面必须 `export const dynamic = "force-dynamic"`
+- **Axios array params**：`lib/api.ts` 里自定义的 `paramsSerializer` 把数组序列化成 `?k=v1&k=v2`，不要用 `k[]=v1`
+- **cycle-time page date range**：本页日期范围由 `trendMonths` slider 控制，不是 sidebar 日期。`tableStart = dayjs().subtract(trendMonths-1, "month").startOf("month")`，跟后端 SQL 对齐
+- **mart 与 MDM 当前未就绪**：mart 表需按 `docs/mart_contracts.md` 建；cmc_mdm 需按 `docs/mdm_contracts.md` §2.3 建库。两者落地前后端无法连通
+
+## 重要文档
+
+- `docs/mart_contracts.md` — 看板与 mart 的接口（数据侧建表依据）
+- `docs/mdm_contracts.md` — admin 与 cmc_mdm 的接口（含完整建库 SQL）
+- `docs/README.md` — 项目说明
+- `docs/legacy/` — tt-lims-platform 历史文档（仅参考）

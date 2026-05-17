@@ -24,7 +24,7 @@ export function Navbar() {
   return (
     <header className="border-b bg-white shadow-sm">
       <div className="container mx-auto px-4 max-w-7xl h-14 flex items-center gap-8">
-        <span className="font-semibold text-gray-900 whitespace-nowrap">TT LIMS</span>
+        <span className="font-semibold text-gray-900 whitespace-nowrap">CMC R&amp;D LIMS</span>
         <nav className="flex gap-1">
           {NAV_ITEMS.map((item) => (
             <Link

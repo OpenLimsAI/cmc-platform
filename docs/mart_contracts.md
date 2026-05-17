@@ -1,4 +1,4 @@
-# cmc_analytics.mart 契约 — TT LIMS 看板取数层
+# cmc_analytics.mart 契约 — CMC R&D LIMS Dashboard 取数层
 
 > 本文是看板（cmc-rd-lims-dashboard）与数据侧（mart 建设者）的接口约定。
 > 看板代码按本文实现，mart 表/视图按本文落地，两边并行。

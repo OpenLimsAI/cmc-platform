@@ -13,14 +13,14 @@ from app.core.logging import configure_logging, logger
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
-    logger.info("TT LIMS Platform 后端启动")
+    logger.info("CMC R&D LIMS Dashboard 后端启动")
     yield
-    logger.info("TT LIMS Platform 后端关闭")
+    logger.info("CMC R&D LIMS Dashboard 后端关闭")
 
 
 app = FastAPI(
-    title="TT LIMS Platform API",
-    description="CMC 研发 LIMS 平台后端接口",
+    title="CMC R&D LIMS Dashboard API",
+    description="CMC 研发 LIMS 检验进度与考核看板后端（读 cmc_analytics.mart，写 cmc_mdm）",
     version="0.1.0",
     lifespan=lifespan,
 )

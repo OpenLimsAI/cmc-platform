@@ -5,8 +5,8 @@ import { Providers } from "@/lib/providers"
 import { Navbar } from "@/components/navbar"
 
 export const metadata: Metadata = {
-  title: "TT LIMS Platform",
-  description: "CMC 研发检验信息管理平台",
+  title: "CMC R&D LIMS Dashboard",
+  description: "CMC 研发 LIMS 检验进度与考核看板（cmc_analytics.mart）",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
