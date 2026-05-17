@@ -1,7 +1,7 @@
 [project]
-name = "tt-lims-backend"
+name = "cmc-rd-lims-dashboard-backend"
 version = "0.1.0"
-description = "TT LIMS Platform - FastAPI 后端"
+description = "CMC R&D LIMS Dashboard - FastAPI 后端（读 cmc_analytics.mart，写 cmc_mdm）"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115.0",
@@ -11,7 +11,6 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "structlog>=24.0.0",
-    "alembic>=1.13.0",
     "python-dotenv>=1.0.0",
     "greenlet>=3.0.0",
     "openpyxl>=3.1.5",

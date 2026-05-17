@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.admin.auth import verify_admin
 from app.core.database import get_mdm_db
-from app.models.meta.dims import DimEmployee
+from app.models.mdm.masters import EmployeeMaster as DimEmployee
 
 router = APIRouter()
 
