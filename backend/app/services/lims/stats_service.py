@@ -20,9 +20,9 @@ async def get_health_stats(db: AsyncSession) -> dict:
 
 
 async def get_data_freshness(db: AsyncSession) -> dict:
-    # 取 mart schema 下所有 fct_* 表 autoanalyze/analyze 时间的最大值，作为 mart 层刷新时间近似。
-    # TODO（mart 就绪后）：优先读 cmc_analytics.meta.dataset_version 的最新 refreshed_at；
-    # autoanalyze 兜底，避免 dataset_version 未启用时拿不到值。
+    # 取 staging.stg_* 表 autoanalyze/analyze 时间的最大值，作为 ETL 最新写入时间近似。
+    # mart 层是视图，本身不变；上游 staging.stg_{sample,test,result} 才是 ETL 真正写入的表。
+    # TODO（mart 物化层或 cmc_analytics.meta.dataset_version 就绪后）：优先读 dataset_version.refreshed_at。
     sql = """
     SELECT
         current_database() AS db_name,
@@ -30,7 +30,7 @@ async def get_data_freshness(db: AsyncSession) -> dict:
                     COALESCE(last_autoanalyze, 'epoch'::timestamptz),
                     COALESCE(last_analyze,     'epoch'::timestamptz)))
          FROM pg_stat_user_tables
-         WHERE schemaname = 'mart' AND relname LIKE 'fct_%') AS last_etl_at
+         WHERE schemaname = 'staging' AND relname LIKE 'stg_%') AS last_etl_at
     """
     result = await db.execute(text(sql))
     row = result.mappings().first()
