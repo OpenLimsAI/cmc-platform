@@ -42,3 +42,6 @@ Thumbs.db
 # Uploads / exports
 *.xlsx
 *.csv
+
+# DB backups (Phase 1 of MDM 归一 migration)
+backups/
