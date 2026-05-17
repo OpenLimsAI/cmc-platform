@@ -1,0 +1,26 @@
+# 开发环境 docker-compose：FastAPI 热重载 + 复用现有 postgres16 容器
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      # 挂载源码，支持热重载
+      - ./backend:/app
+      # 挂载 .env 文件
+      - ./.env:/app/.env:ro
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      uv run uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --reload
+        --reload-dir /app/app
+    # 连接已有的 postgres16 容器网络
+    network_mode: host
+
+  # 说明：postgres16 容器已在宿主机 5432 端口运行，
+  # 使用 network_mode: host 可直接访问 localhost:5432

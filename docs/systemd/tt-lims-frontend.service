@@ -1,0 +1,16 @@
+[Unit]
+Description=TT LIMS Frontend (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/tt-lims-platform/frontend
+Environment=PATH=%h/.nvm/versions/node/v20.20.2/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=development
+ExecStart=%h/.nvm/versions/node/v20.20.2/bin/pnpm dev
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
