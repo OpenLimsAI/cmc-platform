@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_analytics_db
+from app.core.database import get_analytics_db, get_raw_db
 from app.schemas.lims.stats import (
     CycleTimeByMethodResponse,
     CycleTimeMonthlyTrendResponse,
@@ -55,10 +55,13 @@ async def health_check(db: AsyncSession = Depends(get_analytics_db)):
 @router.get(
     "/lims/stats/data-freshness",
     response_model=DataFreshnessResponse,
-    summary="数据新鲜度：库名 + mart 层最后刷新（以 mart.fct_* autoanalyze 为近似）",
+    summary="数据新鲜度：库名 + ETL 跑完时间 + 业务数据最新时间",
 )
-async def data_freshness(db: AsyncSession = Depends(get_analytics_db)):
-    return await get_data_freshness(db)
+async def data_freshness(
+    analytics_db: AsyncSession = Depends(get_analytics_db),
+    raw_db: AsyncSession | None = Depends(get_raw_db),
+):
+    return await get_data_freshness(analytics_db, raw_db)
 
 
 @router.get("/lims/stats/kpi", response_model=KPIResponse, summary="KPI 概览（到样/完结/未完成）")

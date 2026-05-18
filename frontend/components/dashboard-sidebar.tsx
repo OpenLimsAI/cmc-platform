@@ -184,9 +184,15 @@ export function DashboardSidebar() {
           <div className="pt-3 mt-3 border-t border-gray-100 text-[11px] text-gray-400 leading-relaxed space-y-0.5">
             <div>数据库：{freshness.db_name}</div>
             <div>
-              最后更新：
-              {freshness.last_etl_at
-                ? dayjs(freshness.last_etl_at).format("MM-DD HH:mm")
+              ETL 更新：
+              {freshness.etl_last_run_at
+                ? dayjs(freshness.etl_last_run_at).format("MM-DD HH:mm")
+                : "—"}
+            </div>
+            <div>
+              数据时间：
+              {freshness.data_max_at
+                ? dayjs(freshness.data_max_at).format("MM-DD HH:mm")
                 : "—"}
             </div>
           </div>

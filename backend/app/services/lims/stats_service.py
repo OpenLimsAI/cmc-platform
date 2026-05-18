@@ -19,26 +19,40 @@ async def get_health_stats(db: AsyncSession) -> dict:
         return {"status": "error", "db": str(e), "sample_count": 0}
 
 
-async def get_data_freshness(db: AsyncSession) -> dict:
-    # 取 staging.stg_* 表 autoanalyze/analyze 时间的最大值，作为 ETL 最新写入时间近似。
-    # mart 层是视图，本身不变；上游 staging.stg_{sample,test,result} 才是 ETL 真正写入的表。
-    # TODO（mart 物化层或 cmc_analytics.meta.dataset_version 就绪后）：优先读 dataset_version.refreshed_at。
-    sql = """
-    SELECT
-        current_database() AS db_name,
-        (SELECT MAX(GREATEST(
-                    COALESCE(last_autoanalyze, 'epoch'::timestamptz),
-                    COALESCE(last_analyze,     'epoch'::timestamptz)))
-         FROM pg_stat_user_tables
-         WHERE schemaname = 'staging' AND relname LIKE 'stg_%') AS last_etl_at
+async def get_data_freshness(
+    analytics_db: AsyncSession,
+    raw_db: AsyncSession | None,
+) -> dict:
     """
-    result = await db.execute(text(sql))
-    row = result.mappings().first()
-    last = row["last_etl_at"]
-    # 当没有任何 analyze 记录时 MAX 会返回 epoch，视为"无数据"
-    if last is not None and last.year < 2000:
-        last = None
-    return {"db_name": row["db_name"], "last_etl_at": last}
+    返回三段时间：
+      - db_name：当前主库名
+      - data_max_at：cmc_analytics.staging.stg_result.updated_at 的 MAX —— 业务上最新一条结果的变更时间
+      - etl_last_run_at：cmc_rd.meta.etl_run 最近一次 SUCCESS 的 run_finished_at —— ETL 跑完时间
+    raw_db 未配置时 etl_last_run_at 返回 None，端点降级仍可用。
+    """
+    row = (await analytics_db.execute(text(
+        "SELECT current_database() AS db_name, "
+        "(SELECT MAX(updated_at) FROM staging.stg_result) AS data_max_at"
+    ))).mappings().first()
+    db_name = row["db_name"]
+    data_max_at = row["data_max_at"]
+
+    etl_last_run_at = None
+    if raw_db is not None:
+        # run_finished_at 列是 naive timestamp，但 PG server 时区是 UTC，写入用 NOW() 故本质是 UTC。
+        # 显式 AT TIME ZONE 'UTC' 把 naive 当 UTC 解释 → 输出 timestamptz，Pydantic 序列化带 +00:00。
+        # 否则前端 dayjs 按本地时区解析会错算 8 小时。
+        etl_row = (await raw_db.execute(text(
+            "SELECT MAX(run_finished_at) AT TIME ZONE 'UTC' AS finished_at "
+            "FROM meta.etl_run WHERE status = 'SUCCESS'"
+        ))).mappings().first()
+        etl_last_run_at = etl_row["finished_at"] if etl_row else None
+
+    return {
+        "db_name": db_name,
+        "data_max_at": data_max_at,
+        "etl_last_run_at": etl_last_run_at,
+    }
 
 
 # ---------- KPI ----------
@@ -424,8 +438,9 @@ async def get_workload_summary(
             COALESCE(SUM(m.std_minutes), 0)                                AS total_minutes,
             ROUND(COALESCE(SUM(m.std_minutes), 0) / 60.0, 1)              AS total_hours
         FROM mart.v_test_task_monitor v
-        LEFT JOIN mart.dim_method   m ON v.method_code   = m.method_code
-        LEFT JOIN mart.dim_employee e ON v.tester        = e.employee_id
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
+        LEFT JOIN (SELECT employee_id, employee_name, department FROM mart.dim_employee) e
+               ON v.tester = e.employee_id
         WHERE {where}
         GROUP BY v.tester, e.employee_name, e.department
         ORDER BY total_hours DESC

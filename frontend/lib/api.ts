@@ -240,7 +240,8 @@ export const fetchGroups = () =>
 
 export interface DataFreshnessResponse {
   db_name: string
-  last_etl_at: string | null
+  etl_last_run_at: string | null  // ETL 跑完时间（cmc_rd.meta.etl_run.run_finished_at），无配 raw 库时为 null
+  data_max_at: string | null      // 业务数据最新时间（staging.stg_result.updated_at 的 MAX）
 }
 
 export const fetchDataFreshness = () =>

@@ -12,7 +12,10 @@ class HealthResponse(BaseModel):
 
 class DataFreshnessResponse(BaseModel):
     db_name: str
-    last_etl_at: datetime | None = None
+    # ETL 跑完时间：cmc_rd.meta.etl_run 里最近一次 SUCCESS 的 run_finished_at；未配 raw 库时为 None
+    etl_last_run_at: datetime | None = None
+    # 业务数据最新时间：staging.stg_result.updated_at 的最大值（LIMS 中最后一条结果的变更时间）
+    data_max_at: datetime | None = None
 
 
 class KPIResponse(BaseModel):
