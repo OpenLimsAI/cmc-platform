@@ -25,7 +25,8 @@ c1, c2, c3, c4, c5 = st.columns(5)
 with c1:
     cat = st.selectbox("分类", ["(全部分类)"] + categories)
 with c2:
-    keyword = st.text_input("代码 / 名称")
+    keyword = st.text_input("代码 / 名称 / 批号",
+                            help="一个框搜三种:物料代码、物料名称、批号(三个命中其一即出)")
 with c3:
     inc_inactive = st.checkbox("含已停用", value=False)
 with c4:

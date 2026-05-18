@@ -11,7 +11,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional, List, Tuple, Sequence
 
-from sqlalchemy import select, func, and_, or_, case
+from sqlalchemy import select, func, and_, or_, case, exists
 from sqlalchemy.orm import Session
 
 from models import (
@@ -481,7 +481,16 @@ def stock_by_material(
         stmt = stmt.where(Material.category == category)
     if keyword:
         kw = f"%{keyword}%"
-        stmt = stmt.where(or_(Material.material_code.ilike(kw), Material.name_cn.ilike(kw)))
+        # 关键字命中范围:物料代码 / 物料名 / "该物料下任一批次的批号" 之一
+        batch_match = exists().where(and_(
+            Batch.material_id == Material.material_id,
+            Batch.batch_no.ilike(kw),
+        ))
+        stmt = stmt.where(or_(
+            Material.material_code.ilike(kw),
+            Material.name_cn.ilike(kw),
+            batch_match,
+        ))
     stmt = stmt.order_by(Material.material_code, Material.material_id)
 
     out = []
@@ -510,11 +519,13 @@ def stock_by_batch(
     category: Optional[str] = None,
     material_id: Optional[int] = None,
     location_id: Optional[int] = None,
+    keyword: Optional[str] = None,
     include_inactive: bool = False,
     include_expired: bool = True,
     only_positive: bool = True,
 ) -> List[dict]:
-    """批次级当前库存(每行 = 一个 (material, batch_no, location) 的物理批次)。"""
+    """批次级当前库存(每行 = 一个 (material, batch_no, location) 的物理批次)。
+    keyword 同时匹配 物料代码 / 物料名 / 批号(单一搜索框)。"""
     qty_subq = (
         select(InventoryTxn.batch_id, func.coalesce(func.sum(InventoryTxn.qty), 0).label("current_qty"))
         .group_by(InventoryTxn.batch_id)
@@ -547,6 +558,13 @@ def stock_by_batch(
         stmt = stmt.where(Batch.material_id == material_id)
     if location_id is not None:
         stmt = stmt.where(Batch.location_id == location_id)
+    if keyword:
+        kw = f"%{keyword}%"
+        stmt = stmt.where(or_(
+            Material.material_code.ilike(kw),
+            Material.name_cn.ilike(kw),
+            Batch.batch_no.ilike(kw),
+        ))
     if not include_inactive:
         stmt = stmt.where(Material.is_active.is_(True))
     if not include_expired:

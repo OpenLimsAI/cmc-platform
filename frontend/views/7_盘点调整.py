@@ -31,16 +31,36 @@ st.caption(f"经办人(登录用户):**{operator}**")
 materials = get_materials(active_only=True)
 categories = get_categories()
 
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _batch_index() -> dict:
+    """{material_id: [batch_no...]} —— 给"按批号搜物料"用。
+    缓存 30 秒,本页/其他页入库后顶多 30s 后看到搜索命中。"""
+    try:
+        bs = api_get("/api/batches") or []
+    except APIError:
+        return {}
+    idx: dict = {}
+    for b in bs:
+        idx.setdefault(b["material_id"], []).append(b["batch_no"])
+    return idx
+
+
 c1, c2 = st.columns([1, 3])
 with c1:
     cat = st.selectbox("分类筛选", ["(全部)"] + categories)
 with c2:
-    keyword = st.text_input("代码 / 名称 关键字", "")
+    keyword = st.text_input(
+        "代码 / 名称 / 批号", "",
+        help="一个框搜三种:物料代码、物料名称、批号",
+    )
 
+bidx = _batch_index()
 filtered = [
     m for m in materials
     if (cat == "(全部)" or m.get("category") == cat)
-       and fuzzy_match_material(m, keyword)
+       and fuzzy_match_material(m, keyword,
+                                extra_haystack=bidx.get(m["material_id"]))
 ]
 if not filtered:
     st.warning("没有匹配的在用物料。")
