@@ -11,6 +11,8 @@ from app.core.database import get_analytics_db, get_raw_db
 from app.schemas.lims.stats import (
     CycleTimeByMethodResponse,
     CycleTimeMonthlyTrendResponse,
+    CycleTimeStagesByMethodResponse,
+    CycleTimeStagesTrendResponse,
     CycleTimeTrendByMethodResponse,
     DataFreshnessResponse,
     HealthResponse,
@@ -28,6 +30,8 @@ from app.schemas.lims.stats import (
 from app.services.lims.stats_service import (
     get_cycle_time_by_method,
     get_cycle_time_monthly_trend,
+    get_cycle_time_stages_by_method,
+    get_cycle_time_stages_trend_by_method,
     get_cycle_time_trend_by_method,
     get_data_freshness,
     get_health_stats,
@@ -140,6 +144,38 @@ async def cycle_time_trend_by_method(
 ):
     items = await get_cycle_time_trend_by_method(db, months=months, groups=groups)
     return CycleTimeTrendByMethodResponse(months=months, items=items)
+
+
+@router.get(
+    "/lims/stats/cycle-time/stages-by-method",
+    response_model=CycleTimeStagesByMethodResponse,
+    summary="检验周期 4 段细分（分配前/待检/检验中/复核），按方法汇总",
+)
+async def cycle_time_stages_by_method(
+    start_date: date = Query(default=None, description="起始日期，默认今天往前30天"),
+    end_date: date = Query(default=None, description="截止日期，默认今天"),
+    groups: list[str] | None = Query(default=None, description="检验组过滤"),
+    db: AsyncSession = Depends(get_analytics_db),
+):
+    today = date.today()
+    start = start_date or (today - timedelta(days=30))
+    end = end_date or today
+    items = await get_cycle_time_stages_by_method(db, start=start, end_date=end, groups=groups)
+    return CycleTimeStagesByMethodResponse(start_date=start, end_date=end, items=items)
+
+
+@router.get(
+    "/lims/stats/cycle-time/stages-trend-by-method",
+    response_model=CycleTimeStagesTrendResponse,
+    summary="检验周期 4 段细分（月度趋势，按方法），用于重点检项卡片堆叠柱",
+)
+async def cycle_time_stages_trend_by_method(
+    months: int = Query(default=12, ge=1, le=36, description="显示月数，默认12"),
+    groups: list[str] | None = Query(default=None, description="检验组过滤"),
+    db: AsyncSession = Depends(get_analytics_db),
+):
+    items = await get_cycle_time_stages_trend_by_method(db, months=months, groups=groups)
+    return CycleTimeStagesTrendResponse(months=months, items=items)
 
 
 @router.get(

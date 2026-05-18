@@ -9,8 +9,12 @@ import dayjs from "dayjs"
 import {
   fetchCycleTimeByMethod,
   fetchCycleTimeMonthlyTrend,
+  fetchCycleTimeStagesByMethod,
+  fetchCycleTimeStagesTrendByMethod,
   fetchCycleTimeTrendByMethod,
   fetchMethodTargets,
+  CycleStage,
+  CycleTimeStagesTrendItem,
   CycleTimeTrendByMethodItem,
   MethodTargetItem,
 } from "@/lib/api"
@@ -50,6 +54,70 @@ function mergeByMonth(items: CycleTimeTrendByMethodItem[]) {
       ym,
       completed_n: v.completed_n,
       avg_cycle_days: v.completed_n > 0 ? parseFloat((v.wsum / v.completed_n).toFixed(1)) : null,
+    }))
+}
+
+// 4 段细分相关
+const STAGE_KEYS: CycleStage[] = ["alloc", "wait", "test", "review"]
+const STAGE_LABELS: Record<CycleStage, string> = {
+  alloc: "分配前",
+  wait: "待检",
+  test: "检验中",
+  review: "复核",
+}
+// 颜色：等待色（灰/橙）+ 工作色（蓝/红），分别对应业务含义
+const STAGE_COLORS: Record<CycleStage, string> = {
+  alloc: "#94a3b8",   // 分配前等待 → slate
+  wait: "#f59e0b",    // 待检（已分配未开工）→ amber
+  test: "#3b82f6",    // 实际检验 → blue
+  review: "#ef4444",  // 复核积压 → red
+}
+
+interface StagesMonthly {
+  ym: string
+  completed_n: number
+  alloc_avg_days: number | null
+  wait_avg_days: number | null
+  test_avg_days: number | null
+  review_avg_days: number | null
+}
+
+// 把多个 method 在同月的 4 段按"参与段平均的检项数"加权合并
+function mergeStagesByMonth(items: CycleTimeStagesTrendItem[]): StagesMonthly[] {
+  type Acc = {
+    completed_n: number
+    sums: Record<CycleStage, number>
+    counts: Record<CycleStage, number>
+  }
+  const map: Record<string, Acc> = {}
+  for (const item of items) {
+    if (!map[item.ym]) {
+      map[item.ym] = {
+        completed_n: 0,
+        sums: { alloc: 0, wait: 0, test: 0, review: 0 },
+        counts: { alloc: 0, wait: 0, test: 0, review: 0 },
+      }
+    }
+    const m = map[item.ym]
+    m.completed_n += item.completed_n
+    for (const s of STAGE_KEYS) {
+      const avg = item[`${s}_avg_days`] as number | null
+      const n = item[`${s}_n`] as number
+      if (avg !== null && n > 0) {
+        m.sums[s] += avg * n
+        m.counts[s] += n
+      }
+    }
+  }
+  return Object.entries(map)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([ym, v]) => ({
+      ym,
+      completed_n: v.completed_n,
+      alloc_avg_days: v.counts.alloc > 0 ? parseFloat((v.sums.alloc / v.counts.alloc).toFixed(1)) : null,
+      wait_avg_days: v.counts.wait > 0 ? parseFloat((v.sums.wait / v.counts.wait).toFixed(1)) : null,
+      test_avg_days: v.counts.test > 0 ? parseFloat((v.sums.test / v.counts.test).toFixed(1)) : null,
+      review_avg_days: v.counts.review > 0 ? parseFloat((v.sums.review / v.counts.review).toFixed(1)) : null,
     }))
 }
 
@@ -102,6 +170,22 @@ export default function CycleTimePage() {
   const methodTrendQuery = useQuery({
     queryKey: ["cycle-trend-by-method", trendMonths, groupsKey],
     queryFn: () => fetchCycleTimeTrendByMethod({ months: trendMonths, groups: groups.length ? groups : undefined }),
+  })
+
+  const stagesTrendQuery = useQuery({
+    queryKey: ["cycle-stages-trend", trendMonths, groupsKey],
+    queryFn: () =>
+      fetchCycleTimeStagesTrendByMethod({ months: trendMonths, groups: groups.length ? groups : undefined }),
+  })
+
+  const stagesByMethodQuery = useQuery({
+    queryKey: ["cycle-stages-by-method", tableStart, tableEnd, groupsKey],
+    queryFn: () =>
+      fetchCycleTimeStagesByMethod({
+        start_date: tableStart,
+        end_date: tableEnd,
+        groups: groups.length ? groups : undefined,
+      }),
   })
 
   const methodTargetsQuery = useQuery({
@@ -193,16 +277,21 @@ export default function CycleTimePage() {
   }, [trendQuery.data, targetDays])
 
   // 重点检项图表（target_days 从数据库读取，NULL 表示未设定）
+  // 数据源换成 stagesTrendQuery（含 4 段细分），原 methodTrendQuery 仍用来挑卡片标题
   const keyMethodCharts = useMemo(() => {
-    const allItems = methodTrendQuery.data?.items ?? []
+    const trendItems = methodTrendQuery.data?.items ?? []
+    const stageItems = stagesTrendQuery.data?.items ?? []
     const targets = methodTargetsQuery.data ?? []
 
     return KEY_METHODS.map(({ fallback, include, exclude }) => {
-      const matching = allItems.filter((i) => matchMethod(i.method_name, include, exclude))
-      if (matching.length === 0) return { title: fallback, data: [], target: null }
+      const matchingStages = stageItems.filter((i) => matchMethod(i.method_name, include, exclude))
+      if (matchingStages.length === 0) return { title: fallback, data: [] as StagesMonthly[], target: null }
 
+      // 卡片标题：取该类下完成数最多的 method_name（与原逻辑一致，用 methodTrendQuery）
+      const matchingTrend = trendItems.filter((i) => matchMethod(i.method_name, include, exclude))
+      const titleSource = matchingTrend.length > 0 ? matchingTrend : matchingStages
       const chartTitle = Object.entries(
-        matching.reduce((acc, i) => {
+        titleSource.reduce((acc, i) => {
           acc[i.method_name] = (acc[i.method_name] ?? 0) + i.completed_n
           return acc
         }, {} as Record<string, number>)
@@ -214,23 +303,28 @@ export default function CycleTimePage() {
         .map((t) => t.target_days as number)
       const target = matchedTargets.length > 0 ? Math.min(...matchedTargets) : null
 
-      return { title: chartTitle, data: mergeByMonth(matching), target }
+      return { title: chartTitle, data: mergeStagesByMonth(matchingStages), target }
     })
-  }, [methodTrendQuery.data, methodTargetsQuery.data])
+  }, [methodTrendQuery.data, stagesTrendQuery.data, methodTargetsQuery.data])
 
-  // 明细表（合并上期 delta）
+  // 明细表（合并上期 delta + 4 段细分）
   const tableData = useMemo(() => {
     const curr = currQuery.data?.items ?? []
     const prev = prevQuery.data?.items ?? []
+    const stages = stagesByMethodQuery.data?.items ?? []
     const prevMap = Object.fromEntries(prev.map((i) => [i.method_code, i.avg_cycle_days]))
+    const stagesMap: Record<string, typeof stages[number]> = Object.fromEntries(
+      stages.filter((s) => s.method_code).map((s) => [s.method_code as string, s])
+    )
     return curr.map((item) => {
       const prevAvg = item.method_code ? prevMap[item.method_code] ?? null : null
       const delta = item.avg_cycle_days !== null && prevAvg !== null
         ? parseFloat((item.avg_cycle_days - prevAvg).toFixed(1))
         : null
-      return { ...item, delta }
+      const stage = item.method_code ? stagesMap[item.method_code] : undefined
+      return { ...item, delta, stage }
     })
-  }, [currQuery.data, prevQuery.data])
+  }, [currQuery.data, prevQuery.data, stagesByMethodQuery.data])
 
   const isLoading = trendQuery.isLoading || currQuery.isLoading
   const isError = trendQuery.isError || currQuery.isError
@@ -336,11 +430,16 @@ export default function CycleTimePage() {
         </div>
       )}
 
-      {/* 5 个重点检项月度趋势 */}
+      {/* 5 个重点检项月度趋势：4 段堆叠柱 */}
       <div>
-        <h2 className="text-base font-semibold text-gray-800 mb-1">日常检项月度平均周期趋势</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-1">日常检项月度周期细分趋势</h2>
         <p className="text-xs text-gray-400 mb-4">
-          以下 5 个检项独立展示月度平均检验周期；口径与整体趋势一致：以 test_authorised_dt 归属月份，周期 = 工作日。
+          按 4 段堆叠展示：
+          <span style={{ color: STAGE_COLORS.alloc }}>■ 分配前</span>（收样→分配）
+          <span style={{ color: STAGE_COLORS.wait }} className="ml-2">■ 待检</span>（分配→开始）
+          <span style={{ color: STAGE_COLORS.test }} className="ml-2">■ 检验中</span>（开始→完成）
+          <span style={{ color: STAGE_COLORS.review }} className="ml-2">■ 复核</span>（完成→授权）。
+          每段独立平均（端点缺失的不计入该段），堆叠总高 = 各段均值之和。
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {keyMethodCharts.map(({ title, data, target }) => {
@@ -352,39 +451,57 @@ export default function CycleTimePage() {
                 </Card>
               )
             }
+            type StackedTooltipParam = {
+              name: string
+              seriesName: string
+              value: number | null
+              color: string
+              marker: string
+            }
             const opt = {
               tooltip: {
                 trigger: "axis",
-                formatter: (params: { name: string; value: number | null; data: { customdata: number } }[]) => {
-                  const p = params[0]
-                  const targetStr = target !== null ? `<br/>目标：${target} 工作日` : ""
-                  return `<b>${p.name}</b><br/>平均周期：${p.value?.toFixed(1) ?? "—"} 工作日${targetStr}<br/>完成检项：${p.data?.customdata ?? "—"}`
+                axisPointer: { type: "shadow" },
+                formatter: (params: StackedTooltipParam[]) => {
+                  if (!params.length) return ""
+                  const ym = params[0].name
+                  const row = data.find((d) => d.ym === ym)
+                  let total = 0
+                  const lines: string[] = []
+                  for (const p of params) {
+                    if (p.value === null || p.value === undefined) continue
+                    total += p.value
+                    lines.push(`${p.marker}${p.seriesName}：${p.value.toFixed(1)} 工作日`)
+                  }
+                  const targetStr = target !== null ? `（目标 ${target}）` : ""
+                  return `<b>${ym}</b><br/>总周期：${total.toFixed(1)} 工作日${targetStr}<br/>完成检项：${row?.completed_n ?? "—"}<br/>${lines.join("<br/>")}`
                 },
               },
-              grid: { left: 44, right: 88, top: 28, bottom: 52 },
+              legend: {
+                data: STAGE_KEYS.map((s) => STAGE_LABELS[s]),
+                bottom: 0,
+                textStyle: { fontSize: 10 },
+              },
+              grid: { left: 44, right: 80, top: 28, bottom: 56 },
               xAxis: { type: "category", data: data.map((d) => d.ym), axisLabel: { fontSize: 10, rotate: -30 } },
               yAxis: { type: "value", name: "工作日", axisLabel: { fontSize: 10 } },
-              series: [{
+              series: STAGE_KEYS.map((stage, idx) => ({
+                name: STAGE_LABELS[stage],
                 type: "bar",
-                data: data.map((d) => ({
-                  value: d.avg_cycle_days,
-                  customdata: d.completed_n,
-                  itemStyle: {
-                    color: target !== null
-                      ? (d.avg_cycle_days !== null && d.avg_cycle_days > target ? "#E74C3C" : "#2ECC71")
-                      : "#6366f1",
-                  },
-                  label: { show: true, position: "top", formatter: (p: { value: number | null }) => p.value?.toFixed(1) ?? "", fontSize: 10 },
-                })),
-                ...(target !== null ? {
+                stack: "total",
+                emphasis: { focus: "series" },
+                itemStyle: { color: STAGE_COLORS[stage] },
+                data: data.map((d) => d[`${stage}_avg_days`]),
+                ...(target !== null && idx === STAGE_KEYS.length - 1 ? {
                   markLine: {
                     silent: true,
-                    lineStyle: { color: "#E74C3C", type: "dashed", width: 1.2 },
-                    data: [{ yAxis: target, name: `目标 ${target} 工作日` }],
-                    label: { formatter: `目标 ${target} 天`, color: "#E74C3C", position: "end", fontSize: 10 },
+                    symbol: "none",
+                    lineStyle: { color: "#dc2626", type: "dashed", width: 1.2 },
+                    data: [{ yAxis: target }],
+                    label: { formatter: `目标 ${target} 天`, color: "#dc2626", position: "insideEndTop", fontSize: 10 },
                   },
                 } : {}),
-              }],
+              })),
             }
             return (
               <Card key={title}>
@@ -392,7 +509,7 @@ export default function CycleTimePage() {
                   <CardTitle className="text-sm font-medium text-gray-700">{title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ReactECharts option={opt} style={{ height: 280 }} />
+                  <ReactECharts option={opt} style={{ height: 300 }} />
                 </CardContent>
               </Card>
             )
@@ -413,6 +530,11 @@ export default function CycleTimePage() {
                       检项名称: i.method_name,
                       完成数: i.completed_n,
                       "平均周期(天)": i.avg_cycle_days?.toFixed(1) ?? "",
+                      "分配前(天)": i.stage?.alloc_avg_days?.toFixed(1) ?? "",
+                      "待检(天)": i.stage?.wait_avg_days?.toFixed(1) ?? "",
+                      "检验中(天)": i.stage?.test_avg_days?.toFixed(1) ?? "",
+                      "复核(天)": i.stage?.review_avg_days?.toFixed(1) ?? "",
+                      瓶颈阶段: i.stage?.bottleneck_stage ? STAGE_LABELS[i.stage.bottleneck_stage] : "",
                       "中位数(天)": i.median_cycle_days?.toFixed(1) ?? "",
                       "最长(天)": i.max_cycle_days ?? "",
                       "较上期(天)": i.delta?.toFixed(1) ?? "",
@@ -435,7 +557,9 @@ export default function CycleTimePage() {
           ) : (
             <>
               <p className="text-xs text-gray-400 px-4 py-2">
-                共 {tableData.length} 个检项，其中 {tableData.filter((i) => (i.avg_cycle_days ?? 0) > targetDays).length} 个均值超目标周期（{targetDays} 天）；红色 = 超目标或较上期延长，绿色 = 达标或改善。
+                共 {tableData.length} 个检项，其中 {tableData.filter((i) => (i.avg_cycle_days ?? 0) > targetDays).length} 个均值超目标周期（{targetDays} 天）；
+                红色 = 超目标 / 较上期延长 / 该方法的瓶颈段，绿色 = 达标或改善。
+                各段独立平均，端点缺失的检项不计入该段。
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -443,10 +567,15 @@ export default function CycleTimePage() {
                     <tr className="border-b bg-gray-50 text-gray-500 text-xs">
                       <th className="text-left px-4 py-2 font-medium">检项名称</th>
                       <th className="text-right px-4 py-2 font-medium">完成数</th>
-                      <th className="text-right px-4 py-2 font-medium">平均周期(天)</th>
-                      <th className="text-right px-4 py-2 font-medium">中位数(天)</th>
-                      <th className="text-right px-4 py-2 font-medium">最长(天)</th>
-                      <th className="text-right px-4 py-2 font-medium">较上期(天)</th>
+                      <th className="text-right px-4 py-2 font-medium">平均周期</th>
+                      <th className="text-right px-4 py-2 font-medium" style={{ color: STAGE_COLORS.alloc }}>分配前</th>
+                      <th className="text-right px-4 py-2 font-medium" style={{ color: STAGE_COLORS.wait }}>待检</th>
+                      <th className="text-right px-4 py-2 font-medium" style={{ color: STAGE_COLORS.test }}>检验中</th>
+                      <th className="text-right px-4 py-2 font-medium" style={{ color: STAGE_COLORS.review }}>复核</th>
+                      <th className="text-center px-4 py-2 font-medium">瓶颈</th>
+                      <th className="text-right px-4 py-2 font-medium">中位数</th>
+                      <th className="text-right px-4 py-2 font-medium">最长</th>
+                      <th className="text-right px-4 py-2 font-medium">较上期</th>
                       <th className="text-center px-4 py-2 font-medium">趋势</th>
                       <th className="text-center px-4 py-2 font-medium">达标</th>
                     </tr>
@@ -455,12 +584,39 @@ export default function CycleTimePage() {
                     {tableData.map((item, idx) => {
                       const overTarget = (item.avg_cycle_days ?? 0) > targetDays
                       const pass = !overTarget
+                      const stage = item.stage
+                      const bn = stage?.bottleneck_stage ?? null
+                      const stageCell = (key: CycleStage, value: number | null | undefined) => {
+                        const isBottleneck = bn === key
+                        const cls = isBottleneck ? "font-bold text-red-600" : "text-gray-600"
+                        return (
+                          <td className={`px-4 py-2 text-right tabular-nums ${cls}`}>
+                            {value !== null && value !== undefined ? value.toFixed(1) : "—"}
+                          </td>
+                        )
+                      }
                       return (
                         <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                           <td className="px-4 py-2 text-gray-800">{item.method_name}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{item.completed_n.toLocaleString()}</td>
                           <td className={`px-4 py-2 text-right tabular-nums font-bold ${overTarget ? "text-red-600" : "text-green-600"}`}>
                             {item.avg_cycle_days?.toFixed(1) ?? "—"}
+                          </td>
+                          {stageCell("alloc", stage?.alloc_avg_days)}
+                          {stageCell("wait", stage?.wait_avg_days)}
+                          {stageCell("test", stage?.test_avg_days)}
+                          {stageCell("review", stage?.review_avg_days)}
+                          <td className="px-4 py-2 text-center text-xs">
+                            {bn ? (
+                              <span
+                                className="inline-block rounded px-2 py-0.5 font-medium text-white"
+                                style={{ backgroundColor: STAGE_COLORS[bn] }}
+                              >
+                                {STAGE_LABELS[bn]}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
                           </td>
                           <td className="px-4 py-2 text-right tabular-nums text-gray-600">
                             {item.median_cycle_days?.toFixed(1) ?? "—"}

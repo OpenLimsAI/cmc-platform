@@ -82,6 +82,51 @@ class CycleTimeTrendByMethodResponse(BaseModel):
     items: list[CycleTimeTrendByMethodItem]
 
 
+# ---------- 检验周期：4 段细分 ----------
+# 4 段：alloc（分配前）/ wait（待检）/ test（检验中）/ review（复核授权）
+# 每段独立平均，缺端点的不计入；_n 是参与该段平均的检项数
+
+class CycleTimeStagesByMethodItem(BaseModel):
+    method_name: str
+    method_code: str | None = None
+    completed_n: int
+    alloc_n: int
+    alloc_avg_days: float | None = None
+    wait_n: int
+    wait_avg_days: float | None = None
+    test_n: int
+    test_avg_days: float | None = None
+    review_n: int
+    review_avg_days: float | None = None
+    bottleneck_stage: str | None = None   # alloc / wait / test / review
+
+
+class CycleTimeStagesByMethodResponse(BaseModel):
+    start_date: date
+    end_date: date
+    items: list[CycleTimeStagesByMethodItem]
+
+
+class CycleTimeStagesTrendItem(BaseModel):
+    ym: str
+    method_name: str
+    method_code: str | None = None
+    completed_n: int
+    alloc_n: int
+    alloc_avg_days: float | None = None
+    wait_n: int
+    wait_avg_days: float | None = None
+    test_n: int
+    test_avg_days: float | None = None
+    review_n: int
+    review_avg_days: float | None = None
+
+
+class CycleTimeStagesTrendResponse(BaseModel):
+    months: int
+    items: list[CycleTimeStagesTrendItem]
+
+
 # ---------- 超期未检 ----------
 
 class OverdueSummary(BaseModel):

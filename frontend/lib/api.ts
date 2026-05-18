@@ -83,6 +83,50 @@ export interface CycleTimeTrendByMethodItem {
   median_cycle_days: number | null
 }
 
+// 4 段细分（alloc=分配前 / wait=待检 / test=检验中 / review=复核授权）
+export type CycleStage = "alloc" | "wait" | "test" | "review"
+
+export interface CycleTimeStagesByMethodItem {
+  method_name: string
+  method_code: string | null
+  completed_n: number
+  alloc_n: number
+  alloc_avg_days: number | null
+  wait_n: number
+  wait_avg_days: number | null
+  test_n: number
+  test_avg_days: number | null
+  review_n: number
+  review_avg_days: number | null
+  bottleneck_stage: CycleStage | null
+}
+
+export interface CycleTimeStagesByMethodResponse {
+  start_date: string
+  end_date: string
+  items: CycleTimeStagesByMethodItem[]
+}
+
+export interface CycleTimeStagesTrendItem {
+  ym: string
+  method_name: string
+  method_code: string | null
+  completed_n: number
+  alloc_n: number
+  alloc_avg_days: number | null
+  wait_n: number
+  wait_avg_days: number | null
+  test_n: number
+  test_avg_days: number | null
+  review_n: number
+  review_avg_days: number | null
+}
+
+export interface CycleTimeStagesTrendResponse {
+  months: number
+  items: CycleTimeStagesTrendItem[]
+}
+
 export interface ProjectDistributionItem {
   project_id: string
   sample_n: number
@@ -172,6 +216,29 @@ export const fetchCycleTimeTrendByMethod = (params: { months?: number; groups?: 
   api
     .get<{ months: number; items: CycleTimeTrendByMethodItem[] }>(
       "/api/v1/lims/stats/cycle-time/trend-by-method",
+      { params }
+    )
+    .then((r) => r.data)
+
+export const fetchCycleTimeStagesByMethod = (params: {
+  start_date?: string
+  end_date?: string
+  groups?: string[]
+}) =>
+  api
+    .get<CycleTimeStagesByMethodResponse>(
+      "/api/v1/lims/stats/cycle-time/stages-by-method",
+      { params }
+    )
+    .then((r) => r.data)
+
+export const fetchCycleTimeStagesTrendByMethod = (params: {
+  months?: number
+  groups?: string[]
+}) =>
+  api
+    .get<CycleTimeStagesTrendResponse>(
+      "/api/v1/lims/stats/cycle-time/stages-trend-by-method",
       { params }
     )
     .then((r) => r.data)

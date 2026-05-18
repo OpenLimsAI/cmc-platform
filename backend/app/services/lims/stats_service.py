@@ -205,16 +205,31 @@ async def get_monthly_trend(
 # ---------- 检验周期 ----------
 
 # 工作日计算：49元素数组查找法，O(1)，与 Streamlit 版完全一致
-_BIZ_DAYS_EXPR = """(
-    5 * ((v.test_authorised_dt::date - v.sample_received_dt::date) / 7)
+def _biz_days_between(start_col: str, end_col: str) -> str:
+    """返回 SQL 工作日差表达式（end - start，按 49 元素数组查表）。"""
+    return f"""(
+    5 * (({end_col}::date - {start_col}::date) / 7)
     + (ARRAY[0,1,2,3,4,5,5, 0,1,2,3,4,4,4, 0,1,2,3,3,3,4,
              0,1,2,2,2,3,4, 0,1,1,1,2,3,4, 0,0,0,1,2,3,4,
              0,0,1,2,3,4,5])[
-        EXTRACT(DOW FROM v.sample_received_dt::date)::int * 7
-        + (v.test_authorised_dt::date - v.sample_received_dt::date) % 7
+        EXTRACT(DOW FROM {start_col}::date)::int * 7
+        + ({end_col}::date - {start_col}::date) % 7
         + 1
     ]
 )::numeric"""
+
+
+def _stage_biz_days(start_col: str, end_col: str) -> str:
+    """单个阶段的工作日；端点缺一或终点早于起点 → NULL（让 AVG/COUNT 自动忽略）。"""
+    return f"""CASE
+        WHEN {start_col} IS NOT NULL
+         AND {end_col} IS NOT NULL
+         AND {end_col}::date >= {start_col}::date
+        THEN {_biz_days_between(start_col, end_col)}
+    END"""
+
+
+_BIZ_DAYS_EXPR = _biz_days_between("v.sample_received_dt", "v.test_authorised_dt")
 
 # 基础过滤条件（完结口径，排除X/U，要求两个日期均不为空且授权≥收样）
 _CYCLE_BASE_FILTER = """
@@ -346,6 +361,138 @@ async def get_cycle_time_trend_by_method(
             COUNT(DISTINCT r.test_id)                                                  AS completed_n,
             ROUND(AVG(r.biz_days), 1)                                                  AS avg_cycle_days,
             ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY r.biz_days)::numeric, 1) AS median_cycle_days
+        FROM raw r
+        LEFT JOIN mart.dim_method dm ON r.method_code = dm.method_code
+        GROUP BY r.ym, r.m_start, r.method_code, dm.method_name
+        ORDER BY r.ym, dm.method_name
+    """
+    result = await db.execute(text(sql), {"months": months})
+    return [dict(r) for r in result.mappings().all()]
+
+
+# ---------- 检验周期：4 段细分 ----------
+#
+# 4 段定义（口径同检验周期：完结 + 排除 X/U）：
+#   alloc:  sample_received_dt   → assigned_dt          分配前等待
+#   wait:   assigned_dt          → test_started_dt      待检（已分配未开工）
+#   test:   test_started_dt      → test_completed_dt    实际检验
+#   review: test_completed_dt    → test_authorised_dt   复核授权
+# 每段独立平均，缺端点的记录在该段不计入（AVG/COUNT 自动忽略 NULL）。
+
+_STAGE_COLUMNS = [
+    ("alloc",  "v.sample_received_dt", "v.assigned_dt"),
+    ("wait",   "v.assigned_dt",        "v.test_started_dt"),
+    ("test",   "v.test_started_dt",    "v.test_completed_dt"),
+    ("review", "v.test_completed_dt",  "v.test_authorised_dt"),
+]
+
+
+def _stage_select_cte() -> str:
+    """CTE 内的 4 段工作日列。"""
+    return ",\n            ".join(
+        f"{_stage_biz_days(s, e)} AS {name}_days"
+        for name, s, e in _STAGE_COLUMNS
+    )
+
+
+def _stage_aggregate_cols() -> str:
+    """外层 GROUP BY 后的 4 段聚合列（n + avg）。"""
+    parts = []
+    for name, _, _ in _STAGE_COLUMNS:
+        parts.append(f"COUNT({name}_days)::int                       AS {name}_n")
+        parts.append(f"ROUND(AVG({name}_days), 1)                    AS {name}_avg_days")
+    return ",\n            ".join(parts)
+
+
+def _attach_bottleneck(item: dict) -> dict:
+    """在 Python 端算出 4 段中均值最大的一段（NULL 段跳过）。"""
+    stages = {
+        name: item.get(f"{name}_avg_days")
+        for name, _, _ in _STAGE_COLUMNS
+    }
+    valid = {k: float(v) for k, v in stages.items() if v is not None}
+    item["bottleneck_stage"] = max(valid, key=valid.get) if valid else None
+    return item
+
+
+async def get_cycle_time_stages_by_method(
+    db: AsyncSession,
+    start: date,
+    end_date: date,
+    groups: list[str] | None = None,
+) -> list[dict]:
+    """各方法 4 段平均工作日（区间汇总）。完结口径与 cycle-time/by-method 一致。"""
+    group_sql, _ = _group_clause(groups)
+    sql = f"""
+        WITH raw AS (
+            SELECT
+                v.method_code,
+                v.test_id,
+                {_stage_select_cte()}
+            FROM mart.v_test_task_monitor v
+            WHERE v.test_authorised_dt >= CAST(:start AS date)
+              AND v.test_authorised_dt <  (CAST(:end_date AS date) + INTERVAL '1 day')
+              AND {_CYCLE_BASE_FILTER}
+              AND {group_sql}
+        )
+        SELECT
+            COALESCE(m.method_name, r.method_code, '（未知）') AS method_name,
+            r.method_code,
+            COUNT(DISTINCT r.test_id)::int                    AS completed_n,
+            {_stage_aggregate_cols()}
+        FROM raw r
+        LEFT JOIN mart.dim_method m ON r.method_code = m.method_code
+        GROUP BY r.method_code, m.method_name
+        ORDER BY (
+            COALESCE(AVG(alloc_days),  0)
+          + COALESCE(AVG(wait_days),   0)
+          + COALESCE(AVG(test_days),   0)
+          + COALESCE(AVG(review_days), 0)
+        ) DESC
+    """
+    result = await db.execute(text(sql), {"start": start, "end_date": end_date})
+    return [_attach_bottleneck(dict(r)) for r in result.mappings().all()]
+
+
+async def get_cycle_time_stages_trend_by_method(
+    db: AsyncSession,
+    months: int = 12,
+    groups: list[str] | None = None,
+) -> list[dict]:
+    """各方法按月份的 4 段平均工作日（重点检项卡片堆叠柱用）。"""
+    group_sql, _ = _group_clause(groups)
+    sql = f"""
+        WITH months AS (
+            SELECT
+                gs::date                        AS m_start,
+                (gs + INTERVAL '1 month')::date AS m_end,
+                to_char(gs, 'YYYY-MM')          AS ym
+            FROM generate_series(
+                date_trunc('month', CURRENT_DATE) - ((:months - 1) || ' months')::interval,
+                date_trunc('month', CURRENT_DATE),
+                INTERVAL '1 month'
+            ) AS gs
+        ),
+        raw AS (
+            SELECT
+                m.ym,
+                m.m_start,
+                v.test_id,
+                v.method_code,
+                {_stage_select_cte()}
+            FROM months m
+            JOIN mart.v_test_task_monitor v
+              ON  v.test_authorised_dt::date >= m.m_start
+              AND v.test_authorised_dt::date <  m.m_end
+            WHERE {_CYCLE_BASE_FILTER}
+              AND {group_sql}
+        )
+        SELECT
+            r.ym,
+            COALESCE(dm.method_name, r.method_code, '（未知）') AS method_name,
+            r.method_code,
+            COUNT(DISTINCT r.test_id)::int                      AS completed_n,
+            {_stage_aggregate_cols()}
         FROM raw r
         LEFT JOIN mart.dim_method dm ON r.method_code = dm.method_code
         GROUP BY r.ym, r.m_start, r.method_code, dm.method_name
