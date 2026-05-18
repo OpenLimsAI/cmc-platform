@@ -26,6 +26,15 @@ TT_INTERNAL_CODE = "TT内部物料"
 # v1.2 危化品分类可选值(后端 schemas.HAZARD_CLASS_VALUES 镜像)
 HAZARD_CLASS_OPTIONS = ["危化品", "易燃", "易制毒", "易制爆", "剧毒品"]
 
+# 标签颜色:与化工常用的安全色靠近,提升现场可读性
+HAZARD_BADGE_COLORS = {
+    "危化品": "#d32f2f",  # 红
+    "易燃":   "#ef6c00",  # 橙
+    "易制毒": "#6a1b9a",  # 紫
+    "易制爆": "#b71c1c",  # 深红
+    "剧毒品": "#212121",  # 近黑
+}
+
 
 # ---------------------------------------------------------------------------
 # 通用请求
@@ -163,6 +172,29 @@ def material_label(m: Dict) -> str:
 def location_label(loc: Dict) -> str:
     """位置显示:`房间-柜号-L层`(name 字段后端已计算好)。"""
     return loc.get("name") or f"{loc.get('room_no','?')}-{loc.get('cabinet_no','?')}-L{loc.get('layer_no','?')}"
+
+
+def render_hazard_badges(hazards) -> None:
+    """渲染一行危化品分类彩色标签。
+    - 有标签:每个分类一个彩色 pill
+    - 无标签:浅灰小字提示,提醒可在「物料管理」里补
+    """
+    if not hazards:
+        st.markdown(
+            '<span style="color:#9e9e9e;font-size:0.9em;">'
+            '⬜ 该物料未标注危化品分类(可在「物料管理」补)</span>',
+            unsafe_allow_html=True,
+        )
+        return
+    spans = []
+    for h in hazards:
+        color = HAZARD_BADGE_COLORS.get(h, "#616161")
+        spans.append(
+            f'<span style="background:{color};color:white;'
+            f'padding:3px 10px;border-radius:12px;margin-right:6px;'
+            f'font-size:0.9em;font-weight:600;">⚠️ {h}</span>'
+        )
+    st.markdown("".join(spans), unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,9 @@
 文件: frontend/app.py
 用途: Streamlit 主入口 + 按角色动态构建 sidebar
 说明:
-    - 用 st.navigation 程序化注册 page,替代 pages/ 目录的自动扫描
+    - 用 st.navigation 程序化注册 page;真实文件放在 views/(故意不叫
+      pages/,以免 Streamlit 自动扫描 → 即使 st.stop() 早返,登录前 sidebar
+      也会泄露所有文件名)
     - 未登录:只显示登录表单(sidebar 空,不暴露功能)
     - 已登录:
         - admin 看到全部 8 页 + 主页
@@ -107,16 +109,16 @@ def _home_page():
 home = st.Page(_home_page, title="主页", icon="🏠", default=True, url_path="home")
 
 # 所有人可见
-p_material = st.Page("pages/2_物料管理.py", title="物料管理", icon="🗂️")
-p_stock    = st.Page("pages/5_库存查询.py", title="库存查询", icon="📊")
-p_alert    = st.Page("pages/6_库存预警.py", title="库存预警", icon="⚠️")
+p_material = st.Page("views/2_物料管理.py", title="物料管理", icon="🗂️")
+p_stock    = st.Page("views/5_库存查询.py", title="库存查询", icon="📊")
+p_alert    = st.Page("views/6_库存预警.py", title="库存预警", icon="⚠️")
 
 # 仅 admin 可见
-p_import   = st.Page("pages/1_物料导入.py", title="物料导入", icon="📥")
-p_in       = st.Page("pages/3_入库登记.py", title="入库登记", icon="📥")
-p_out      = st.Page("pages/4_出库登记.py", title="出库登记", icon="📤")
-p_adjust   = st.Page("pages/7_盘点调整.py", title="盘点调整", icon="🧮")
-p_users    = st.Page("pages/8_用户管理.py", title="用户管理", icon="👤")
+p_import   = st.Page("views/1_物料导入.py", title="物料导入", icon="📥")
+p_in       = st.Page("views/3_入库登记.py", title="入库登记", icon="📥")
+p_out      = st.Page("views/4_出库登记.py", title="出库登记", icon="📤")
+p_adjust   = st.Page("views/7_盘点调整.py", title="盘点调整", icon="🧮")
+p_users    = st.Page("views/8_用户管理.py", title="用户管理", icon="👤")
 
 if is_admin():
     nav_pages = {
