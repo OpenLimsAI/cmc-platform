@@ -1,9 +1,9 @@
 -- =============================================================================
 -- 文件: sql/init.sql
--- 用途: CMC 物料管理系统 MVP 数据库初始化脚本
---   1) 在 material_mgmt schema 中创建 7 张核心表
+-- 用途: CMC 物料管理系统数据库初始化脚本
+--   1) 在 material_mgmt schema 中创建当前版本所需的 10 张表
 --      (material / batch / inventory_txn / location / unit_dict /
---       category_dict / import_log)
+--       category_dict / import_log / app_user / auth_session / audit_log)
 --   2) 预置单位字典初始值
 --   3) 创建必要索引
 --
@@ -216,8 +216,8 @@ CREATE INDEX IF NOT EXISTS idx_txn_date   ON inventory_txn(txn_date);
 CREATE INDEX IF NOT EXISTS idx_txn_type   ON inventory_txn(txn_type);
 
 -- =============================================================================
--- v1.1 — 用户系统 + 审计追踪(C 阶段)
--- 这部分在 v1.0 服务器上重跑 init.sql 即可获得(IF NOT EXISTS 保证幂等)
+-- 用户系统 + 审计追踪
+-- 这部分在旧服务器上重跑 init.sql 即可获得(IF NOT EXISTS 保证幂等)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

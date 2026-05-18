@@ -1,5 +1,5 @@
 """
-文件: frontend/pages/4_出库登记.py
+文件: frontend/views/4_出库登记.py
 用途: 出库登记 — 仅显示有库存物料,默认按效期升序(FIFO)
 """
 from __future__ import annotations

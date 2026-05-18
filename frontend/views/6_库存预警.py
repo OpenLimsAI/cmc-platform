@@ -1,5 +1,5 @@
 """
-文件: frontend/pages/6_库存预警.py
+文件: frontend/views/6_库存预警.py
 用途: 库存预警 — 三个 Tab(已过期+紧急 / 临近过期 / 低库存),支持导出 Excel
 预警规则:
     - EXPIRED: expiry_date < 今天

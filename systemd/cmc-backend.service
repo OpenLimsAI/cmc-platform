@@ -23,9 +23,9 @@ WorkingDirectory=/opt/cmc-inventory/backend
 #       systemd 中 Environment= 会覆盖 EnvironmentFile= 中的同名变量,导致 .env 失效
 EnvironmentFile=/opt/cmc-inventory/.env
 
-# 只监听 127.0.0.1:后端无鉴权,只允许同机访问;
-# 前端 Streamlit 通过 localhost 调它,远端用户不应直连后端 API。
-# 想从办公网看 /docs?用 SSH 隧道(见 DEPLOY.md §5)。
+# 只监听 127.0.0.1:前端 Streamlit 通过 localhost 调它,
+# 远端用户只访问前端,不直接连后端 API。
+# 想从办公网看 /docs?用 SSH 隧道(见 DEPLOY.md §6)。
 ExecStart=/opt/cmc-inventory/backend/.venv/bin/uvicorn main:app \
     --host 127.0.0.1 \
     --port ${BACKEND_PORT} \

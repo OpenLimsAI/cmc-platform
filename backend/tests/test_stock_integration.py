@@ -72,7 +72,7 @@ def test_expired_batch_excluded_from_total(db, seed_material):
 
 
 # ---------------------------------------------------------------------------
-# 2.5 默认排除零库存物料(v1.1 A.2 回归测试)
+# 2.5 默认排除零库存物料
 # ---------------------------------------------------------------------------
 def test_only_positive_default_filters_zero_stock(db, seed_material):
     """seed_material 创建了 1 个物料但没建批次,总库存 = 0;

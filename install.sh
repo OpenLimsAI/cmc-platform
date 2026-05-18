@@ -65,14 +65,15 @@ case "$ACTION" in
         echo
         echo "==> 完成。访问:"
         echo "    前端:   http://<服务器IP>:${FE_PORT}"
-        echo "    后端:   http://<服务器IP>:${BE_PORT}/docs"
+        echo "    后端:   http://127.0.0.1:${BE_PORT}/health  (仅服务器本机)"
+        echo "    Swagger: 需要 SSH 隧道后访问 http://localhost:${BE_PORT}/docs"
         echo "    日志:   sudo journalctl -u cmc-backend -f"
         ;;
 
     deps)
         ensure_venv backend
         ensure_venv frontend
-        echo "==> 依赖已更新。需要重启请: ./install.sh restart"
+        echo "==> 依赖已更新。需要重启请: ./restart.sh"
         ;;
 
     restart)

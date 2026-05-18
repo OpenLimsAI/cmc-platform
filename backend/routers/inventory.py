@@ -1,7 +1,7 @@
 """
 文件: backend/routers/inventory.py
 用途: 出入库流水 API
-v1.1:
+权限:
     - 写操作要求 admin
     - operator 自动取登录用户
     - 触发 audit_log

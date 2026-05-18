@@ -1,6 +1,6 @@
 # Linux 服务器部署指南(无 Docker 版)
 
-> **架构选择(MVP 阶段)**:不用 Docker,直接 Python venv + systemd。
+> **架构选择**:不用 Docker 跑应用,直接 Python venv + systemd。
 > 原因:数据库已在宿主机、镜像源被墙、调试更直接。
 >
 > 整体目录:`/opt/cmc-inventory`,运行身份 `prometheus`,数据库 `cmc_data_platform`。
@@ -46,7 +46,7 @@ PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 ```
 
-验证(应能看到 7 张表,owner 都是 cmc_user):
+验证(应能看到 10 张表,owner 都是 cmc_user):
 
 ```bash
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
@@ -73,14 +73,18 @@ cp .env.example .env
 vim .env   # 修改 DATABASE_URL 中的密码,与第 1 步保持一致
 ```
 
-`.env` 里两个 KEY:
+`.env` 关键项:
 
 ```
+BACKEND_PORT=8000
+FRONTEND_PORT=8501
 DATABASE_URL=postgresql://cmc_user:你的真实密码@127.0.0.1:5432/cmc_data_platform
 API_BASE_URL=http://localhost:8000
+ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin
 ```
 
 > **格式严格** —— systemd 不允许加引号,KEY=VALUE 之间不能有空格。
+> `API_BASE_URL` 的端口要和 `BACKEND_PORT` 保持一致。
 
 ---
 
@@ -100,7 +104,7 @@ cd /opt/cmc-inventory
 成功后:
 
 - 前端: `http://<服务器IP>:8501`
-- 后端 API 文档: `http://<服务器IP>:8000/docs`
+- 后端:只监听服务器本机 `127.0.0.1:8000`;看 Swagger `/docs` 需要 SSH 隧道,见第 6 节
 
 ---
 
@@ -111,17 +115,18 @@ cd /opt/cmc-inventory
 | 看后端日志(实时) | `sudo journalctl -u cmc-backend -f` |
 | 看前端日志 | `sudo journalctl -u cmc-frontend -f` |
 | 重启后端 | `sudo systemctl restart cmc-backend` |
-| 重启前后端 | `./install.sh restart` |
+| 重启前后端(推荐) | `./restart.sh` |
+| 重启前后端(旧方式) | `./install.sh restart` |
 | 查状态 | `sudo systemctl status cmc-backend cmc-frontend` |
-| 改代码后重启 | `cd /opt/cmc-inventory && git pull && ./install.sh restart` |
-| 改了 requirements.txt | `./install.sh deps && ./install.sh restart` |
+| 改代码后重启 | `cd /opt/cmc-inventory && git pull && ./restart.sh` |
+| 改了 requirements.txt | `./install.sh deps && ./restart.sh` |
 | 卸载(只删 unit/进程,不删数据) | `./install.sh uninstall` |
 
 ---
 
 ## 6. 防火墙
 
-后端 uvicorn 只绑 `127.0.0.1`(无鉴权,严禁直接对外),只放通前端端口给内网用户:
+后端 uvicorn 只绑 `127.0.0.1`;虽然已有应用登录鉴权,仍不建议把 API 直接暴露给内网用户。只放通前端端口:
 
 ```bash
 sudo ufw allow 8501/tcp comment 'cmc-inventory frontend'
@@ -138,9 +143,9 @@ ssh -L 8000:127.0.0.1:8000 prometheus@<服务器IP>
 
 ---
 
-## 7. 从已有 v1.0 升级到 v1.1(用户系统 + 审计追踪)
+## 7. 从旧版本升级到当前版本
 
-> 当前服务器若已经按本文档跑起来(v1.0),按下面流程升级到 v1.1。
+> 当前服务器若已经按本文档跑过旧版本,按下面流程升级到当前版本。
 > 不需要 down time(systemd restart 间隔约 1-2 秒)。
 
 ```bash
@@ -149,17 +154,22 @@ cd /opt/cmc-inventory
 # 1) 拉新代码
 git pull --ff-only
 
-# 2) 给 PG 加 v1.1 三张新表(app_user / auth_session / audit_log)
-#    init.sql 全部用 IF NOT EXISTS,重跑一遍只会新增,不影响 v1.0 的 7 张表
+# 2) 跑幂等建表/迁移脚本
+#    init.sql 大多为 IF NOT EXISTS,用于补齐基础表和字典
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 
-# 3) 给 .env 加 ADMIN_INITIAL_PASSWORD(首次启动后端会用它自动建 admin)
+# 若你的服务器来自 v1.1 之前,还需要执行 v1.2 迁移脚本
+PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
+    -d cmc_data_platform -f sql/migrate_v1_2.sql
+
+# 3) 确认 .env 里有 ADMIN_INITIAL_PASSWORD(首次启动后端会用它自动建 admin)
 echo 'ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin' >> .env
 
-# 4) 装新依赖(bcrypt)+ 重装 systemd unit + 重启
+# 4) 装/更新依赖 + 重装 systemd unit + 重启
 ./install.sh deps
 ./install.sh install
+./restart.sh
 ```
 
 启动后端日志会打印:`已创建初始 admin 账号(must_change_password=True)`。
@@ -197,7 +207,7 @@ sudo rm -rf /opt/cmc-inventory
 ## 9. 常见问题
 
 **Q: backend 起不来,journalctl 报 `password authentication failed`**
-A: `.env` 中 `DATABASE_URL` 的密码与 cmc_user 的真实密码不一致。改 `.env` 后 `./install.sh restart`。
+A: `.env` 中 `DATABASE_URL` 的密码与 cmc_user 的真实密码不一致。改 `.env` 后 `./restart.sh`。
 
 **Q: backend 起来但报 `permission denied for schema material_mgmt`**
 A: init.sql 是用 postgres 身份跑的,导致表归 postgres 所有。改用 cmc_user 跑一次:
@@ -209,7 +219,7 @@ PGPASSWORD='...' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform -f sql/init.
 A: 检查 backend 是否在跑:`curl http://127.0.0.1:8000/health`。另外 `.env` 里 `API_BASE_URL` 应是 `http://localhost:8000` 或 `http://127.0.0.1:8000`(同机部署)。
 
 **Q: 端口被占用**
-A: `ss -ltnp | grep -E '8000|8501'` 查谁占着。改端口需要同时改 `systemd/*.service` + `.env` + 前端读后端的地址。
+A: `ss -ltnp | grep -E '8000|8501'` 查谁占着。通常只需要改 `.env` 中的 `BACKEND_PORT` / `FRONTEND_PORT`,并同步修改 `API_BASE_URL` 的端口,然后 `./restart.sh`。
 
 **Q: 想加开机自启 / 取消自启**
 A: install.sh 默认已 `enable`。

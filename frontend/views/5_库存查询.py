@@ -1,5 +1,5 @@
 """
-文件: frontend/pages/5_库存查询.py
+文件: frontend/views/5_库存查询.py
 用途: 库存查询(物料汇总 / 批次明细),支持导出 Excel
 """
 from __future__ import annotations

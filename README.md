@@ -1,7 +1,8 @@
-# CMC 物料管理系统 MVP (`cmc-inventory`)
+# CMC 物料管理系统 (`cmc-inventory`)
 
-> CMC 部门内部使用的轻量化物料管理系统,聚焦核心闭环:**物料导入 → 入库 → 出库 → 库存统计 → 预警**。
-> MVP 阶段不涉及 GMP 合规、申购审批、CoA 管理等扩展模块,这些将在后续迭代中逐步加入。
+> CMC 部门内部使用的轻量化物料管理系统,聚焦核心闭环:**物料导入 → 入库 → 出库 → 移库 → 盘点 → 库存统计 → 预警**。
+> 当前版本 **v1.2** —— 在 MVP 基础上补齐了用户/角色/审计、危化品分类、位置三字段、同批次散放多位置、移库等部门级日常需要的能力。
+> 不涉及 GMP 合规、申购审批、CoA 管理等扩展模块,这些将在后续迭代中逐步加入。
 
 ---
 
@@ -10,12 +11,15 @@
 为 CMC 部门提供一个**部门级**的物料管理工具,解决:
 
 1. 物料主数据从公司物料代码表一次性导入,后续直接下拉检索使用,**减少人工录入**
-2. 重要试剂、关键耗材的**批次级**入库 / 出库登记
-3. 实时库存统计(按物料、按批次、按位置)
-4. **低库存预警**(对比安全库存)+ **效期预警**(30/90 天分级)
-5. 物料**软删除**(停用),保证历史数据可追溯
+2. 重要试剂、关键耗材的**批次级**入库 / 出库登记;同批号可以分散在多个柜位独立计数
+3. **移库**(同批号不丢链地从一个柜位搬到另一个柜位)
+4. 实时库存统计(按物料、按批次、按位置)
+5. **低库存预警**(对比安全库存)+ **效期预警**(30/90 天分级)
+6. 物料**软删除**(停用),保证历史数据可追溯
+7. 多用户 + 角色控制(admin / user),所有写操作落 **audit_log**
+8. **危化品分类标识**(危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品,多选)在物料卡 + 入库页醒目展示
 
-**明确不做(MVP 之外)**:申购审批流、CoA 文件管理、质量状态管理、供应商管理、GMP 合规审计追踪、权限分级、报表看板、ERP/LIMS 对接。
+**明确不做(当前阶段范围外)**:申购审批流、CoA 文件管理、质量状态管理、供应商管理、GMP 合规审计追踪(电子签名)、报表看板、ERP/LIMS 对接。
 
 ---
 
@@ -25,10 +29,11 @@
 |----|------|
 | 数据库 | PostgreSQL 16,复用现有实例,新建 schema `material_mgmt`(Mac 调试时 PG 在 Docker;Linux 生产时 PG 原生装在宿主机) |
 | 后端 | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Pydantic v2 |
-| 前端 | Streamlit(MVP 阶段;后续可替换为 Vue3) |
+| 前端 | Streamlit + `st.navigation`(显式按角色构建 sidebar);页面文件在 `views/` 而非 `pages/`(避免登录前 Streamlit 自动扫描 `pages/` 泄露功能名) |
 | 文件导入 | pandas + openpyxl(Excel 读取) |
 | 部署 | **不用 Docker 跑应用**。Mac:venv 直接起进程;Linux:venv + systemd unit |
-| 认证 | **MVP 阶段不做认证**,操作人姓名作为字段直接录入 |
+| 认证 | 本地账号 + 随机 token,bcrypt 存密;**10 分钟无操作滑动过期**;token 通过 `streamlit-local-storage` 写浏览器 localStorage,**刷新页面不丢登录态**;首次启动用 `ADMIN_INITIAL_PASSWORD` 自动建 admin 并强制改密 |
+| 审计 | 写操作统一落 `audit_log`,记录用户 / 实体 / 前后快照 / 来源 IP |
 
 ---
 
@@ -39,6 +44,8 @@ cmc-inventory/
 ├── README.md                        本文档(开发与 Mac 调试指南)
 ├── DEPLOY.md                        Linux 服务器部署指南(生产)
 ├── install.sh                       Linux 一键装/起/重启/卸载脚本
+├── restart.sh                       Linux 服务器日常一键重启脚本
+├── 重启库存系统.command              macOS 双击重启本机前后端并打开网页
 ├── .env.example                    环境变量样例
 ├── .gitignore
 ├── sql/
@@ -55,9 +62,11 @@ cmc-inventory/
 │   ├── crud.py                     通用 CRUD
 │   └── routers/
 │       ├── __init__.py
-│       ├── material.py             物料 API(查询、停用/启用、维护安全库存)
+│       ├── auth_router.py          登录 / 登出 / 改密 / 当前用户
+│       ├── admin_router.py         用户管理 + 操作日志
+│       ├── material.py             物料 API(查询、新增、编辑、停用/启用)
 │       ├── batch.py                批次 API
-│       ├── inventory.py            出入库 API
+│       ├── inventory.py            出入库 / 盘点 / 移库 API
 │       ├── stock.py                库存查询 + 预警 API
 │       ├── location.py             储存位置 API
 │       └── import_data.py          Excel 导入 API
@@ -65,14 +74,17 @@ cmc-inventory/
 │   ├── requirements.txt
 │   ├── app.py                      Streamlit 主入口(导航)
 │   ├── utils.py                    API 调用封装
-│   └── pages/
+│   ├── auth_helper.py              登录态 / localStorage 恢复 / 页面守卫
+│   └── views/
 │       ├── 1_物料导入.py
-│       ├── 2_物料管理.py            查看/停用/启用、安全库存维护
+│       ├── 2_物料管理.py            查看/新增/编辑/停用/启用
 │       ├── 3_入库登记.py
 │       ├── 4_出库登记.py
 │       ├── 5_库存查询.py
 │       ├── 6_库存预警.py
-│       └── 7_盘点调整.py
+│       ├── 7_盘点调整.py
+│       ├── 8_用户管理.py
+│       └── 9_移库.py
 └── template/
     ├── generate_template.py        生成 Excel 模板的脚本
     └── 物料导入模板.xlsx            生成产物(.gitignore 排除,本地跑脚本生成)
@@ -80,13 +92,14 @@ cmc-inventory/
 
 ---
 
-## 四、数据模型(7 张表)
+## 四、数据模型(10 张表)
 
 ### 4.1 `material` — 物料主数据
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `material_code` | VARCHAR(20) PK | 物料代码,**保留前导 0**(纯数字以字符串存储) |
+| `material_id` | SERIAL PK | 物料内部主键 |
+| `material_code` | VARCHAR(20) NOT NULL | 物料代码,**保留前导 0**;除 `TT内部物料` 外唯一 |
 | `category` | VARCHAR(50) | 分类(如"一般耗材"),来自导入文件 |
 | `name_cn` | VARCHAR(200) NOT NULL | 物料名称(中文) |
 | `grade` | VARCHAR(50) | 级别(N/A 转 NULL) |
@@ -95,6 +108,7 @@ cmc-inventory/
 | `catalog_no` | VARCHAR(100) | 货号 |
 | `unit` | VARCHAR(20) NOT NULL | 单位(支/瓶/g/mL/盒/包等) |
 | `package_spec` | VARCHAR(100) | 包装规格 |
+| `hazard_class` | TEXT[] | 危化品分类多选:危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品 |
 | `remark` | TEXT | 备注 |
 | `safety_stock` | NUMERIC(12,2) DEFAULT 0 | 安全库存(导入后单独维护) |
 | `is_active` | BOOLEAN DEFAULT TRUE | 启用标志(软删除) |
@@ -109,16 +123,16 @@ cmc-inventory/
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `batch_id` | SERIAL PK | |
-| `material_code` | VARCHAR(20) FK | |
+| `material_id` | INT FK | 关联 `material.material_id` |
 | `batch_no` | VARCHAR(100) NOT NULL | 供应商批号 |
 | `expiry_date` | DATE | 效期(可空,部分耗材无效期) |
-| `location_id` | INT FK | 储存位置 |
+| `location_id` | INT FK NOT NULL | 储存位置 |
 | `received_date` | DATE NOT NULL | 到货日期 |
 | `initial_qty` | NUMERIC(12,2) NOT NULL | 入库数量 |
 | `remark` | TEXT | |
 | `created_at` | TIMESTAMP | |
 
-**唯一约束**: `(material_code, batch_no)` 联合唯一(同一物料同一批号不重复)
+**唯一约束**: `(material_id, batch_no, location_id)` 联合唯一。同一物料同一批号允许分散在多个位置上独立计数。
 
 ### 4.3 `inventory_txn` — 出入库流水(库存计算的唯一来源)
 
@@ -141,9 +155,14 @@ cmc-inventory/
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `location_id` | SERIAL PK | |
-| `name` | VARCHAR(100) NOT NULL UNIQUE | 如"4℃冰箱A-2层" |
+| `room_no` | VARCHAR(20) NOT NULL | 房间号 |
+| `cabinet_no` | VARCHAR(20) NOT NULL | 柜号 |
+| `layer_no` | SMALLINT NOT NULL | 层号,必须 >= 1 |
+| `name` | VARCHAR(80) GENERATED | 生成展示名,如 `2251-A01-L1` |
 | `storage_condition` | VARCHAR(50) | 常温 / 4℃ / -20℃ / -80℃ / 避光 |
 | `remark` | TEXT | |
+
+**唯一约束**: `(room_no, cabinet_no, layer_no)`。
 
 ### 4.5 `unit_dict` — 单位字典
 
@@ -176,13 +195,46 @@ cmc-inventory/
 | `failed_rows` | INT | |
 | `error_detail` | JSONB | 失败行详情 |
 
+### 4.8 `app_user` — 应用账号
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | SERIAL PK | |
+| `username` | VARCHAR(50) UNIQUE | 登录名 |
+| `password_hash` | VARCHAR(255) | bcrypt hash |
+| `role` | VARCHAR(20) | `admin` / `user` |
+| `is_active` | BOOLEAN | 是否启用 |
+| `must_change_password` | BOOLEAN | 是否要求下次登录改密 |
+| `created_at` / `last_login_at` | TIMESTAMP | 创建 / 最近登录时间 |
+
+### 4.9 `auth_session` — 登录会话
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `token` | VARCHAR(64) PK | 随机 hex token |
+| `user_id` | INT FK | 登录用户 |
+| `created_at` / `expires_at` / `last_seen_at` | TIMESTAMP | 创建 / 过期 / 最近活跃时间 |
+| `source_ip` | VARCHAR(45) | 来源 IP |
+
+### 4.10 `audit_log` — 操作日志
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | BIGSERIAL PK | |
+| `user_id` / `username` | INT / VARCHAR(50) | 操作用户;username 冗余保留 |
+| `action` | VARCHAR(50) | 如 `material.update`、`inventory.transfer` |
+| `entity_type` / `entity_id` | VARCHAR(50) | 被操作对象 |
+| `before_json` / `after_json` | JSONB | 操作前后快照 |
+| `source_ip` / `created_at` | VARCHAR(45) / TIMESTAMP | 来源 IP / 时间 |
+
 ---
 
 ## 五、核心业务逻辑
 
 ### 5.1 物料编码处理(关键)
 
-- 数据库存储为 `VARCHAR(20)`,**严格保留前导 0**
+- `material_code` 存储为 `VARCHAR(20)`,**严格保留前导 0**
+- `material_id` 是内部主键;`material_code='TT内部物料'` 允许重复,其余编码唯一
 - Excel 读取时强制全列字符串 + 关掉 NaN 自动识别(实现见 `backend/routers/import_data.py`):
   ```python
   pd.read_excel(file, dtype=str, keep_default_na=False)
@@ -202,7 +254,7 @@ cmc-inventory/
 ②自动按中文表头映射字段(代码→material_code, 物料名称→name_cn 等)
    ↓
 ③校验:
-   - material_code 唯一且非空
+   - material_code 非空;除 `TT内部物料` 外唯一
    - name_cn、unit 非空
    - unit 在 unit_dict 中(否则提示先维护字典或自动加入)
    - 检测前导 0
@@ -210,7 +262,7 @@ cmc-inventory/
 ④干跑结果:"将插入 X 条 / 更新 Y 条 / 错误 Z 条"
    错误行可下载 Excel 查看原因
    ↓
-⑤UPSERT 写入(material_code 冲突则更新)
+⑤UPSERT 写入(按 material_code 更新;`TT内部物料` 按新增处理)
    - 同时插入 import_log
    - 自动从文件提取新分类写入 category_dict
    ↓
@@ -226,11 +278,11 @@ FROM inventory_txn
 GROUP BY batch_id;
 
 -- 物料总库存(只计有效批次)
-SELECT m.material_code, m.name_cn, SUM(t.qty) AS total_qty
+SELECT m.material_id, m.material_code, m.name_cn, SUM(t.qty) AS total_qty
 FROM material m
-JOIN batch b ON b.material_code = m.material_code
+JOIN batch b ON b.material_id = m.material_id
 JOIN inventory_txn t ON t.batch_id = b.batch_id
-GROUP BY m.material_code, m.name_cn;
+GROUP BY m.material_id, m.material_code, m.name_cn;
 ```
 
 ### 5.5 预警规则
@@ -266,20 +318,22 @@ GROUP BY m.material_code, m.name_cn;
 ### 6.2 物料管理页
 - 检索栏: 分类筛选 + 名称/编码模糊搜索 + "查看已停用"开关
 - 物料列表(表格)
-- 行内操作: 编辑安全库存、停用/启用
+- 管理员可新增/编辑物料,维护安全库存和危化品分类
+- 行内操作: 编辑、停用/启用
 - 停用时弹窗输入原因
 
 ### 6.3 入库登记页
 - 物料选择(三层级联: 分类 → 模糊搜索 → 选中)
-- 批号、效期、储存位置、到货日期、入库数量、经办人、备注
-- 同一物料同一批号已存在 → 提示是否追加入库(创建新 txn 而非新 batch)
+- 批号、效期、储存位置(房间/柜号/层)、到货日期、入库数量、备注
+- 经办人自动取当前登录用户
+- 同一物料同一批号同一位置已存在 → 追加入库(创建新 txn 而非新 batch)
 - 提交后显示当前批次库存
 
 ### 6.4 出库登记页
 - 物料选择(同上,但只显示**有库存**的物料)
 - 批次选择(显示该物料的可用批次,默认按效期升序 - FIFO 建议)
 - 出库数量(校验不超过批次现有库存)
-- 经办人、用途/项目编号、备注
+- 经办人自动取当前登录用户,可填用途/项目编号、备注
 - 已过期批次默认不显示,可勾选"显示已过期"
 
 ### 6.5 库存查询页
@@ -302,9 +356,19 @@ GROUP BY m.material_code, m.name_cn;
 - 两种调整方式:
   - 按**实际盘点数**:输入物理盘点数,前端自动算 delta
   - 按**调整量**:直接输入正负调整量
-- 经办人 + 备注(建议填盘点单号 / 原因)
+- 经办人自动取当前登录用户,可填备注(建议填盘点单号 / 原因)
 - 后端校验:调整后批次库存不得 < 0,否则拒绝
 - 与出入库共用 `inventory_txn` 表,`txn_type='ADJUST'` 区分
+
+### 6.8 用户管理页
+- 管理员维护用户、角色、启停状态
+- 管理员可重置密码并要求用户下次登录改密
+- 操作日志 tab 查询所有写操作的审计记录
+
+### 6.9 移库页
+- 选择源批次、目标位置、数量和日期
+- 后端将一次移库落为源批次 OUT + 目标批次 IN 两条流水
+- 目标位置若已有同物料同批号批次则追加,否则自动创建目标批次
 
 ---
 
@@ -315,10 +379,11 @@ GROUP BY m.material_code, m.name_cn;
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/materials` | 查询(支持 `category`、`keyword`、`include_inactive`、`is_active` 过滤) |
-| GET | `/api/materials/{code}` | 详情 |
-| PATCH | `/api/materials/{code}` | 更新(主要用于 safety_stock) |
-| POST | `/api/materials/{code}/deactivate` | 停用(body: operator, reason) |
-| POST | `/api/materials/{code}/activate` | 启用 |
+| POST | `/api/materials` | 新增物料(admin) |
+| GET | `/api/materials/{material_id}` | 详情 |
+| PATCH | `/api/materials/{material_id}` | 更新(admin) |
+| POST | `/api/materials/{material_id}/deactivate` | 停用(admin,body: reason) |
+| POST | `/api/materials/{material_id}/activate` | 启用(admin) |
 | GET | `/api/categories` | 分类字典 |
 | GET | `/api/units` | 单位字典 |
 
@@ -326,7 +391,7 @@ GROUP BY m.material_code, m.name_cn;
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/batches` | 查询(支持 `material_code` 过滤) |
+| GET | `/api/batches` | 查询(支持 `material_id` 过滤) |
 | POST | `/api/batches` | 创建批次(同时创建首次入库 txn) |
 | GET | `/api/batches/{batch_id}` | 详情 |
 
@@ -337,7 +402,8 @@ GROUP BY m.material_code, m.name_cn;
 | POST | `/api/inventory/in` | 入库(对已有批次追加) |
 | POST | `/api/inventory/out` | 出库 |
 | POST | `/api/inventory/adjust` | 调整(盘点用,可正可负) |
-| GET | `/api/inventory/txns` | 流水查询 |
+| POST | `/api/inventory/transfer` | 移库(源 OUT + 目标 IN) |
+| GET | `/api/inventory/txns` | 流水查询(支持 `batch_id`、`material_id`) |
 
 ### 7.4 库存与预警 `/api/stock`
 
@@ -362,6 +428,20 @@ GROUP BY m.material_code, m.name_cn;
 | POST | `/api/import/materials/dry-run` | 干跑校验 |
 | POST | `/api/import/materials/commit` | 正式导入 |
 | GET | `/api/import/logs` | 导入历史 |
+
+### 7.7 鉴权 / 用户 / 审计
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/auth/login` | 登录,返回 token |
+| POST | `/api/auth/logout` | 登出 |
+| GET | `/api/users/me` | 当前用户 |
+| POST | `/api/auth/change-password` | 修改密码 |
+| GET | `/api/users` | 用户列表(admin) |
+| POST | `/api/users` | 新建用户(admin) |
+| PATCH | `/api/users/{user_id}` | 修改用户角色/启停(admin) |
+| POST | `/api/users/{user_id}/reset-password` | 重置密码(admin) |
+| GET | `/api/audit/logs` | 操作日志(admin) |
 
 ---
 
@@ -398,6 +478,37 @@ API_BASE_URL=http://localhost:8000
 ## 十、启动步骤
 
 ### 10.A Mac 本机调试(PG 在 Docker,后端/前端在 venv)
+
+#### 日常一键重启(推荐)
+
+如果本机环境已经装好、`.env` 已配置好,平时不要手动找 PID,直接双击项目根目录里的:
+
+```text
+重启库存系统.command
+```
+
+它会自动:
+
+1. 停掉本项目旧的前端进程(`FRONTEND_PORT`,当前本机常用 8503)
+2. 停掉本项目旧的后端进程(`BACKEND_PORT`,默认 8000)
+3. 重新启动 FastAPI 后端
+4. 重新启动 Streamlit 前端
+5. 打开浏览器到前端页面
+
+日志写在:
+
+```text
+logs/backend.log
+logs/frontend.log
+```
+
+> 如果 macOS 提示无法打开,先在终端执行一次:
+>
+> ```bash
+> chmod +x 重启库存系统.command
+> ```
+
+#### 首次本机初始化
 
 > 当前 mac 环境的 PG 容器:**`postgres16`**(host 端口 5432,`postgres` 超管无需密码)。
 > 数据库 `cmc_data_platform` 已存在。如果你的环境不一样,把下面的容器名 / 端口 / 库名同步替换。
@@ -474,29 +585,55 @@ cd /opt/cmc-inventory && cp .env.example .env  # 改密码 / 端口
 
 #### 后续日常流程
 
-按改动类型选合适的命令:
+最简单的日常重启方式:
+
+```bash
+ssh <你的用户>@<服务器IP>
+cd /opt/cmc-inventory
+./restart.sh
+```
+
+`restart.sh` 会自动:
+
+1. `sudo systemctl daemon-reload`
+2. 重启 `cmc-backend`
+3. 重启 `cmc-frontend`
+4. 打印两个服务状态
+5. 检查后端 `/health`
+6. 打印前端访问地址
+
+如果提示输入密码,输入 Linux 登录用户的密码即可。
+
+也可以一行完成:
+
+```bash
+ssh <你的用户>@<服务器IP>
+cd /opt/cmc-inventory && ./restart.sh
+```
+
+按改动类型,稍微更完整的流程如下:
 
 ```bash
 cd /opt/cmc-inventory
 
 # A. 改了 Python 代码 / 前端页面 → 拉代码并重启进程,不动 systemd
 git pull
-./install.sh restart
+./restart.sh
 
 # B. 改了 requirements.txt → 重装依赖再重启
 git pull
-./install.sh deps && ./install.sh restart
+./install.sh deps && ./restart.sh
 
 # C. 改了 systemd unit / install.sh / .env.example 默认值 → 重装 + 重启
 git pull
 ./install.sh install            # 会重装 unit、daemon-reload、enable --now
+./restart.sh                    # 确保进程使用最新配置
 
 # D. 只改了运行时 .env(不动代码) → 仅重启,让 systemd 重新加载 EnvironmentFile
-./install.sh restart
+./restart.sh
 ```
 
-> 注意:`./install.sh install` 对**已 active** 的服务不会强制重启进程(只 enable --now),
-> 若想确保进程被替换,跟一句 `./install.sh restart` 或 `sudo systemctl restart cmc-backend cmc-frontend`。
+> `./install.sh restart` 仍然可用;`./restart.sh` 是更适合日常使用的简化入口,会额外打印状态、健康检查和访问地址。
 
 #### 日志、状态、卸载
 
@@ -512,10 +649,10 @@ sudo systemctl status cmc-backend cmc-frontend  # 状态摘要
 | 服务 | 地址 | 谁能访问 |
 |---|---|---|
 | 前端 Streamlit | `http://<server-ip>:<FRONTEND_PORT>`(默认 8501) | 任何能到服务器内网的人,直接浏览器打开 |
-| 后端 FastAPI | `http://127.0.0.1:<BACKEND_PORT>` | **只允许服务器本机**(MVP 无鉴权,故不直接对外) |
+| 后端 FastAPI | `http://127.0.0.1:<BACKEND_PORT>` | **只允许服务器本机**;前端同机调用 |
 | 后端 Swagger `/docs` | 走 SSH 隧道,见下 | 临时调试用 |
 
-**后端为什么只绑 127.0.0.1?** 因为 MVP 阶段没做认证,直接对外等于把数据库读写权限暴露到内网。
+**后端为什么只绑 127.0.0.1?** 后端虽已有 token 鉴权,但内部 API 不需要直接暴露给所有内网用户;统一由同机 Streamlit 前端调用更简单也更稳。
 Streamlit 前端跑在**同一台机器**上,走 `localhost:<BACKEND_PORT>` 不受限制;
 内网用户访问前端 8501 即可,所有 API 调用都在服务器内完成。
 
@@ -524,15 +661,15 @@ Streamlit 前端跑在**同一台机器**上,走 `localhost:<BACKEND_PORT>` 不�
 前端首页那行"后端 API 仅限服务器本机访问"提示就是这个意思 — 链接不要点,而是按下面的方式开隧道:
 
 ```bash
-# 在自己笔记本上跑;开着不要关,期间浏览器才能访问 http://localhost:8200/docs
+# 在自己笔记本上跑;开着不要关,期间浏览器才能访问 http://localhost:18000/docs
 # 把端口和 ssh 配置改成你的实际值
-ssh -L 8200:127.0.0.1:8200 -p <ssh-port> prometheus@<server-ip>
+ssh -L 18000:127.0.0.1:8000 -p <ssh-port> prometheus@<server-ip>
 
 # 然后浏览器打开
-#   http://localhost:8200/docs
+#   http://localhost:18000/docs
 ```
 
-> 笔记本本地端口可以选别的(避免与本机已用端口冲突),例如 `-L 19000:127.0.0.1:8200`,然后浏览器开 `http://localhost:19000/docs`。
+> 笔记本本地端口可以选别的(避免与本机已用端口冲突),例如 `-L 19000:127.0.0.1:8000`,然后浏览器开 `http://localhost:19000/docs`。
 
 ### 10.C 首次使用(两套环境通用)
 
@@ -565,97 +702,44 @@ cd template && python3 generate_template.py
 
 ---
 
-## 十二、给 Claude Code 的实施指令(回顾,主体已完成)
+## 十二、当前实现状态
 
-按以下顺序生成代码:
+当前代码已经完成:
 
-1. **`sql/init.sql`** — 完整建表 + 字典预置数据 + 索引 ✅
-2. **`backend/`** 全部文件 — FastAPI 应用,含所有路由 ✅
-3. **`frontend/`** 全部文件 — Streamlit 多页应用 ✅
-4. **`.env.example`** + **`install.sh`** + **`systemd/*.service`** + **`DEPLOY.md`** — Linux 部署套件 ✅
-5. **`template/generate_template.py`** — 用 openpyxl 生成 Excel 模板 ✅
-6. 每个文件顶部加用途说明注释,关键逻辑加中文注释 ✅
+- 物料导入、单条新增/编辑、停用/启用、安全库存维护
+- 批次级入库、出库、盘点调整、移库
+- 按物料/批次/位置查询实时库存
+- 效期预警、低库存预警
+- 本地账号登录、角色控制、强制改密、10 分钟无操作滑动过期
+- token 写入浏览器 localStorage,刷新页面不丢登录态
+- 用户管理和操作日志审计
+- macOS 双击重启脚本和 Linux `restart.sh` 一键重启
 
-### 实施要求
+仍明确不做:
 
-- ✅ 所有代码可在 macOS(PG in docker)+ Linux(PG 原生)双环境运行
-- ✅ Pydantic v2 语法,SQLAlchemy 2.0 风格
-- ✅ FastAPI 启用 CORS,允许前端访问
-- ✅ 所有金额/数量字段用 `Decimal`,避免浮点误差
-- ✅ Excel 导入用 `pd.read_excel(dtype=str)` 严格保留前导 0
-- ✅ 时间字段统一走 PG 服务器时间(`now()` / `CURRENT_TIMESTAMP`),前端按字符串原样展示
-- ✅ 错误处理: 友好的中文错误信息返回前端
-- ✅ Streamlit 页面用 `st.session_state` 缓存物料字典,提升下拉响应速度
-- ✅ 库存数量永远从 `inventory_txn` 实时聚合,绝不缓存到 `batch` 表
-- ✅ 不引入 Docker 跑应用(应用直接 venv;只有 mac 调试时 PG 在 docker)
-
-### 不要做的
-
-- ❌ 不要加用户登录/JWT(MVP 阶段无认证)
-- ❌ 不要加申购/审批/CoA/质量状态(范围外)
-- ❌ 不要使用复杂前端框架(Vue/React),坚持 Streamlit
-- ❌ 不要过度抽象(无需 DDD、CQRS 等)
-- ❌ 不要省略中文注释
+- 申购/审批/CoA/质量状态/GMP 电子签名
+- 复杂前端框架;当前阶段继续用 Streamlit
+- 应用容器化;应用仍按 venv + 进程/systemd 运行
 
 ---
 
-## 十三、迭代路线图
-
-### 13.A v1.1 实施计划(已确认,即将开发)
-
-MVP 上线后实际使用中暴露的问题与高频功能诉求,合并为 v1.1。按依赖与价值分**三阶段**滚动交付,每阶段独立 push、独立可发版,服务器按 §10.B 流程拉新代码即可。
-
-#### 阶段 A — Hot Fix(1-2 天)
-
-| # | 问题 | 改动范围 |
-|---|---|---|
-| A.1 | 入库登记搜索:含中文/全角字符时部分关键字搜不到 | `frontend/utils.py` 加 NFKC 归一化函数 + `material_label` / 搜索过滤函数都用归一化后的值比对 |
-| A.2 | 库存查询默认显示零库存物料,信噪比低 | `backend/crud.py.stock_by_material` 加 `only_positive` 参数(默认 True);`backend/routers/stock.py` 暴露同名 query;`frontend/pages/5_库存查询.py` 加"包含零库存"复选框,默认关 |
-
-#### 阶段 B — 物料维护补全(2-3 天)
-
-| # | 改动 | 范围 |
-|---|---|---|
-| B.1 | 后端新增 `POST /api/materials`(单条创建) | `backend/routers/material.py`;`backend/crud.py` 加 `create_material`;`schemas.py` 复用 `MaterialCreate` |
-| B.2 | 「物料管理」页加"➕ 新增物料"按钮 + 完整表单 | `frontend/pages/2_物料管理.py`;含字段:代码、分类、名称、级别、生产商、规格/型号、货号、单位、包装规格、备注、安全库存 |
-| B.3 | 「物料管理」页加"✏️ 编辑物料"完整表单 | 同上文件;后端 PATCH 已支持,只补前端 UI;允许改除 `material_code`/`is_active` 外所有字段 |
-
-> 「物料导入」页保持不变,继续负责 Excel 批量。两条路径(单条 / 批量)语义清晰。
-
-#### 阶段 C — 用户系统 + 审计追踪(约 1 周)
-
-技术选型:**streamlit-authenticator** 库 + 后端简单 token 验证。
-
-| # | 改动 | 范围 |
-|---|---|---|
-| C.1 | 数据模型 | 新增 `app_user`(id / username / password_hash / role / is_active / created_at)、`audit_log`(id / user_id / action / entity_type / entity_id / before_json / after_json / source_ip / created_at);`sql/init.sql` 增量补丁 + 一份 `sql/migrate_v1.1.sql` |
-| C.2 | 后端鉴权 | `POST /api/auth/login` 返 token;FastAPI 依赖 `current_user` 注入路由;写操作 router 在事务内调 `audit_log_helper(...)` 写日志 |
-| C.3 | 角色控制 | `admin` / `user` 两档:user 仅 GET,admin 才能 POST/PATCH;后端中间件级控制(403),前端按 role 隐藏按钮 |
-| C.4 | 前端登录 | streamlit-authenticator 接 cookie session;首次启动用预置 admin(`.env` 注入初始密码,首次登录强制改);把所有页里"经办人 *"输入框改为**自动取登录用户名**(只读展示,不再手填) |
-| C.5 | 用户管理页 | 新增「用户管理」页(`8_用户管理.py`),仅 admin 可见:列表、新增、改密、停用 |
-| C.6 | 审计追踪查看 | 「用户管理」页中加"操作日志" tab,仅 admin 可见,可按用户/实体/时间段筛选 |
-
-#### 与原"远期路线图"的关系
-
-原 v1.4(用户登录 + RBAC)、原 v2.1 的"审计追踪"部分,**提前到 v1.1**,因为 MVP 实际跑起来后这两项是最影响日常使用的。`v1.4` 中"对接公司 AD"延后到 SSO 阶段。
-
-### 13.B 远期路线图(MVP 之后,仅作参考)
+## 十三、后续路线图(仅作参考)
 
 | 阶段 | 计划功能 |
 |------|---------|
-| v1.2 | 申购单(PR) + 简单审批流 |
-| v1.3 | CoA 文件上传 + 关联批次 |
-| v1.4 | 供应商主数据 + 质量状态(待检/合格/不合格) |
-| v1.5 | 对接公司 AD / SSO(替换 v1.1 的本地账号体系) |
-| v2.0 | 与 `rd_budget` 库联动 + 预算占用校验 |
-| v2.1 | GMP 合规模式增强: 电子签名(21 CFR Part 11)、变更控制 |
-| v3.0 | 替换前端为 Vue3,支持移动端扫码出入库 |
+| 后续 A | 申购单(PR) + 简单审批流 |
+| 后续 B | CoA 文件上传 + 关联批次 |
+| 后续 C | 供应商主数据 + 质量状态(待检/合格/不合格) |
+| 后续 D | 对接公司 AD / SSO(替换本地账号体系) |
+| 后续 E | 与 `rd_budget` 库联动 + 预算占用校验 |
+| 后续 F | GMP 合规模式增强:电子签名、变更控制 |
+| 后续 G | 替换前端为 Vue3,支持移动端扫码出入库 |
 
 ---
 
 ## 十四、测试
 
-仅核心账实计算路径有 pytest 用例(库存聚合、过期排除、严重度判断、出库超量、盘点为负拒绝),共 17 条。
+后端测试集中在核心账实计算、物料 CRUD、鉴权审计等路径,用例位于 `backend/tests/`。
 
 ```bash
 cd backend
@@ -681,7 +765,7 @@ PGPASSWORD='<postgres超管密码>' \
 
 ## 十五、合规与法规提示
 
-MVP 阶段**不主张**满足 GMP / 21 CFR Part 11,仅为部门级管理工具。
+当前阶段**不主张**满足 GMP / 21 CFR Part 11,仅为部门级管理工具。
 若未来扩展到 GMP 范围,需对照核对(**版本以发布时为准**):
 
 - ICH Q9(R1) — Quality Risk Management
@@ -694,5 +778,5 @@ MVP 阶段**不主张**满足 GMP / 21 CFR Part 11,仅为部门级管理工具�
 ---
 
 **项目所有者**: 清城 (CMC Head)
-**MVP 目标周期**: 2-4 周内可上线试运行
+**当前版本**: v1.2
 **联系方式**: 部门内部使用

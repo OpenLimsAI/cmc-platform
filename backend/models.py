@@ -1,6 +1,6 @@
 """
 文件: backend/models.py
-用途: SQLAlchemy 2.0 ORM 模型,对应 sql/init.sql 中 7 张表
+用途: SQLAlchemy 2.0 ORM 模型,对应 sql/init.sql 中 10 张表
 关键点:
     - 数量统一 Numeric(12,2),Python 端用 Decimal,杜绝浮点误差
     - material_code 用 String(20),保留前导 0
@@ -183,7 +183,7 @@ class InventoryTxn(Base):
 
 
 # ---------------------------------------------------------------------------
-# v1.1 用户系统 + 审计追踪
+# 用户系统 + 审计追踪
 # ---------------------------------------------------------------------------
 class AppUser(Base):
     __tablename__ = "app_user"

@@ -1,13 +1,13 @@
 """
 文件: backend/tests/test_material_crud.py
-用途: 物料 CRUD 关键路径测试(v1.1-B)
+用途: 物料 CRUD 关键路径测试
 覆盖:
     - POST /api/materials 单条创建
     - 重复 material_code 拒绝
     - 单位不在字典拒绝
     - 新分类自动加入 category_dict
     - 前导 0 在创建后被严格保留(返回的 material_code 仍是 '04xxx')
-    - PATCH /api/materials/{code} 改全部字段
+    - PATCH /api/materials/{material_id} 改全部字段
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """
-文件: frontend/pages/1_物料导入.py
+文件: frontend/views/1_物料导入.py
 用途: Excel 物料主数据导入页(干跑校验 → 确认提交 → 显示结果)
 """
 from __future__ import annotations
@@ -29,7 +29,7 @@ st.markdown(
 import requests
 
 # --- 1) 上传文件 ---
-# v1.1:操作人 = 当前登录用户(自动写入 import_log,不再手填)
+# 操作人 = 当前登录用户(自动写入 import_log,不再手填)
 _user = get_user()
 operator = _user["username"] if _user else ""
 st.caption(f"当前操作人(登录用户):**{operator}**")

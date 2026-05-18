@@ -8,7 +8,9 @@
 
 约束:
     - token 走 Authorization: Bearer <token> header
-    - session 12 小时过期,期间任意鉴权调用刷新 last_seen_at + expires_at
+    - session 10 分钟"无操作"过期(滑动):每次鉴权调用刷新 last_seen_at +
+      expires_at;前端把 token 存在浏览器 localStorage 里,刷新页面不会
+      重新登录,但 10 分钟没有任何 API 调用 → 后端 401 → 前端弹登录框
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import AppUser, AuthSession
 
-SESSION_DURATION = timedelta(hours=12)
+SESSION_DURATION = timedelta(minutes=10)
 TOKEN_BYTES = 32  # 32 bytes → 64 hex chars,与 schema 匹配
 
 

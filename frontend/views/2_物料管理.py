@@ -1,5 +1,5 @@
 """
-文件: frontend/pages/2_物料管理.py
+文件: frontend/views/2_物料管理.py
 用途: 物料检索 + 新增 + 编辑 + 安全库存维护 + 停用/启用
 v1.2:
     - 主键改用 material_id;'TT内部物料' 这个保留 code 允许重复出现

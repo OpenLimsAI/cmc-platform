@@ -136,7 +136,7 @@ class MaterialOut(MaterialBase, ORMBase):
 
 
 class DeactivateRequest(BaseModel):
-    # operator 已由 v1.1 鉴权自动从登录用户取,不再手填
+    # operator 已由鉴权自动从登录用户取,不再手填
     reason: Optional[str] = None
 
 
@@ -155,7 +155,7 @@ class BatchBase(BaseModel):
 
 
 class BatchCreate(BatchBase):
-    # operator 由 v1.1 鉴权自动从登录用户取
+    # operator 由鉴权自动从登录用户取
     pass
 
 
@@ -336,7 +336,7 @@ class ImportLogOut(ORMBase):
 
 
 # ---------------------------------------------------------------------------
-# v1.1 用户 / 鉴权 / 审计
+# 用户 / 鉴权 / 审计
 # ---------------------------------------------------------------------------
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=50)
