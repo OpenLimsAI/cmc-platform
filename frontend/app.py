@@ -119,12 +119,13 @@ p_in       = st.Page("views/3_入库登记.py", title="入库登记", icon="📥
 p_out      = st.Page("views/4_出库登记.py", title="出库登记", icon="📤")
 p_adjust   = st.Page("views/7_盘点调整.py", title="盘点调整", icon="🧮")
 p_users    = st.Page("views/8_用户管理.py", title="用户管理", icon="👤")
+p_move     = st.Page("views/9_移库.py",     title="移库",     icon="🚚")
 
 if is_admin():
     nav_pages = {
         "导览":       [home],
         "主数据":     [p_import, p_material],
-        "出入库":     [p_in, p_out, p_adjust],
+        "出入库":     [p_in, p_out, p_move, p_adjust],
         "库存与预警": [p_stock, p_alert],
         "系统":       [p_users],
     }

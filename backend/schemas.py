@@ -198,6 +198,19 @@ class TxnAdjustRequest(BaseModel):
     remark: Optional[str] = None
 
 
+class TransferRequest(BaseModel):
+    """移库:从源批次扣 qty,搬到目的位置(同物料同批号)
+    - 目的位置若已有同批号 batch → 追加流水
+    - 否则按源批次的 expiry/received_date 自动建一条新 batch 行
+    - operator 由鉴权自动填,源/目的各落一条 inventory_txn(OUT + IN)
+    """
+    source_batch_id: int
+    dest_location_id: int
+    qty: Decimal = Field(..., gt=0)
+    txn_date: date
+    remark: Optional[str] = None
+
+
 class TxnOut(ORMBase):
     txn_id: int
     batch_id: int

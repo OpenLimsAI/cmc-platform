@@ -404,6 +404,63 @@ def add_adjust(
     return txn
 
 
+def transfer_batch(
+    db: Session, source_batch_id: int, dest_location_id: int,
+    qty: Decimal, operator: str, txn_date, remark: Optional[str],
+) -> Tuple[InventoryTxn, InventoryTxn, Batch]:
+    """从源批次搬 qty 到目的位置(同物料同批号)。
+    返回 (source_out_txn, dest_in_txn, dest_batch)。
+    业务异常以 ValueError 抛,由 router 转 400。原子事务。
+    """
+    src = db.get(Batch, source_batch_id)
+    if not src:
+        raise ValueError(f"源批次 {source_batch_id} 不存在")
+    if dest_location_id == src.location_id:
+        raise ValueError("目的位置与源位置相同,无需移库")
+    dest_loc = db.get(Location, dest_location_id)
+    if not dest_loc:
+        raise ValueError(f"目的位置 {dest_location_id} 不存在")
+    current = get_batch_qty(db, source_batch_id)
+    if qty > current:
+        raise ValueError(f"移库数量 {qty} 超过源批次现有库存 {current}")
+
+    # 目的位置有同 (material_id, batch_no) 批次 → 复用;否则新建
+    dest = find_batch_at_location(db, src.material_id, src.batch_no, dest_location_id)
+    if dest is None:
+        dest = Batch(
+            material_id=src.material_id,
+            batch_no=src.batch_no,
+            expiry_date=src.expiry_date,
+            location_id=dest_location_id,
+            received_date=src.received_date,
+            initial_qty=Decimal("0"),  # 真实数量靠下面的 IN txn 累计
+            remark=f"由移库自动建,源批次 #{source_batch_id}",
+        )
+        db.add(dest)
+        db.flush()
+
+    src_loc_name = src.location.name if src.location else f"#{src.location_id}"
+    dest_loc_name = dest_loc.name
+
+    src_txn = InventoryTxn(
+        batch_id=source_batch_id, txn_type="OUT", qty=-abs(qty),
+        txn_date=txn_date, operator=operator,
+        purpose=f"移库 → {dest_loc_name}",
+        remark=remark,
+    )
+    dest_txn = InventoryTxn(
+        batch_id=dest.batch_id, txn_type="IN", qty=abs(qty),
+        txn_date=txn_date, operator=operator,
+        purpose=f"移库 ← {src_loc_name}",
+        remark=remark,
+    )
+    db.add(src_txn)
+    db.add(dest_txn)
+    db.commit()
+    db.refresh(src_txn); db.refresh(dest_txn); db.refresh(dest)
+    return src_txn, dest_txn, dest
+
+
 def list_txns(
     db: Session,
     batch_id: Optional[int] = None,

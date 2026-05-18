@@ -24,6 +24,7 @@ from schemas import (
     TxnInRequest,
     TxnOut,
     TxnOutRequest,
+    TransferRequest,
 )
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
@@ -112,6 +113,46 @@ def adjust(
     )
     db.commit()
     return _to_txn_out(db, txn)
+
+
+@router.post("/transfer", response_model=List[TxnOut])
+def transfer(
+    payload: TransferRequest,
+    request: Request,
+    current: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """移库:一笔操作 = 源 OUT + 目的 IN(同物料同批号在两个位置间搬)。
+    返回两条 txn。审计落一条 inventory.transfer。"""
+    try:
+        src_txn, dest_txn, dest_batch = crud.transfer_batch(
+            db,
+            source_batch_id=payload.source_batch_id,
+            dest_location_id=payload.dest_location_id,
+            qty=payload.qty,
+            operator=current.username,
+            txn_date=payload.txn_date,
+            remark=payload.remark,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    write_audit(
+        db, current, "inventory.transfer",
+        entity_type="batch", entity_id=payload.source_batch_id,
+        before=None,
+        after={
+            "source_batch_id": payload.source_batch_id,
+            "dest_batch_id": dest_batch.batch_id,
+            "dest_location_id": payload.dest_location_id,
+            "qty": str(payload.qty),
+            "source_txn_id": src_txn.txn_id,
+            "dest_txn_id": dest_txn.txn_id,
+        },
+        source_ip=request.client.host if request.client else None,
+    )
+    db.commit()
+    return [_to_txn_out(db, src_txn), _to_txn_out(db, dest_txn)]
 
 
 @router.get("/txns", response_model=List[TxnOut])
