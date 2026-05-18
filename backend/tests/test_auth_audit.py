@@ -79,12 +79,13 @@ def test_admin_create_material_writes_audit(client, db):
         "material_code": "AU001", "name_cn": "审计测试物料", "unit": "支",
     })
     assert resp.status_code == 201
+    new_id = resp.json()["material_id"]
 
-    # audit_log 应有一行 material.create
+    # audit_log 应有一行 material.create,entity_id = material_id(v1.2 改键)
     rows = db.execute(text(
         "SELECT username, action, entity_type, entity_id "
-        "FROM audit_log WHERE action='material.create' AND entity_id='AU001'"
-    )).all()
+        "FROM audit_log WHERE action='material.create' AND entity_id=:eid"
+    ), {"eid": str(new_id)}).all()
     assert len(rows) == 1
     assert rows[0][0] == "testadmin"
     assert rows[0][2] == "material"
@@ -92,10 +93,10 @@ def test_admin_create_material_writes_audit(client, db):
 
 def test_inventory_in_uses_login_user_as_operator(client, db, seed_material):
     """创建批次 + 入库 → inventory_txn.operator 应是 testadmin,不是 client 传的字段。"""
-    code, loc = seed_material
+    mid, _code, loc = seed_material
 
     resp = client.post("/api/batches", json={
-        "material_code": code,
+        "material_id": mid,
         "batch_no": "AUDIT-B1",
         "expiry_date": str(date.today().replace(year=date.today().year + 1)),
         "location_id": loc,

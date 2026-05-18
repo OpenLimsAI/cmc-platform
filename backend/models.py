@@ -15,6 +15,7 @@ from typing import Optional, List
 from sqlalchemy import (
     String,
     Integer,
+    SmallInteger,
     Boolean,
     Date,
     DateTime,
@@ -23,9 +24,10 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
     CheckConstraint,
+    Computed,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -51,10 +53,21 @@ class CategoryDict(Base):
 
 class Location(Base):
     __tablename__ = "location"
-    __table_args__ = {"schema": "material_mgmt"}
+    __table_args__ = (
+        UniqueConstraint("room_no", "cabinet_no", "layer_no", name="uq_location_triple"),
+        CheckConstraint("layer_no >= 1", name="ck_location_layer_positive"),
+        {"schema": "material_mgmt"},
+    )
 
     location_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    room_no: Mapped[str] = mapped_column(String(20), nullable=False)
+    cabinet_no: Mapped[str] = mapped_column(String(20), nullable=False)
+    layer_no: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    # 生成列;ORM 只读不写
+    name: Mapped[str] = mapped_column(
+        String(80),
+        Computed("room_no || '-' || cabinet_no || '-L' || layer_no", persisted=True),
+    )
     storage_condition: Mapped[Optional[str]] = mapped_column(String(50))
     remark: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -84,7 +97,8 @@ class Material(Base):
     __tablename__ = "material"
     __table_args__ = {"schema": "material_mgmt"}
 
-    material_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    material_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    material_code: Mapped[str] = mapped_column(String(20), nullable=False)
     category: Mapped[Optional[str]] = mapped_column(String(50))
     name_cn: Mapped[str] = mapped_column(String(200), nullable=False)
     grade: Mapped[Optional[str]] = mapped_column(String(50))
@@ -95,6 +109,8 @@ class Material(Base):
         String(20), ForeignKey("material_mgmt.unit_dict.unit"), nullable=False
     )
     package_spec: Mapped[Optional[str]] = mapped_column(String(100))
+    # 危化品分类(多选):危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品
+    hazard_class: Mapped[Optional[List[str]]] = mapped_column(ARRAY(Text))
     remark: Mapped[Optional[str]] = mapped_column(Text)
     safety_stock: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -116,18 +132,20 @@ class Material(Base):
 class Batch(Base):
     __tablename__ = "batch"
     __table_args__ = (
-        UniqueConstraint("material_code", "batch_no", name="uq_batch_material_no"),
+        UniqueConstraint(
+            "material_id", "batch_no", "location_id", name="uq_batch_material_no_loc"
+        ),
         {"schema": "material_mgmt"},
     )
 
     batch_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    material_code: Mapped[str] = mapped_column(
-        String(20), ForeignKey("material_mgmt.material.material_code"), nullable=False
+    material_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("material_mgmt.material.material_id"), nullable=False
     )
     batch_no: Mapped[str] = mapped_column(String(100), nullable=False)
     expiry_date: Mapped[Optional[date]] = mapped_column(Date)
-    location_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("material_mgmt.location.location_id")
+    location_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("material_mgmt.location.location_id"), nullable=False
     )
     received_date: Mapped[date] = mapped_column(Date, nullable=False)
     initial_qty: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
@@ -135,7 +153,7 @@ class Batch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     material: Mapped["Material"] = relationship(back_populates="batches")
-    location: Mapped[Optional["Location"]] = relationship()
+    location: Mapped["Location"] = relationship()
     txns: Mapped[List["InventoryTxn"]] = relationship(back_populates="batch")
 
 

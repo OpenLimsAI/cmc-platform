@@ -54,7 +54,7 @@ mat = opt_map[sel]
 include_expired = st.checkbox("包含已过期批次", value=True)
 try:
     batches = api_get("/api/batches", params={
-        "material_code": mat["material_code"],
+        "material_id": mat["material_id"],
         "include_expired": str(include_expired).lower(),
     }) or []
 except APIError as e:
@@ -69,8 +69,8 @@ if not batches:
 def _label(b):
     expiry = b.get("expiry_date") or "无效期"
     loc = b.get("location_name") or "未指定"
-    return (f"批次{b['batch_id']} | 批号 {b['batch_no']} | 效期 {expiry} | "
-            f"位置 {loc} | 账面 {b.get('current_qty')}{mat['unit']}")
+    return (f"位置 {loc} | 批号 {b['batch_no']} | 效期 {expiry} | "
+            f"账面 {b.get('current_qty')}{mat['unit']} | 批次{b['batch_id']}")
 
 
 batch_map = {_label(b): b for b in batches}

@@ -1,6 +1,11 @@
 """
 文件: frontend/pages/3_入库登记.py
-用途: 入库登记页 — 三级联(分类→搜索→选物料),自动判断"新建批次"或"追加入库"
+用途: 入库登记页 — 物料选择 + 三级联位置(房间/柜号/层)+
+      自动判断"新建批次(新位置)"或"追加入库(同三键)"
+v1.2:
+    - 物料用 material_id;'TT内部物料' 多条共存通过 [#id] 区分
+    - 位置必填,UI 拆为 房间→柜号→层 三级联
+    - 三键 (material_id, batch_no, location_id) 命中 → 追加
 """
 from __future__ import annotations
 
@@ -13,6 +18,7 @@ from utils import (
     api_get, api_post, APIError,
     get_categories, get_locations, get_materials, material_label,
     clear_material_cache, fuzzy_match_material,
+    locations_grouped,
 )
 from auth_helper import require_admin, get_user
 
@@ -22,7 +28,7 @@ _user = get_user()
 operator = _user["username"] if _user else ""
 st.caption(f"经办人(登录用户):**{operator}**")
 
-# ---- 1) 物料选择(三级联) ----
+# ---- 1) 物料选择 ----
 materials = get_materials(active_only=True)
 categories = get_categories()
 
@@ -45,33 +51,53 @@ if not filtered:
 opt_map = {material_label(m): m for m in filtered}
 sel = st.selectbox("选择物料", list(opt_map.keys()))
 mat = opt_map[sel]
+mat_id = mat["material_id"]
 
+hz = "、".join(mat.get("hazard_class") or [])
 st.info(
     f"**{mat['material_code']} {mat['name_cn']}** | 单位: `{mat['unit']}` | "
     f"规格: {mat.get('spec_model') or '-'} | 生产商: {mat.get('manufacturer') or '-'}"
+    + (f" | ⚠️ 危化品: {hz}" if hz else "")
 )
 
 # ---- 2) 入库表单 ----
 st.markdown("---")
 st.subheader("入库信息")
 
+locs = get_locations()
+if not locs:
+    st.error("位置字典为空,无法入库。请管理员先到 API 或后端建表初始化位置。")
+    st.stop()
+grouped = locations_grouped(locs)
+
+# 三级联在 form 外:Streamlit form 内 selectbox 不会即时联动
+loc_c1, loc_c2, loc_c3 = st.columns(3)
+with loc_c1:
+    room = st.selectbox("房间编号 *", sorted(grouped.keys()),
+                        key="in_room")
+with loc_c2:
+    cabinets = sorted(grouped.get(room, {}).keys())
+    cabinet = st.selectbox("储存柜号 *", cabinets, key="in_cabinet") if cabinets else None
+with loc_c3:
+    layers = grouped.get(room, {}).get(cabinet, []) if cabinet else []
+    layer_opts = {f"L{l['layer_no']}": l for l in layers}
+    layer_label = st.selectbox("板层编号 *", list(layer_opts.keys()), key="in_layer") \
+        if layer_opts else None
+selected_loc = layer_opts.get(layer_label) if layer_label else None
+loc_id = selected_loc["location_id"] if selected_loc else None
+if selected_loc and selected_loc.get("storage_condition"):
+    st.caption(f"该位置储存条件: {selected_loc['storage_condition']}")
+
 with st.form("in_form", clear_on_submit=False):
     col1, col2 = st.columns(2)
     with col1:
         batch_no = st.text_input("供应商批号 *", max_chars=100)
         received = st.date_input("到货日期 *", value=date.today())
-        qty = st.number_input(f"入库数量 ({mat['unit']}) *", min_value=0.01, step=1.0, value=1.0)
+        qty = st.number_input(f"入库数量 ({mat['unit']}) *", min_value=0.01,
+                              step=1.0, value=1.0)
     with col2:
-        # 效期
         has_expiry = st.checkbox("此批次有效期", value=True)
         expiry = st.date_input("效期", value=date.today()) if has_expiry else None
-
-        # 储存位置
-        locs = get_locations()
-        loc_map = {l["name"]: l["location_id"] for l in locs}
-        loc_name = st.selectbox("储存位置", ["(暂不指定)"] + list(loc_map.keys()))
-        loc_id = loc_map.get(loc_name) if loc_name != "(暂不指定)" else None
-
         remark = st.text_area("备注", max_chars=500, height=80)
 
     submitted = st.form_submit_button("✅ 提交入库", type="primary")
@@ -79,33 +105,41 @@ with st.form("in_form", clear_on_submit=False):
 if submitted:
     if not batch_no or qty <= 0:
         st.error("批号必填,数量必须 > 0")
+    elif loc_id is None:
+        st.error("请选择储存位置(房间 / 柜号 / 层)")
     else:
-        # 先查同物料同批号是否已存在
+        # 三键命中检测:取该物料所有批次,过滤同批号同位置
         existing = None
         try:
-            batches = api_get("/api/batches", params={"material_code": mat["material_code"]}) or []
-            existing = next((b for b in batches if b["batch_no"] == batch_no), None)
+            batches = api_get("/api/batches",
+                              params={"material_id": mat_id}) or []
+            existing = next(
+                (b for b in batches
+                 if b["batch_no"] == batch_no and b["location_id"] == loc_id),
+                None,
+            )
         except APIError as e:
             st.error(f"查询批次失败: {e}")
             st.stop()
 
         if existing:
-            # 同批号已存在 → 把入库意图暂存到 session_state,在 form 外渲染确认按钮
+            # 命中 → 缓存到 session_state,在 form 外渲染确认按钮
             st.session_state["__pending_append__"] = {
-                "material_code": mat["material_code"],
+                "material_id": mat_id,
                 "unit": mat["unit"],
                 "batch_id": existing["batch_id"],
                 "batch_no": batch_no,
+                "location_name": existing.get("location_name") or "?",
                 "current_qty": str(existing.get("current_qty") or 0),
                 "qty": str(Decimal(str(qty))),
                 "txn_date": str(received),
                 "remark": remark or None,
             }
         else:
-            # 新建批次,直接提交(operator 由后端从登录用户取)
+            # 新建批次(可能与同 batch_no 但不同 location 的批次共存)
             try:
                 payload = {
-                    "material_code": mat["material_code"],
+                    "material_id": mat_id,
                     "batch_no": batch_no,
                     "expiry_date": str(expiry) if expiry else None,
                     "location_id": loc_id,
@@ -115,17 +149,19 @@ if submitted:
                 }
                 created = api_post("/api/batches", json=payload)
                 st.success(
-                    f"入库成功!批次 ID={created['batch_id']},"
-                    f"当前库存 {created.get('current_qty')}{mat['unit']}"
+                    f"入库成功!批次 ID={created['batch_id']}(位置 "
+                    f"{created.get('location_name')}),当前库存 "
+                    f"{created.get('current_qty')}{mat['unit']}"
                 )
             except APIError as e:
                 st.error(f"入库失败: {e}")
 
-# ---- 追加入库的二次确认(在 form 之外,button click 才能正确触发提交)----
+# ---- 追加入库的二次确认 ----
 pending = st.session_state.get("__pending_append__")
-if pending and pending["material_code"] == mat["material_code"]:
+if pending and pending["material_id"] == mat_id:
     st.warning(
-        f"批号 `{pending['batch_no']}` 已存在(批次 ID={pending['batch_id']},"
+        f"批号 `{pending['batch_no']}` 在位置 **{pending['location_name']}** "
+        f"已存在(批次 ID={pending['batch_id']},"
         f"当前库存 {pending['current_qty']}{pending['unit']}),"
         f"本次将作为**追加入库**记录(创建新流水,不新建批次)。"
     )
@@ -151,18 +187,18 @@ if pending and pending["material_code"] == mat["material_code"]:
 st.markdown("---")
 st.subheader(f"📋 {mat['name_cn']} 的现有批次")
 try:
-    cur = api_get("/api/batches", params={"material_code": mat["material_code"]}) or []
+    cur = api_get("/api/batches", params={"material_id": mat_id}) or []
     if cur:
         import pandas as pd
         df = pd.DataFrame([
             {
                 "批次ID": b["batch_id"],
                 "批号": b["batch_no"],
+                "储存位置": b.get("location_name") or "-",
                 "效期": b.get("expiry_date") or "-",
                 "到货日期": b.get("received_date"),
                 "首入数量": b.get("initial_qty"),
                 "当前库存": b.get("current_qty"),
-                "储存位置": b.get("location_name") or "-",
             }
             for b in cur
         ])

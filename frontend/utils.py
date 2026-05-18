@@ -20,6 +20,12 @@ import streamlit as st
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 TIMEOUT = 30
 
+# v1.2 保留 material_code,允许多条同名(部门内无编码物料)
+TT_INTERNAL_CODE = "TT内部物料"
+
+# v1.2 危化品分类可选值(后端 schemas.HAZARD_CLASS_VALUES 镜像)
+HAZARD_CLASS_OPTIONS = ["危化品", "易燃", "易制毒", "易制爆", "剧毒品"]
+
 
 # ---------------------------------------------------------------------------
 # 通用请求
@@ -130,6 +136,11 @@ def clear_material_cache() -> None:
         st.session_state.pop(k, None)
 
 
+def clear_location_cache() -> None:
+    for k in ("locations",):
+        st.session_state.pop(k, None)
+
+
 # ---------------------------------------------------------------------------
 # 展示工具
 # ---------------------------------------------------------------------------
@@ -141,10 +152,17 @@ def fmt_null(v) -> str:
 
 
 def material_label(m: Dict) -> str:
-    """下拉显示:`代码 - 名称(规格)`"""
+    """下拉显示:`代码 - 名称(规格)`;TT 内部物料会附 #id 以区分多条同 code。"""
     spec = m.get("spec_model")
     base = f"{m['material_code']} - {m['name_cn']}"
+    if m.get("material_code") == TT_INTERNAL_CODE and m.get("material_id"):
+        base = f"{base} [#{m['material_id']}]"
     return f"{base}({spec})" if spec else base
+
+
+def location_label(loc: Dict) -> str:
+    """位置显示:`房间-柜号-L层`(name 字段后端已计算好)。"""
+    return loc.get("name") or f"{loc.get('room_no','?')}-{loc.get('cabinet_no','?')}-L{loc.get('layer_no','?')}"
 
 
 # ---------------------------------------------------------------------------
@@ -180,3 +198,22 @@ def fuzzy_match_material(m: Dict, keyword: str) -> bool:
         for field in ("material_code", "name_cn", "spec_model", "catalog_no")
     )
     return k in haystack
+
+
+# ---------------------------------------------------------------------------
+# 位置分组(给入库/盘点页的级联下拉用)
+# ---------------------------------------------------------------------------
+def locations_grouped(locations: List[Dict]) -> Dict[str, Dict[str, List[Dict]]]:
+    """把扁平 locations 列表分组成 {room: {cabinet: [loc_row,...]}}。
+    每一层按字符串自然顺序排;layer 按数值升序。
+    给入库登记页做 房间→柜号→层 三级联用。
+    """
+    grouped: Dict[str, Dict[str, List[Dict]]] = {}
+    for loc in locations:
+        room = loc.get("room_no", "?")
+        cab = loc.get("cabinet_no", "?")
+        grouped.setdefault(room, {}).setdefault(cab, []).append(loc)
+    for room, cabs in grouped.items():
+        for cab, rows in cabs.items():
+            rows.sort(key=lambda r: r.get("layer_no") or 0)
+    return grouped

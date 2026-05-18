@@ -1,10 +1,10 @@
 """
 文件: backend/routers/material.py
 用途: 物料相关 API:列表/详情/更新/停用/启用 + 字典查询(category/unit)
-v1.1:
-    - 写操作要求 admin role
-    - operator 字段从手填改为登录用户(deactivate)
-    - 所有写操作触发 audit_log
+v1.2:
+    - 主键改为 material_id(因为 'TT内部物料' 这个保留 code 允许重复);
+      所有 mutate 路由按 /api/materials/{material_id} 操作
+    - 加 hazard_class 多选字段
 """
 from __future__ import annotations
 
@@ -54,7 +54,8 @@ def create_material(
     current: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """单条创建物料。冲突 / 单位不存在等业务错误返 400。"""
+    """单条创建物料。冲突 / 单位不存在等业务错误返 400。
+    'TT内部物料' 这个保留 code 允许多条共存(部门内无编码的临时物料)。"""
     try:
         obj = crud.create_material(db, payload.model_dump())
     except ValueError as e:
@@ -62,7 +63,7 @@ def create_material(
 
     write_audit(
         db, current, "material.create",
-        entity_type="material", entity_id=obj.material_code,
+        entity_type="material", entity_id=obj.material_id,
         before=None, after=model_snapshot(obj),
         source_ip=request.client.host if request.client else None,
     )
@@ -70,32 +71,32 @@ def create_material(
     return obj
 
 
-@router.get("/materials/{code}", response_model=MaterialOut)
-def get_material(code: str, db: Session = Depends(get_db)):
-    obj = crud.get_material(db, code)
+@router.get("/materials/{material_id}", response_model=MaterialOut)
+def get_material(material_id: int, db: Session = Depends(get_db)):
+    obj = crud.get_material(db, material_id)
     if not obj:
-        raise HTTPException(status_code=404, detail=f"物料 {code} 不存在")
+        raise HTTPException(status_code=404, detail=f"物料 #{material_id} 不存在")
     return obj
 
 
-@router.patch("/materials/{code}", response_model=MaterialOut)
+@router.patch("/materials/{material_id}", response_model=MaterialOut)
 def update_material(
-    code: str,
+    material_id: int,
     payload: MaterialUpdate,
     request: Request,
     current: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    obj = crud.get_material(db, code)
+    obj = crud.get_material(db, material_id)
     if not obj:
-        raise HTTPException(status_code=404, detail=f"物料 {code} 不存在")
+        raise HTTPException(status_code=404, detail=f"物料 #{material_id} 不存在")
     before = model_snapshot(obj)
 
-    obj = crud.update_material(db, code, payload.model_dump(exclude_unset=True))
+    obj = crud.update_material(db, material_id, payload.model_dump(exclude_unset=True))
 
     write_audit(
         db, current, "material.update",
-        entity_type="material", entity_id=code,
+        entity_type="material", entity_id=material_id,
         before=before, after=model_snapshot(obj),
         source_ip=request.client.host if request.client else None,
     )
@@ -103,24 +104,24 @@ def update_material(
     return obj
 
 
-@router.post("/materials/{code}/deactivate", response_model=MaterialOut)
+@router.post("/materials/{material_id}/deactivate", response_model=MaterialOut)
 def deactivate(
-    code: str,
+    material_id: int,
     payload: DeactivateRequest,
     request: Request,
     current: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    obj = crud.get_material(db, code)
+    obj = crud.get_material(db, material_id)
     if not obj:
-        raise HTTPException(status_code=404, detail=f"物料 {code} 不存在")
+        raise HTTPException(status_code=404, detail=f"物料 #{material_id} 不存在")
     before = model_snapshot(obj)
 
-    obj = crud.deactivate_material(db, code, current.username, payload.reason)
+    obj = crud.deactivate_material(db, material_id, current.username, payload.reason)
 
     write_audit(
         db, current, "material.deactivate",
-        entity_type="material", entity_id=code,
+        entity_type="material", entity_id=material_id,
         before=before, after=model_snapshot(obj),
         source_ip=request.client.host if request.client else None,
     )
@@ -128,23 +129,23 @@ def deactivate(
     return obj
 
 
-@router.post("/materials/{code}/activate", response_model=MaterialOut)
+@router.post("/materials/{material_id}/activate", response_model=MaterialOut)
 def activate(
-    code: str,
+    material_id: int,
     request: Request,
     current: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    obj = crud.get_material(db, code)
+    obj = crud.get_material(db, material_id)
     if not obj:
-        raise HTTPException(status_code=404, detail=f"物料 {code} 不存在")
+        raise HTTPException(status_code=404, detail=f"物料 #{material_id} 不存在")
     before = model_snapshot(obj)
 
-    obj = crud.activate_material(db, code)
+    obj = crud.activate_material(db, material_id)
 
     write_audit(
         db, current, "material.activate",
-        entity_type="material", entity_id=code,
+        entity_type="material", entity_id=material_id,
         before=before, after=model_snapshot(obj),
         source_ip=request.client.host if request.client else None,
     )

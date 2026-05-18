@@ -44,6 +44,7 @@ with tab1:
         df = pd.DataFrame([
             {
                 "严重度": "已过期" if a["severity"] == "EXPIRED" else "紧急(≤30天)",
+                "ID": a["material_id"],
                 "代码": a["material_code"],
                 "物料": a["name_cn"],
                 "批号": a["batch_no"],
@@ -74,6 +75,7 @@ with tab2:
     if rows:
         df = pd.DataFrame([
             {
+                "ID": a["material_id"],
                 "代码": a["material_code"],
                 "物料": a["name_cn"],
                 "批号": a["batch_no"],
@@ -103,6 +105,7 @@ with tab3:
     if alerts:
         df = pd.DataFrame([
             {
+                "ID": a["material_id"],
                 "代码": a["material_code"],
                 "物料": a["name_cn"],
                 "单位": a["unit"],

@@ -29,20 +29,21 @@ except APIError as e:
     st.error(f"加载库存失败: {e}")
     stock_rows = []
 
-stock_codes = {s["material_code"]: s for s in stock_rows if float(s.get("total_qty") or 0) > 0}
+stock_by_id = {s["material_id"]: s for s in stock_rows if float(s.get("total_qty") or 0) > 0}
 
-if not stock_codes:
+if not stock_by_id:
     st.warning("当前无任何库存可出库。请先到「入库登记」页录入批次。")
     st.stop()
 
-# 与物料字典 join,带分类信息
+# 与物料字典 join,带分类信息(用 material_id 索引,避免 TT 内部物料 code 冲突)
 materials = get_materials(active_only=True)
-mat_dict = {m["material_code"]: m for m in materials}
+mat_dict = {m["material_id"]: m for m in materials}
 choices = []
-for code, s in stock_codes.items():
-    m = mat_dict.get(code, {})
+for mid, s in stock_by_id.items():
+    m = mat_dict.get(mid, {})
     choices.append({
-        "material_code": code,
+        "material_id": mid,
+        "material_code": s["material_code"],
         "name_cn": s["name_cn"],
         "category": s.get("category"),
         "unit": s["unit"],
@@ -75,7 +76,7 @@ mat = opt_map[sel]
 include_expired = st.checkbox("显示已过期批次", value=False)
 try:
     batches = api_get("/api/batches", params={
-        "material_code": mat["material_code"],
+        "material_id": mat["material_id"],
         "only_with_stock": "true",
         "include_expired": str(include_expired).lower(),
     }) or []
@@ -91,8 +92,8 @@ if not batches:
 def _label(b):
     expiry = b.get("expiry_date") or "无效期"
     loc = b.get("location_name") or "未指定"
-    return (f"批次{b['batch_id']} | 批号 {b['batch_no']} | 效期 {expiry} | "
-            f"位置 {loc} | 当前 {b.get('current_qty')}{mat['unit']}")
+    return (f"位置 {loc} | 批号 {b['batch_no']} | 效期 {expiry} | "
+            f"当前 {b.get('current_qty')}{mat['unit']} | 批次{b['batch_id']}")
 
 batch_map = {_label(b): b for b in batches}
 batch_label = st.selectbox("选择批次(默认效期升序 - FIFO 建议)", list(batch_map.keys()))
@@ -143,13 +144,14 @@ st.markdown("---")
 st.subheader("📜 近期流水(本物料,最近 50 条)")
 try:
     txns = api_get("/api/inventory/txns",
-                   params={"material_code": mat["material_code"], "limit": 50}) or []
+                   params={"material_id": mat["material_id"], "limit": 50}) or []
     if txns:
         df = pd.DataFrame([
             {
                 "时间": t["created_at"],
                 "类型": t["txn_type"],
                 "批号": t.get("batch_no"),
+                "位置": t.get("location_name") or "-",
                 "数量": t["qty"],
                 "经办人": t["operator"],
                 "用途": t.get("purpose") or "-",

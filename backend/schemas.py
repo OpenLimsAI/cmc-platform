@@ -12,7 +12,14 @@ from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List, Any
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+
+# 'TT内部物料' 作为保留 material_code 允许重复出现
+TT_INTERNAL_CODE = "TT内部物料"
+
+# 危化品分类允许的字面值
+HAZARD_CLASS_VALUES = {"危化品", "易燃", "易制毒", "易制爆", "剧毒品"}
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +42,9 @@ class CategoryOut(ORMBase):
 
 
 class LocationBase(BaseModel):
-    name: str
+    room_no: str = Field(..., min_length=1, max_length=20)
+    cabinet_no: str = Field(..., min_length=1, max_length=20)
+    layer_no: int = Field(..., ge=1)
     storage_condition: Optional[str] = None
     remark: Optional[str] = None
 
@@ -46,11 +55,32 @@ class LocationCreate(LocationBase):
 
 class LocationOut(LocationBase, ORMBase):
     location_id: int
+    name: str  # 由 DB 拼成 "{room}-{cabinet}-L{layer}"
 
 
 # ---------------------------------------------------------------------------
 # Material
 # ---------------------------------------------------------------------------
+def _validate_hazard_class(v: Optional[List[str]]) -> Optional[List[str]]:
+    """限制危化品分类只能取预设的 5 个枚举值,去重保序。"""
+    if v is None:
+        return None
+    cleaned: List[str] = []
+    seen = set()
+    for x in v:
+        x = (x or "").strip()
+        if not x:
+            continue
+        if x not in HAZARD_CLASS_VALUES:
+            raise ValueError(
+                f"危化品分类 '{x}' 不在允许集合 {sorted(HAZARD_CLASS_VALUES)} 中"
+            )
+        if x not in seen:
+            seen.add(x)
+            cleaned.append(x)
+    return cleaned or None
+
+
 class MaterialBase(BaseModel):
     category: Optional[str] = None
     name_cn: str
@@ -60,8 +90,14 @@ class MaterialBase(BaseModel):
     catalog_no: Optional[str] = None
     unit: str
     package_spec: Optional[str] = None
+    hazard_class: Optional[List[str]] = None
     remark: Optional[str] = None
     safety_stock: Decimal = Decimal("0")
+
+    @field_validator("hazard_class", mode="before")
+    @classmethod
+    def _hc(cls, v):
+        return _validate_hazard_class(v)
 
 
 class MaterialCreate(MaterialBase):
@@ -77,11 +113,18 @@ class MaterialUpdate(BaseModel):
     catalog_no: Optional[str] = None
     unit: Optional[str] = None
     package_spec: Optional[str] = None
+    hazard_class: Optional[List[str]] = None
     remark: Optional[str] = None
     safety_stock: Optional[Decimal] = None
 
+    @field_validator("hazard_class", mode="before")
+    @classmethod
+    def _hc(cls, v):
+        return _validate_hazard_class(v)
+
 
 class MaterialOut(MaterialBase, ORMBase):
+    material_id: int
     material_code: str
     is_active: bool
     deactivated_at: Optional[datetime] = None
@@ -101,10 +144,11 @@ class DeactivateRequest(BaseModel):
 # Batch
 # ---------------------------------------------------------------------------
 class BatchBase(BaseModel):
-    material_code: str
+    # 创建批次时:必须用 material_id(因为 material_code 在 TT 例外下不唯一)
+    material_id: int
     batch_no: str
     expiry_date: Optional[date] = None
-    location_id: Optional[int] = None
+    location_id: int       # v1.2 必填:批次必须有物理位置
     received_date: date
     initial_qty: Decimal
     remark: Optional[str] = None
@@ -118,9 +162,10 @@ class BatchCreate(BatchBase):
 class BatchOut(BatchBase, ORMBase):
     batch_id: int
     created_at: datetime
-    # 实时计算字段
+    # 实时计算 / 关联展示
     current_qty: Optional[Decimal] = None
     location_name: Optional[str] = None
+    material_code: Optional[str] = None
     material_name: Optional[str] = None
     unit: Optional[str] = None
 
@@ -165,14 +210,17 @@ class TxnOut(ORMBase):
     created_at: datetime
     # 关联展示字段
     batch_no: Optional[str] = None
+    material_id: Optional[int] = None
     material_code: Optional[str] = None
     material_name: Optional[str] = None
+    location_name: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
 # Stock 视图(实时聚合)
 # ---------------------------------------------------------------------------
 class StockByMaterial(BaseModel):
+    material_id: int
     material_code: str
     name_cn: str
     category: Optional[str] = None
@@ -185,13 +233,14 @@ class StockByMaterial(BaseModel):
 
 class StockByBatch(BaseModel):
     batch_id: int
+    material_id: int
     material_code: str
     name_cn: str
     unit: str
     batch_no: str
     expiry_date: Optional[date] = None
-    location_id: Optional[int] = None
-    location_name: Optional[str] = None
+    location_id: int
+    location_name: str
     received_date: date
     current_qty: Decimal
     days_to_expiry: Optional[int] = None
@@ -200,6 +249,7 @@ class StockByBatch(BaseModel):
 
 class ExpiryAlert(BaseModel):
     batch_id: int
+    material_id: int
     material_code: str
     name_cn: str
     unit: str
@@ -212,6 +262,7 @@ class ExpiryAlert(BaseModel):
 
 
 class LowStockAlert(BaseModel):
+    material_id: int
     material_code: str
     name_cn: str
     unit: str

@@ -18,11 +18,17 @@
 --                                 -d <db_name> -f sql/init.sql
 --
 -- 关键设计原则:
+--   - material_id 是 SERIAL 主键;material_code 是业务编码,允许 'TT内部物料'
+--     这个保留值重复(部分唯一索引实现),其余 code 仍唯一
 --   - material_code 用 VARCHAR(20),保留前导 0(如 04xxx 不会被截断)
 --   - 库存数量不落表,实时由 inventory_txn 聚合,杜绝账实不符
 --   - 所有数量字段用 NUMERIC(12,2) 避免浮点误差
 --   - 不修改数据库级 search_path(共享库时绝不污染其他 schema)
 --     backend/database.py 在每次连接建立时 SET search_path(会话级)
+--   - location 用 (room_no, cabinet_no, layer_no) 三元组定位,name 为
+--     计算列拼接展示,无需手填
+--   - 同 (material, batch_no) 可分布在多个 location,(material_id, batch_no,
+--     location_id) 才唯一,支持"同批次散落多柜"
 -- =============================================================================
 
 -- 仅本脚本会话使用,影响范围 = 当前 psql 进程
@@ -65,21 +71,35 @@ CREATE TABLE IF NOT EXISTS category_dict (
 
 -- -----------------------------------------------------------------------------
 -- 3. 储存位置(location)
+--    用 (room_no, cabinet_no, layer_no) 三元组唯一定位。
+--    name 为生成列,前端只展示不输入。
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS location (
     location_id        SERIAL PRIMARY KEY,
-    name               VARCHAR(100) NOT NULL UNIQUE,
-    storage_condition  VARCHAR(50),  -- 常温 / 4℃ / -20℃ / -80℃ / 避光
-    remark             TEXT
+    room_no            VARCHAR(20) NOT NULL,            -- 房间号,如 '2251'
+    cabinet_no         VARCHAR(20) NOT NULL,            -- 柜号,如 'A01' / 'B06' / 'C07'
+    layer_no           SMALLINT    NOT NULL,            -- 板层 1~N
+    name               VARCHAR(80) GENERATED ALWAYS AS
+                       (room_no || '-' || cabinet_no || '-L' || layer_no) STORED,
+    storage_condition  VARCHAR(50),                     -- 常温 / 4℃ / -20℃ / -80℃ / 避光
+    remark             TEXT,
+    CONSTRAINT uq_location_triple UNIQUE (room_no, cabinet_no, layer_no),
+    CONSTRAINT ck_location_layer_positive CHECK (layer_no >= 1)
 );
 
--- 预置几个常见位置(可在前端再增删)
-INSERT INTO location (name, storage_condition) VALUES
-    ('常温库房-A区',  '常温'),
-    ('4℃冰箱A-2层',  '4℃'),
-    ('-20℃冰箱',     '-20℃'),
-    ('-80℃超低温冰箱','-80℃')
-ON CONFLICT (name) DO NOTHING;
+CREATE INDEX IF NOT EXISTS idx_location_room ON location(room_no);
+
+-- 预置房间 2251 的全部柜位(A01-A05 / B01-B06 / C01-C07,每柜 5 层)
+-- 共 18 × 5 = 90 行;其他房间在前端手工新增。
+INSERT INTO location (room_no, cabinet_no, layer_no)
+SELECT '2251', cab, layer
+FROM (VALUES
+    ('A01'),('A02'),('A03'),('A04'),('A05'),
+    ('B01'),('B02'),('B03'),('B04'),('B05'),('B06'),
+    ('C01'),('C02'),('C03'),('C04'),('C05'),('C06'),('C07')
+) AS cabs(cab)
+CROSS JOIN generate_series(1, 5) AS layer
+ON CONFLICT (room_no, cabinet_no, layer_no) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 4. 导入日志(import_log)
@@ -98,10 +118,14 @@ CREATE TABLE IF NOT EXISTS import_log (
 
 -- -----------------------------------------------------------------------------
 -- 5. 物料主数据(material)
---    material_code 严格保留前导 0 → VARCHAR(20)
+--    material_id 是 SERIAL PK;material_code 是业务编码,允许保留值
+--    'TT内部物料' 重复出现,其余编码保持唯一(部分唯一索引实现)。
+--    hazard_class 为危化品分类多选,允许 NULL 或空数组,字面值在应用层校验
+--    (危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品)。
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS material (
-    material_code      VARCHAR(20) PRIMARY KEY,
+    material_id        SERIAL PRIMARY KEY,
+    material_code      VARCHAR(20) NOT NULL,
     category           VARCHAR(50),
     name_cn            VARCHAR(200) NOT NULL,
     grade              VARCHAR(50),
@@ -110,6 +134,7 @@ CREATE TABLE IF NOT EXISTS material (
     catalog_no         VARCHAR(100),
     unit               VARCHAR(20)  NOT NULL,
     package_spec       VARCHAR(100),
+    hazard_class       TEXT[],                          -- 多选:危化品/易燃/易制毒/易制爆/剧毒品
     remark             TEXT,
     safety_stock       NUMERIC(12,2) DEFAULT 0,
     is_active          BOOLEAN      DEFAULT TRUE,
@@ -123,7 +148,12 @@ CREATE TABLE IF NOT EXISTS material (
         FOREIGN KEY (unit) REFERENCES unit_dict(unit)
 );
 
+-- material_code 部分唯一:保留值 'TT内部物料' 例外,其余必须唯一
+CREATE UNIQUE INDEX IF NOT EXISTS uq_material_code_non_tt
+    ON material(material_code) WHERE material_code <> 'TT内部物料';
+
 -- 物料常用查询索引
+CREATE INDEX IF NOT EXISTS idx_material_code       ON material(material_code);
 CREATE INDEX IF NOT EXISTS idx_material_category   ON material(category);
 CREATE INDEX IF NOT EXISTS idx_material_is_active  ON material(is_active);
 CREATE INDEX IF NOT EXISTS idx_material_name       ON material(name_cn);
@@ -143,22 +173,25 @@ CREATE TRIGGER material_updated_at
 
 -- -----------------------------------------------------------------------------
 -- 6. 批次(batch)
---    (material_code, batch_no) 联合唯一
+--    (material_id, batch_no, location_id) 联合唯一
+--    —— 同一物料同一批号允许散落在多个 location 上独立计数
+--       (例:NaCl 批号 A 在 2251-A01-L1 有 20 瓶,2251-C02-L4 还有 15 瓶)
+--    location_id 现在是必填:批次必须有物理位置
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS batch (
     batch_id       SERIAL PRIMARY KEY,
-    material_code  VARCHAR(20) NOT NULL REFERENCES material(material_code),
+    material_id    INT NOT NULL REFERENCES material(material_id),
     batch_no       VARCHAR(100) NOT NULL,
     expiry_date    DATE,                              -- 部分耗材可空
-    location_id    INT REFERENCES location(location_id),
+    location_id    INT NOT NULL REFERENCES location(location_id),
     received_date  DATE NOT NULL,
     initial_qty    NUMERIC(12,2) NOT NULL,
     remark         TEXT,
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_batch_material_no UNIQUE (material_code, batch_no)
+    CONSTRAINT uq_batch_material_no_loc UNIQUE (material_id, batch_no, location_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_batch_material   ON batch(material_code);
+CREATE INDEX IF NOT EXISTS idx_batch_material   ON batch(material_id);
 CREATE INDEX IF NOT EXISTS idx_batch_expiry     ON batch(expiry_date);
 CREATE INDEX IF NOT EXISTS idx_batch_location   ON batch(location_id);
 

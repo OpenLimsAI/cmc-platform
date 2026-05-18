@@ -151,12 +151,14 @@ def anon_client(db):
 
 @pytest.fixture
 def seed_material(db):
-    """建一条物料 + 一个储存位置,返回 (material_code, location_id)。"""
-    from models import Material, Location
+    """建一条物料 + 取一个储存位置,返回 (material_id, material_code, location_id)。
+    v1.2:material_code 不再唯一(TT 例外),所有 mutate 操作走 material_id。"""
+    from models import Material
     from decimal import Decimal
 
+    # v1.2 init.sql 把 2251 房间 90 个柜位作为预置,取一个稳定的位置
     loc = db.execute(text(
-        "SELECT location_id FROM location WHERE name = '常温库房-A区'"
+        "SELECT location_id FROM location WHERE name = '2251-A01-L1'"
     )).scalar_one()
 
     m = Material(
@@ -169,4 +171,4 @@ def seed_material(db):
     )
     db.add(m)
     db.commit()
-    return m.material_code, loc
+    return m.material_id, m.material_code, loc

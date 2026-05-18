@@ -48,7 +48,7 @@ def test_create_material_preserves_leading_zero(client):
 
 
 def test_create_material_duplicate_rejected(client, seed_material):
-    code, _ = seed_material  # 已有 42001
+    _mid, code, _ = seed_material  # 已有 42001
     resp = client.post("/api/materials", json={
         "material_code": code,
         "name_cn": "重复物料",
@@ -68,28 +68,65 @@ def test_create_material_unknown_unit_rejected(client):
     assert "单位" in resp.json()["detail"]
 
 
+def test_tt_internal_code_allows_duplicates(client, db):
+    """'TT内部物料' 保留 code 允许多条共存(v1.2 新规)。"""
+    for name in ("内部物料 A", "内部物料 B"):
+        resp = client.post("/api/materials", json={
+            "material_code": "TT内部物料",
+            "name_cn": name,
+            "unit": "支",
+        })
+        assert resp.status_code == 201, resp.json()
+
+    rows = db.execute(text(
+        "SELECT material_id, name_cn FROM material WHERE material_code='TT内部物料'"
+    )).all()
+    assert len(rows) == 2
+    # material_id 不同
+    assert rows[0][0] != rows[1][0]
+
+
+def test_hazard_class_persisted_and_validated(client, db):
+    """危化品分类多选可写入;非法值返 422。"""
+    resp = client.post("/api/materials", json={
+        "material_code": "HZ001", "name_cn": "危化品测试", "unit": "瓶",
+        "hazard_class": ["危化品", "易燃"],
+    })
+    assert resp.status_code == 201
+    assert sorted(resp.json()["hazard_class"]) == sorted(["危化品", "易燃"])
+
+    # 非法字面值应被 pydantic 拒绝
+    resp = client.post("/api/materials", json={
+        "material_code": "HZ002", "name_cn": "x", "unit": "瓶",
+        "hazard_class": ["乱填的"],
+    })
+    assert resp.status_code == 422
+
+
 def test_patch_material_all_fields(client, seed_material):
     """PATCH 应支持所有字段;None 显式传入会清空(name_cn 必填字段除外)。"""
-    code, _ = seed_material
-    resp = client.patch(f"/api/materials/{code}", json={
+    mid, _code, _ = seed_material
+    resp = client.patch(f"/api/materials/{mid}", json={
         "category": "新分类",
         "manufacturer": "Sigma",
         "spec_model": "5g",
         "catalog_no": "C-001",
         "package_spec": "5g/瓶",
+        "hazard_class": ["剧毒品"],
         "remark": "已更新",
     })
     assert resp.status_code == 200, resp.json()
     body = resp.json()
     assert body["manufacturer"] == "Sigma"
     assert body["spec_model"] == "5g"
+    assert body["hazard_class"] == ["剧毒品"]
     assert body["remark"] == "已更新"
 
 
 def test_patch_material_new_category_added_to_dict(client, db, seed_material):
     """编辑时改 category 为新值,应自动加入 category_dict(与新增物料行为一致)。"""
-    code, _ = seed_material
-    resp = client.patch(f"/api/materials/{code}", json={
+    mid, _code, _ = seed_material
+    resp = client.patch(f"/api/materials/{mid}", json={
         "category": "通过编辑新增的分类",
     })
     assert resp.status_code == 200

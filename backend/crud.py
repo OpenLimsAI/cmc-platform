@@ -22,6 +22,7 @@ from models import (
     UnitDict,
     CategoryDict,
 )
+from schemas import TT_INTERNAL_CODE
 
 
 def severity_of(days_to_expiry: int, warning_threshold: int = 90) -> Optional[str]:
@@ -68,18 +69,29 @@ def list_materials(
         kw = f"%{keyword}%"
         stmt = stmt.where(or_(Material.material_code.ilike(kw), Material.name_cn.ilike(kw)))
 
-    stmt = stmt.order_by(Material.material_code)
+    stmt = stmt.order_by(Material.material_code, Material.material_id)
     return list(db.execute(stmt).scalars().all())
 
 
-def get_material(db: Session, code: str) -> Optional[Material]:
-    return db.get(Material, code)
+def get_material(db: Session, material_id: int) -> Optional[Material]:
+    """主键查询(material_id)。TT 例外下 material_code 不再唯一,所有 mutate
+    都走 material_id。"""
+    return db.get(Material, material_id)
+
+
+def get_material_by_code(db: Session, code: str) -> Optional[Material]:
+    """便利方法:按 code 取首条(给导入/测试用,业务路由请走 id)。"""
+    return db.execute(
+        select(Material).where(Material.material_code == code)
+        .order_by(Material.material_id).limit(1)
+    ).scalar_one_or_none()
 
 
 def create_material(db: Session, data: dict) -> Material:
     """单条创建物料(供「物料管理」页"新增"按钮用)。
     校验:
-        - material_code 不能与已有(含已停用)冲突
+        - material_code 不能为空
+        - material_code 不能与已有冲突 —— 但保留值 'TT内部物料' 例外,允许重复
         - unit 必须在 unit_dict 中(否则 FK 报错)
         - category 若为新值,自动追加到 category_dict(与 Excel 导入流程一致)
     上层 router 把业务异常翻成 HTTPException。
@@ -88,8 +100,13 @@ def create_material(db: Session, data: dict) -> Material:
     if not code:
         raise ValueError("material_code 不能为空")
 
-    if db.get(Material, code):
-        raise ValueError(f"物料代码 {code} 已存在,请改用「编辑物料」修改信息")
+    # TT 内部物料不做唯一性检查;其他 code 检查冲突
+    if code != TT_INTERNAL_CODE:
+        existing = db.execute(
+            select(Material.material_id).where(Material.material_code == code).limit(1)
+        ).scalar_one_or_none()
+        if existing:
+            raise ValueError(f"物料代码 {code} 已存在,请改用「编辑物料」修改信息")
 
     unit = data.get("unit")
     if not unit:
@@ -112,6 +129,7 @@ def create_material(db: Session, data: dict) -> Material:
         catalog_no=data.get("catalog_no"),
         unit=unit,
         package_spec=data.get("package_spec"),
+        hazard_class=data.get("hazard_class"),
         remark=data.get("remark"),
         safety_stock=data.get("safety_stock") or Decimal("0"),
         is_active=True,
@@ -123,14 +141,13 @@ def create_material(db: Session, data: dict) -> Material:
     return obj
 
 
-def update_material(db: Session, code: str, data: dict) -> Optional[Material]:
-    """data 来自 router 的 model_dump(exclude_unset=True),
-    所以 dict 里的每个 key 都是用户显式传的字段;value=None 视为"清空"。
-    必填字段(name_cn/unit)若被传 None,会触发 IntegrityError 由全局处理器返回 400。
+def update_material(db: Session, material_id: int, data: dict) -> Optional[Material]:
+    """按 material_id 更新。data 来自 router 的 model_dump(exclude_unset=True),
+    每个 key 都是用户显式传的字段;value=None 视为"清空"。
     若 category 改为字典中尚未存在的新值,自动加入 category_dict
     (与 create_material 行为一致)。
     """
-    obj = db.get(Material, code)
+    obj = db.get(Material, material_id)
     if not obj:
         return None
 
@@ -145,8 +162,10 @@ def update_material(db: Session, code: str, data: dict) -> Optional[Material]:
     return obj
 
 
-def deactivate_material(db: Session, code: str, operator: str, reason: Optional[str]) -> Optional[Material]:
-    obj = db.get(Material, code)
+def deactivate_material(
+    db: Session, material_id: int, operator: str, reason: Optional[str]
+) -> Optional[Material]:
+    obj = db.get(Material, material_id)
     if not obj:
         return None
     obj.is_active = False
@@ -159,8 +178,8 @@ def deactivate_material(db: Session, code: str, operator: str, reason: Optional[
     return obj
 
 
-def activate_material(db: Session, code: str) -> Optional[Material]:
-    obj = db.get(Material, code)
+def activate_material(db: Session, material_id: int) -> Optional[Material]:
+    obj = db.get(Material, material_id)
     if not obj:
         return None
     obj.is_active = True
@@ -206,11 +225,22 @@ def upsert_categories(db: Session, categories: List[str]) -> None:
 # Location
 # ---------------------------------------------------------------------------
 def list_locations(db: Session) -> List[Location]:
-    return list(db.execute(select(Location).order_by(Location.location_id)).scalars().all())
+    return list(db.execute(
+        select(Location).order_by(Location.room_no, Location.cabinet_no, Location.layer_no)
+    ).scalars().all())
 
 
-def create_location(db: Session, name: str, storage_condition: Optional[str], remark: Optional[str]) -> Location:
-    obj = Location(name=name, storage_condition=storage_condition, remark=remark)
+def create_location(
+    db: Session, room_no: str, cabinet_no: str, layer_no: int,
+    storage_condition: Optional[str], remark: Optional[str],
+) -> Location:
+    obj = Location(
+        room_no=room_no,
+        cabinet_no=cabinet_no,
+        layer_no=layer_no,
+        storage_condition=storage_condition,
+        remark=remark,
+    )
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -222,11 +252,11 @@ def create_location(db: Session, name: str, storage_condition: Optional[str], re
 # ---------------------------------------------------------------------------
 def list_batches(
     db: Session,
-    material_code: Optional[str] = None,
+    material_id: Optional[int] = None,
     only_with_stock: bool = False,
     include_expired: bool = True,
-) -> List[Tuple[Batch, Decimal, Optional[str], Optional[str], Optional[str]]]:
-    """返回 (Batch, current_qty, location_name, material_name, unit) 元组列表。"""
+) -> List[Tuple[Batch, Decimal, Optional[str], Optional[str], Optional[str], Optional[str]]]:
+    """返回 (Batch, current_qty, location_name, material_code, material_name, unit) 元组列表。"""
     qty_subq = (
         select(InventoryTxn.batch_id, func.coalesce(func.sum(InventoryTxn.qty), 0).label("current_qty"))
         .group_by(InventoryTxn.batch_id)
@@ -238,16 +268,17 @@ def list_batches(
             Batch,
             func.coalesce(qty_subq.c.current_qty, 0).label("current_qty"),
             Location.name.label("location_name"),
+            Material.material_code.label("material_code"),
             Material.name_cn.label("material_name"),
             Material.unit.label("unit"),
         )
-        .join(Material, Material.material_code == Batch.material_code)
+        .join(Material, Material.material_id == Batch.material_id)
         .outerjoin(qty_subq, qty_subq.c.batch_id == Batch.batch_id)
-        .outerjoin(Location, Location.location_id == Batch.location_id)
+        .join(Location, Location.location_id == Batch.location_id)
     )
 
-    if material_code:
-        stmt = stmt.where(Batch.material_code == material_code)
+    if material_id is not None:
+        stmt = stmt.where(Batch.material_id == material_id)
     if only_with_stock:
         stmt = stmt.where(func.coalesce(qty_subq.c.current_qty, 0) > 0)
     if not include_expired:
@@ -255,7 +286,7 @@ def list_batches(
         stmt = stmt.where(or_(Batch.expiry_date.is_(None), Batch.expiry_date >= today))
 
     stmt = stmt.order_by(
-        Batch.material_code,
+        Material.material_code,
         # 效期升序(NULL 放最后)
         Batch.expiry_date.asc().nullslast(),
         Batch.batch_id,
@@ -275,18 +306,28 @@ def get_batch_qty(db: Session, batch_id: int) -> Decimal:
     return Decimal(val) if val is not None else Decimal("0")
 
 
-def find_batch_by_material_and_no(db: Session, material_code: str, batch_no: str) -> Optional[Batch]:
+def find_batch_at_location(
+    db: Session, material_id: int, batch_no: str, location_id: int,
+) -> Optional[Batch]:
+    """按三键 (material_id, batch_no, location_id) 找批次。
+    入库时用:若命中 → 追加流水;若未命中但 (material_id, batch_no) 在别处有
+    → 在新位置创建一条同号批次行(支持"同批号散落多柜")。
+    """
     return db.execute(
-        select(Batch).where(and_(Batch.material_code == material_code, Batch.batch_no == batch_no))
+        select(Batch).where(and_(
+            Batch.material_id == material_id,
+            Batch.batch_no == batch_no,
+            Batch.location_id == location_id,
+        ))
     ).scalar_one_or_none()
 
 
 def create_batch_with_initial_in(
     db: Session,
-    material_code: str,
+    material_id: int,
     batch_no: str,
     expiry_date,
-    location_id,
+    location_id: int,
     received_date,
     initial_qty: Decimal,
     operator: str,
@@ -294,7 +335,7 @@ def create_batch_with_initial_in(
 ) -> Batch:
     """新建批次并同步写入首笔入库 txn(IN)。"""
     b = Batch(
-        material_code=material_code,
+        material_id=material_id,
         batch_no=batch_no,
         expiry_date=expiry_date,
         location_id=location_id,
@@ -366,23 +407,26 @@ def add_adjust(
 def list_txns(
     db: Session,
     batch_id: Optional[int] = None,
-    material_code: Optional[str] = None,
+    material_id: Optional[int] = None,
     limit: int = 200,
 ):
     stmt = (
         select(
             InventoryTxn,
             Batch.batch_no,
-            Batch.material_code,
+            Material.material_id,
+            Material.material_code,
             Material.name_cn,
+            Location.name.label("location_name"),
         )
         .join(Batch, Batch.batch_id == InventoryTxn.batch_id)
-        .join(Material, Material.material_code == Batch.material_code)
+        .join(Material, Material.material_id == Batch.material_id)
+        .join(Location, Location.location_id == Batch.location_id)
     )
     if batch_id is not None:
         stmt = stmt.where(InventoryTxn.batch_id == batch_id)
-    if material_code:
-        stmt = stmt.where(Batch.material_code == material_code)
+    if material_id is not None:
+        stmt = stmt.where(Batch.material_id == material_id)
     stmt = stmt.order_by(InventoryTxn.txn_id.desc()).limit(limit)
     return [tuple(r) for r in db.execute(stmt).all()]
 
@@ -406,7 +450,7 @@ def stock_by_material(
     """
     qty_subq_inner = (
         select(
-            Batch.material_code.label("material_code"),
+            Batch.material_id.label("material_id"),
             func.coalesce(func.sum(InventoryTxn.qty), 0).label("total_qty"),
         )
         .join(InventoryTxn, InventoryTxn.batch_id == Batch.batch_id)
@@ -416,10 +460,11 @@ def stock_by_material(
         qty_subq_inner = qty_subq_inner.where(
             or_(Batch.expiry_date.is_(None), Batch.expiry_date >= today)
         )
-    qty_subq = qty_subq_inner.group_by(Batch.material_code).subquery()
+    qty_subq = qty_subq_inner.group_by(Batch.material_id).subquery()
 
     stmt = (
         select(
+            Material.material_id,
             Material.material_code,
             Material.name_cn,
             Material.category,
@@ -428,7 +473,7 @@ def stock_by_material(
             Material.safety_stock,
             func.coalesce(qty_subq.c.total_qty, 0).label("total_qty"),
         )
-        .outerjoin(qty_subq, qty_subq.c.material_code == Material.material_code)
+        .outerjoin(qty_subq, qty_subq.c.material_id == Material.material_id)
     )
     if not include_inactive:
         stmt = stmt.where(Material.is_active.is_(True))
@@ -437,7 +482,7 @@ def stock_by_material(
     if keyword:
         kw = f"%{keyword}%"
         stmt = stmt.where(or_(Material.material_code.ilike(kw), Material.name_cn.ilike(kw)))
-    stmt = stmt.order_by(Material.material_code)
+    stmt = stmt.order_by(Material.material_code, Material.material_id)
 
     out = []
     for row in db.execute(stmt).all():
@@ -447,6 +492,7 @@ def stock_by_material(
         safety = Decimal(row.safety_stock or 0)
         low = bool(safety > 0 and total_qty < safety)
         out.append({
+            "material_id": row.material_id,
             "material_code": row.material_code,
             "name_cn": row.name_cn,
             "category": row.category,
@@ -462,13 +508,13 @@ def stock_by_material(
 def stock_by_batch(
     db: Session,
     category: Optional[str] = None,
-    material_code: Optional[str] = None,
+    material_id: Optional[int] = None,
     location_id: Optional[int] = None,
     include_inactive: bool = False,
     include_expired: bool = True,
     only_positive: bool = True,
 ) -> List[dict]:
-    """批次级当前库存。"""
+    """批次级当前库存(每行 = 一个 (material, batch_no, location) 的物理批次)。"""
     qty_subq = (
         select(InventoryTxn.batch_id, func.coalesce(func.sum(InventoryTxn.qty), 0).label("current_qty"))
         .group_by(InventoryTxn.batch_id)
@@ -478,7 +524,8 @@ def stock_by_batch(
     stmt = (
         select(
             Batch.batch_id,
-            Batch.material_code,
+            Material.material_id,
+            Material.material_code,
             Material.name_cn,
             Material.unit,
             Batch.batch_no,
@@ -490,14 +537,14 @@ def stock_by_batch(
             Material.is_active,
             Material.category,
         )
-        .join(Material, Material.material_code == Batch.material_code)
+        .join(Material, Material.material_id == Batch.material_id)
         .outerjoin(qty_subq, qty_subq.c.batch_id == Batch.batch_id)
-        .outerjoin(Location, Location.location_id == Batch.location_id)
+        .join(Location, Location.location_id == Batch.location_id)
     )
     if category:
         stmt = stmt.where(Material.category == category)
-    if material_code:
-        stmt = stmt.where(Batch.material_code == material_code)
+    if material_id is not None:
+        stmt = stmt.where(Batch.material_id == material_id)
     if location_id is not None:
         stmt = stmt.where(Batch.location_id == location_id)
     if not include_inactive:
@@ -508,7 +555,9 @@ def stock_by_batch(
     if only_positive:
         stmt = stmt.where(func.coalesce(qty_subq.c.current_qty, 0) > 0)
 
-    stmt = stmt.order_by(Batch.material_code, Batch.expiry_date.asc().nullslast())
+    stmt = stmt.order_by(
+        Material.material_code, Batch.expiry_date.asc().nullslast(), Batch.batch_id
+    )
 
     today = date.today()
     out = []
@@ -516,6 +565,7 @@ def stock_by_batch(
         days = (r.expiry_date - today).days if r.expiry_date else None
         out.append({
             "batch_id": r.batch_id,
+            "material_id": r.material_id,
             "material_code": r.material_code,
             "name_cn": r.name_cn,
             "unit": r.unit,
@@ -542,7 +592,8 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
     stmt = (
         select(
             Batch.batch_id,
-            Batch.material_code,
+            Material.material_id,
+            Material.material_code,
             Material.name_cn,
             Material.unit,
             Batch.batch_no,
@@ -550,9 +601,9 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
             Location.name.label("location_name"),
             func.coalesce(qty_subq.c.current_qty, 0).label("current_qty"),
         )
-        .join(Material, Material.material_code == Batch.material_code)
+        .join(Material, Material.material_id == Batch.material_id)
         .outerjoin(qty_subq, qty_subq.c.batch_id == Batch.batch_id)
-        .outerjoin(Location, Location.location_id == Batch.location_id)
+        .join(Location, Location.location_id == Batch.location_id)
         .where(
             and_(
                 Batch.expiry_date.is_not(None),
@@ -570,6 +621,7 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
             continue
         out.append({
             "batch_id": r.batch_id,
+            "material_id": r.material_id,
             "material_code": r.material_code,
             "name_cn": r.name_cn,
             "unit": r.unit,
@@ -590,6 +642,7 @@ def low_stock_alerts(db: Session) -> List[dict]:
     rows = stock_by_material(db, include_inactive=False, only_positive=False)
     return [
         {
+            "material_id": r["material_id"],
             "material_code": r["material_code"],
             "name_cn": r["name_cn"],
             "unit": r["unit"],

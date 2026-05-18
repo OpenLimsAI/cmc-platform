@@ -36,6 +36,7 @@ from schemas import (
     ImportCommitRequest,
     ImportCommitResult,
     ImportLogOut,
+    TT_INTERNAL_CODE,
 )
 
 router = APIRouter(prefix="/api/import", tags=["import"])
@@ -135,8 +136,8 @@ async def dry_run(
         if not unit:
             errors.append("unit(单位) 为空")
 
-        # 唯一性(本次文件内)
-        if code:
+        # 唯一性(本次文件内)— TT 保留 code 允许重复
+        if code and code != TT_INTERNAL_CODE:
             if code in seen_codes:
                 errors.append(f"代码 {code} 在本文件内重复")
             seen_codes.add(code)
@@ -158,6 +159,11 @@ async def dry_run(
         if errors:
             action = "ERROR"
             error_cnt += 1
+        elif code == TT_INTERNAL_CODE:
+            # TT 内部物料是保留 code,导入时一律新增一条(不与已有合并)
+            action = "INSERT"
+            insert_cnt += 1
+            warnings.append("TT内部物料 为可重复保留 code,本行将作为新条目插入")
         elif code in existing_codes:
             action = "UPDATE"
             update_cnt += 1
@@ -240,9 +246,14 @@ def commit(
             if unit not in existing_units:
                 raise ValueError(f"单位 '{unit}' 不在字典中")
 
-            obj = db.get(Material, code)
+            # TT 保留 code 一律新增;其余 code 按 code 找已有再决定 INSERT/UPDATE
+            obj = None
+            if code != TT_INTERNAL_CODE:
+                obj = crud.get_material_by_code(db, code)
+
             if obj:
-                # UPDATE — 只覆盖文件中提供的字段(safety_stock/is_active 不在导入范围)
+                # UPDATE — 只覆盖文件中提供的字段(safety_stock/is_active/hazard_class
+                # 不在导入范围,需在前端单独维护)
                 for f in ("category", "name_cn", "grade", "manufacturer",
                           "spec_model", "catalog_no", "unit", "package_spec", "remark"):
                     if f in r:

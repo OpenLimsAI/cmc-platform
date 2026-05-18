@@ -117,13 +117,13 @@ def adjust(
 @router.get("/txns", response_model=List[TxnOut])
 def list_txns(
     batch_id: Optional[int] = None,
-    material_code: Optional[str] = None,
+    material_id: Optional[int] = None,
     limit: int = Query(200, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
-    rows = crud.list_txns(db, batch_id=batch_id, material_code=material_code, limit=limit)
+    rows = crud.list_txns(db, batch_id=batch_id, material_id=material_id, limit=limit)
     out = []
-    for txn, batch_no, mat_code, mat_name in rows:
+    for txn, batch_no, mat_id, mat_code, mat_name, loc_name in rows:
         out.append({
             "txn_id": txn.txn_id,
             "batch_id": txn.batch_id,
@@ -135,8 +135,10 @@ def list_txns(
             "remark": txn.remark,
             "created_at": txn.created_at,
             "batch_no": batch_no,
+            "material_id": mat_id,
             "material_code": mat_code,
             "material_name": mat_name,
+            "location_name": loc_name,
         })
     return out
 
@@ -145,6 +147,7 @@ def list_txns(
 def _to_txn_out(db, txn) -> dict:
     b = txn.batch
     m = b.material if b else None
+    loc = b.location if b else None
     return {
         "txn_id": txn.txn_id,
         "batch_id": txn.batch_id,
@@ -156,6 +159,8 @@ def _to_txn_out(db, txn) -> dict:
         "remark": txn.remark,
         "created_at": txn.created_at,
         "batch_no": b.batch_no if b else None,
-        "material_code": b.material_code if b else None,
+        "material_id": m.material_id if m else None,
+        "material_code": m.material_code if m else None,
         "material_name": m.name_cn if m else None,
+        "location_name": loc.name if loc else None,
     }

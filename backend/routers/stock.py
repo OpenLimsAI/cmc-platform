@@ -44,7 +44,7 @@ def by_material(
 @router.get("/by-batch", response_model=List[StockByBatch])
 def by_batch(
     category: Optional[str] = None,
-    material_code: Optional[str] = None,
+    material_id: Optional[int] = None,
     location_id: Optional[int] = None,
     include_inactive: bool = False,
     include_expired: bool = True,
@@ -54,7 +54,7 @@ def by_batch(
     return crud.stock_by_batch(
         db,
         category=category,
-        material_code=material_code,
+        material_id=material_id,
         location_id=location_id,
         include_inactive=include_inactive,
         include_expired=include_expired,
