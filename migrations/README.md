@@ -29,6 +29,8 @@ docker exec -i rd_pg psql -U postgres -d cmc_analytics < migrations/mdm_001_crea
 | 001 | `mdm_001_create_schema.sql` | 2026-05-18 00:30 |
 | 002 | `mdm_002_create_test_method.sql` | 2026-05-18 00:30 |
 | 003 | `mdm_003_create_personnel.sql` | 2026-05-18 00:30 |
+| 004 | `mdm_004_migrate_data.sql` | 2026-05-18 00:35 |
+| 005 | `mdm_005_repoint_mart_views.sql` | 2026-05-18 00:40 |
 
 ### 历史背景:为什么把主数据放在 cmc_analytics 而不是 cmab_mdm?
 
