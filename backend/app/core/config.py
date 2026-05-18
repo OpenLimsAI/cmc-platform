@@ -1,6 +1,7 @@
-# 应用配置：按 CMC 数据中台架构 v0.1 拆两个连接
-#   - analytics_database_url：cmc_analytics 只读，dashboard 所有取数
-#   - mdm_database_url：cmc_mdm 读写，admin 维护主数据
+# 应用配置：单库 cmc_analytics，两个角色
+#   - analytics_database_url：lims_reader，cmc_analytics.mart.* 只读，dashboard 所有取数
+#   - mdm_database_url：lims_mdm_writer，cmc_analytics.mdm.* 读写，admin 维护主数据
+#     如不设则回落到 analytics_database_url（但 lims_reader 无写权限，admin 写入会失败）
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

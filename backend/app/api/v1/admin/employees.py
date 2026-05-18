@@ -33,7 +33,11 @@ class EmployeeUpdate(BaseModel):
 
 @router.get("", response_model=list[EmployeeItem], dependencies=[Depends(verify_admin)])
 async def list_employees(db: AsyncSession = Depends(get_mdm_db)):
-    result = await db.execute(select(DimEmployee).order_by(DimEmployee.employee_id))
+    result = await db.execute(
+        select(DimEmployee)
+        .where(DimEmployee.deleted_at.is_(None))
+        .order_by(DimEmployee.employee_id)
+    )
     return [EmployeeItem(
         employee_id=r.employee_id,
         employee_name=r.employee_name,
@@ -44,10 +48,23 @@ async def list_employees(db: AsyncSession = Depends(get_mdm_db)):
 @router.post("", response_model=EmployeeItem, dependencies=[Depends(verify_admin)])
 async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_mdm_db)):
     existing = await db.execute(select(DimEmployee).where(DimEmployee.employee_id == body.employee_id))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=409, detail="该员工 ID 已存在")
-    row = DimEmployee(employee_id=body.employee_id, employee_name=body.employee_name, department=body.department)
-    db.add(row)
+    row = existing.scalar_one_or_none()
+    if row is not None:
+        if row.deleted_at is None:
+            raise HTTPException(status_code=409, detail="该员工 ID 已存在")
+        # 已软删除：复活并覆盖名称 / 部门
+        row.employee_name = body.employee_name or row.employee_name
+        if body.department is not None:
+            row.department = body.department
+        row.deleted_at = None
+        row.deleted_by = None
+    else:
+        row = DimEmployee(
+            employee_id=body.employee_id,
+            employee_name=body.employee_name,
+            department=body.department or "药学及技术转移部",
+        )
+        db.add(row)
     await db.commit()
     await db.refresh(row)
     return EmployeeItem(employee_id=row.employee_id, employee_name=row.employee_name, department=row.department)
@@ -59,7 +76,10 @@ async def update_employee(
     body: EmployeeUpdate,
     db: AsyncSession = Depends(get_mdm_db),
 ):
-    result = await db.execute(select(DimEmployee).where(DimEmployee.employee_id == employee_id))
+    result = await db.execute(
+        select(DimEmployee)
+        .where(DimEmployee.employee_id == employee_id, DimEmployee.deleted_at.is_(None))
+    )
     row = result.scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="未找到该员工")
@@ -95,13 +115,13 @@ async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_
     for row in ws.iter_rows(min_row=2, values_only=True):
         eid = row[col_id - 1]
         ename = row[col_name - 1]
-        if not eid:
+        if not eid or not ename:
             continue
         dept = row[col_dept - 1] if col_dept else None
         rows.append({
             "employee_id": str(eid),
-            "employee_name": str(ename) if ename else None,
-            "department": str(dept) if dept else None,
+            "employee_name": str(ename),
+            "department": str(dept) if dept else "药学及技术转移部",
         })
 
     if not rows:
@@ -110,7 +130,12 @@ async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_
     stmt = insert(DimEmployee).values(rows)
     stmt = stmt.on_conflict_do_update(
         index_elements=["employee_id"],
-        set_={"employee_name": stmt.excluded.employee_name, "department": stmt.excluded.department},
+        set_={
+            "employee_name": stmt.excluded.employee_name,
+            "department": stmt.excluded.department,
+            "deleted_at": None,
+            "deleted_by": None,
+        },
     )
     await db.execute(stmt)
     await db.commit()

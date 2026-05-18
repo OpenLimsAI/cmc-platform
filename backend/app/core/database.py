@@ -1,6 +1,7 @@
-# 数据库连接：v0.1 双引擎
-#   - analytics_engine：cmc_analytics 只读，dashboard 取数
-#   - mdm_engine：cmc_mdm 读写，admin 维护主数据
+# 数据库连接：单库 cmc_analytics，两个角色
+#   - analytics_engine：lims_reader，cmc_analytics.mart.* 只读，dashboard 取数
+#   - mdm_engine：lims_mdm_writer，cmc_analytics.mdm.{personnel,test_method} 读写，admin 面板维护主数据
+# 两个 engine 都连同一个库 (cmc_analytics)；分开是为了在角色层面隔离读 / 写权限。
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine

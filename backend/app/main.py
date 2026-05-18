@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CMC R&D LIMS Dashboard API",
-    description="CMC 研发 LIMS 检验进度与考核看板后端（读 cmc_analytics.mart，写 cmc_mdm）",
+    description="CMC 研发 LIMS 检验进度与考核看板后端（读 cmc_analytics.mart，写 cmc_analytics.mdm）",
     version="0.1.0",
     lifespan=lifespan,
 )

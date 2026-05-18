@@ -3,7 +3,7 @@ import io
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +36,11 @@ class MethodUpdate(BaseModel):
 
 @router.get("", response_model=list[MethodItem], dependencies=[Depends(verify_admin)])
 async def list_methods(db: AsyncSession = Depends(get_mdm_db)):
-    result = await db.execute(select(DimMethod).order_by(DimMethod.method_code))
+    result = await db.execute(
+        select(DimMethod)
+        .where(DimMethod.deleted_at.is_(None))
+        .order_by(DimMethod.method_code)
+    )
     return [MethodItem(
         method_code=r.method_code,
         method_name=r.method_name,
@@ -48,10 +52,27 @@ async def list_methods(db: AsyncSession = Depends(get_mdm_db)):
 @router.post("", response_model=MethodItem, dependencies=[Depends(verify_admin)])
 async def create_method(body: MethodCreate, db: AsyncSession = Depends(get_mdm_db)):
     existing = await db.execute(select(DimMethod).where(DimMethod.method_code == body.method_code))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=409, detail="该方法编码已存在")
-    row = DimMethod(method_code=body.method_code, method_name=body.method_name, std_minutes=body.std_minutes, target_days=body.target_days)
-    db.add(row)
+    row = existing.scalar_one_or_none()
+    if row is not None:
+        if row.deleted_at is None:
+            raise HTTPException(status_code=409, detail="该方法编码已存在")
+        row.method_name = body.method_name or row.method_name
+        if body.std_minutes is not None:
+            row.std_minutes = body.std_minutes
+        if body.target_days is not None:
+            row.target_days = body.target_days
+        row.deleted_at = None
+        row.deleted_by = None
+    else:
+        if not body.method_name:
+            raise HTTPException(status_code=422, detail="method_name 必填")
+        row = DimMethod(
+            method_code=body.method_code,
+            method_name=body.method_name,
+            std_minutes=body.std_minutes,
+            target_days=body.target_days,
+        )
+        db.add(row)
     await db.commit()
     await db.refresh(row)
     return MethodItem(method_code=row.method_code, method_name=row.method_name, std_minutes=row.std_minutes, target_days=row.target_days)
@@ -63,7 +84,10 @@ async def update_method(
     body: MethodUpdate,
     db: AsyncSession = Depends(get_mdm_db),
 ):
-    result = await db.execute(select(DimMethod).where(DimMethod.method_code == method_code))
+    result = await db.execute(
+        select(DimMethod)
+        .where(DimMethod.method_code == method_code, DimMethod.deleted_at.is_(None))
+    )
     row = result.scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="未找到该检验方法")
@@ -106,10 +130,10 @@ async def upload_methods(file: UploadFile, db: AsyncSession = Depends(get_mdm_db
         code = row[col_code - 1]
         name = row[col_name - 1]
         mins_raw = row[col_min - 1]
-        if not code:
+        if not code or not name:
             continue
         mins = round(float(mins_raw), 2) if mins_raw is not None else None
-        rows.append({"method_code": str(code), "method_name": str(name) if name else None, "std_minutes": mins})
+        rows.append({"method_code": str(code), "method_name": str(name), "std_minutes": mins})
 
     if not rows:
         raise HTTPException(status_code=422, detail="Excel 中无有效数据行")
@@ -117,7 +141,12 @@ async def upload_methods(file: UploadFile, db: AsyncSession = Depends(get_mdm_db
     stmt = insert(DimMethod).values(rows)
     stmt = stmt.on_conflict_do_update(
         index_elements=["method_code"],
-        set_={"method_name": stmt.excluded.method_name, "std_minutes": stmt.excluded.std_minutes},
+        set_={
+            "method_name": stmt.excluded.method_name,
+            "std_minutes": stmt.excluded.std_minutes,
+            "deleted_at": None,
+            "deleted_by": None,
+        },
     )
     await db.execute(stmt)
     await db.commit()
