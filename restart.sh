@@ -43,6 +43,26 @@ echo " 前端服务: $FRONTEND_SERVICE"
 echo "============================================================"
 echo
 
+# 步骤 0:检测 requirements.txt 是否比 venv 里最近一次装依赖时新,是就先装依赖。
+# 这样日常重启不花时间,git pull 后哪怕忘了 install.sh deps,也会被自动救回来。
+needs_deps() {
+    local dir="$1"
+    local req="$ROOT/$dir/requirements.txt"
+    local stamp="$ROOT/$dir/.venv/.deps-stamp"
+    [ ! -f "$stamp" ] && return 0      # 从没装过(或老版本没留戳)
+    [ "$req" -nt "$stamp" ] && return 0 # requirements.txt 比上次装依赖新
+    return 1
+}
+
+echo "0. 检测依赖变化"
+if needs_deps backend || needs_deps frontend; then
+    echo "   检测到 requirements.txt 有变化或首次运行,先更新依赖..."
+    "$ROOT/install.sh" deps
+else
+    echo "   依赖无变化,跳过"
+fi
+echo
+
 echo "1. 重新加载 systemd 配置"
 sudo systemctl daemon-reload
 echo

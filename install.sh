@@ -33,6 +33,8 @@ ensure_venv() {
     echo "==> 安装/升级 $dir 依赖"
     .venv/bin/pip install --upgrade pip --quiet
     .venv/bin/pip install -r requirements.txt --quiet
+    # 留个时间戳,restart.sh 比对 requirements.txt 和它来判断是否需要重新装依赖
+    touch .venv/.deps-stamp
 }
 
 case "$ACTION" in
