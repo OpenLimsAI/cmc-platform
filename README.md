@@ -560,7 +560,7 @@ cd template && python3 generate_template.py
 - *后端报 `password authentication failed`*:`.env` 里的密码与第 1 步 `CREATE USER` 时设的不一致,改一致后重启 uvicorn。
 - *后端报 `permission denied for schema material_mgmt`*:第 2 步建表是用 postgres 跑的导致表归 postgres 所有,改用 cmc_user 跑(命令同上,带 `-U cmc_user`)。
 - *前端报 `后端不可达`*:确认 uvicorn 在跑(`curl http://127.0.0.1:8000/health`),再确认 `.env` 中 `API_BASE_URL=http://localhost:8000`。
-- *端口被占*:`lsof -iTCP -sTCP:LISTEN -P | grep -E '8000|8501'` 查谁占着,改 `.env` 中 `BACKEND_PORT` / `FRONTEND_PORT` 即可,前端读后端的 `API_BASE_URL` 端口要同步改。
+- *端口被占*:`lsof -iTCP -sTCP:LISTEN -P | grep -E '8000|8501|8503'` 查谁占着,改 `.env` 中 `BACKEND_PORT` / `FRONTEND_PORT` 即可,前端读后端的 `API_BASE_URL` 端口要同步改。
 
 ### 10.B Linux 生产部署
 

@@ -137,8 +137,8 @@ sudo ufw allow 8501/tcp comment 'cmc-inventory frontend'
 
 ```bash
 # 在自己的笔记本上跑
-ssh -L 8000:127.0.0.1:8000 prometheus@<服务器IP>
-# 浏览器打开 http://localhost:8000/docs
+ssh -L 18000:127.0.0.1:8000 prometheus@<服务器IP>
+# 浏览器打开 http://localhost:18000/docs
 ```
 
 ---
@@ -159,12 +159,13 @@ git pull --ff-only
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 
-# 若你的服务器来自 v1.1 之前,还需要执行 v1.2 迁移脚本
+# 若你的服务器不是全新按当前 init.sql 建的库,还需要执行 v1.2 迁移脚本
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/migrate_v1_2.sql
 
 # 3) 确认 .env 里有 ADMIN_INITIAL_PASSWORD(首次启动后端会用它自动建 admin)
-echo 'ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin' >> .env
+grep -q '^ADMIN_INITIAL_PASSWORD=' .env || \
+    echo 'ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin' >> .env
 
 # 4) 装/更新依赖 + 重装 systemd unit + 重启
 ./install.sh deps
