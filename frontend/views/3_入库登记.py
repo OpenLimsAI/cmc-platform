@@ -98,17 +98,36 @@ def _render_intake_tab(tab_type: str) -> None:
     st.markdown("---")
     st.subheader("入库信息")
 
-    # 物料信息卡(选完物料展示在 入库信息 区域顶部)
-    with st.container(border=True):
-        st.markdown(
-            f"**📦 {mat['material_code']} · {mat['name_cn']}**  "
-            f"&nbsp;&nbsp;·&nbsp;&nbsp; 单位 `{mat['unit']}`"
+    # 物料信息(只读 — 编辑请去物料管理)
+    # 视觉上与下方表单的输入框一致, 但 disabled=True 不可编辑
+    st.caption("📦 物料信息(只读, 修改请到「物料管理」)")
+    mi_col1, mi_col2 = st.columns(2)
+    with mi_col1:
+        st.text_input(
+            "物料代码", value=mat["material_code"], disabled=True,
+            key=f"info_code_{tab_type}",
         )
-        info_cols = st.columns(4)
-        info_cols[0].markdown(f"**厂家**\n\n{mat.get('manufacturer') or '-'}")
-        info_cols[1].markdown(f"**货号**\n\n{mat.get('catalog_no') or '-'}")
-        info_cols[2].markdown(f"**级别**\n\n{mat.get('grade') or '-'}")
-        info_cols[3].markdown(f"**规格**\n\n{mat.get('spec_model') or '-'}")
+        st.text_input(
+            "厂家", value=mat.get("manufacturer") or "", disabled=True,
+            key=f"info_mfr_{tab_type}",
+        )
+        st.text_input(
+            "级别", value=mat.get("grade") or "", disabled=True,
+            key=f"info_grade_{tab_type}",
+        )
+    with mi_col2:
+        st.text_input(
+            "物料名称", value=mat["name_cn"], disabled=True,
+            key=f"info_name_{tab_type}",
+        )
+        st.text_input(
+            "货号", value=mat.get("catalog_no") or "", disabled=True,
+            key=f"info_cat_{tab_type}",
+        )
+        st.text_input(
+            "规格", value=mat.get("spec_model") or "", disabled=True,
+            key=f"info_spec_{tab_type}",
+        )
 
     locs = get_locations()
     if not locs:
