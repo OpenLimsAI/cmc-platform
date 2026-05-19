@@ -158,6 +158,10 @@ class BatchBase(BaseModel):
     received_date: date
     initial_qty: Decimal
     remark: Optional[str] = None
+    # 入库时 tab 类型(reagent/consumable/standard/column), 由前端 tab 决定
+    intake_type: Optional[str] = Field(
+        None, pattern="^(reagent|consumable|standard|column)$"
+    )
     # 类型特定字段(由前端入库表单按 tab 条件填):
     concentration: Optional[str] = None              # 标准物质 浓度(数值+单位文本)
     extinction_coefficient: Optional[Decimal] = None # 标准物质 消光系数(2 位小数)
@@ -239,6 +243,8 @@ class TxnOut(ORMBase):
     material_code: Optional[str] = None
     material_name: Optional[str] = None
     location_name: Optional[str] = None
+    # 该批次入库时的 tab 类型
+    intake_type: Optional[str] = None
     # batch 上的类型特定字段, 入库页"出入库条目"表按 tab 显示对应列
     concentration: Optional[str] = None
     extinction_coefficient: Optional[Decimal] = None

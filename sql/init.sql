@@ -189,6 +189,8 @@ CREATE TABLE IF NOT EXISTS batch (
     received_date  DATE NOT NULL,
     initial_qty    NUMERIC(12,2) NOT NULL,
     remark         TEXT,
+    -- 入库时所在 tab 的类型, 老批次留 NULL
+    intake_type    VARCHAR(20) CHECK (intake_type IS NULL OR intake_type IN ('reagent','consumable','standard','column')),
     -- 入库表单"类型特定"字段, 都是 nullable; 哪类不用就留空
     concentration          VARCHAR(50),     -- 标准物质浓度(数值+单位, 例 "10 mg/mL")
     extinction_coefficient NUMERIC(12, 2),  -- 标准物质消光系数(2 位小数)

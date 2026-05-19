@@ -346,6 +346,7 @@ def _render_intake_tab(tab_type: str) -> None:
                             "received_date": str(received),
                             "initial_qty": str(r["qty"]),
                             "remark": remark or None,
+                            "intake_type": tab_type,
                             **type_extras,
                         })
                         st.success(

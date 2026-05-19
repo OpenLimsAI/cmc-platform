@@ -153,12 +153,15 @@ class Batch(Base):
     received_date: Mapped[date] = mapped_column(Date, nullable=False)
     initial_qty: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     remark: Mapped[Optional[str]] = mapped_column(Text)
+    # 入库时所在 tab 的类型: reagent / consumable / standard / column
+    # 老批次没这个概念留 NULL, 新批次入库时由前端 tab 写入
+    intake_type: Mapped[Optional[str]] = mapped_column(String(20))
     # 入库表单"类型特定"字段; 都是 nullable, 没用到的类型留 NULL
-    concentration: Mapped[Optional[str]] = mapped_column(String(50))               # 标准物质 浓度(数值+单位文本, 如 "10 mg/mL")
+    concentration: Mapped[Optional[str]] = mapped_column(String(50))                   # 标准物质 浓度
     extinction_coefficient: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))  # 标准物质 消光系数
-    serial_no: Mapped[Optional[str]] = mapped_column(String(100))                  # 色谱柱
-    asset_no: Mapped[Optional[str]] = mapped_column(String(100))                   # 色谱柱 编号
-    responsible_person: Mapped[Optional[str]] = mapped_column(String(50))          # 色谱柱
+    serial_no: Mapped[Optional[str]] = mapped_column(String(100))                      # 色谱柱
+    asset_no: Mapped[Optional[str]] = mapped_column(String(100))                       # 色谱柱 编号
+    responsible_person: Mapped[Optional[str]] = mapped_column(String(50))              # 色谱柱
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     material: Mapped["Material"] = relationship(back_populates="batches")

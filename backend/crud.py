@@ -332,6 +332,7 @@ def create_batch_with_initial_in(
     initial_qty: Decimal,
     operator: str,
     remark: Optional[str],
+    intake_type: Optional[str] = None,
     concentration: Optional[str] = None,
     extinction_coefficient: Optional[str] = None,
     serial_no: Optional[str] = None,
@@ -347,6 +348,7 @@ def create_batch_with_initial_in(
         received_date=received_date,
         initial_qty=initial_qty,
         remark=remark,
+        intake_type=intake_type,
         concentration=concentration,
         extinction_coefficient=extinction_coefficient,
         serial_no=serial_no,
@@ -481,6 +483,7 @@ def list_txns(
         select(
             InventoryTxn,
             Batch.batch_no,
+            Batch.intake_type,
             Batch.concentration,
             Batch.extinction_coefficient,
             Batch.serial_no,
