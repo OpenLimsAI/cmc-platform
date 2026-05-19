@@ -22,7 +22,7 @@ cmc_analytics.mdm.{personnel,test_method}  →  mart.dim_{employee,method}（WHE
 
 ### Backend (in `backend/`)
 ```bash
-uv run uvicorn app.main:app --reload        # dev server
+uv run uvicorn app.main:app --reload --port 8001   # dev server（与 frontend/.env.local 对齐；8000 默认端口常被 cmc-inventory 占用）
 uv run pytest                               # all tests
 ```
 
