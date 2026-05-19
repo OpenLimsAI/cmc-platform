@@ -186,24 +186,7 @@ def _render_intake_tab(tab_type: str) -> None:
             st.text_input("规格", value=mat.get("spec_model") or "", disabled=True,
                           key=f"info_spec_{tab_type}")
 
-        # 第一行: 供应商批号 + 到货日期 + 效期
-        r1c1, r1c2, r1c3 = st.columns(3)
-        with r1c1:
-            batch_no = st.text_input(
-                "供应商批号 *", max_chars=100, key=f"in_bno_{tab_type}",
-            )
-        with r1c2:
-            received = st.date_input(
-                "到货日期 *", value=date.today(), key=f"in_rec_{tab_type}",
-            )
-        with r1c3:
-            expiry = st.date_input(
-                "效期(无可留空)", value=None,
-                format="YYYY-MM-DD",
-                key=f"in_exp_{tab_type}",
-            )
-
-        # 类型专属字段(标准物质 / 色谱柱), 直接和上方字段融为一体, 无 section 头
+        # 类型专属字段(放在 批号/日期 行之前)
         type_extras = {
             "concentration": None,
             "extinction_coefficient": None,
@@ -212,19 +195,33 @@ def _render_intake_tab(tab_type: str) -> None:
             "responsible_person": None,
         }
         if tab_type == "standard":
-            sc1, sc2 = st.columns(2)
+            sc1, sc2, sc3 = st.columns(3)
             with sc1:
-                _v = st.text_input(
-                    "浓度", max_chars=50, help="例如 10 mg/mL",
-                    key=f"in_conc_{tab_type}",
+                _cv = st.text_input(
+                    "浓度数值", max_chars=20, help="例如 10",
+                    key=f"in_conc_v_{tab_type}",
                 )
-                type_extras["concentration"] = (_v or "").strip() or None
             with sc2:
-                _ec = st.text_input(
-                    "消光系数", max_chars=50, help="ε, 例如 18400 M⁻¹cm⁻¹",
-                    key=f"in_ec_{tab_type}",
+                _cu = st.text_input(
+                    "浓度单位", max_chars=30, help="例如 mg/mL",
+                    key=f"in_conc_u_{tab_type}",
                 )
-                type_extras["extinction_coefficient"] = (_ec or "").strip() or None
+            with sc3:
+                _ec = st.number_input(
+                    "消光系数",
+                    min_value=0.0, value=None, step=0.01,
+                    format="%.2f",
+                    help="ε, 保留 2 位小数",
+                    key=f"in_ec_num_{tab_type}",
+                )
+            # 浓度: 有数值才存; 数值带单位则拼成 "数值 单位", 否则只存数值
+            v = (_cv or "").strip()
+            u = (_cu or "").strip()
+            if v:
+                type_extras["concentration"] = f"{v} {u}".strip() if u else v
+            # 消光系数: None 不传; 否则转 str(后端 Pydantic 接 Decimal)
+            if _ec is not None:
+                type_extras["extinction_coefficient"] = f"{_ec:.2f}"
         elif tab_type == "column":
             cc1, cc2, cc3 = st.columns(3)
             with cc1:
@@ -248,6 +245,23 @@ def _render_intake_tab(tab_type: str) -> None:
                         key=f"in_rp_{tab_type}",
                     ) or ""
                 ).strip() or None
+
+        # 批号 / 到货日期 / 效期 — 在类型字段下方, 备注上方
+        r1c1, r1c2, r1c3 = st.columns(3)
+        with r1c1:
+            batch_no = st.text_input(
+                "供应商批号 *", max_chars=100, key=f"in_bno_{tab_type}",
+            )
+        with r1c2:
+            received = st.date_input(
+                "到货日期 *", value=date.today(), key=f"in_rec_{tab_type}",
+            )
+        with r1c3:
+            expiry = st.date_input(
+                "效期(无可留空)", value=None,
+                format="YYYY-MM-DD",
+                key=f"in_exp_{tab_type}",
+            )
 
         # 备注: 整行铺满, 放表单最底部
         remark = st.text_area(

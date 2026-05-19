@@ -190,8 +190,8 @@ CREATE TABLE IF NOT EXISTS batch (
     initial_qty    NUMERIC(12,2) NOT NULL,
     remark         TEXT,
     -- 入库表单"类型特定"字段, 都是 nullable; 哪类不用就留空
-    concentration          VARCHAR(50),     -- 标准物质浓度(带单位的自由文本, 例 "10 mg/mL")
-    extinction_coefficient VARCHAR(50),     -- 标准物质消光系数(带单位的自由文本)
+    concentration          VARCHAR(50),     -- 标准物质浓度(数值+单位, 例 "10 mg/mL")
+    extinction_coefficient NUMERIC(12, 2),  -- 标准物质消光系数(2 位小数)
     serial_no              VARCHAR(100),    -- 色谱柱厂家序列号
     asset_no               VARCHAR(100),    -- 色谱柱内部编号/资产编号
     responsible_person     VARCHAR(50),     -- 色谱柱负责人

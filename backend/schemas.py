@@ -159,8 +159,8 @@ class BatchBase(BaseModel):
     initial_qty: Decimal
     remark: Optional[str] = None
     # 类型特定字段(由前端入库表单按 tab 条件填):
-    concentration: Optional[str] = None              # 标准物质
-    extinction_coefficient: Optional[str] = None     # 标准物质 消光系数
+    concentration: Optional[str] = None              # 标准物质 浓度(数值+单位文本)
+    extinction_coefficient: Optional[Decimal] = None # 标准物质 消光系数(2 位小数)
     serial_no: Optional[str] = None                  # 色谱柱
     asset_no: Optional[str] = None                   # 色谱柱 编号
     responsible_person: Optional[str] = None         # 色谱柱
@@ -241,7 +241,7 @@ class TxnOut(ORMBase):
     location_name: Optional[str] = None
     # batch 上的类型特定字段, 入库页"出入库条目"表按 tab 显示对应列
     concentration: Optional[str] = None
-    extinction_coefficient: Optional[str] = None
+    extinction_coefficient: Optional[Decimal] = None
     serial_no: Optional[str] = None
     asset_no: Optional[str] = None
     responsible_person: Optional[str] = None
