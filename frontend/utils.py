@@ -268,8 +268,8 @@ def normalize_text(s: Optional[str]) -> str:
 def fuzzy_match_material(m: Dict, keyword: str,
                          extra_haystack: Optional[List[str]] = None) -> bool:
     """归一化后判断关键字是否落在 material_code / name_cn / spec_model / catalog_no
-    之内;extra_haystack 可塞入额外字符串(如该物料的全部 batch_no)
-    实现"代码/名称/批号 三合一搜索框"。
+    / manufacturer 之内;extra_haystack 可塞入额外字符串(如该物料的全部 batch_no)
+    实现"代码/名称/厂家/货号/批号 多合一搜索框"。
     """
     if not keyword:
         return True
@@ -278,7 +278,7 @@ def fuzzy_match_material(m: Dict, keyword: str,
         return True
     parts = [
         normalize_text(m.get(field))
-        for field in ("material_code", "name_cn", "spec_model", "catalog_no")
+        for field in ("material_code", "name_cn", "spec_model", "catalog_no", "manufacturer")
     ]
     if extra_haystack:
         parts.extend(normalize_text(s) for s in extra_haystack)

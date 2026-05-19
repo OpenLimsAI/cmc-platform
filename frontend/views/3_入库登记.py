@@ -1,13 +1,15 @@
 """
 文件: frontend/views/3_入库登记.py
-用途: 入库登记 — 按"入库类型"分 4 个 tab(试剂/耗材/标准物质/色谱柱),
-       每个 tab 只显示该类型的物料 + 该类型对应的字段。
-v1.3:
-    - 顶部 st.tabs 切换 4 个类型; 每个 tab 物料下拉只含本类型
-    - 试剂 / 耗材: 显示当前总库存(参考)
-    - 标准物质: 加"浓度"字段
-    - 色谱柱: 加"序列号 / 内部编号 / 负责人"字段
-未分类(material_type IS NULL) 的物料不会出现在任何 tab; 需到物料管理设置类型。
+用途: 入库登记 — 4 个 tab(试剂/耗材/标准物质/色谱柱), 每个 tab 独立工作
+设计:
+    - 顶部 4 个 tab; tab 只决定"右侧显示和表单字段", 不参与物料筛选
+    - 每个 tab 下: 一个搜索框(代码/名称/厂家/货号模糊) + 一个下拉选物料
+    - 搜索范围 = 全部在用物料, 与当前 tab 无关
+    - tab 决定的展示:
+        试剂 / 耗材 → 绿色横条显示当前总库存(参考)
+        标准物质   → 表单加"浓度"
+        色谱柱     → 表单加"序列号 / 内部编号 / 负责人"
+    - 提交时按当前 tab 的字段写入 batch, 与物料自身的 material_type 无关
 """
 from __future__ import annotations
 
@@ -34,64 +36,44 @@ operator = _user["username"] if _user else ""
 st.caption(f"经办人(登录用户):**{operator}**")
 
 # 4 个 tab; 顺序: 试剂 → 耗材 → 标准物质 → 色谱柱
-TYPE_ORDER = ["reagent", "consumable", "standard", "column"]
+# 这里的 tab_type 只决定右侧显示和表单字段, 不参与物料筛选
+TAB_TYPES = ["reagent", "consumable", "standard", "column"]
 
 
-def _render_intake(mtype: str) -> None:
-    """渲染单个类型的入库登记区。所有 widget 和 session_state key 都按 mtype 命名,
-    避免 4 个 tab 之间状态串台。"""
-    type_label = MATERIAL_TYPE_LABELS[mtype]
+def _render_intake_tab(tab_type: str) -> None:
+    """渲染单个 tab 的入库内容。所有 widget / session_state key 按 tab_type 命名,
+    避免 4 个 tab 之间状态串台。
+    搜索范围 = 全部在用物料(不按 tab_type 过滤)。"""
 
-    # 物料筛选: 只显示当前类型
-    all_materials = get_materials(active_only=True)
-    materials = [m for m in all_materials if m.get("material_type") == mtype]
-
+    # 物料 = 全部在用物料, 不按 tab 类型过滤
+    materials = get_materials(active_only=True)
     if not materials:
-        st.warning(
-            f"还没有任何「{type_label}」类型的物料。\n\n"
-            f"请先到「物料管理」把目标物料的入库类型设为「{type_label}」。"
-        )
+        st.warning("还没有任何在用物料。请先到「物料管理」或「物料导入」录入物料。")
         return
 
-    # 此类型物料下实际出现的 category, 作为二级筛选
-    type_cats = sorted({m.get("category") for m in materials if m.get("category")})
-
-    c1, c2 = st.columns([1, 3])
-    with c1:
-        cat = st.selectbox(
-            "分类筛选", ["(全部)"] + list(type_cats),
-            key=f"cat_{mtype}",
-        )
-    with c2:
-        keyword = st.text_input(
-            "代码 / 名称 关键字", "",
-            key=f"kw_{mtype}",
-        )
-
-    filtered = [
-        m for m in materials
-        if (cat == "(全部)" or m.get("category") == cat)
-           and fuzzy_match_material(m, keyword)
-    ]
+    keyword = st.text_input(
+        "搜索物料(代码 / 名称 / 厂家 / 货号, 支持模糊)", "",
+        key=f"kw_{tab_type}",
+        placeholder="留空显示全部",
+    )
+    filtered = [m for m in materials if fuzzy_match_material(m, keyword)]
 
     if not filtered:
-        st.warning("当前筛选条件下没有匹配的物料,调整筛选试试。")
+        st.warning("没有匹配的物料,换个关键字试试。")
         return
 
     opt_map = {material_label(m): m for m in filtered}
-    sel = st.selectbox("选择物料", list(opt_map.keys()), key=f"sel_mat_{mtype}")
+    sel = st.selectbox(
+        f"选择物料(共 {len(filtered)} 条)", list(opt_map.keys()),
+        key=f"sel_mat_{tab_type}",
+    )
     mat = opt_map[sel]
     mat_id = mat["material_id"]
 
-    st.info(
-        f"**{mat['material_code']} {mat['name_cn']}** | 单位: `{mat['unit']}` | "
-        f"规格: {mat.get('spec_model') or '-'} | 厂家: {mat.get('manufacturer') or '-'} | "
-        f"货号: {mat.get('catalog_no') or '-'} | 级别: {mat.get('grade') or '-'}"
-    )
     render_hazard_badges(mat.get("hazard_class"))
 
-    # 试剂 / 耗材: 显示当前总库存
-    if mtype in ("reagent", "consumable"):
+    # 试剂 / 耗材 tab: 显示该物料当前总库存(参考)
+    if tab_type in ("reagent", "consumable"):
         try:
             stock_rows = api_get(
                 "/api/stock/by-material",
@@ -124,16 +106,16 @@ def _render_intake(mtype: str) -> None:
     grouped = locations_grouped(locs)
     rooms_sorted = sorted(grouped.keys())
 
-    # 多位置行: 切换物料时重置
-    mat_key = f"__in_for_mat_{mtype}__"
-    rows_key = f"in_loc_rows_{mtype}"
+    # 多位置行: 切换物料(或切换 tab)时重置
+    mat_key = f"__in_for_mat_{tab_type}__"
+    rows_key = f"in_loc_rows_{tab_type}"
     if st.session_state.get(mat_key) != mat_id:
         st.session_state[mat_key] = mat_id
         st.session_state[rows_key] = [{"rid": str(uuid.uuid4())}]
 
     st.markdown("##### 存放位置(可多行 — 同批号在不同位置各自计数)")
 
-    remove_idx = None  # 推迟删除,避免循环中改变列表
+    remove_idx = None  # 推迟删除, 避免循环中改变列表
     for idx, row in enumerate(st.session_state[rows_key]):
         rid = row["rid"]
         cols = st.columns([2, 2, 2, 2, 1, 1])
@@ -185,70 +167,69 @@ def _render_intake(mtype: str) -> None:
         st.session_state[rows_key].pop(remove_idx)
         st.rerun()
 
-    # ── 全局字段(批号/日期/效期/备注 + 类型特定) ─────────────────────
-    with st.form(f"in_form_{mtype}", clear_on_submit=False):
+    # ── 全局字段(批号/日期/效期/备注 + 按 tab_type 的专属) ─────────────
+    with st.form(f"in_form_{tab_type}", clear_on_submit=False):
         col1, col2 = st.columns(2)
         with col1:
             batch_no = st.text_input(
-                "供应商批号 *", max_chars=100, key=f"in_bno_{mtype}",
+                "供应商批号 *", max_chars=100, key=f"in_bno_{tab_type}",
             )
             received = st.date_input(
-                "到货日期 *", value=date.today(), key=f"in_rec_{mtype}",
+                "到货日期 *", value=date.today(), key=f"in_rec_{tab_type}",
             )
         with col2:
             has_expiry = st.checkbox(
-                "此批次有效期", value=True, key=f"in_he_{mtype}",
+                "此批次有效期", value=True, key=f"in_he_{tab_type}",
             )
             expiry = st.date_input(
-                "效期", value=date.today(), key=f"in_exp_{mtype}",
+                "效期", value=date.today(), key=f"in_exp_{tab_type}",
             ) if has_expiry else None
             remark = st.text_area(
-                "备注", max_chars=500, height=80, key=f"in_rmk_{mtype}",
+                "备注", max_chars=500, height=80, key=f"in_rmk_{tab_type}",
             )
 
-        # 类型特定字段
+        # 按 tab 决定专属字段
         type_extras = {
             "concentration": None,
             "serial_no": None,
             "asset_no": None,
             "responsible_person": None,
         }
-        if mtype == "standard":
+        if tab_type == "standard":
             st.markdown("##### 标准物质专属字段")
             _v = st.text_input(
                 "浓度", max_chars=50, help="例如 10 mg/mL",
-                key=f"in_conc_{mtype}",
+                key=f"in_conc_{tab_type}",
             )
             type_extras["concentration"] = (_v or "").strip() or None
-        elif mtype == "column":
+        elif tab_type == "column":
             st.markdown("##### 色谱柱专属字段")
             cc1, cc2, cc3 = st.columns(3)
             with cc1:
                 type_extras["serial_no"] = (
                     st.text_input(
                         "序列号", max_chars=100, help="厂家出厂序列号",
-                        key=f"in_sn_{mtype}",
+                        key=f"in_sn_{tab_type}",
                     ) or ""
                 ).strip() or None
             with cc2:
                 type_extras["asset_no"] = (
                     st.text_input(
                         "内部编号", max_chars=100, help="本实验室资产编号",
-                        key=f"in_an_{mtype}",
+                        key=f"in_an_{tab_type}",
                     ) or ""
                 ).strip() or None
             with cc3:
                 type_extras["responsible_person"] = (
                     st.text_input(
                         "负责人", max_chars=50,
-                        key=f"in_rp_{mtype}",
+                        key=f"in_rp_{tab_type}",
                     ) or ""
                 ).strip() or None
 
         submitted = st.form_submit_button("✅ 提交入库(全部位置)", type="primary")
 
     if submitted:
-        # 校验
         rows = st.session_state[rows_key]
         errors = []
         if not batch_no:
@@ -260,7 +241,7 @@ def _render_intake(mtype: str) -> None:
         seen_locs = set()
         for r in rows:
             if r["loc_id"] in seen_locs:
-                errors.append(f"位置 {r['loc_name']} 在表中重复出现,请合并或删除")
+                errors.append(f"位置 {r['loc_name']} 在表中重复出现, 请合并或删除")
                 break
             seen_locs.add(r["loc_id"])
 
@@ -318,10 +299,9 @@ def _render_intake(mtype: str) -> None:
 
             if fail_cnt == 0:
                 st.balloons()
-                # 清空位置行,准备下一次录入
                 st.session_state[rows_key] = [{"rid": str(uuid.uuid4())}]
             else:
-                st.warning(f"完成 {ok_cnt} 行,失败 {fail_cnt} 行;失败行未生效。")
+                st.warning(f"完成 {ok_cnt} 行, 失败 {fail_cnt} 行;失败行未生效。")
 
     # ── 该物料现有批次列表 ──────────────────────────────────────────
     st.markdown("---")
@@ -329,7 +309,7 @@ def _render_intake(mtype: str) -> None:
     try:
         cur = api_get("/api/batches", params={"material_id": mat_id}) or []
         if cur:
-            cols_for_type = [
+            rows_table = [
                 {
                     "批次ID": b["batch_id"],
                     "批号": b["batch_no"],
@@ -341,16 +321,16 @@ def _render_intake(mtype: str) -> None:
                 }
                 for b in cur
             ]
-            # 类型特定列追加显示
-            if mtype == "standard":
-                for col, b in zip(cols_for_type, cur):
+            # 当前 tab 专属列追加显示
+            if tab_type == "standard":
+                for col, b in zip(rows_table, cur):
                     col["浓度"] = b.get("concentration") or "-"
-            elif mtype == "column":
-                for col, b in zip(cols_for_type, cur):
+            elif tab_type == "column":
+                for col, b in zip(rows_table, cur):
                     col["序列号"] = b.get("serial_no") or "-"
                     col["内部编号"] = b.get("asset_no") or "-"
                     col["负责人"] = b.get("responsible_person") or "-"
-            st.dataframe(pd.DataFrame(cols_for_type),
+            st.dataframe(pd.DataFrame(rows_table),
                          use_container_width=True, height=260)
         else:
             st.caption("该物料暂无批次")
@@ -359,7 +339,7 @@ def _render_intake(mtype: str) -> None:
 
 
 # 渲染 4 个 tab
-tabs = st.tabs([MATERIAL_TYPE_LABELS[t] for t in TYPE_ORDER])
-for mtype, tab in zip(TYPE_ORDER, tabs):
+tabs = st.tabs([MATERIAL_TYPE_LABELS[t] for t in TAB_TYPES])
+for tab_type, tab in zip(TAB_TYPES, tabs):
     with tab:
-        _render_intake(mtype)
+        _render_intake_tab(tab_type)
