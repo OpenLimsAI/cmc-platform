@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,15 @@ from schemas import (
 )
 
 router = APIRouter(prefix="/api", tags=["admin"])
+
+
+def _active_admin_count(db: Session) -> int:
+    return int(db.execute(
+        select(func.count()).select_from(AppUser).where(
+            AppUser.role == "admin",
+            AppUser.is_active.is_(True),
+        )
+    ).scalar_one())
 
 
 # ---------------------------------------------------------------------------
@@ -91,9 +100,19 @@ def update_user(
         raise HTTPException(status_code=404, detail="用户不存在")
     if target.id == current.id and payload.is_active is False:
         raise HTTPException(status_code=400, detail="不能停用自己当前登录的账号")
-    if target.username == "admin" and payload.role == "user" and current.id == target.id:
-        # 防止把自己从 admin 降级导致没人能管
+    if target.id == current.id and payload.role is not None and payload.role != "admin":
         raise HTTPException(status_code=400, detail="不能把自己从 admin 降级")
+
+    will_stop_being_active_admin = (
+        target.role == "admin"
+        and target.is_active
+        and (
+            (payload.role is not None and payload.role != "admin")
+            or payload.is_active is False
+        )
+    )
+    if will_stop_being_active_admin and _active_admin_count(db) <= 1:
+        raise HTTPException(status_code=400, detail="至少需要保留一个启用的 admin")
 
     before = {
         "username": target.username,

@@ -136,7 +136,7 @@ def create_material(db: Session, data: dict) -> Material:
         import_batch_id=None,  # 手工录入,不挂导入批次
     )
     db.add(obj)
-    db.commit()
+    db.flush()
     db.refresh(obj)
     return obj
 
@@ -157,7 +157,7 @@ def update_material(db: Session, material_id: int, data: dict) -> Optional[Mater
 
     for k, v in data.items():
         setattr(obj, k, v)
-    db.commit()
+    db.flush()
     db.refresh(obj)
     return obj
 
@@ -173,7 +173,7 @@ def deactivate_material(
     obj.deactivated_at = func.now()
     obj.deactivated_by = operator
     obj.deactivate_reason = reason
-    db.commit()
+    db.flush()
     db.refresh(obj)
     return obj
 
@@ -186,7 +186,7 @@ def activate_material(db: Session, material_id: int) -> Optional[Material]:
     obj.deactivated_at = None
     obj.deactivated_by = None
     obj.deactivate_reason = None
-    db.commit()
+    db.flush()
     db.refresh(obj)
     return obj
 
@@ -209,7 +209,7 @@ def upsert_units(db: Session, units: List[str]) -> None:
             continue
         if not db.get(UnitDict, u):
             db.add(UnitDict(unit=u, description=u))
-    db.commit()
+    db.flush()
 
 
 def upsert_categories(db: Session, categories: List[str]) -> None:
@@ -218,7 +218,7 @@ def upsert_categories(db: Session, categories: List[str]) -> None:
             continue
         if not db.get(CategoryDict, c):
             db.add(CategoryDict(category=c))
-    db.commit()
+    db.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +242,7 @@ def create_location(
         remark=remark,
     )
     db.add(obj)
-    db.commit()
+    db.flush()
     db.refresh(obj)
     return obj
 
@@ -378,7 +378,7 @@ def create_batch_with_initial_in(
         remark="批次创建-首次入库",
     )
     db.add(txn)
-    db.commit()
+    db.flush()
     db.refresh(b)
     return b
 
@@ -392,7 +392,7 @@ def add_in(db: Session, batch_id: int, qty: Decimal, txn_date, operator: str, re
         operator=operator, remark=remark,
     )
     db.add(txn)
-    db.commit()
+    db.flush()
     db.refresh(txn)
     return txn
 
@@ -407,7 +407,7 @@ def add_out(
         operator=operator, purpose=purpose, remark=remark,
     )
     db.add(txn)
-    db.commit()
+    db.flush()
     db.refresh(txn)
     return txn
 
@@ -421,7 +421,7 @@ def add_adjust(
         operator=operator, remark=remark,
     )
     db.add(txn)
-    db.commit()
+    db.flush()
     db.refresh(txn)
     return txn
 
@@ -478,7 +478,7 @@ def transfer_batch(
     )
     db.add(src_txn)
     db.add(dest_txn)
-    db.commit()
+    db.flush()
     db.refresh(src_txn); db.refresh(dest_txn); db.refresh(dest)
     return src_txn, dest_txn, dest
 

@@ -92,7 +92,7 @@ def health():
 # auth_router 不挂默认鉴权(登录是匿名),它内部各 endpoint 自己控制
 app.include_router(auth_router.router)
 
-# 业务路由统一要求登录 + 已通过强制改密;具体写操作再叠加 require_admin
+# 业务路由统一要求登录 + 已通过强制改密;具体写操作再叠加角色守卫
 _AUTHED_DEPS = [Depends(get_current_user), Depends(require_password_not_pending)]
 app.include_router(material.router,    dependencies=_AUTHED_DEPS)
 app.include_router(batch.router,       dependencies=_AUTHED_DEPS)

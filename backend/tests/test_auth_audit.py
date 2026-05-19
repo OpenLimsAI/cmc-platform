@@ -91,6 +91,47 @@ def test_admin_create_material_writes_audit(client, db):
     assert rows[0][2] == "material"
 
 
+def test_material_create_rolls_back_when_audit_fails(db, monkeypatch):
+    """审计写入失败时,物料也不应落库。"""
+    from fastapi.testclient import TestClient
+    from main import app
+    from database import get_db
+    import routers.material as material_router
+
+    def _override():
+        try:
+            yield db
+        finally:
+            pass
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("audit failed")
+
+    app.dependency_overrides[get_db] = _override
+    try:
+        with TestClient(app, raise_server_exceptions=False) as c:
+            resp = c.post("/api/auth/login", json={
+                "username": "testadmin", "password": "test_pwd_123",
+            })
+            assert resp.status_code == 200
+            token = resp.json()["access_token"]
+            monkeypatch.setattr(material_router, "write_audit", _boom)
+
+            resp = c.post(
+                "/api/materials",
+                json={"material_code": "AUDITFAIL", "name_cn": "不应保存", "unit": "支"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert resp.status_code == 500
+    finally:
+        app.dependency_overrides.clear()
+
+    row = db.execute(text(
+        "SELECT 1 FROM material WHERE material_code='AUDITFAIL'"
+    )).first()
+    assert row is None
+
+
 def test_inventory_in_uses_login_user_as_operator(client, db, seed_material):
     """创建批次 + 入库 → inventory_txn.operator 应是 testadmin,不是 client 传的字段。"""
     mid, _code, loc = seed_material
@@ -109,6 +150,39 @@ def test_inventory_in_uses_login_user_as_operator(client, db, seed_material):
         "SELECT operator FROM inventory_txn WHERE qty=10 ORDER BY txn_id DESC LIMIT 1"
     )).scalar()
     assert op == "testadmin"
+
+
+def test_cannot_remove_last_active_admin(client, db):
+    """最后一个启用的 admin 不能被降级。"""
+    admin_id = db.execute(text(
+        "SELECT id FROM app_user WHERE username='testadmin'"
+    )).scalar_one()
+
+    resp = client.patch(f"/api/users/{admin_id}", json={"role": "warehouse_admin"})
+    assert resp.status_code == 400
+    assert "admin" in resp.json()["detail"]
+
+
+def test_admin_cannot_demote_self_even_with_other_admin(client, db):
+    """即使还有其他 admin,当前登录 admin 也不能把自己降级。"""
+    from auth import hash_password
+    from models import AppUser
+
+    db.add(AppUser(
+        username="other_admin",
+        password_hash=hash_password("other_pwd_123"),
+        role="admin",
+        is_active=True,
+        must_change_password=False,
+    ))
+    db.commit()
+
+    admin_id = db.execute(text(
+        "SELECT id FROM app_user WHERE username='testadmin'"
+    )).scalar_one()
+    resp = client.patch(f"/api/users/{admin_id}", json={"role": "warehouse_admin"})
+    assert resp.status_code == 400
+    assert "自己" in resp.json()["detail"]
 
 
 # ---------------------------------------------------------------------------

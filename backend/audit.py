@@ -4,7 +4,7 @@
 原则:
     - 调用方提供 before / after dict;helper 自动 sanitize 敏感字段
     - 与业务事务**同 session**,业务回滚的话审计也回滚(避免假记录)
-    - 写入失败不应让业务接口 500;仅 log.exception
+    - 写入失败应阻止业务提交,避免出现"业务已变更但日志缺失"
 """
 from __future__ import annotations
 
@@ -101,6 +101,6 @@ def write_audit(
         if flush:
             db.flush()
     except Exception:
-        # 审计失败不应阻塞业务;但要记 log
         log.exception("审计日志写入失败 action=%s entity=%s/%s",
                       action, entity_type, entity_id)
+        raise

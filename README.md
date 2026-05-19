@@ -16,7 +16,7 @@
 4. 实时库存统计(按物料、按批次、按位置)
 5. **低库存预警**(对比安全库存)+ **效期预警**(30/90 天分级)
 6. 物料**软删除**(停用),保证历史数据可追溯
-7. 多用户 + 角色控制(admin / user),所有写操作落 **audit_log**
+7. 多用户 + 角色控制(admin / warehouse_admin / user),所有写操作落 **audit_log**
 8. **危化品分类标识**(危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品,多选)在物料卡 + 入库页醒目展示
 
 **明确不做(当前阶段范围外)**:申购审批流、CoA 文件管理、质量状态管理、供应商管理、GMP 合规审计追踪(电子签名)、报表看板、ERP/LIMS 对接。
@@ -101,6 +101,7 @@ cmc-inventory/
 | `material_id` | SERIAL PK | 物料内部主键 |
 | `material_code` | VARCHAR(20) NOT NULL | 物料代码,**保留前导 0**;除 `TT内部物料` 外唯一 |
 | `category` | VARCHAR(50) | 分类(如"一般耗材"),来自导入文件 |
+| `material_type` | VARCHAR(20) | 入库大类:reagent / consumable / standard / column |
 | `name_cn` | VARCHAR(200) NOT NULL | 物料名称(中文) |
 | `grade` | VARCHAR(50) | 级别(N/A 转 NULL) |
 | `manufacturer` | VARCHAR(100) | 生产商 |
@@ -130,6 +131,12 @@ cmc-inventory/
 | `received_date` | DATE NOT NULL | 到货日期 |
 | `initial_qty` | NUMERIC(12,2) NOT NULL | 入库数量 |
 | `remark` | TEXT | |
+| `intake_type` | VARCHAR(20) | 本批次入库时所在大类 |
+| `concentration` | VARCHAR(50) | 标准物质浓度 |
+| `extinction_coefficient` | NUMERIC(12,2) | 标准物质消光系数 |
+| `serial_no` | VARCHAR(100) | 色谱柱序列号 |
+| `asset_no` | VARCHAR(100) | 色谱柱内部编号/资产编号 |
+| `responsible_person` | VARCHAR(50) | 色谱柱负责人 |
 | `created_at` | TIMESTAMP | |
 
 **唯一约束**: `(material_id, batch_no, location_id)` 联合唯一。同一物料同一批号允许分散在多个位置上独立计数。
@@ -202,7 +209,7 @@ cmc-inventory/
 | `id` | SERIAL PK | |
 | `username` | VARCHAR(50) UNIQUE | 登录名 |
 | `password_hash` | VARCHAR(255) | bcrypt hash |
-| `role` | VARCHAR(20) | `admin` / `user` |
+| `role` | VARCHAR(20) | `admin` / `warehouse_admin` / `user` |
 | `is_active` | BOOLEAN | 是否启用 |
 | `must_change_password` | BOOLEAN | 是否要求下次登录改密 |
 | `created_at` / `last_login_at` | TIMESTAMP | 创建 / 最近登录时间 |
@@ -318,7 +325,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 ### 6.2 物料管理页
 - 检索栏: 分类筛选 + 名称/编码模糊搜索 + "查看已停用"开关
 - 物料列表(表格)
-- 管理员可新增/编辑物料,维护安全库存和危化品分类
+- 管理员和库管理员可新增/编辑物料,维护安全库存和危化品分类
 - 行内操作: 编辑、停用/启用
 - 停用时弹窗输入原因
 
@@ -374,16 +381,18 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 
 ## 七、API 设计(FastAPI)
 
+默认情况下,查询接口要求已登录;物料、批次、出入库、移库、导入、位置新增等业务写操作要求 `admin` 或 `warehouse_admin`;用户管理和审计日志只允许 `admin`。
+
 ### 7.1 物料相关 `/api/materials`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/materials` | 查询(支持 `category`、`keyword`、`include_inactive`、`is_active` 过滤) |
-| POST | `/api/materials` | 新增物料(admin) |
+| POST | `/api/materials` | 新增物料(admin / warehouse_admin) |
 | GET | `/api/materials/{material_id}` | 详情 |
-| PATCH | `/api/materials/{material_id}` | 更新(admin) |
-| POST | `/api/materials/{material_id}/deactivate` | 停用(admin,body: reason) |
-| POST | `/api/materials/{material_id}/activate` | 启用(admin) |
+| PATCH | `/api/materials/{material_id}` | 更新(admin / warehouse_admin) |
+| POST | `/api/materials/{material_id}/deactivate` | 停用(admin / warehouse_admin,body: reason) |
+| POST | `/api/materials/{material_id}/activate` | 启用(admin / warehouse_admin) |
 | GET | `/api/categories` | 分类字典 |
 | GET | `/api/units` | 单位字典 |
 
@@ -467,6 +476,7 @@ BACKEND_PORT=8000
 FRONTEND_PORT=8501
 DATABASE_URL=postgresql://cmc_user:<your-password>@127.0.0.1:5432/cmc_data_platform
 API_BASE_URL=http://localhost:8000
+ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin
 ```
 
 > systemd 用 `EnvironmentFile=` 直接加载本文件,**KEY=VALUE 之间不能有空格,不要加引号**。

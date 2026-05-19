@@ -2,7 +2,7 @@
 文件: backend/routers/inventory.py
 用途: 出入库流水 API
 权限:
-    - 写操作要求 admin
+    - 写操作要求 admin 或 warehouse_admin
     - operator 自动取登录用户
     - 触发 audit_log
 """

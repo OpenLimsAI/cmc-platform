@@ -214,82 +214,96 @@ def commit(
     db.flush()
     import_id = log.import_id
 
-    # 2) 收集需要的新分类 / 新单位
-    new_categories: set = set()
-    new_units: set = set()
-    for r in payload.rows:
-        if c := r.get("category"):
-            new_categories.add(c)
-        if u := r.get("unit"):
-            new_units.add(u)
-
-    # 自动追加分类
-    if new_categories:
-        crud.upsert_categories(db, list(new_categories))
-    # 单位:按配置决定是否自动追加
-    if payload.auto_create_units and new_units:
-        crud.upsert_units(db, list(new_units))
-
-    # 3) 逐行 UPSERT
+    # 2) 逐行 UPSERT
+    #    分类 / 单位只随成功行一起落库;失败行不污染字典。
     inserted = updated = failed = 0
     errors: List[Dict[str, Any]] = []
 
     existing_units = set(db.execute(select(UnitDict.unit)).scalars().all())
+    existing_categories = set(db.execute(select(CategoryDict.category)).scalars().all())
+    seen_codes: set = set()
 
     for r in payload.rows:
         try:
             code = r.get("material_code")
             name = r.get("name_cn")
             unit = r.get("unit")
+            category = r.get("category")
             if not code or not name or not unit:
                 raise ValueError("代码 / 物料名称 / 单位 为必填")
-            if unit not in existing_units:
-                raise ValueError(f"单位 '{unit}' 不在字典中")
+            if code != TT_INTERNAL_CODE and code in seen_codes:
+                raise ValueError(f"代码 {code} 在提交数据中重复")
 
-            # TT 保留 code 一律新增;其余 code 按 code 找已有再决定 INSERT/UPDATE
-            obj = None
+            created_unit = False
+            created_category = False
+
+            with db.begin_nested():
+                if unit not in existing_units:
+                    if not payload.auto_create_units:
+                        raise ValueError(f"单位 '{unit}' 不在字典中")
+                    db.add(UnitDict(unit=unit, description=unit))
+                    created_unit = True
+
+                if category and category not in existing_categories:
+                    db.add(CategoryDict(category=category))
+                    created_category = True
+
+                # TT 保留 code 一律新增;其余 code 按 code 找已有再决定 INSERT/UPDATE
+                obj = None
+                is_update = False
+                if code != TT_INTERNAL_CODE:
+                    obj = crud.get_material_by_code(db, code)
+
+                if obj:
+                    is_update = True
+                    # UPDATE — 只覆盖文件中提供的字段(safety_stock/is_active/hazard_class
+                    # 不在导入范围,需在前端单独维护)
+                    for f in ("category", "name_cn", "grade", "manufacturer",
+                              "spec_model", "catalog_no", "unit", "package_spec", "remark"):
+                        if f in r:
+                            setattr(obj, f, r.get(f))
+                    obj.import_batch_id = import_id
+                else:
+                    # INSERT
+                    obj = Material(
+                        material_code=code,
+                        category=category,
+                        name_cn=name,
+                        grade=r.get("grade"),
+                        manufacturer=r.get("manufacturer"),
+                        spec_model=r.get("spec_model"),
+                        catalog_no=r.get("catalog_no"),
+                        unit=unit,
+                        package_spec=r.get("package_spec"),
+                        remark=r.get("remark"),
+                        safety_stock=Decimal("0"),
+                        is_active=True,
+                        import_batch_id=import_id,
+                    )
+                    db.add(obj)
+                db.flush()
+
+            if created_unit:
+                existing_units.add(unit)
+            if created_category:
+                existing_categories.add(category)
             if code != TT_INTERNAL_CODE:
-                obj = crud.get_material_by_code(db, code)
-
-            if obj:
-                # UPDATE — 只覆盖文件中提供的字段(safety_stock/is_active/hazard_class
-                # 不在导入范围,需在前端单独维护)
-                for f in ("category", "name_cn", "grade", "manufacturer",
-                          "spec_model", "catalog_no", "unit", "package_spec", "remark"):
-                    if f in r:
-                        setattr(obj, f, r.get(f))
-                obj.import_batch_id = import_id
+                seen_codes.add(code)
+            if is_update:
                 updated += 1
             else:
-                # INSERT
-                obj = Material(
-                    material_code=code,
-                    category=r.get("category"),
-                    name_cn=name,
-                    grade=r.get("grade"),
-                    manufacturer=r.get("manufacturer"),
-                    spec_model=r.get("spec_model"),
-                    catalog_no=r.get("catalog_no"),
-                    unit=unit,
-                    package_spec=r.get("package_spec"),
-                    remark=r.get("remark"),
-                    safety_stock=Decimal("0"),
-                    is_active=True,
-                    import_batch_id=import_id,
-                )
-                db.add(obj)
                 inserted += 1
         except Exception as e:
             failed += 1
             errors.append({"row": r, "error": str(e)})
 
-    # 4) 更新 import_log 统计
+    # 3) 更新 import_log 统计
     log.inserted_rows = inserted
     log.updated_rows = updated
     log.failed_rows = failed
     log.error_detail = {"errors": errors} if errors else None
 
-    # 5) 审计:批量写一条 import.commit
+    # 4) 审计:批量写一条 import.commit
     write_audit(
         db, current, "import.commit",
         entity_type="import_log", entity_id=import_id,
