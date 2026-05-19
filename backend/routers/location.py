@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import crud
-from audit import model_snapshot, write_audit
+from audit import get_request_ip, model_snapshot, write_audit
 from auth import require_admin
 from database import get_db
 from models import AppUser
@@ -54,7 +54,7 @@ def create_location(
         db, current, "location.create",
         entity_type="location", entity_id=obj.location_id,
         before=None, after=model_snapshot(obj),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return obj

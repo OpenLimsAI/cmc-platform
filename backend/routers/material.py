@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 import crud
-from audit import model_snapshot, write_audit
+from audit import get_request_ip, model_snapshot, write_audit
 from auth import require_admin
 from database import get_db
 from models import AppUser
@@ -65,7 +65,7 @@ def create_material(
         db, current, "material.create",
         entity_type="material", entity_id=obj.material_id,
         before=None, after=model_snapshot(obj),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return obj
@@ -98,7 +98,7 @@ def update_material(
         db, current, "material.update",
         entity_type="material", entity_id=material_id,
         before=before, after=model_snapshot(obj),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return obj
@@ -123,7 +123,7 @@ def deactivate(
         db, current, "material.deactivate",
         entity_type="material", entity_id=material_id,
         before=before, after=model_snapshot(obj),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return obj
@@ -147,7 +147,7 @@ def activate(
         db, current, "material.activate",
         entity_type="material", entity_id=material_id,
         before=before, after=model_snapshot(obj),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return obj

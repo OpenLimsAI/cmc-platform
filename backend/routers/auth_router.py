@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from audit import get_request_ip, write_audit
 from auth import (
     get_current_user,
     hash_password,
@@ -40,19 +41,35 @@ router = APIRouter(prefix="/api", tags=["auth"])
 @router.post("/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """用户名密码登录,返回 token。"""
+    source_ip = get_request_ip(request)
     user = db.execute(
         select(AppUser).where(AppUser.username == payload.username)
     ).scalar_one_or_none()
 
     # 用户不存在 / 密码不对 → 同样的错误信息,避免账号枚举
     if not user or not verify_password(payload.password, user.password_hash):
+        write_audit(
+            db, user=None, action="auth.login_failed",
+            fallback_username=payload.username,
+            source_ip=source_ip,
+        )
+        db.commit()
         raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     if not user.is_active:
+        write_audit(
+            db, user=user, action="auth.login_blocked",
+            source_ip=source_ip,
+        )
+        db.commit()
         raise HTTPException(status_code=403, detail="账号已停用,请联系管理员")
 
-    source_ip = request.client.host if request.client else None
     sess = issue_session(db, user, source_ip=source_ip)
+    write_audit(
+        db, user=user, action="auth.login",
+        source_ip=source_ip, flush=False,
+    )
+    db.commit()
 
     return TokenResponse(
         access_token=sess.token,
@@ -63,6 +80,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 
 @router.post("/auth/logout", status_code=204)
 def logout(
+    request: Request,
     current: AppUser = Depends(get_current_user),
     db: Session = Depends(get_db),
     authorization: Optional[str] = None,
@@ -72,6 +90,10 @@ def logout(
     简化做法:从 user 角度,撤销其所有 session(等价于"在所有设备上登出")。
     多设备需求小,先这样;后续再做单 session 撤销。
     """
+    write_audit(
+        db, user=current, action="auth.logout",
+        source_ip=get_request_ip(request),
+    )
     revoke_all_user_sessions(db, current.id)
 
 
@@ -83,6 +105,7 @@ def me(current: AppUser = Depends(get_current_user)):
 @router.post("/auth/change-password", response_model=UserOut)
 def change_password(
     payload: ChangePasswordRequest,
+    request: Request,
     current: AppUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -93,6 +116,10 @@ def change_password(
 
     current.password_hash = hash_password(payload.new_password)
     current.must_change_password = False
+    write_audit(
+        db, user=current, action="auth.password_change",
+        source_ip=get_request_ip(request),
+    )
     db.commit()
     # 改密后撤销其他 session,但保留当前(刚刚 commit 的 token 还有效)。
     # 简化:把所有 session 都撤销,前端用返回值重新登录即可。

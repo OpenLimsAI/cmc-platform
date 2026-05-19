@@ -47,9 +47,43 @@ class AuthError(APIError):
     """401:未登录或会话过期。auth_helper 捕获后跳登录。"""
 
 
-def _auth_headers() -> Dict[str, str]:
+def _client_ip() -> Optional[str]:
+    """获取浏览器真实 IP, 失败返回 None。
+    后端只看 127.0.0.1 (因为请求经 streamlit 中转), 所以这里把浏览器真实 IP
+    塞到 X-Client-IP 头里带给后端, 用于审计日志。Streamlit 没有公开 API 直
+    接拿到, 这里 best-effort 多路尝试。
+    """
+    try:
+        headers = st.context.headers
+        xff = headers.get("X-Forwarded-For") if headers else None
+        if xff:
+            return xff.split(",")[0].strip()
+    except Exception:
+        pass
+    try:
+        # 私有 API: 从 tornado 的 WebSocket request 拿 remote_ip
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        from streamlit.runtime import get_instance
+        ctx = get_script_run_ctx()
+        if ctx:
+            si = get_instance()._session_mgr.get_session_info(ctx.session_id)
+            if si and si.client and hasattr(si.client, "request"):
+                return si.client.request.remote_ip
+    except Exception:
+        pass
+    return None
+
+
+def _request_headers() -> Dict[str, str]:
+    """所有 api_* 共用: 鉴权 token + 浏览器真实 IP。"""
+    h: Dict[str, str] = {}
     token = st.session_state.get("auth_token")
-    return {"Authorization": f"Bearer {token}"} if token else {}
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    ip = _client_ip()
+    if ip:
+        h["X-Client-IP"] = ip
+    return h
 
 
 def _handle(resp: requests.Response) -> Any:
@@ -76,7 +110,7 @@ def _handle(resp: requests.Response) -> Any:
 def api_get(path: str, params: Optional[dict] = None) -> Any:
     return _handle(requests.get(
         f"{API_BASE_URL}{path}", params=params, timeout=TIMEOUT,
-        headers=_auth_headers(),
+        headers=_request_headers(),
     ))
 
 
@@ -84,14 +118,14 @@ def api_post(path: str, json: Optional[dict] = None, files: Optional[dict] = Non
              data: Optional[dict] = None) -> Any:
     return _handle(requests.post(
         f"{API_BASE_URL}{path}", json=json, files=files, data=data, timeout=TIMEOUT,
-        headers=_auth_headers(),
+        headers=_request_headers(),
     ))
 
 
 def api_patch(path: str, json: Optional[dict] = None) -> Any:
     return _handle(requests.patch(
         f"{API_BASE_URL}{path}", json=json, timeout=TIMEOUT,
-        headers=_auth_headers(),
+        headers=_request_headers(),
     ))
 
 

@@ -13,6 +13,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
+from fastapi import Request
 from sqlalchemy.orm import Session
 
 from models import AppUser, AuditLog
@@ -51,6 +52,23 @@ def model_snapshot(obj) -> dict:
     return _to_jsonable(obj) or {}
 
 
+def get_request_ip(request: Request) -> Optional[str]:
+    """取请求方的真实 IP。
+    后端只听 127.0.0.1,真实流量都被 streamlit 中转一道,request.client.host
+    永远是 127.0.0.1。所以前端会在每个 API 调用上塞 X-Client-IP, 这里优先读它。
+    """
+    # 1) 前端 streamlit 显式中转的真实 IP (内网直连场景, 这是当前主路径)
+    ip = request.headers.get("X-Client-IP")
+    if ip:
+        return ip.strip()
+    # 2) 反向代理标准头 (将来加 nginx 时, 第一个是最初客户端)
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    # 3) 兜底: 直连源 (没经过中转 / 测试 / curl 直击后端)
+    return request.client.host if request.client else None
+
+
 def write_audit(
     db: Session,
     user: Optional[AppUser],
@@ -60,16 +78,18 @@ def write_audit(
     before: Optional[dict] = None,
     after: Optional[dict] = None,
     source_ip: Optional[str] = None,
+    fallback_username: Optional[str] = None,
     flush: bool = True,
 ) -> None:
     """写一条审计日志。
     flush=True 时只 flush 不 commit,跟随业务事务一起 commit 才落盘
     (业务方一般在调用 helper 后再 db.commit())。
+    fallback_username: user=None 但仍想记尝试的用户名(如登录失败)时使用。
     """
     try:
         entry = AuditLog(
             user_id=user.id if user else None,
-            username=user.username if user else None,
+            username=user.username if user else fallback_username,
             action=action,
             entity_type=entity_type,
             entity_id=str(entity_id) if entity_id is not None else None,

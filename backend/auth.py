@@ -24,6 +24,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from audit import get_request_ip
 from database import get_db
 from models import AppUser, AuthSession
 
@@ -144,9 +145,11 @@ def get_current_user(
     db.commit()
 
     # 把 source_ip 在首次见到时记录(中途变化不动,用作粗略审计)
-    if not sess.source_ip and request.client:
-        sess.source_ip = request.client.host
-        db.commit()
+    if not sess.source_ip:
+        ip = get_request_ip(request)
+        if ip:
+            sess.source_ip = ip
+            db.commit()
 
     return user
 

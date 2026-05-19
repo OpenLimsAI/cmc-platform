@@ -14,7 +14,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from audit import model_snapshot, write_audit
+from audit import get_request_ip, model_snapshot, write_audit
 from auth import (
     hash_password,
     require_admin,
@@ -67,7 +67,7 @@ def create_user(
         entity_type="app_user", entity_id=obj.id,
         before=None,
         after={"username": obj.username, "role": obj.role, "must_change_password": True},
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     try:
         db.commit()
@@ -110,7 +110,7 @@ def update_user(
         entity_type="app_user", entity_id=user_id,
         before=before,
         after={"role": target.role, "is_active": target.is_active},
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     # 改了 role / is_active 后,踢掉该用户已有 session,强制重新登录加载新权限
@@ -142,7 +142,7 @@ def admin_reset_password(
             "username": target.username,
             "must_change_password": target.must_change_password,
         },
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     # 撤销该用户所有 session

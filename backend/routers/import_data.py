@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 import crud
-from audit import write_audit
+from audit import get_request_ip, write_audit
 from auth import require_admin
 from database import get_db
 from models import AppUser, Material, ImportLog, UnitDict, CategoryDict
@@ -301,7 +301,7 @@ def commit(
             "updated_rows": updated,
             "failed_rows": failed,
         },
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
 

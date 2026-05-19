@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 import crud
-from audit import model_snapshot, write_audit
+from audit import get_request_ip, model_snapshot, write_audit
 from auth import require_admin
 from database import get_db
 from models import AppUser
@@ -105,7 +105,7 @@ def create_batch(
         db, current, "batch.create",
         entity_type="batch", entity_id=batch.batch_id,
         before=None, after=model_snapshot(batch),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     qty = crud.get_batch_qty(db, batch.batch_id)

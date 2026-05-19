@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 import crud
-from audit import model_snapshot, write_audit
+from audit import get_request_ip, model_snapshot, write_audit
 from auth import require_admin
 from database import get_db
 from models import AppUser
@@ -48,7 +48,7 @@ def receive_in(
         db, current, "inventory.in",
         entity_type="inventory_txn", entity_id=txn.txn_id,
         before=None, after=model_snapshot(txn),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return _to_txn_out(db, txn)
@@ -79,7 +79,7 @@ def issue_out(
         db, current, "inventory.out",
         entity_type="inventory_txn", entity_id=txn.txn_id,
         before=None, after=model_snapshot(txn),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return _to_txn_out(db, txn)
@@ -109,7 +109,7 @@ def adjust(
         db, current, "inventory.adjust",
         entity_type="inventory_txn", entity_id=txn.txn_id,
         before=None, after=model_snapshot(txn),
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return _to_txn_out(db, txn)
@@ -149,7 +149,7 @@ def transfer(
             "source_txn_id": src_txn.txn_id,
             "dest_txn_id": dest_txn.txn_id,
         },
-        source_ip=request.client.host if request.client else None,
+        source_ip=get_request_ip(request),
     )
     db.commit()
     return [_to_txn_out(db, src_txn), _to_txn_out(db, dest_txn)]
