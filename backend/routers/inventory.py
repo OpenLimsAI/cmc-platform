@@ -164,7 +164,9 @@ def list_txns(
 ):
     rows = crud.list_txns(db, batch_id=batch_id, material_id=material_id, limit=limit)
     out = []
-    for txn, batch_no, mat_id, mat_code, mat_name, loc_name in rows:
+    for (txn, batch_no, concentration, extinction_coefficient,
+         serial_no, asset_no, responsible_person,
+         mat_id, mat_code, mat_name, loc_name) in rows:
         out.append({
             "txn_id": txn.txn_id,
             "batch_id": txn.batch_id,
@@ -180,6 +182,11 @@ def list_txns(
             "material_code": mat_code,
             "material_name": mat_name,
             "location_name": loc_name,
+            "concentration": concentration,
+            "extinction_coefficient": extinction_coefficient,
+            "serial_no": serial_no,
+            "asset_no": asset_no,
+            "responsible_person": responsible_person,
         })
     return out
 

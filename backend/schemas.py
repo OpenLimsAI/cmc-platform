@@ -158,11 +158,12 @@ class BatchBase(BaseModel):
     received_date: date
     initial_qty: Decimal
     remark: Optional[str] = None
-    # 类型特定字段(由前端入库表单按 material_type 条件填):
-    concentration: Optional[str] = None         # 标准物质
-    serial_no: Optional[str] = None             # 色谱柱
-    asset_no: Optional[str] = None              # 色谱柱 编号
-    responsible_person: Optional[str] = None    # 色谱柱
+    # 类型特定字段(由前端入库表单按 tab 条件填):
+    concentration: Optional[str] = None              # 标准物质
+    extinction_coefficient: Optional[str] = None     # 标准物质 消光系数
+    serial_no: Optional[str] = None                  # 色谱柱
+    asset_no: Optional[str] = None                   # 色谱柱 编号
+    responsible_person: Optional[str] = None         # 色谱柱
 
 
 class BatchCreate(BatchBase):
@@ -232,12 +233,18 @@ class TxnOut(ORMBase):
     purpose: Optional[str] = None
     remark: Optional[str] = None
     created_at: datetime
-    # 关联展示字段
+    # 关联展示字段(从 batch / material / location join 上来)
     batch_no: Optional[str] = None
     material_id: Optional[int] = None
     material_code: Optional[str] = None
     material_name: Optional[str] = None
     location_name: Optional[str] = None
+    # batch 上的类型特定字段, 入库页"出入库条目"表按 tab 显示对应列
+    concentration: Optional[str] = None
+    extinction_coefficient: Optional[str] = None
+    serial_no: Optional[str] = None
+    asset_no: Optional[str] = None
+    responsible_person: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

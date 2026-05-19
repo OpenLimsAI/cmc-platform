@@ -72,32 +72,43 @@ def _render_intake_tab(tab_type: str) -> None:
 
     render_hazard_badges(mat.get("hazard_class"))
 
-    # 试剂 / 耗材 tab: 显示该物料当前总库存(参考)
-    if tab_type in ("reagent", "consumable"):
-        try:
-            stock_rows = api_get(
-                "/api/stock/by-material",
-                params={
-                    "keyword": mat["material_code"],
-                    "only_positive": "false",
-                    "include_inactive": "true",
-                },
-            ) or []
-            cur_total = next(
-                (Decimal(str(r["total_qty"])) for r in stock_rows
-                 if r.get("material_id") == mat_id),
-                Decimal("0"),
-            )
-            st.success(
-                f"📊 当前总库存: **{cur_total} {mat['unit']}** "
-                f"(全部位置合计, 排除已过期批次)"
-            )
-        except APIError:
-            pass
+    # 当前总库存(参考); 4 个 tab 都显示
+    try:
+        stock_rows = api_get(
+            "/api/stock/by-material",
+            params={
+                "keyword": mat["material_code"],
+                "only_positive": "false",
+                "include_inactive": "true",
+            },
+        ) or []
+        cur_total = next(
+            (Decimal(str(r["total_qty"])) for r in stock_rows
+             if r.get("material_id") == mat_id),
+            Decimal("0"),
+        )
+        st.success(
+            f"📊 当前总库存: **{cur_total} {mat['unit']}** "
+            f"(全部位置合计, 排除已过期批次)"
+        )
+    except APIError:
+        pass
 
     # ── 入库表单 ──────────────────────────────────────────────────
     st.markdown("---")
     st.subheader("入库信息")
+
+    # 物料信息卡(选完物料展示在 入库信息 区域顶部)
+    with st.container(border=True):
+        st.markdown(
+            f"**📦 {mat['material_code']} · {mat['name_cn']}**  "
+            f"&nbsp;&nbsp;·&nbsp;&nbsp; 单位 `{mat['unit']}`"
+        )
+        info_cols = st.columns(4)
+        info_cols[0].markdown(f"**厂家**\n\n{mat.get('manufacturer') or '-'}")
+        info_cols[1].markdown(f"**货号**\n\n{mat.get('catalog_no') or '-'}")
+        info_cols[2].markdown(f"**级别**\n\n{mat.get('grade') or '-'}")
+        info_cols[3].markdown(f"**规格**\n\n{mat.get('spec_model') or '-'}")
 
     locs = get_locations()
     if not locs:
@@ -191,17 +202,27 @@ def _render_intake_tab(tab_type: str) -> None:
         # 按 tab 决定专属字段
         type_extras = {
             "concentration": None,
+            "extinction_coefficient": None,
             "serial_no": None,
             "asset_no": None,
             "responsible_person": None,
         }
         if tab_type == "standard":
             st.markdown("##### 标准物质专属字段")
-            _v = st.text_input(
-                "浓度", max_chars=50, help="例如 10 mg/mL",
-                key=f"in_conc_{tab_type}",
-            )
-            type_extras["concentration"] = (_v or "").strip() or None
+            scol1, scol2 = st.columns(2)
+            with scol1:
+                _v = st.text_input(
+                    "浓度", max_chars=50, help="例如 10 mg/mL",
+                    key=f"in_conc_{tab_type}",
+                )
+                type_extras["concentration"] = (_v or "").strip() or None
+            with scol2:
+                _ec = st.text_input(
+                    "消光系数", max_chars=50,
+                    help="ε, 例如 18400 M⁻¹cm⁻¹",
+                    key=f"in_ec_{tab_type}",
+                )
+                type_extras["extinction_coefficient"] = (_ec or "").strip() or None
         elif tab_type == "column":
             st.markdown("##### 色谱柱专属字段")
             cc1, cc2, cc3 = st.columns(3)
@@ -321,19 +342,56 @@ def _render_intake_tab(tab_type: str) -> None:
                 }
                 for b in cur
             ]
-            # 当前 tab 专属列追加显示
-            if tab_type == "standard":
-                for col, b in zip(rows_table, cur):
-                    col["浓度"] = b.get("concentration") or "-"
-            elif tab_type == "column":
-                for col, b in zip(rows_table, cur):
-                    col["序列号"] = b.get("serial_no") or "-"
-                    col["内部编号"] = b.get("asset_no") or "-"
-                    col["负责人"] = b.get("responsible_person") or "-"
             st.dataframe(pd.DataFrame(rows_table),
-                         use_container_width=True, height=260)
+                         use_container_width=True, height=240)
         else:
             st.caption("该物料暂无批次")
+    except APIError as e:
+        st.error(str(e))
+
+    # ── 该物料出入库条目(交易流水) ─────────────────────────────────
+    st.markdown("---")
+    st.subheader(f"📜 {mat['name_cn']} 的出入库条目")
+    try:
+        txns = api_get(
+            "/api/inventory/txns",
+            params={"material_id": mat_id, "limit": 200},
+        ) or []
+        if txns:
+            _TXN_TYPE_LABEL = {
+                "IN": "📥 入库",
+                "OUT": "📤 出库",
+                "ADJUST": "🧮 盘点调整",
+                "TRANSFER_IN": "🚚 移入",
+                "TRANSFER_OUT": "🚚 移出",
+            }
+            txn_rows = [
+                {
+                    "时间": t.get("txn_date"),
+                    "类型": _TXN_TYPE_LABEL.get(t.get("txn_type"), t.get("txn_type")),
+                    "数量": t.get("qty"),
+                    "批号": t.get("batch_no") or "-",
+                    "位置": t.get("location_name") or "-",
+                    "经办人": t.get("operator") or "-",
+                    "备注": t.get("remark") or "-",
+                }
+                for t in txns
+            ]
+            # 当前 tab 专属列追加显示
+            if tab_type == "standard":
+                for row, t in zip(txn_rows, txns):
+                    row["浓度"] = t.get("concentration") or "-"
+                    row["消光系数"] = t.get("extinction_coefficient") or "-"
+            elif tab_type == "column":
+                for row, t in zip(txn_rows, txns):
+                    row["序列号"] = t.get("serial_no") or "-"
+                    row["内部编号"] = t.get("asset_no") or "-"
+                    row["负责人"] = t.get("responsible_person") or "-"
+            st.dataframe(pd.DataFrame(txn_rows),
+                         use_container_width=True, height=300)
+            st.caption(f"显示最近 {len(txns)} 条;按时间倒序")
+        else:
+            st.caption("该物料暂无出入库记录")
     except APIError as e:
         st.error(str(e))
 
