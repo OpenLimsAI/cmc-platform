@@ -340,12 +340,14 @@ def create_batch_with_initial_in(
     responsible_person: Optional[str] = None,
 ) -> Batch:
     """新建批次并同步写入首笔入库 txn(IN)。
-    若 intake_type 提供, 且该物料的 material_type 当前还是 NULL,
-    顺手把物料分到该类型(已分类的不动, 避免覆盖管理员显式设置)。"""
-    # 自动回填 material.material_type
+    若 intake_type 提供, 与物料当前 material_type 不一致, 用 intake_type 覆盖。
+    理由: 老物料的 material_type 是按 category 初始映射的(可能不准, 比如
+    "一般耗材"里混着色谱柱); 用户在哪个 tab 入库, 那就是物料的真实分类。
+    每次入库都同步, 让物料类型与最近一次入库 tab 保持一致。"""
+    # 自动同步 material.material_type 到 intake_type
     if intake_type:
         mat = db.get(Material, material_id)
-        if mat and mat.material_type is None:
+        if mat and mat.material_type != intake_type:
             mat.material_type = intake_type
 
     b = Batch(
