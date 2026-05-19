@@ -186,25 +186,24 @@ def _render_intake_tab(tab_type: str) -> None:
             st.text_input("规格", value=mat.get("spec_model") or "", disabled=True,
                           key=f"info_spec_{tab_type}")
 
-        col1, col2 = st.columns(2)
-        with col1:
+        # 第一行: 供应商批号 + 到货日期 + 效期
+        r1c1, r1c2, r1c3 = st.columns(3)
+        with r1c1:
             batch_no = st.text_input(
                 "供应商批号 *", max_chars=100, key=f"in_bno_{tab_type}",
             )
+        with r1c2:
             received = st.date_input(
                 "到货日期 *", value=date.today(), key=f"in_rec_{tab_type}",
             )
-        with col2:
+        with r1c3:
             expiry = st.date_input(
                 "效期(无可留空)", value=None,
                 format="YYYY-MM-DD",
                 key=f"in_exp_{tab_type}",
             )
-            remark = st.text_area(
-                "备注", max_chars=500, height=80, key=f"in_rmk_{tab_type}",
-            )
 
-        # 按 tab 决定专属字段
+        # 类型专属字段(标准物质 / 色谱柱), 直接和上方字段融为一体, 无 section 头
         type_extras = {
             "concentration": None,
             "extinction_coefficient": None,
@@ -213,23 +212,20 @@ def _render_intake_tab(tab_type: str) -> None:
             "responsible_person": None,
         }
         if tab_type == "standard":
-            st.markdown("##### 标准物质专属字段")
-            scol1, scol2 = st.columns(2)
-            with scol1:
+            sc1, sc2 = st.columns(2)
+            with sc1:
                 _v = st.text_input(
                     "浓度", max_chars=50, help="例如 10 mg/mL",
                     key=f"in_conc_{tab_type}",
                 )
                 type_extras["concentration"] = (_v or "").strip() or None
-            with scol2:
+            with sc2:
                 _ec = st.text_input(
-                    "消光系数", max_chars=50,
-                    help="ε, 例如 18400 M⁻¹cm⁻¹",
+                    "消光系数", max_chars=50, help="ε, 例如 18400 M⁻¹cm⁻¹",
                     key=f"in_ec_{tab_type}",
                 )
                 type_extras["extinction_coefficient"] = (_ec or "").strip() or None
         elif tab_type == "column":
-            st.markdown("##### 色谱柱专属字段")
             cc1, cc2, cc3 = st.columns(3)
             with cc1:
                 type_extras["serial_no"] = (
@@ -252,6 +248,11 @@ def _render_intake_tab(tab_type: str) -> None:
                         key=f"in_rp_{tab_type}",
                     ) or ""
                 ).strip() or None
+
+        # 备注: 整行铺满, 放表单最底部
+        remark = st.text_area(
+            "备注", max_chars=500, height=80, key=f"in_rmk_{tab_type}",
+        )
 
         submitted = st.form_submit_button("✅ 提交入库(全部位置)", type="primary")
 
