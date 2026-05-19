@@ -99,17 +99,22 @@ class MaterialService:
         stmt = select(Material).where(Material.deleted_at.is_(None))
 
         if filter.q:
-            kw = f"%{filter.q}%"
-            stmt = stmt.where(
-                or_(
-                    Material.material_code.ilike(kw),
-                    Material.material_name.ilike(kw),
-                    Material.material_name_en.ilike(kw),
-                    Material.source_name.ilike(kw),
-                    Material.manufacturer.ilike(kw),
-                    Material.catalog_no.ilike(kw),
+            # 多关键词（空白分割）：token 内 OR 多字段，token 间 AND
+            # 不限大小写（ILIKE）— 编码 / 名称(中英) / 来源 / 生产商 / 货号 / 规格型号
+            tokens = [t for t in filter.q.split() if t]
+            for tok in tokens:
+                kw = f"%{tok}%"
+                stmt = stmt.where(
+                    or_(
+                        Material.material_code.ilike(kw),
+                        Material.material_name.ilike(kw),
+                        Material.material_name_en.ilike(kw),
+                        Material.source_name.ilike(kw),
+                        Material.manufacturer.ilike(kw),
+                        Material.catalog_no.ilike(kw),
+                        Material.spec_model.ilike(kw),
+                    )
                 )
-            )
         if filter.material_type:
             types = [t.strip() for t in filter.material_type.split(",")]
             stmt = stmt.where(Material.material_type.in_(types))
@@ -177,6 +182,7 @@ class MaterialService:
                     status=m.status,
                     unit=m.unit,
                     manufacturer=m.manufacturer,
+                    spec_model=m.spec_model,
                     physical_form=m.physical_form,
                     source_name=m.source_name,
                     substance_id=m.substance_id,
@@ -343,6 +349,7 @@ class MaterialService:
                 status=m.status,
                 unit=m.unit,
                 manufacturer=m.manufacturer,
+                spec_model=m.spec_model,
                 physical_form=m.physical_form,
                 source_name=m.source_name,
                 substance_id=m.substance_id,

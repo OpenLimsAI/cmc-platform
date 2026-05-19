@@ -138,6 +138,7 @@ class MaterialBrief(BaseModel):
     status: MaterialStatus
     unit: str | None = None
     manufacturer: str | None = None
+    spec_model: str | None = None
     physical_form: str | None = None
     source_name: str | None = None
     substance_id: int | None = None

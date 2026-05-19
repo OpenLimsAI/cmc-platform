@@ -1124,6 +1124,7 @@ export interface MaterialBrief {
   status: MaterialStatus;
   unit?: string | null;
   manufacturer?: string | null;
+  spec_model?: string | null;
   physical_form?: string | null;
   source_name?: string | null;
   substance_id?: number | null;

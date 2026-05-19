@@ -91,6 +91,15 @@ export function MaterialListPage() {
       render: (v: string | null) => v ?? '—',
     },
     {
+      title: '规格型号',
+      dataIndex: 'spec_model',
+      key: 'spec_model',
+      width: 200,
+      ellipsis: { showTitle: false },
+      render: (v: string | null) =>
+        v ? <span title={v}>{v}</span> : '—',
+    },
+    {
       title: '单位',
       dataIndex: 'unit',
       key: 'unit',
@@ -149,7 +158,7 @@ export function MaterialListPage() {
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} sm={10} md={8}>
             <Input
-              placeholder="搜索编码 / 名称 / 生产商 / 货号..."
+              placeholder="搜索编码 / 名称 / 生产商 / 货号 / 规格型号（支持多关键词空格分隔）"
               prefix={<SearchOutlined />}
               allowClear
               value={pendingQ}
@@ -237,7 +246,7 @@ export function MaterialListPage() {
               setPageSize(size);
             },
           }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1400 }}
         />
       </Card>
     </div>
