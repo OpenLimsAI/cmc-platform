@@ -261,6 +261,10 @@ class StockByMaterial(BaseModel):
     material_code: str
     name_cn: str
     category: Optional[str] = None
+    material_type: Optional[str] = None  # reagent/consumable/standard/column
+    manufacturer: Optional[str] = None
+    spec_model: Optional[str] = None
+    catalog_no: Optional[str] = None
     unit: str
     is_active: bool
     safety_stock: Decimal
@@ -273,6 +277,11 @@ class StockByBatch(BaseModel):
     material_id: int
     material_code: str
     name_cn: str
+    category: Optional[str] = None
+    material_type: Optional[str] = None
+    manufacturer: Optional[str] = None
+    spec_model: Optional[str] = None
+    catalog_no: Optional[str] = None
     unit: str
     batch_no: str
     expiry_date: Optional[date] = None

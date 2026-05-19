@@ -23,6 +23,7 @@ router = APIRouter(prefix="/api/stock", tags=["stock"])
 @router.get("/by-material", response_model=List[StockByMaterial])
 def by_material(
     category: Optional[str] = None,
+    material_type: Optional[str] = None,
     keyword: Optional[str] = None,
     include_inactive: bool = False,
     exclude_expired: bool = True,
@@ -33,17 +34,20 @@ def by_material(
     - 默认排除已过期批次(可用库存口径,README §5.5)
     - 默认 only_positive=True,只返回总库存 > 0 的物料(用户日常视图);
       勾"包含零库存"传 False 看完整目录
+    - material_type: 按入库大类筛选 (reagent/consumable/standard/column)
     """
     return crud.stock_by_material(
         db, category, keyword, include_inactive,
         exclude_expired=exclude_expired,
         only_positive=only_positive,
+        material_type=material_type,
     )
 
 
 @router.get("/by-batch", response_model=List[StockByBatch])
 def by_batch(
     category: Optional[str] = None,
+    material_type: Optional[str] = None,
     material_id: Optional[int] = None,
     location_id: Optional[int] = None,
     keyword: Optional[str] = None,
@@ -61,6 +65,7 @@ def by_batch(
         include_inactive=include_inactive,
         include_expired=include_expired,
         only_positive=only_positive,
+        material_type=material_type,
     )
 
 

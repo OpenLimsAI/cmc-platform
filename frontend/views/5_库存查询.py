@@ -9,7 +9,10 @@ import io
 import pandas as pd
 import streamlit as st
 
-from utils import api_get, APIError, get_categories, get_locations, fmt_null, locations_grouped
+from utils import (
+    api_get, APIError, get_categories, get_locations, fmt_null,
+    locations_grouped, MATERIAL_TYPE_LABELS, material_type_label,
+)
 from auth_helper import require_login
 
 require_login()
@@ -21,17 +24,24 @@ categories = get_categories()
 locations = get_locations()
 grouped = locations_grouped(locations)
 
-c1, c2, c3, c4, c5 = st.columns(5)
+# 类型筛选: 4 个入库大类(material_type)
+_TYPE_OPTIONS = ["(全部类型)"] + list(MATERIAL_TYPE_LABELS.values())  # 试剂/耗材/标准物质/色谱柱
+_TYPE_REVERSE = {v: k for k, v in MATERIAL_TYPE_LABELS.items()}
+
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
-    cat = st.selectbox("分类", ["(全部分类)"] + categories)
+    mt_label = st.selectbox("类型", _TYPE_OPTIONS)
+    mt_code = _TYPE_REVERSE.get(mt_label)  # None = 全部
 with c2:
+    cat = st.selectbox("分类", ["(全部分类)"] + categories)
+with c3:
     keyword = st.text_input("代码 / 名称 / 批号",
                             help="一个框搜三种:物料代码、物料名称、批号(三个命中其一即出)")
-with c3:
-    inc_inactive = st.checkbox("含已停用", value=False)
 with c4:
-    inc_expired = st.checkbox("含已过期(批次)", value=False)
+    inc_inactive = st.checkbox("含已停用", value=False)
 with c5:
+    inc_expired = st.checkbox("含已过期(批次)", value=False)
+with c6:
     # 默认排除零库存:用户日常视图。勾选后包含 0 库存物料/批次,看完整目录
     inc_zero = st.checkbox("含零库存", value=False)
 
@@ -62,6 +72,8 @@ if view == "按批次明细":
             st.selectbox("板层", ["(全部)"], disabled=True, key="q_layer_dis")
 
 params = {}
+if mt_code:
+    params["material_type"] = mt_code
 if cat != "(全部分类)":
     params["category"] = cat
 if keyword:
@@ -86,7 +98,11 @@ if view == "按物料汇总":
                 "ID": r["material_id"],
                 "代码": r["material_code"],
                 "物料名称": r["name_cn"],
+                "类型": material_type_label(r.get("material_type")),
                 "分类": fmt_null(r.get("category")),
+                "生产商": fmt_null(r.get("manufacturer")),
+                "规格/型号": fmt_null(r.get("spec_model")),
+                "货号": fmt_null(r.get("catalog_no")),
                 "单位": r["unit"],
                 "总库存": r["total_qty"],
                 "安全库存": r["safety_stock"],
@@ -127,6 +143,10 @@ else:  # 按批次明细
                 "ID": r["material_id"],
                 "代码": r["material_code"],
                 "物料名称": r["name_cn"],
+                "类型": material_type_label(r.get("material_type")),
+                "生产商": fmt_null(r.get("manufacturer")),
+                "规格/型号": fmt_null(r.get("spec_model")),
+                "货号": fmt_null(r.get("catalog_no")),
                 "单位": r["unit"],
                 "批号": r["batch_no"],
                 "储存位置": fmt_null(r.get("location_name")),

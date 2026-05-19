@@ -516,6 +516,7 @@ def stock_by_material(
     include_inactive: bool = False,
     exclude_expired: bool = True,
     only_positive: bool = True,
+    material_type: Optional[str] = None,
 ) -> List[dict]:
     """物料级总库存(实时聚合 inventory_txn)。
     exclude_expired=True 时,已过期批次的 txn 不计入「可用总库存」(README §5.5 规则);
@@ -543,6 +544,10 @@ def stock_by_material(
             Material.material_code,
             Material.name_cn,
             Material.category,
+            Material.material_type,
+            Material.manufacturer,
+            Material.spec_model,
+            Material.catalog_no,
             Material.unit,
             Material.is_active,
             Material.safety_stock,
@@ -554,6 +559,8 @@ def stock_by_material(
         stmt = stmt.where(Material.is_active.is_(True))
     if category:
         stmt = stmt.where(Material.category == category)
+    if material_type:
+        stmt = stmt.where(Material.material_type == material_type)
     if keyword:
         kw = f"%{keyword}%"
         # 关键字命中范围:物料代码 / 物料名 / "该物料下任一批次的批号" 之一
@@ -580,6 +587,10 @@ def stock_by_material(
             "material_code": row.material_code,
             "name_cn": row.name_cn,
             "category": row.category,
+            "material_type": row.material_type,
+            "manufacturer": row.manufacturer,
+            "spec_model": row.spec_model,
+            "catalog_no": row.catalog_no,
             "unit": row.unit,
             "is_active": row.is_active,
             "safety_stock": safety,
@@ -598,6 +609,7 @@ def stock_by_batch(
     include_inactive: bool = False,
     include_expired: bool = True,
     only_positive: bool = True,
+    material_type: Optional[str] = None,
 ) -> List[dict]:
     """批次级当前库存(每行 = 一个 (material, batch_no, location) 的物理批次)。
     keyword 同时匹配 物料代码 / 物料名 / 批号(单一搜索框)。"""
@@ -622,6 +634,10 @@ def stock_by_batch(
             func.coalesce(qty_subq.c.current_qty, 0).label("current_qty"),
             Material.is_active,
             Material.category,
+            Material.material_type,
+            Material.manufacturer,
+            Material.spec_model,
+            Material.catalog_no,
         )
         .join(Material, Material.material_id == Batch.material_id)
         .outerjoin(qty_subq, qty_subq.c.batch_id == Batch.batch_id)
@@ -629,6 +645,8 @@ def stock_by_batch(
     )
     if category:
         stmt = stmt.where(Material.category == category)
+    if material_type:
+        stmt = stmt.where(Material.material_type == material_type)
     if material_id is not None:
         stmt = stmt.where(Batch.material_id == material_id)
     if location_id is not None:
@@ -661,6 +679,11 @@ def stock_by_batch(
             "material_id": r.material_id,
             "material_code": r.material_code,
             "name_cn": r.name_cn,
+            "category": r.category,
+            "material_type": r.material_type,
+            "manufacturer": r.manufacturer,
+            "spec_model": r.spec_model,
+            "catalog_no": r.catalog_no,
             "unit": r.unit,
             "batch_no": r.batch_no,
             "expiry_date": r.expiry_date,
