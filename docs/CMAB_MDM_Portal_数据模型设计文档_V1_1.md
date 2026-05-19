@@ -1529,10 +1529,21 @@ CREATE TABLE mm.material (
     -- 基本信息
     material_name      VARCHAR(255) NOT NULL,
     material_name_en   VARCHAR(255),
-    material_type      VARCHAR(32)  NOT NULL,   -- candidate/reference/stability/buffer/raw
+    material_type      VARCHAR(32)  NOT NULL,   -- reagent/consumable/standard/column
+    category           VARCHAR(50),             -- 按 type 分组的严格枚举
 
     -- 物质引用
     substance_id       BIGINT,                  -- 物理批次对应的 substance（必要时）
+
+    -- 供应商 & 规格
+    manufacturer       VARCHAR(100),            -- 生产商
+    catalog_no         VARCHAR(100),            -- 货号
+    spec_model         VARCHAR(200),            -- 规格型号
+    unit               VARCHAR(20)  NOT NULL DEFAULT 'ea', -- 默认计量单位
+    package_spec       VARCHAR(100),            -- 包装规格
+
+    -- 危化品分类
+    hazard_class       TEXT[],                  -- 多选：危化品/易燃/易制毒/易制爆/剧毒品
 
     -- 物理属性
     physical_form      VARCHAR(64),             -- liquid/lyophilized/powder
@@ -1542,8 +1553,8 @@ CREATE TABLE mm.material (
     source_type        VARCHAR(32),             -- internal/cdmo/vendor
     source_name        VARCHAR(128),
 
-    -- 级别
-    grade              VARCHAR(32),             -- RUO/GMP/Reference Standard
+    -- 级别（自由文本）
+    grade              VARCHAR(32),
 
     -- 状态
     status             VARCHAR(32)  NOT NULL DEFAULT 'active',
@@ -1561,19 +1572,33 @@ CREATE TABLE mm.material (
 
     CONSTRAINT uq_material_code     UNIQUE (material_code),
     CONSTRAINT ck_material_type     CHECK (material_type IN
-        ('candidate','reference','stability','buffer','raw','intermediate','other')),
-    CONSTRAINT ck_material_grade    CHECK (grade IS NULL OR grade IN
-        ('RUO','GMP','Reference Standard','Working Standard')),
+        ('reagent','consumable','standard','column')),
+    CONSTRAINT ck_material_category CHECK (
+        category IS NULL
+        OR (material_type = 'reagent' AND category IN (
+            'buffer','culture_media','enzyme','antibody','dye_indicator',
+            'chemical_reagent','kit','other_reagent'))
+        OR (material_type = 'consumable' AND category IN (
+            'filter','tubing','container','chromatography_resin','membrane',
+            'ppe','cleaning_agent','other_consumable'))
+        OR (material_type = 'standard' AND category IN (
+            'reference_standard','working_standard','system_suitability',
+            'calibration_standard','other_standard'))
+        OR (material_type = 'column' AND category IN (
+            'hplc_column','prep_column','gc_column','guard_column','other_column'))
+    ),
     CONSTRAINT ck_material_status   CHECK (status IN ('active','quarantine','released','rejected','retired')),
     CONSTRAINT fk_material_substance FOREIGN KEY (substance_id) REFERENCES srs.substance(substance_id),
     CONSTRAINT fk_material_created_by FOREIGN KEY (created_by) REFERENCES auth.user(user_id),
     CONSTRAINT fk_material_updated_by FOREIGN KEY (updated_by) REFERENCES auth.user(user_id)
 );
 
-CREATE INDEX ix_material_type      ON mm.material(material_type) WHERE deleted_at IS NULL;
-CREATE INDEX ix_material_substance ON mm.material(substance_id);
-CREATE INDEX ix_material_status    ON mm.material(status) WHERE deleted_at IS NULL;
-CREATE INDEX ix_material_name      ON mm.material USING gin(material_name gin_trgm_ops);
+CREATE INDEX ix_material_type         ON mm.material(material_type) WHERE deleted_at IS NULL;
+CREATE INDEX ix_material_category     ON mm.material(category) WHERE deleted_at IS NULL;
+CREATE INDEX ix_material_manufacturer ON mm.material(manufacturer) WHERE deleted_at IS NULL;
+CREATE INDEX ix_material_substance    ON mm.material(substance_id);
+CREATE INDEX ix_material_status       ON mm.material(status) WHERE deleted_at IS NULL;
+CREATE INDEX ix_material_name         ON mm.material USING gin(material_name gin_trgm_ops);
 
 CREATE TRIGGER trg_material_audit
 AFTER INSERT OR UPDATE OR DELETE ON mm.material

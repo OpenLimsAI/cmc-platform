@@ -108,7 +108,7 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 | Substance Registration | SRS      | 完整建设           | mAb（第一版优先）        |
 | Project Registration   | PRS      | 完整建设           | 全部研发项目类型         |
 | Asset Registration     | ARS      | 完整建设           | 已商业化产品 + 在研管线  |
-| Material Master        | MM       | 轻量版（R&D 物料） | 原料、参比品、稳定性样品 |
+| Material Master        | MM       | 全公司物料身份注册 | 试剂、耗材、标准品、色谱柱 |
 | Cross-Reference Layer  | REF      | 完整建设           | 跨域引用关系管理         |
 | Audit & Compliance     | AUDIT    | 完整建设           | Part 11 / Annex 11 合规  |
 
@@ -281,21 +281,24 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 
 - 多市场注册标识符管理（NDC、EMA Procedure Number、NMPA 批准号等）
 
-### 3.2.4 Material Master (MM, Lite)
+### 3.2.4 Material Master (MM)
 
-职责：R&D 阶段物理物料批次的轻量化登记。
+职责：全公司物料身份注册表，作为下游 cmc-inventory（实验室运营平台）的物料数据上游。
 
 核心功能：
 
-- R&D 物料登记（候选物、参比品、稳定性样品）
+- 物料身份注册（试剂、耗材、标准品、色谱柱四大类，每类下设严格分类枚举）
 
-- Material → Substance 关联（一个 substance 可对应多个 material 批次）
+- 供应商 & 规格管理（生产商、货号、规格型号、包装规格、默认计量单位）
 
-- 基本属性管理（批号、规格、来源、级别、有效期）
+- 危化品分类标记（多选：危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品）
+
+- Material → Substance 关联（一个 substance 可对应多个 material）
+
+- Material Batch 批次登记（批号、数量、有效期、存储位置）
 
 > ⚠ 范围说明
-> 本期 MM 仅覆盖 R&D 物料，不涉及 GMP 物料、原辅料、包材。
-> 未来 SAP / 商业 ERP 上线后，GMP 物料由 ERP 管理，MM 转为 R&D 专用模块或并入 ERP。
+> MM 只管"这个物料是什么"（身份户口本），不管库存 / 位置 / 出入库（那是下游 cmc-inventory 的事）。
 
 ### 3.2.5 Cross-Reference Layer (REF)
 

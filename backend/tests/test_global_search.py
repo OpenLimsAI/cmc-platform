@@ -262,7 +262,7 @@ async def test_search_default_returns_all_four_types(admin_client, unique_suffix
     )
     await admin_client.post(
         "/api/v1/materials",
-        json={"material_name": tag, "material_type": "candidate"},
+        json={"material_code": f"A4-{unique_suffix[:7]}", "material_name": tag, "material_type": "reagent"},
     )
     resp = await admin_client.get(
         "/api/v1/search", params={"q": tag, "limit": 20}
@@ -302,7 +302,7 @@ async def test_search_finds_material_by_name(admin_client, unique_suffix):
     name = f"SearchableMat {unique_suffix}"
     await admin_client.post(
         "/api/v1/materials",
-        json={"material_name": name, "material_type": "candidate"},
+        json={"material_code": f"SN-{unique_suffix[:7]}", "material_name": name, "material_type": "reagent"},
     )
     resp = await admin_client.get(
         "/api/v1/search", params={"q": f"SearchableMat {unique_suffix}", "limit": 10}
@@ -315,10 +315,10 @@ async def test_search_finds_material_by_name(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_search_finds_material_by_code(admin_client, unique_suffix):
-    """MAT-yyyyXXXXXX 精确命中排在分组最前"""
+    """物料编码精确命中排在分组最前"""
     create = await admin_client.post(
         "/api/v1/materials",
-        json={"material_name": f"sr mat code {unique_suffix}", "material_type": "buffer"},
+        json={"material_code": f"SC-{unique_suffix[:7]}", "material_name": f"sr mat code {unique_suffix}", "material_type": "consumable"},
     )
     mcode = create.json()["data"]["material_code"]
     resp = await admin_client.get(
@@ -337,8 +337,9 @@ async def test_search_finds_material_by_source_name(admin_client, unique_suffix)
     await admin_client.post(
         "/api/v1/materials",
         json={
+            "material_code": f"SS-{unique_suffix[:7]}",
             "material_name": f"sr mat src {unique_suffix}",
-            "material_type": "candidate",
+            "material_type": "reagent",
             "source_name": src,
         },
     )
@@ -366,7 +367,7 @@ async def test_search_types_filter_material_only(admin_client, unique_suffix):
     )
     await admin_client.post(
         "/api/v1/materials",
-        json={"material_name": tag, "material_type": "candidate"},
+        json={"material_code": f"MO-{unique_suffix[:7]}", "material_name": tag, "material_type": "reagent"},
     )
     resp = await admin_client.get(
         "/api/v1/search",

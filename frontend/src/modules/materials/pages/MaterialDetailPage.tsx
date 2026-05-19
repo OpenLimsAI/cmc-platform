@@ -3,8 +3,10 @@ import {
   Breadcrumb,
   Button,
   Card,
+  Col,
   Descriptions,
   Result,
+  Row,
   Skeleton,
   Space,
   Tabs,
@@ -29,7 +31,7 @@ import { AuditLogPanel } from '@/shared/components/AuditLogPanel';
 import { EntityCodeLink } from '@/shared/components/EntityCodeLink';
 import { BatchTable } from '../components/BatchTable';
 import {
-  MATERIAL_GRADE_OPTIONS,
+  CATEGORY_OPTIONS,
   MATERIAL_TYPE_OPTIONS,
 } from '../constants';
 
@@ -69,8 +71,8 @@ export function MaterialDetailPage() {
   }
 
   const typeDef = MATERIAL_TYPE_OPTIONS.find((o) => o.value === material.material_type);
-  const gradeDef = material.grade
-    ? MATERIAL_GRADE_OPTIONS.find((o) => o.value === material.grade)
+  const categoryDef = material.category
+    ? CATEGORY_OPTIONS.find((o) => o.value === material.category)
     : undefined;
 
   const tabs = [
@@ -78,110 +80,149 @@ export function MaterialDetailPage() {
       key: 'basic',
       label: '基本信息',
       children: (
-        <Card title="详细信息">
-          <Descriptions
-            bordered
-            column={2}
-            size="middle"
-            labelStyle={{ width: 140 }}
-            items={[
-              {
-                key: 'material_code',
-                label: '物料编码',
-                children: <code>{material.material_code}</code>,
-              },
-              {
-                key: 'status',
-                label: '状态',
-                children: <StatusBadge type="material" status={material.status} />,
-              },
-              { key: 'material_name', label: '名称', children: material.material_name },
-              {
-                key: 'material_name_en',
-                label: '英文名',
-                children: material.material_name_en ?? '—',
-              },
-              {
-                key: 'material_type',
-                label: '物料类型',
-                children: (
-                  <Tag color={typeDef?.color ?? 'default'}>
-                    {typeDef?.label ?? material.material_type}
-                  </Tag>
-                ),
-              },
-              {
-                key: 'grade',
-                label: '等级',
-                children: gradeDef ? (
-                  <Tag color={gradeDef.color}>{gradeDef.label}</Tag>
-                ) : (
-                  '—'
-                ),
-              },
-              {
-                key: 'substance',
-                label: '关联物质',
-                children: material.substance_code ? (
-                  <EntityCodeLink type="substance" code={material.substance_code} />
-                ) : (
-                  '—'
-                ),
-              },
-              {
-                key: 'physical_form',
-                label: '物理形态',
-                children: material.physical_form ?? '—',
-              },
-              {
-                key: 'storage_condition',
-                label: '存储条件',
-                children: material.storage_condition ?? '—',
-              },
-              {
-                key: 'source_type',
-                label: '来源类型',
-                children: material.source_type ?? '—',
-              },
-              {
-                key: 'source_name',
-                label: '来源名称',
-                children: material.source_name ?? '—',
-                span: 2,
-              },
-              {
-                key: 'description',
-                label: '描述',
-                children: (
-                  <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
-                    {material.description ?? '—'}
-                  </Paragraph>
-                ),
-                span: 2,
-              },
-              {
-                key: 'notes',
-                label: '备注',
-                children: (
-                  <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
-                    {material.notes ?? '—'}
-                  </Paragraph>
-                ),
-                span: 2,
-              },
-              {
-                key: 'updated_at',
-                label: '最近更新',
-                children: <TimeDisplay value={material.updated_at} />,
-              },
-              {
-                key: 'created_at',
-                label: '创建时间',
-                children: <TimeDisplay value={material.created_at} />,
-              },
-            ]}
-          />
-        </Card>
+        <Row gutter={16}>
+          <Col xs={24} lg={12}>
+            <Card title="身份信息" size="small" style={{ marginBottom: 16 }}>
+              <Descriptions
+                bordered
+                column={1}
+                size="small"
+                labelStyle={{ width: 120 }}
+                items={[
+                  {
+                    key: 'material_code',
+                    label: '物料编码',
+                    children: <code>{material.material_code}</code>,
+                  },
+                  { key: 'material_name', label: '名称', children: material.material_name },
+                  {
+                    key: 'material_name_en',
+                    label: '英文名',
+                    children: material.material_name_en ?? '—',
+                  },
+                  {
+                    key: 'material_type',
+                    label: '物料类型',
+                    children: (
+                      <Tag color={typeDef?.color ?? 'default'}>
+                        {typeDef?.label ?? material.material_type}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    key: 'category',
+                    label: '分类',
+                    children: categoryDef?.label ?? material.category ?? '—',
+                  },
+                  {
+                    key: 'status',
+                    label: '状态',
+                    children: <StatusBadge type="material" status={material.status} />,
+                  },
+                  { key: 'grade', label: '等级', children: material.grade ?? '—' },
+                  { key: 'unit', label: '默认计量单位', children: material.unit },
+                  {
+                    key: 'hazard_class',
+                    label: '危化品分类',
+                    children:
+                      material.hazard_class && material.hazard_class.length > 0
+                        ? material.hazard_class.map((h) => (
+                            <Tag key={h} color="warning">
+                              {h}
+                            </Tag>
+                          ))
+                        : '—',
+                  },
+                ]}
+              />
+            </Card>
+            <Card title="来源与关联" size="small" style={{ marginBottom: 16 }}>
+              <Descriptions
+                bordered
+                column={1}
+                size="small"
+                labelStyle={{ width: 120 }}
+                items={[
+                  {
+                    key: 'substance',
+                    label: '关联物质',
+                    children: material.substance_code ? (
+                      <EntityCodeLink type="substance" code={material.substance_code} />
+                    ) : (
+                      '—'
+                    ),
+                  },
+                  { key: 'source_type', label: '来源类型', children: material.source_type ?? '—' },
+                  { key: 'source_name', label: '来源名称', children: material.source_name ?? '—' },
+                ]}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="供应商与规格" size="small" style={{ marginBottom: 16 }}>
+              <Descriptions
+                bordered
+                column={1}
+                size="small"
+                labelStyle={{ width: 120 }}
+                items={[
+                  { key: 'manufacturer', label: '生产商', children: material.manufacturer ?? '—' },
+                  { key: 'catalog_no', label: '货号', children: material.catalog_no ?? '—' },
+                  { key: 'spec_model', label: '规格型号', children: material.spec_model ?? '—' },
+                  { key: 'package_spec', label: '包装规格', children: material.package_spec ?? '—' },
+                  {
+                    key: 'physical_form',
+                    label: '物理形态',
+                    children: material.physical_form ?? '—',
+                  },
+                  {
+                    key: 'storage_condition',
+                    label: '存储条件',
+                    children: material.storage_condition ?? '—',
+                  },
+                ]}
+              />
+            </Card>
+            <Card title="描述与时间" size="small" style={{ marginBottom: 16 }}>
+              <Descriptions
+                bordered
+                column={1}
+                size="small"
+                labelStyle={{ width: 120 }}
+                items={[
+                  {
+                    key: 'description',
+                    label: '描述',
+                    children: (
+                      <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                        {material.description ?? '—'}
+                      </Paragraph>
+                    ),
+                  },
+                  {
+                    key: 'notes',
+                    label: '备注',
+                    children: (
+                      <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
+                        {material.notes ?? '—'}
+                      </Paragraph>
+                    ),
+                  },
+                  {
+                    key: 'created_at',
+                    label: '创建时间',
+                    children: <TimeDisplay value={material.created_at} />,
+                  },
+                  {
+                    key: 'updated_at',
+                    label: '最近更新',
+                    children: <TimeDisplay value={material.updated_at} />,
+                  },
+                ]}
+              />
+            </Card>
+          </Col>
+        </Row>
       ),
     },
     {
@@ -230,11 +271,10 @@ export function MaterialDetailPage() {
               </Title>
               <StatusBadge type="material" status={material.status} />
               {typeDef && <Tag color={typeDef.color}>{typeDef.label}</Tag>}
-              {gradeDef && <Tag color={gradeDef.color}>{gradeDef.label}</Tag>}
             </Space>
             <Typography.Text type="secondary">
               <code>{material.material_code}</code>
-              {material.source_name ? ` · 来源 ${material.source_name}` : ''}
+              {material.manufacturer ? ` · ${material.manufacturer}` : ''}
               {material.substance_code ? ` · 物质 ${material.substance_code}` : ''}
             </Typography.Text>
           </Space>

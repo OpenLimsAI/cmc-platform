@@ -1640,14 +1640,18 @@ DELETE /api/v1/assets/{code}/substances/{substance_code} — 软删除关系
 
 ```json
 {
-  "material_name": "PD-L1 mAb 工程批 EB-001",
-  "material_type": "candidate",
-  "substance_code": "SUB-0000124",
-  "physical_form": "liquid",
+  "material_name": "PBS 10× 缓冲液",
+  "material_type": "reagent",
+  "category": "buffer",
+  "unit": "瓶",
+  "manufacturer": "Gibco / Thermo Fisher",
+  "catalog_no": "70011-044",
+  "package_spec": "500 mL/瓶",
+  "physical_form": "solution",
   "storage_condition": "2-8°C",
-  "source_type": "internal",
-  "source_name": "USP-Pilot",
-  "grade": "RUO"
+  "source_type": "vendor",
+  "source_name": "Gibco / Thermo Fisher",
+  "grade": "GR"
 }
 ```
 

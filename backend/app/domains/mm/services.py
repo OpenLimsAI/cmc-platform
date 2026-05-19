@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
+    DuplicateCodeError,
     MaterialBatchNumberDuplicateError,
     MaterialNotFoundError,
     NotFoundError,
@@ -105,6 +106,8 @@ class MaterialService:
                     Material.material_name.ilike(kw),
                     Material.material_name_en.ilike(kw),
                     Material.source_name.ilike(kw),
+                    Material.manufacturer.ilike(kw),
+                    Material.catalog_no.ilike(kw),
                 )
             )
         if filter.material_type:
@@ -116,6 +119,9 @@ class MaterialService:
         if filter.grade:
             grades = [g.strip() for g in filter.grade.split(",")]
             stmt = stmt.where(Material.grade.in_(grades))
+        if filter.category:
+            categories = [c.strip() for c in filter.category.split(",")]
+            stmt = stmt.where(Material.category.in_(categories))
         if filter.source_type:
             stmt = stmt.where(Material.source_type == filter.source_type)
         if filter.substance_code:
@@ -166,8 +172,11 @@ class MaterialService:
                     material_name=m.material_name,
                     material_name_en=m.material_name_en,
                     material_type=m.material_type,
+                    category=m.category,
                     grade=m.grade,
                     status=m.status,
+                    unit=m.unit,
+                    manufacturer=m.manufacturer,
                     physical_form=m.physical_form,
                     source_name=m.source_name,
                     substance_id=m.substance_id,
@@ -206,12 +215,29 @@ class MaterialService:
             payload.substance_id, payload.substance_code,
         )
 
-        # material_code 由 BEFORE INSERT 触发器分配；不显式取号（与年序列 MAT-yyyyXXXXXX 一致）
+        existing = await self.db.execute(
+            select(Material.material_id).where(
+                Material.material_code == payload.material_code,
+            )
+        )
+        if existing.scalar_one_or_none() is not None:
+            raise DuplicateCodeError(
+                f"物料编码 '{payload.material_code}' 已存在（含已删除记录），请更换编码"
+            )
+
         material = Material(
+            material_code=payload.material_code,
             material_name=payload.material_name,
             material_name_en=payload.material_name_en,
             material_type=payload.material_type,
+            category=payload.category,
             substance_id=resolved_sub_id,
+            manufacturer=payload.manufacturer,
+            catalog_no=payload.catalog_no,
+            spec_model=payload.spec_model,
+            unit=payload.unit,
+            package_spec=payload.package_spec,
+            hazard_class=payload.hazard_class,
             physical_form=payload.physical_form,
             storage_condition=payload.storage_condition,
             source_type=payload.source_type,
@@ -312,8 +338,11 @@ class MaterialService:
                 material_name=m.material_name,
                 material_name_en=m.material_name_en,
                 material_type=m.material_type,
+                category=m.category,
                 grade=m.grade,
                 status=m.status,
+                unit=m.unit,
+                manufacturer=m.manufacturer,
                 physical_form=m.physical_form,
                 source_name=m.source_name,
                 substance_id=m.substance_id,

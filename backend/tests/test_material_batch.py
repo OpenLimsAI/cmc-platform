@@ -8,8 +8,9 @@ import pytest
 
 async def _create_material(client, suffix, **overrides):
     payload = {
+        "material_code": f"BT-{suffix[:8]}",
         "material_name": f"pytest batch host {suffix}",
-        "material_type": "candidate",
+        "material_type": "reagent",
     }
     payload.update(overrides)
     resp = await client.post("/api/v1/materials", json=payload)

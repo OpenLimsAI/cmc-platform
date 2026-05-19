@@ -50,13 +50,13 @@ async def test_substance_materials_reverse_query(admin_client, unique_suffix):
     )
     sub_code = sub.json()["data"]["substance_code"]
 
-    # 创建 2 个绑定到这个 substance 的 material
     for tag in ("A", "B"):
         await admin_client.post(
             "/api/v1/materials",
             json={
+                "material_code": f"LK{tag}-{unique_suffix[:6]}",
                 "material_name": f"link mat {tag} {unique_suffix}",
-                "material_type": "candidate",
+                "material_type": "reagent",
                 "substance_code": sub_code,
             },
         )
@@ -89,13 +89,13 @@ async def test_substance_brief_includes_material_count(admin_client, unique_suff
     item0 = [it for it in list_resp.json()["data"] if it["substance_code"] == sub_code][0]
     assert item0["material_count"] == 0
 
-    # 关联 3 个 material
     for i in range(3):
         await admin_client.post(
             "/api/v1/materials",
             json={
+                "material_code": f"CN{i}-{unique_suffix[:6]}",
                 "material_name": f"cnt mat {i} {unique_suffix}",
-                "material_type": "raw",
+                "material_type": "consumable",
                 "substance_code": sub_code,
             },
         )
@@ -126,8 +126,9 @@ async def test_obsoleted_substance_rejects_new_material(admin_client, unique_suf
     mat_resp = await admin_client.post(
         "/api/v1/materials",
         json={
+            "material_code": f"FB-{unique_suffix[:7]}",
             "material_name": f"forbidden mat {unique_suffix}",
-            "material_type": "candidate",
+            "material_type": "reagent",
             "substance_code": sub_code,
         },
     )

@@ -32,6 +32,7 @@ async def list_materials(
     request: Request,
     q: str | None = None,
     material_type: str | None = None,
+    category: str | None = None,
     status: str | None = None,
     grade: str | None = None,
     substance_code: str | None = None,
@@ -45,6 +46,7 @@ async def list_materials(
     filter = MaterialFilter(
         q=q,
         material_type=material_type,
+        category=category,
         status=status,
         grade=grade,
         substance_code=substance_code,

@@ -22,7 +22,6 @@ import {
 } from '@/modules/assets/constants';
 import {
   MATERIAL_TYPE_OPTIONS,
-  MATERIAL_GRADE_OPTIONS,
 } from '@/modules/materials/constants';
 import { DistributionPieCard } from '../components/DistributionPieCard';
 import { TrendLineCard } from '../components/TrendLineCard';
@@ -209,8 +208,6 @@ export function DashboardPage() {
                   title="物料等级分布"
                   variant="bar"
                   data={summary.distributions.material_by_grade}
-                  labelMap={optionsToLabelMap(MATERIAL_GRADE_OPTIONS)}
-                  colorMap={optionsToColorMap(MATERIAL_GRADE_OPTIONS)}
                 />
               </div>
             </Col>

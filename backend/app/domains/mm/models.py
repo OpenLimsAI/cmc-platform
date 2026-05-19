@@ -1,6 +1,6 @@
-"""Material Master Lite ORM 模型
+"""Material Master ORM 模型
 
-对齐 DM-MDM-001 V1.1 §10。
+全公司物料身份注册表，作为下游 cmc-inventory 的数据上游。
 """
 from datetime import date, datetime
 from decimal import Decimal
@@ -17,31 +17,32 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
 
 class Material(Base):
-    """§10.1 物料主表"""
+    """物料主表（身份注册）"""
 
     __tablename__ = "material"
     __table_args__ = (
         UniqueConstraint("material_code", name="uq_material_code"),
         CheckConstraint(
-            "material_type IN ('candidate','reference','stability','buffer','raw',"
-            "'intermediate','other')",
+            "material_type IN ('reagent','consumable','standard','column')",
             name="ck_material_type",
-        ),
-        CheckConstraint(
-            "grade IS NULL OR grade IN "
-            "('RUO','GMP','Reference Standard','Working Standard')",
-            name="ck_material_grade",
         ),
         CheckConstraint(
             "status IN ('active','quarantine','released','rejected','retired')",
             name="ck_material_status",
+        ),
+        CheckConstraint(
+            "category IS NULL OR category IN ("
+            "'一般耗材','关键耗材','关键试剂','内包材','外包材','劳保',"
+            "'原辅料','参比品','对照品','工艺用水/气','标准品',"
+            "'细胞种子','自制包材','试剂','运输包装材料')",
+            name="ck_material_category",
         ),
         {"schema": "mm"},
     )
@@ -53,9 +54,20 @@ class Material(Base):
     material_name: Mapped[str] = mapped_column(String(255), nullable=False)
     material_name_en: Mapped[str | None] = mapped_column(String(255))
     material_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(50))
 
     # 物质引用
     substance_id: Mapped[int | None] = mapped_column(BigInteger)
+
+    # 供应商 & 规格
+    manufacturer: Mapped[str | None] = mapped_column(String(100))
+    catalog_no: Mapped[str | None] = mapped_column(String(100))
+    spec_model: Mapped[str | None] = mapped_column(String(200))
+    unit: Mapped[str] = mapped_column(String(20), nullable=False, default="ea")
+    package_spec: Mapped[str | None] = mapped_column(String(100))
+
+    # 危化品分类（多选）
+    hazard_class: Mapped[list[str] | None] = mapped_column(ARRAY(String))
 
     # 物理属性
     physical_form: Mapped[str | None] = mapped_column(String(64))
@@ -65,7 +77,7 @@ class Material(Base):
     source_type: Mapped[str | None] = mapped_column(String(32))
     source_name: Mapped[str | None] = mapped_column(String(128))
 
-    # 级别
+    # 级别（自由文本）
     grade: Mapped[str | None] = mapped_column(String(32))
 
     # 状态（无状态机，PUT 直接改）

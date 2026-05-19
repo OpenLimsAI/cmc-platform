@@ -1,30 +1,23 @@
 import type {
   MaterialBatchStatus,
-  MaterialGrade,
   MaterialStatus,
   MaterialType,
 } from '@/api/types';
 
-// DM-MDM-001 §10.1 ck_material_type
 export const MATERIAL_TYPE_OPTIONS: { value: MaterialType; label: string; color: string }[] = [
-  { value: 'candidate', label: '候选物', color: 'gold' },
-  { value: 'reference', label: '参比品', color: 'blue' },
-  { value: 'stability', label: '稳定性样品', color: 'cyan' },
-  { value: 'buffer', label: '缓冲液', color: 'geekblue' },
-  { value: 'raw', label: '原材料', color: 'default' },
-  { value: 'intermediate', label: '中间体', color: 'purple' },
-  { value: 'other', label: '其他', color: 'default' },
+  { value: 'reagent', label: '试剂', color: 'blue' },
+  { value: 'consumable', label: '耗材', color: 'green' },
+  { value: 'standard', label: '标准品', color: 'gold' },
+  { value: 'column', label: '色谱柱', color: 'purple' },
 ];
 
-// §10.1 ck_material_grade（可空，4 值）
-export const MATERIAL_GRADE_OPTIONS: { value: MaterialGrade; label: string; color: string }[] = [
-  { value: 'RUO', label: 'RUO（研究专用）', color: 'default' },
-  { value: 'GMP', label: 'GMP', color: 'success' },
-  { value: 'Reference Standard', label: '参考标准品', color: 'gold' },
-  { value: 'Working Standard', label: '工作标准品', color: 'blue' },
+// grade 已改为自由文本，提供常用建议值
+export const GRADE_SUGGESTIONS = [
+  'RUO', 'GMP', 'AR', 'GR', 'CP', 'HPLC',
+  'USP Reference Standard', 'Working Standard', 'ACS', 'Reagent Plus',
 ];
 
-// §10.1 ck_material_status（主表 5 值，无状态机）
+// 物料状态（主表 5 值，无状态机）
 export const MATERIAL_STATUS_OPTIONS: { value: MaterialStatus; label: string }[] = [
   { value: 'active', label: '在用' },
   { value: 'quarantine', label: '隔离' },
@@ -33,7 +26,7 @@ export const MATERIAL_STATUS_OPTIONS: { value: MaterialStatus; label: string }[]
   { value: 'retired', label: '已退役' },
 ];
 
-// §10.2 ck_material_batch_status（5 值）
+// 批次状态（5 值）
 export const MATERIAL_BATCH_STATUS_OPTIONS: {
   value: MaterialBatchStatus;
   label: string;
@@ -46,7 +39,54 @@ export const MATERIAL_BATCH_STATUS_OPTIONS: {
   { value: 'recalled', label: '召回', color: 'error' },
 ];
 
-// source_type 字典（非 DB CHECK，前端建议值）
+// 物料分类（公司分类体系，15 值扁平枚举）
+export const CATEGORY_OPTIONS: { value: string; label: string }[] = [
+  { value: '一般耗材', label: '一般耗材' },
+  { value: '关键耗材', label: '关键耗材' },
+  { value: '关键试剂', label: '关键试剂' },
+  { value: '内包材', label: '内包材' },
+  { value: '外包材', label: '外包材' },
+  { value: '劳保', label: '劳保' },
+  { value: '原辅料', label: '原辅料' },
+  { value: '参比品', label: '参比品' },
+  { value: '对照品', label: '对照品' },
+  { value: '工艺用水/气', label: '工艺用水/气' },
+  { value: '标准品', label: '标准品' },
+  { value: '细胞种子', label: '细胞种子' },
+  { value: '自制包材', label: '自制包材' },
+  { value: '试剂', label: '试剂' },
+  { value: '运输包装材料', label: '运输包装材料' },
+];
+
+// 危化品分类（多选）
+export const HAZARD_CLASS_OPTIONS = [
+  { value: '危化品', label: '危化品' },
+  { value: '易燃', label: '易燃' },
+  { value: '易制毒', label: '易制毒' },
+  { value: '易制爆', label: '易制爆' },
+  { value: '剧毒品', label: '剧毒品' },
+];
+
+// 计量单位
+export const UNIT_OPTIONS = [
+  { value: 'ea', label: '个(ea)' },
+  { value: '瓶', label: '瓶' },
+  { value: '盒', label: '盒' },
+  { value: '支', label: '支' },
+  { value: '根', label: '根' },
+  { value: '袋', label: '袋' },
+  { value: '包', label: '包' },
+  { value: '张', label: '张' },
+  { value: '卷', label: '卷' },
+  { value: '把', label: '把' },
+  { value: 'kg', label: 'kg' },
+  { value: 'g', label: 'g' },
+  { value: 'mg', label: 'mg' },
+  { value: 'L', label: 'L' },
+  { value: 'mL', label: 'mL' },
+];
+
+// source_type 建议值
 export const SOURCE_TYPE_OPTIONS = [
   { value: 'internal', label: '内部产出' },
   { value: 'cdmo', label: 'CDMO 委外' },
@@ -60,6 +100,8 @@ export const PHYSICAL_FORM_SUGGESTIONS = [
   'powder',
   'crystal',
   'solution',
+  'membrane',
+  'gel',
 ];
 
 // 常见存储条件

@@ -3,9 +3,10 @@ import {
   Breadcrumb,
   Button,
   Card,
+  Col,
   Input,
+  Row,
   Select,
-  Space,
   Table,
   Tag,
   Typography,
@@ -20,7 +21,7 @@ import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { EntityCodeLink } from '@/shared/components/EntityCodeLink';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
-  MATERIAL_GRADE_OPTIONS,
+  CATEGORY_OPTIONS,
   MATERIAL_STATUS_OPTIONS,
   MATERIAL_TYPE_OPTIONS,
 } from '../constants';
@@ -34,10 +35,12 @@ export function MaterialListPage() {
   const [filters, setFilters] = useState<{
     q?: string;
     material_type?: string;
+    category?: string;
     status?: string;
-    grade?: string;
   }>({});
   const [pendingQ, setPendingQ] = useState('');
+
+  const categoryOptions = CATEGORY_OPTIONS;
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['materials', page, pageSize, filters],
@@ -53,7 +56,7 @@ export function MaterialListPage() {
       title: '物料编码',
       dataIndex: 'material_code',
       key: 'material_code',
-      width: 160,
+      width: 140,
       render: (code: string) => <EntityCodeLink type="material" code={code} />,
     },
     {
@@ -66,57 +69,54 @@ export function MaterialListPage() {
       title: '类型',
       dataIndex: 'material_type',
       key: 'material_type',
-      width: 110,
+      width: 90,
       render: (t: string) => {
         const def = MATERIAL_TYPE_OPTIONS.find((o) => o.value === t);
         return <Tag color={def?.color ?? 'default'}>{def?.label ?? t}</Tag>;
       },
     },
     {
-      title: '等级',
-      dataIndex: 'grade',
-      key: 'grade',
-      width: 130,
-      render: (g: string | null) => {
-        if (!g) return '—';
-        const def = MATERIAL_GRADE_OPTIONS.find((o) => o.value === g);
-        return <Tag color={def?.color ?? 'default'}>{def?.label ?? g}</Tag>;
-      },
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      width: 120,
+      render: (v: string | null) => v ?? '—',
     },
     {
-      title: '物理形态',
-      dataIndex: 'physical_form',
-      key: 'physical_form',
-      width: 110,
+      title: '生产商',
+      dataIndex: 'manufacturer',
+      key: 'manufacturer',
+      width: 120,
+      ellipsis: true,
+      render: (v: string | null) => v ?? '—',
+    },
+    {
+      title: '单位',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 60,
       render: (v: string | null) => v ?? '—',
     },
     {
       title: '关联物质',
       dataIndex: 'substance_code',
       key: 'substance_code',
-      width: 140,
+      width: 130,
       render: (v: string | null) =>
         v ? <EntityCodeLink type="substance" code={v} /> : '—',
-    },
-    {
-      title: '来源',
-      dataIndex: 'source_name',
-      key: 'source_name',
-      width: 130,
-      render: (v: string | null) => v ?? '—',
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 90,
       render: (s: string) => <StatusBadge type="material" status={s} />,
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      width: 130,
+      width: 120,
       render: (v: string) => <TimeDisplay value={v} />,
     },
   ];
@@ -131,7 +131,7 @@ export function MaterialListPage() {
             <Title level={3} style={{ margin: 0 }}>
               物料（Materials）
             </Title>
-            <Text type="secondary">候选物 / 参比品 / 缓冲液等开发用物料登记，共 {total} 条</Text>
+            <Text type="secondary">试剂 / 耗材 / 标准品 / 色谱柱等全公司物料身份注册，共 {total} 条</Text>
           </div>
           <PermissionGuard permission="material:create">
             <Button
@@ -146,65 +146,76 @@ export function MaterialListPage() {
       </Card>
 
       <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Input
-            placeholder="搜索 MAT-编码 / 名称 / 来源..."
-            prefix={<SearchOutlined />}
-            allowClear
-            style={{ width: 320 }}
-            value={pendingQ}
-            onChange={(e) => setPendingQ(e.target.value)}
-            onPressEnter={() => {
-              setPage(1);
-              setFilters((f) => ({ ...f, q: pendingQ || undefined }));
-            }}
-          />
-          <Select
-            placeholder="物料类型"
-            allowClear
-            style={{ width: 140 }}
-            value={filters.material_type}
-            onChange={(v) => {
-              setPage(1);
-              setFilters((f) => ({ ...f, material_type: v }));
-            }}
-            options={MATERIAL_TYPE_OPTIONS}
-          />
-          <Select
-            placeholder="等级"
-            allowClear
-            style={{ width: 180 }}
-            value={filters.grade}
-            onChange={(v) => {
-              setPage(1);
-              setFilters((f) => ({ ...f, grade: v }));
-            }}
-            options={MATERIAL_GRADE_OPTIONS}
-          />
-          <Select
-            placeholder="状态"
-            allowClear
-            style={{ width: 130 }}
-            value={filters.status}
-            onChange={(v) => {
-              setPage(1);
-              setFilters((f) => ({ ...f, status: v }));
-            }}
-            options={MATERIAL_STATUS_OPTIONS}
-          />
-          <Button
-            onClick={() => {
-              setPendingQ('');
-              setFilters({});
-              setPage(1);
-            }}
-          >
-            重置
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
-            刷新
-          </Button>
-        </Space>
+        <Row gutter={[12, 12]} align="middle">
+          <Col xs={24} sm={10} md={8}>
+            <Input
+              placeholder="搜索编码 / 名称 / 生产商 / 货号..."
+              prefix={<SearchOutlined />}
+              allowClear
+              value={pendingQ}
+              onChange={(e) => setPendingQ(e.target.value)}
+              onPressEnter={() => {
+                setPage(1);
+                setFilters((f) => ({ ...f, q: pendingQ || undefined }));
+              }}
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="物料类型"
+              allowClear
+              style={{ width: 110 }}
+              value={filters.material_type}
+              onChange={(v) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, material_type: v }));
+              }}
+              options={MATERIAL_TYPE_OPTIONS}
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="分类"
+              allowClear
+              style={{ width: 150 }}
+              value={filters.category}
+              onChange={(v) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, category: v }));
+              }}
+              options={categoryOptions}
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="状态"
+              allowClear
+              style={{ width: 100 }}
+              value={filters.status}
+              onChange={(v) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, status: v }));
+              }}
+              options={MATERIAL_STATUS_OPTIONS}
+            />
+          </Col>
+          <Col>
+            <Button
+              onClick={() => {
+                setPendingQ('');
+                setFilters({});
+                setPage(1);
+              }}
+            >
+              重置
+            </Button>
+          </Col>
+          <Col>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+              刷新
+            </Button>
+          </Col>
+        </Row>
       </Card>
 
       <Card>
@@ -226,7 +237,7 @@ export function MaterialListPage() {
               setPageSize(size);
             },
           }}
-          scroll={{ x: 1500 }}
+          scroll={{ x: 1200 }}
         />
       </Card>
     </div>

@@ -4,12 +4,14 @@ import {
   Breadcrumb,
   Button,
   Card,
+  Col,
+  Divider,
   Form,
   Input,
   Result,
+  Row,
   Select,
   Skeleton,
-  Space,
   Typography,
   message,
 } from 'antd';
@@ -20,15 +22,18 @@ import { applyFormErrors } from '@/shared/utils/formErrors';
 import { searchApi } from '@/api/search';
 import type { MaterialUpdatePayload } from '@/api/types';
 import {
-  MATERIAL_GRADE_OPTIONS,
+  CATEGORY_OPTIONS,
+  GRADE_SUGGESTIONS,
+  HAZARD_CLASS_OPTIONS,
   MATERIAL_STATUS_OPTIONS,
   MATERIAL_TYPE_OPTIONS,
   PHYSICAL_FORM_SUGGESTIONS,
   SOURCE_TYPE_OPTIONS,
   STORAGE_CONDITION_SUGGESTIONS,
+  UNIT_OPTIONS,
 } from '../constants';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface FormValues extends MaterialUpdatePayload {}
 
@@ -38,6 +43,7 @@ export function MaterialEditPage() {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FormValues>();
   const [subQuery, setSubQuery] = useState('');
+
 
   const { data: material, isLoading, isError } = useQuery({
     queryKey: ['material', code],
@@ -64,7 +70,14 @@ export function MaterialEditPage() {
         material_name: material.material_name,
         material_name_en: material.material_name_en ?? undefined,
         material_type: material.material_type,
+        category: material.category ?? undefined,
         substance_code: material.substance_code ?? undefined,
+        manufacturer: material.manufacturer ?? undefined,
+        catalog_no: material.catalog_no ?? undefined,
+        spec_model: material.spec_model ?? undefined,
+        unit: material.unit,
+        package_spec: material.package_spec ?? undefined,
+        hazard_class: material.hazard_class ?? undefined,
         physical_form: material.physical_form ?? undefined,
         storage_condition: material.storage_condition ?? undefined,
         source_type: material.source_type ?? undefined,
@@ -94,7 +107,6 @@ export function MaterialEditPage() {
   const onFinish = (values: FormValues) => {
     updateMutation.mutate({
       ...values,
-      // 用空字符串区分"未改"与"清空" — 这里若用户清空就传 null
       substance_code: values.substance_code === '' ? null : values.substance_code,
     });
   };
@@ -142,88 +154,177 @@ export function MaterialEditPage() {
           编辑物料 <code>{material.material_code}</code>
         </Title>
 
-        <Form<FormValues> form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 880 }}>
-          <Space size="large" style={{ display: 'flex' }}>
-            <Form.Item label="物料名称" name="material_name" style={{ flex: 2 }} rules={[{ required: true }]}>
-              <Input maxLength={255} />
-            </Form.Item>
-            <Form.Item label="物料类型" name="material_type" style={{ flex: 1 }}>
-              <Select options={MATERIAL_TYPE_OPTIONS} />
-            </Form.Item>
-          </Space>
+        <Form<FormValues> form={form} layout="vertical" onFinish={onFinish}>
+          {/* ── 基本信息 ── */}
+          <Divider orientation="left" orientationMargin={0} style={{ marginTop: 0 }}>
+            <Text strong>基本信息</Text>
+          </Divider>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item label="物料编码">
+                <Input value={material.material_code} disabled />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="物料类型" name="material_type">
+                <Select options={MATERIAL_TYPE_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="物料分类" name="category">
+                <Select options={CATEGORY_OPTIONS} allowClear showSearch />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item label="物料名称" name="material_name" rules={[{ required: true }]}>
+                <Input maxLength={255} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="英文名" name="material_name_en">
+                <Input maxLength={255} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item label="等级" name="grade">
+                <AutoComplete
+                  options={GRADE_SUGGESTIONS.map((v) => ({ value: v }))}
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="默认计量单位" name="unit" rules={[{ required: true }]}>
+                <Select options={UNIT_OPTIONS} showSearch />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="危化品分类" name="hazard_class">
+                <Select mode="multiple" options={HAZARD_CLASS_OPTIONS} allowClear />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Space size="large" style={{ display: 'flex' }}>
-            <Form.Item label="英文名" name="material_name_en" style={{ flex: 1 }}>
-              <Input maxLength={255} />
-            </Form.Item>
-            <Form.Item label="等级" name="grade" style={{ flex: 1 }}>
-              <Select options={MATERIAL_GRADE_OPTIONS} allowClear />
-            </Form.Item>
-          </Space>
+          {/* ── 供应商与规格 ── */}
+          <Divider orientation="left" orientationMargin={0}>
+            <Text strong>供应商与规格</Text>
+          </Divider>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item label="生产商" name="manufacturer">
+                <Input maxLength={100} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="货号" name="catalog_no">
+                <Input maxLength={100} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="包装规格" name="package_spec">
+                <Input maxLength={100} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item label="规格型号" name="spec_model">
+                <Input maxLength={200} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={6}>
+              <Form.Item label="物理形态" name="physical_form">
+                <AutoComplete options={PHYSICAL_FORM_SUGGESTIONS.map((v) => ({ value: v }))} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={6}>
+              <Form.Item label="存储条件" name="storage_condition">
+                <AutoComplete options={STORAGE_CONDITION_SUGGESTIONS.map((v) => ({ value: v }))} />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Form.Item
-            label="关联物质"
-            name="substance_code"
-            extra="留空表示解除关联；obsoleted 状态的物质不允许绑定"
-          >
-            <AutoComplete
-              options={subOptions}
-              onSearch={setSubQuery}
-              placeholder="输入 SUB- 编码或物质名称搜索"
-              allowClear
-            />
-          </Form.Item>
+          {/* ── 来源与关联 ── */}
+          <Divider orientation="left" orientationMargin={0}>
+            <Text strong>来源与关联</Text>
+          </Divider>
+          <Row gutter={16}>
+            <Col xs={24} sm={6}>
+              <Form.Item label="来源类型" name="source_type">
+                <Select options={SOURCE_TYPE_OPTIONS} allowClear />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="来源名称" name="source_name">
+                <Input maxLength={128} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={10}>
+              <Form.Item
+                label="关联物质"
+                name="substance_code"
+                extra="留空表示解除关联；obsoleted 状态的物质不允许绑定"
+              >
+                <AutoComplete
+                  options={subOptions}
+                  onSearch={setSubQuery}
+                  placeholder="输入 SUB- 编码或物质名称搜索"
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Space size="large" style={{ display: 'flex' }}>
-            <Form.Item label="物理形态" name="physical_form" style={{ flex: 1 }}>
-              <AutoComplete options={PHYSICAL_FORM_SUGGESTIONS.map((v) => ({ value: v }))} />
-            </Form.Item>
-            <Form.Item label="存储条件" name="storage_condition" style={{ flex: 1 }}>
-              <AutoComplete options={STORAGE_CONDITION_SUGGESTIONS.map((v) => ({ value: v }))} />
-            </Form.Item>
-          </Space>
+          {/* ── 状态与描述 ── */}
+          <Divider orientation="left" orientationMargin={0}>
+            <Text strong>状态与描述</Text>
+          </Divider>
+          <Row gutter={16}>
+            <Col xs={24} sm={6}>
+              <Form.Item label="状态" name="status" tooltip="物料状态无状态机，可直接更新">
+                <Select options={MATERIAL_STATUS_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item label="描述" name="description">
+                <Input.TextArea rows={3} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item label="备注" name="notes">
+                <Input.TextArea rows={3} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="变更原因"
+                name="change_reason"
+                tooltip="将写入审计日志（21 CFR Part 11）。建议填写。"
+              >
+                <Input.TextArea rows={2} placeholder="说明此次变更的业务依据" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Space size="large" style={{ display: 'flex' }}>
-            <Form.Item label="来源类型" name="source_type" style={{ flex: 1 }}>
-              <Select options={SOURCE_TYPE_OPTIONS} allowClear />
-            </Form.Item>
-            <Form.Item label="来源名称" name="source_name" style={{ flex: 2 }}>
-              <Input maxLength={128} />
-            </Form.Item>
-          </Space>
-
-          <Form.Item
-            label="状态"
-            name="status"
-            tooltip="物料状态无状态机，可直接 PUT 更新（§10.1）"
-          >
-            <Select options={MATERIAL_STATUS_OPTIONS} />
-          </Form.Item>
-
-          <Form.Item label="描述" name="description">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-
-          <Form.Item label="备注" name="notes">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-
-          <Form.Item
-            label="变更原因"
-            name="change_reason"
-            tooltip="将写入审计日志（21 CFR Part 11）。建议填写。"
-          >
-            <Input.TextArea rows={2} placeholder="说明此次变更的业务依据" />
-          </Form.Item>
-
-          <Space>
+          <div style={{ marginTop: 8 }}>
             <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
               保存
             </Button>
-            <Button onClick={() => navigate(`/materials/${encodeURIComponent(material.material_code)}`)}>
+            <Button
+              style={{ marginLeft: 12 }}
+              onClick={() => navigate(`/materials/${encodeURIComponent(material.material_code)}`)}
+            >
               取消
             </Button>
-          </Space>
+          </div>
         </Form>
       </Card>
     </div>

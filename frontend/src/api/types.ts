@@ -1104,17 +1104,8 @@ export interface GlobalSearchResponse {
   };
 }
 
-// ============== Material（DM §10）==============
-export type MaterialType =
-  | 'candidate'
-  | 'reference'
-  | 'stability'
-  | 'buffer'
-  | 'raw'
-  | 'intermediate'
-  | 'other';
-
-export type MaterialGrade = 'RUO' | 'GMP' | 'Reference Standard' | 'Working Standard';
+// ============== Material ==============
+export type MaterialType = 'reagent' | 'consumable' | 'standard' | 'column';
 
 export type MaterialStatus =
   | 'active'
@@ -1128,8 +1119,11 @@ export interface MaterialBrief {
   material_name: string;
   material_name_en?: string | null;
   material_type: MaterialType;
-  grade?: MaterialGrade | null;
+  category?: string | null;
+  grade?: string | null;
   status: MaterialStatus;
+  unit?: string | null;
+  manufacturer?: string | null;
   physical_form?: string | null;
   source_name?: string | null;
   substance_id?: number | null;
@@ -1144,13 +1138,20 @@ export interface MaterialDetail {
   material_name: string;
   material_name_en?: string | null;
   material_type: MaterialType;
+  category?: string | null;
   substance_id?: number | null;
   substance_code?: string | null;
+  manufacturer?: string | null;
+  catalog_no?: string | null;
+  spec_model?: string | null;
+  unit: string;
+  package_spec?: string | null;
+  hazard_class?: string[] | null;
   physical_form?: string | null;
   storage_condition?: string | null;
   source_type?: string | null;
   source_name?: string | null;
-  grade?: MaterialGrade | null;
+  grade?: string | null;
   status: MaterialStatus;
   description?: string | null;
   notes?: string | null;
@@ -1166,6 +1167,7 @@ export interface MaterialDetail {
 export interface MaterialListQuery {
   q?: string;
   material_type?: string;
+  category?: string;
   status?: string;
   grade?: string;
   substance_code?: string;
@@ -1176,16 +1178,24 @@ export interface MaterialListQuery {
 }
 
 export interface MaterialCreatePayload {
+  material_code: string;
   material_name: string;
   material_name_en?: string;
   material_type: MaterialType;
+  category?: string;
   substance_id?: number;
   substance_code?: string;
+  manufacturer?: string;
+  catalog_no?: string;
+  spec_model?: string;
+  unit?: string;
+  package_spec?: string;
+  hazard_class?: string[];
   physical_form?: string;
   storage_condition?: string;
   source_type?: string;
   source_name?: string;
-  grade?: MaterialGrade;
+  grade?: string;
   description?: string;
   notes?: string;
   extra?: Record<string, unknown>;
@@ -1196,13 +1206,20 @@ export interface MaterialUpdatePayload {
   material_name?: string;
   material_name_en?: string;
   material_type?: MaterialType;
+  category?: string | null;
   substance_id?: number | null;
   substance_code?: string | null;
+  manufacturer?: string | null;
+  catalog_no?: string | null;
+  spec_model?: string | null;
+  unit?: string;
+  package_spec?: string | null;
+  hazard_class?: string[] | null;
   physical_form?: string;
   storage_condition?: string;
   source_type?: string;
   source_name?: string;
-  grade?: MaterialGrade;
+  grade?: string;
   status?: MaterialStatus;
   description?: string;
   notes?: string;
