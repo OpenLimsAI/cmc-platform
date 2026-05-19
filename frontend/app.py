@@ -18,7 +18,8 @@ import streamlit as st
 
 from utils import api_get, APIError, AuthError
 from auth_helper import (
-    get_user, is_admin, is_logged_in, needs_password_change,
+    get_user, is_admin, is_warehouse_admin, can_manage_inventory,
+    is_logged_in, needs_password_change,
     persist_session_to_storage, render_change_password_form, render_login_form,
     render_user_chip, restore_session_from_storage,
 )
@@ -64,7 +65,12 @@ def _home_page():
             st.error("后端不可达 ❌")
             st.caption(str(e))
     with msg_col:
-        role_label = "管理员(全部权限)" if is_admin() else "普通用户(只读)"
+        _role_map = {
+            "admin": "管理员(全部权限)",
+            "warehouse_admin": "库管理员(物料/出入库/移库/盘点)",
+            "user": "普通用户(只读)",
+        }
+        role_label = _role_map.get(user.get("role", ""), "未知角色")
         st.info(
             f"当前登录:**{user['username']}** · {role_label}。"
             " 后端 API 仅限服务器本机访问;Swagger `/docs` 通过 SSH 隧道,详见 README §10.B。"
@@ -87,6 +93,22 @@ def _home_page():
 9. **用户管理** — 用户 CRUD + 操作日志
 """
         )
+    elif is_warehouse_admin():
+        st.markdown(
+            """
+### 你可访问的功能(库管理员)
+1. **物料导入** — 上传公司物料代码 Excel
+2. **物料管理** — 维护安全库存、停用/启用、新增/编辑物料
+3. **入库登记** — 录入实际批次和数量
+4. **出库登记** — 日常出库扣减
+5. **移库** — 同批号在不同柜位间搬移
+6. **盘点调整** — 把账面修正为实际盘点数
+7. **库存查询** — 按物料 / 按批次查看实时库存
+8. **库存预警** — 关注效期、低库存
+
+> 用户管理 / 审计日志查询仅管理员可访问。
+"""
+        )
     else:
         st.markdown(
             """
@@ -95,7 +117,7 @@ def _home_page():
 - **库存查询** — 按物料 / 按批次查看实时库存
 - **库存预警** — 关注效期、低库存
 
-> 入库 / 出库 / 移库 / 盘点 / 物料导入 等写操作需要管理员权限。
+> 入库 / 出库 / 移库 / 盘点 / 物料导入 等写操作需要管理员或库管理员权限。
 """
         )
 
@@ -141,6 +163,13 @@ if is_admin():
         "出入库":     [p_in, p_out, p_move, p_adjust],
         "库存与预警": [p_stock, p_alert],
         "系统":       [p_users],
+    }
+elif is_warehouse_admin():
+    nav_pages = {
+        "导览":       [home],
+        "主数据":     [p_import, p_material],
+        "出入库":     [p_in, p_out, p_move, p_adjust],
+        "库存与预警": [p_stock, p_alert],
     }
 else:
     nav_pages = {

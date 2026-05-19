@@ -19,9 +19,9 @@ from utils import (
     get_categories, get_locations, get_materials, material_label,
     fuzzy_match_material, locations_grouped, render_hazard_badges,
 )
-from auth_helper import require_admin, get_user
+from auth_helper import require_inventory_access, get_user
 
-require_admin()
+require_inventory_access()
 st.header("🚚 移库")
 st.caption("同批号在不同位置间搬运(批号链不断);支持部分移。")
 _user = get_user()

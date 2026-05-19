@@ -170,9 +170,17 @@ def get_current_user_optional(
 
 
 def require_admin(current: AppUser = Depends(get_current_user)) -> AppUser:
-    """需要 admin 角色的接口依赖这个。"""
+    """需要 admin 角色的接口依赖这个。仅管理员能做(用户管理、审计日志查询等)。"""
     if current.role != "admin":
         raise HTTPException(status_code=403, detail="此操作仅管理员可执行")
+    return current
+
+
+def require_warehouse(current: AppUser = Depends(get_current_user)) -> AppUser:
+    """需要 admin 或 warehouse_admin (库管理员) 的接口依赖这个。
+    业务侧操作(物料管理、出入库、移库、盘点、库导入、位置创建)用这个。"""
+    if current.role not in ("admin", "warehouse_admin"):
+        raise HTTPException(status_code=403, detail="此操作需要管理员或库管理员权限")
     return current
 
 

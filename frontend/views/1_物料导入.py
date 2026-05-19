@@ -11,9 +11,9 @@ import pandas as pd
 import streamlit as st
 
 from utils import api_get, api_post, APIError, clear_material_cache, API_BASE_URL
-from auth_helper import require_admin, get_user
+from auth_helper import require_inventory_access, get_user
 
-require_admin()
+require_inventory_access()
 st.header("📥 物料主数据导入")
 
 # --- 顶部说明 ---

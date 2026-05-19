@@ -188,7 +188,7 @@ class InventoryTxn(Base):
 class AppUser(Base):
     __tablename__ = "app_user"
     __table_args__ = (
-        CheckConstraint("role IN ('admin','user')", name="ck_app_user_role"),
+        CheckConstraint("role IN ('admin','warehouse_admin','user')", name="ck_app_user_role"),
         {"schema": "material_mgmt"},
     )
 

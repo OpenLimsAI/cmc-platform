@@ -18,9 +18,9 @@ from utils import (
     api_get, api_post, APIError,
     get_categories, get_materials, material_label, fuzzy_match_material,
 )
-from auth_helper import require_admin, get_user
+from auth_helper import require_inventory_access, get_user
 
-require_admin()
+require_inventory_access()
 st.header("🧮 盘点调整")
 st.caption("把账面库存修正为实际盘点数;调整后批次库存不得 < 0。")
 _user = get_user()

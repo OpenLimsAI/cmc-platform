@@ -368,11 +368,11 @@ class UserOut(ORMBase):
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=1, max_length=50)
     password: str = Field(..., min_length=8)
-    role: str = Field(..., pattern="^(admin|user)$")
+    role: str = Field(..., pattern="^(admin|warehouse_admin|user)$")
 
 
 class UserUpdate(BaseModel):
-    role: Optional[str] = Field(None, pattern="^(admin|user)$")
+    role: Optional[str] = Field(None, pattern="^(admin|warehouse_admin|user)$")
     is_active: Optional[bool] = None
 
 

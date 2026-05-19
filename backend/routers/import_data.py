@@ -27,7 +27,7 @@ from sqlalchemy import select
 
 import crud
 from audit import get_request_ip, write_audit
-from auth import require_admin
+from auth import require_warehouse
 from database import get_db
 from models import AppUser, Material, ImportLog, UnitDict, CategoryDict
 from schemas import (
@@ -96,7 +96,7 @@ def _read_excel_bytes(content: bytes) -> pd.DataFrame:
 @router.post("/materials/dry-run", response_model=ImportPreviewResult)
 async def dry_run(
     file: UploadFile = File(...),
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """干跑:校验并返回每一行的处理结果(INSERT / UPDATE / ERROR)。"""
@@ -197,7 +197,7 @@ async def dry_run(
 def commit(
     payload: ImportCommitRequest,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """正式提交:执行 UPSERT 并写入 import_log。

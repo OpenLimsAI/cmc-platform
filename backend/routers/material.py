@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
-from auth import require_admin
+from auth import require_warehouse
 from database import get_db
 from models import AppUser
 from schemas import (
@@ -51,7 +51,7 @@ def list_materials(
 def create_material(
     payload: MaterialCreate,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """单条创建物料。冲突 / 单位不存在等业务错误返 400。
@@ -84,7 +84,7 @@ def update_material(
     material_id: int,
     payload: MaterialUpdate,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     obj = crud.get_material(db, material_id)
@@ -109,7 +109,7 @@ def deactivate(
     material_id: int,
     payload: DeactivateRequest,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     obj = crud.get_material(db, material_id)
@@ -133,7 +133,7 @@ def deactivate(
 def activate(
     material_id: int,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     obj = crud.get_material(db, material_id)

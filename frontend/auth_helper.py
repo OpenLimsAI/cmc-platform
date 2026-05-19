@@ -77,6 +77,16 @@ def is_admin() -> bool:
     return bool(u and u.get("role") == "admin")
 
 
+def is_warehouse_admin() -> bool:
+    u = get_user()
+    return bool(u and u.get("role") == "warehouse_admin")
+
+
+def can_manage_inventory() -> bool:
+    """admin 或 warehouse_admin: 能做物料 / 出入库 / 移库 / 盘点 / 导入 等操作。"""
+    return is_admin() or is_warehouse_admin()
+
+
 def needs_password_change() -> bool:
     u = get_user()
     return bool(u and u.get("must_change_password"))
@@ -224,12 +234,19 @@ def render_change_password_form() -> None:
 # ---------------------------------------------------------------------------
 # 页面级守卫
 # ---------------------------------------------------------------------------
+_ROLE_LABEL = {
+    "admin": "管理员",
+    "warehouse_admin": "库管理员",
+    "user": "普通用户",
+}
+
+
 def render_user_chip() -> None:
     """sidebar 顶部显示当前用户 + 登出按钮。每个 page 都调一下。"""
     u = get_user()
     if not u:
         return
-    role_label = "管理员" if u.get("role") == "admin" else "普通用户"
+    role_label = _ROLE_LABEL.get(u.get("role", ""), "未知角色")
     st.sidebar.success(f"👤 {u['username']} · {role_label}")
     if st.sidebar.button("🚪 登出", use_container_width=True):
         logout()
@@ -259,4 +276,13 @@ def require_admin() -> None:
     require_login()
     if not is_admin():
         st.error("⛔ 此页面仅管理员可访问")
+        st.stop()
+
+
+def require_inventory_access() -> None:
+    """页面级守卫: admin 或 warehouse_admin 都允许;其他拦下。
+    用于物料管理 / 出入库 / 移库 / 盘点 / 导入等业务页。"""
+    require_login()
+    if not can_manage_inventory():
+        st.error("⛔ 此页面仅管理员或库管理员可访问")
         st.stop()

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
-from auth import require_admin
+from auth import require_warehouse
 from database import get_db
 from models import AppUser
 from schemas import (
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 def receive_in(
     payload: TxnInRequest,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """已有批次追加入库。"""
@@ -58,7 +58,7 @@ def receive_in(
 def issue_out(
     payload: TxnOutRequest,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """从指定批次出库。"""
@@ -89,7 +89,7 @@ def issue_out(
 def adjust(
     payload: TxnAdjustRequest,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """盘点调整,可正可负;但调整后批次库存不得 < 0。"""
@@ -119,7 +119,7 @@ def adjust(
 def transfer(
     payload: TransferRequest,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """移库:一笔操作 = 源 OUT + 目的 IN(同物料同批号在两个位置间搬)。

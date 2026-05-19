@@ -19,20 +19,20 @@ from utils import (
     get_categories, get_units, fmt_null, clear_material_cache,
     HAZARD_CLASS_OPTIONS, TT_INTERNAL_CODE,
 )
-from auth_helper import require_login, is_admin
+from auth_helper import require_login, can_manage_inventory
 
 require_login()
 st.header("🗂️ 物料管理")
 
 units = get_units()
 cats_existing = get_categories()
-_admin = is_admin()
+_admin = can_manage_inventory()
 
 # ============================================================================
-# ➕ 新增物料 — 仅 admin
+# ➕ 新增物料 — 仅 admin / warehouse_admin
 # ============================================================================
 if not _admin:
-    st.caption("ℹ️ 你是普通用户(只读),新增 / 编辑 / 停用 / 启用 操作仅管理员可见。")
+    st.caption("ℹ️ 你是普通用户(只读),新增 / 编辑 / 停用 / 启用 操作仅管理员或库管理员可见。")
 
 
 def _render_new_material_form():

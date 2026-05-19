@@ -35,7 +35,10 @@ with tab_users:
             with col2:
                 npwd = st.text_input("初始密码 *(至少 8 位)", type="password")
             with col3:
-                nrole = st.selectbox("角色 *", ["user", "admin"], index=0)
+                nrole = st.selectbox(
+                    "角色 *", ["user", "warehouse_admin", "admin"], index=0,
+                    help="user=只读, warehouse_admin=库管理员(物料/出入库/移库/盘点/导入), admin=全权",
+                )
             submit_new = st.form_submit_button("✅ 创建用户", type="primary")
         if submit_new:
             if not nu or not npwd:
@@ -86,14 +89,16 @@ with tab_users:
             t_role, t_status, t_pwd = st.tabs(["改角色", "启用 / 停用", "重置密码"])
 
             with t_role:
+                _role_options = ["user", "warehouse_admin", "admin"]
+                _role_idx = _role_options.index(target["role"]) if target["role"] in _role_options else 0
                 new_role = st.selectbox(
-                    "新角色", ["user", "admin"],
-                    index=0 if target["role"] == "user" else 1,
+                    "新角色", _role_options,
+                    index=_role_idx,
                     key=f"role_{target['id']}",
                 )
                 if st.button("保存角色", key=f"save_role_{target['id']}"):
-                    if is_self and new_role == "user":
-                        st.error("不能把自己从 admin 降级")
+                    if is_self and new_role != "admin":
+                        st.error("不能把自己从 admin 降级,避免锁定自己")
                     else:
                         try:
                             api_patch(f"/api/users/{target['id']}", json={"role": new_role})

@@ -23,9 +23,9 @@ from utils import (
     fuzzy_match_material,
     locations_grouped, render_hazard_badges,
 )
-from auth_helper import require_admin, get_user
+from auth_helper import require_inventory_access, get_user
 
-require_admin()
+require_inventory_access()
 st.header("📥 入库登记")
 _user = get_user()
 operator = _user["username"] if _user else ""

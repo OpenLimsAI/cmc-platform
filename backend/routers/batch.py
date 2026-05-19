@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
-from auth import require_admin
+from auth import require_warehouse
 from database import get_db
 from models import AppUser
 from schemas import BatchCreate, BatchOut
@@ -63,7 +63,7 @@ def list_batches(
 def create_batch(
     payload: BatchCreate,
     request: Request,
-    current: AppUser = Depends(require_admin),
+    current: AppUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     """新建批次:同 (material_id, batch_no, location_id) 不允许重复;
