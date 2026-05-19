@@ -56,7 +56,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 def issue_session(db: Session, user: AppUser, source_ip: Optional[str] = None) -> AuthSession:
     """为登录用户签发新 session token,落库。"""
     token = secrets.token_hex(TOKEN_BYTES)
-    now = datetime.utcnow()
+    now = datetime.now()
     sess = AuthSession(
         token=token,
         user_id=user.id,
@@ -94,7 +94,7 @@ def revoke_all_user_sessions(db: Session, user_id: int) -> int:
 
 def cleanup_expired_sessions(db: Session) -> int:
     """删过期 session(可由定时任务/管理页触发,不是必须)。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     rows = db.execute(
         select(AuthSession).where(AuthSession.expires_at < now)
     ).scalars().all()
@@ -128,7 +128,7 @@ def get_current_user(
     sess = db.get(AuthSession, token)
     if not sess:
         raise HTTPException(status_code=401, detail="会话不存在或已登出,请重新登录")
-    now = datetime.utcnow()
+    now = datetime.now()
     if sess.expires_at < now:
         # 顺手清掉
         db.delete(sess)
@@ -160,7 +160,7 @@ def get_current_user_optional(
     if not token:
         return None
     sess = db.get(AuthSession, token)
-    if not sess or sess.expires_at < datetime.utcnow():
+    if not sess or sess.expires_at < datetime.now():
         return None
     user = db.get(AppUser, sess.user_id)
     return user if user and user.is_active else None

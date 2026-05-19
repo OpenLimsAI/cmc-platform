@@ -167,7 +167,7 @@ def list_audit_logs(
     _: AppUser = Depends(require_admin),
 ):
     """近 days 天的审计日志;过滤维度:用户、动作、实体。"""
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now() - timedelta(days=days)
     stmt = select(AuditLog).where(AuditLog.created_at >= since)
     if user_id is not None:
         stmt = stmt.where(AuditLog.user_id == user_id)
