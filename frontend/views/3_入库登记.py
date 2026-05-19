@@ -98,37 +98,6 @@ def _render_intake_tab(tab_type: str) -> None:
     st.markdown("---")
     st.subheader("入库信息")
 
-    # 物料信息(只读 — 编辑请去物料管理)
-    # 视觉上与下方表单的输入框一致, 但 disabled=True 不可编辑
-    st.caption("📦 物料信息(只读, 修改请到「物料管理」)")
-    mi_col1, mi_col2 = st.columns(2)
-    with mi_col1:
-        st.text_input(
-            "物料代码", value=mat["material_code"], disabled=True,
-            key=f"info_code_{tab_type}",
-        )
-        st.text_input(
-            "厂家", value=mat.get("manufacturer") or "", disabled=True,
-            key=f"info_mfr_{tab_type}",
-        )
-        st.text_input(
-            "级别", value=mat.get("grade") or "", disabled=True,
-            key=f"info_grade_{tab_type}",
-        )
-    with mi_col2:
-        st.text_input(
-            "物料名称", value=mat["name_cn"], disabled=True,
-            key=f"info_name_{tab_type}",
-        )
-        st.text_input(
-            "货号", value=mat.get("catalog_no") or "", disabled=True,
-            key=f"info_cat_{tab_type}",
-        )
-        st.text_input(
-            "规格", value=mat.get("spec_model") or "", disabled=True,
-            key=f"info_spec_{tab_type}",
-        )
-
     locs = get_locations()
     if not locs:
         st.error("位置字典为空,请管理员先初始化。")
@@ -197,8 +166,28 @@ def _render_intake_tab(tab_type: str) -> None:
         st.session_state[rows_key].pop(remove_idx)
         st.rerun()
 
-    # ── 全局字段(批号/日期/效期/备注 + 按 tab_type 的专属) ─────────────
+    # ── 全局字段(物料信息 + 批号/日期/效期/备注 + 按 tab_type 的专属) ─────
     with st.form(f"in_form_{tab_type}", clear_on_submit=False):
+        # 物料信息(只读, 编辑请去物料管理) — 跟下面表单输入框风格一致, 一眼能区分
+        st.caption("📦 物料信息(只读, 修改请到「物料管理」)")
+        mi_col1, mi_col2 = st.columns(2)
+        with mi_col1:
+            st.text_input("物料代码", value=mat["material_code"], disabled=True,
+                          key=f"info_code_{tab_type}")
+            st.text_input("厂家", value=mat.get("manufacturer") or "", disabled=True,
+                          key=f"info_mfr_{tab_type}")
+            st.text_input("级别", value=mat.get("grade") or "", disabled=True,
+                          key=f"info_grade_{tab_type}")
+        with mi_col2:
+            st.text_input("物料名称", value=mat["name_cn"], disabled=True,
+                          key=f"info_name_{tab_type}")
+            st.text_input("货号", value=mat.get("catalog_no") or "", disabled=True,
+                          key=f"info_cat_{tab_type}")
+            st.text_input("规格", value=mat.get("spec_model") or "", disabled=True,
+                          key=f"info_spec_{tab_type}")
+
+        st.markdown("---")
+
         col1, col2 = st.columns(2)
         with col1:
             batch_no = st.text_input(
