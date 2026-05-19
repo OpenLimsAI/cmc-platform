@@ -186,8 +186,6 @@ def _render_intake_tab(tab_type: str) -> None:
             st.text_input("规格", value=mat.get("spec_model") or "", disabled=True,
                           key=f"info_spec_{tab_type}")
 
-        st.markdown("---")
-
         col1, col2 = st.columns(2)
         with col1:
             batch_no = st.text_input(
@@ -197,12 +195,11 @@ def _render_intake_tab(tab_type: str) -> None:
                 "到货日期 *", value=date.today(), key=f"in_rec_{tab_type}",
             )
         with col2:
-            has_expiry = st.checkbox(
-                "此批次有效期", value=True, key=f"in_he_{tab_type}",
-            )
             expiry = st.date_input(
-                "效期", value=date.today(), key=f"in_exp_{tab_type}",
-            ) if has_expiry else None
+                "效期(无可留空)", value=None,
+                format="YYYY-MM-DD",
+                key=f"in_exp_{tab_type}",
+            )
             remark = st.text_area(
                 "备注", max_chars=500, height=80, key=f"in_rmk_{tab_type}",
             )
