@@ -24,13 +24,13 @@ categories = get_categories()
 locations = get_locations()
 grouped = locations_grouped(locations)
 
-# 类型筛选: 4 个入库大类(material_type)
-_TYPE_OPTIONS = ["(全部类型)"] + list(MATERIAL_TYPE_LABELS.values())  # 试剂/耗材/标准物质/色谱柱
+# TT分类筛选: 4 个入库大类(material_type)
+_TYPE_OPTIONS = ["(全部TT分类)"] + list(MATERIAL_TYPE_LABELS.values())  # 试剂/耗材/标准物质/色谱柱
 _TYPE_REVERSE = {v: k for k, v in MATERIAL_TYPE_LABELS.items()}
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
-    mt_label = st.selectbox("类型", _TYPE_OPTIONS)
+    mt_label = st.selectbox("TT分类", _TYPE_OPTIONS)
     mt_code = _TYPE_REVERSE.get(mt_label)  # None = 全部
 with c2:
     cat = st.selectbox("分类", ["(全部分类)"] + categories)
@@ -98,7 +98,7 @@ if view == "按物料汇总":
                 "ID": r["material_id"],
                 "代码": r["material_code"],
                 "物料名称": r["name_cn"],
-                "类型": material_type_label(r.get("material_type")),
+                "TT分类": material_type_label(r.get("material_type")),
                 "分类": fmt_null(r.get("category")),
                 "生产商": fmt_null(r.get("manufacturer")),
                 "规格/型号": fmt_null(r.get("spec_model")),
@@ -143,7 +143,7 @@ else:  # 按批次明细
                 "ID": r["material_id"],
                 "代码": r["material_code"],
                 "物料名称": r["name_cn"],
-                "类型": material_type_label(r.get("material_type")),
+                "TT分类": material_type_label(r.get("material_type")),
                 "入库类型": material_type_label(r.get("intake_type")),
                 "生产商": fmt_null(r.get("manufacturer")),
                 "规格/型号": fmt_null(r.get("spec_model")),

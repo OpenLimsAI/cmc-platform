@@ -42,6 +42,27 @@ def severity_of(days_to_expiry: int, warning_threshold: int = 90) -> Optional[st
 # ---------------------------------------------------------------------------
 # Material
 # ---------------------------------------------------------------------------
+_MATERIAL_SEARCH_COLUMNS = (
+    Material.material_code,
+    Material.name_cn,
+    Material.manufacturer,
+    Material.spec_model,
+    Material.catalog_no,
+)
+
+
+def _build_keyword_pattern(token: str) -> str:
+    """把用户输入的单个关键词转成 ILIKE 模式。
+    - SQL 通配符 % 和 _ 在原文中先转义,避免误匹配
+    - 用户的 * 视作通配符,翻译成 %
+    - 不含 * 时按子串匹配 (%kw%)
+    """
+    token = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    if "*" in token:
+        return token.replace("*", "%")
+    return f"%{token}%"
+
+
 def list_materials(
     db: Session,
     category: Optional[str] = None,
@@ -51,7 +72,9 @@ def list_materials(
 ) -> List[Material]:
     """物料列表查询。
     - is_active: 显式指定 True/False;若 None 且 include_inactive=False,则只查 active
-    - keyword 同时匹配 material_code 与 name_cn
+    - keyword: 在 物料代码/名称/生产商/规格/货号 5 列中模糊匹配(ILIKE 大小写不敏感)
+              空格分隔多关键词时,所有词都要命中(AND),每个词在任一列命中即可(OR)
+              支持 * 作为通配符 (例 "ABC*123" 匹配 ABC 开头 123 结尾)
     """
     stmt = select(Material)
 
@@ -66,8 +89,11 @@ def list_materials(
         stmt = stmt.where(Material.category == category)
 
     if keyword:
-        kw = f"%{keyword}%"
-        stmt = stmt.where(or_(Material.material_code.ilike(kw), Material.name_cn.ilike(kw)))
+        for token in keyword.split():
+            pattern = _build_keyword_pattern(token)
+            stmt = stmt.where(
+                or_(*(col.ilike(pattern, escape="\\") for col in _MATERIAL_SEARCH_COLUMNS))
+            )
 
     stmt = stmt.order_by(Material.material_code, Material.material_id)
     return list(db.execute(stmt).scalars().all())
@@ -133,7 +159,8 @@ def create_material(db: Session, data: dict) -> Material:
         remark=data.get("remark"),
         safety_stock=data.get("safety_stock") or Decimal("0"),
         is_active=True,
-        import_batch_id=None,  # 手工录入,不挂导入批次
+        data_source=data.get("data_source", "local"),
+        import_batch_id=None,
     )
     db.add(obj)
     db.flush()

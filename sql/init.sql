@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS material (
     hazard_class       TEXT[],                          -- 多选:危化品/易燃/易制毒/易制爆/剧毒品
     remark             TEXT,
     safety_stock       NUMERIC(12,2) DEFAULT 0,
+    data_source        VARCHAR(10)  DEFAULT 'local' CHECK (data_source IN ('mdm','local')),
     is_active          BOOLEAN      DEFAULT TRUE,
     deactivated_at     TIMESTAMP,
     deactivated_by     VARCHAR(50),
@@ -283,6 +284,53 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_user_time   ON audit_log(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_entity_time ON audit_log(entity_type, entity_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_action_time ON audit_log(action, created_at DESC);
+
+-- -----------------------------------------------------------------------------
+-- 11. 迁移段(对已存在的旧 DB 补齐后加的列/约束)
+--     - CREATE TABLE IF NOT EXISTS 不会改老表,所以新增列必须显式 ALTER
+--     - 全部使用 ADD COLUMN IF NOT EXISTS,可重复执行
+--     - 以后新增字段时,模型/CREATE TABLE 和这里同步追加一行
+-- -----------------------------------------------------------------------------
+
+-- material: v1.3 加入 MDM 物料来源标记
+ALTER TABLE material
+    ADD COLUMN IF NOT EXISTS data_source VARCHAR(10) DEFAULT 'local';
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'material_data_source_check'
+    ) THEN
+        ALTER TABLE material
+            ADD CONSTRAINT material_data_source_check
+            CHECK (data_source IN ('mdm','local'));
+    END IF;
+END$$;
+
+-- material: v1.2 加入 TT 分类
+ALTER TABLE material
+    ADD COLUMN IF NOT EXISTS material_type VARCHAR(20);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ck_material_type'
+    ) THEN
+        ALTER TABLE material
+            ADD CONSTRAINT ck_material_type
+            CHECK (material_type IS NULL OR material_type IN ('reagent','consumable','standard','column'));
+    END IF;
+END$$;
+
+-- material: 危化品分类多选
+ALTER TABLE material
+    ADD COLUMN IF NOT EXISTS hazard_class TEXT[];
+
+-- batch: v1.2 加入入库类型及标准物质/色谱柱专属字段
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_type             VARCHAR(20);
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS concentration           VARCHAR(50);
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS extinction_coefficient  NUMERIC(12,2);
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS serial_no               VARCHAR(100);
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS asset_no                VARCHAR(100);
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS responsible_person      VARCHAR(50);
 
 -- -----------------------------------------------------------------------------
 -- 完成

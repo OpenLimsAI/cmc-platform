@@ -96,143 +96,151 @@ cmc-inventory/
 
 ### 4.1 `material` — 物料主数据
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `material_id` | SERIAL PK | 物料内部主键 |
-| `material_code` | VARCHAR(20) NOT NULL | 物料代码,**保留前导 0**;除 `TT内部物料` 外唯一 |
-| `category` | VARCHAR(50) | 分类(如"一般耗材"),来自导入文件 |
-| `material_type` | VARCHAR(20) | 入库大类:reagent / consumable / standard / column |
-| `name_cn` | VARCHAR(200) NOT NULL | 物料名称(中文) |
-| `grade` | VARCHAR(50) | 级别(N/A 转 NULL) |
-| `manufacturer` | VARCHAR(100) | 生产商 |
-| `spec_model` | VARCHAR(200) | 规格/型号 |
-| `catalog_no` | VARCHAR(100) | 货号 |
-| `unit` | VARCHAR(20) NOT NULL | 单位(支/瓶/g/mL/盒/包等) |
-| `package_spec` | VARCHAR(100) | 包装规格 |
-| `hazard_class` | TEXT[] | 危化品分类多选:危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品 |
-| `remark` | TEXT | 备注 |
-| `safety_stock` | NUMERIC(12,2) DEFAULT 0 | 安全库存(导入后单独维护) |
-| `is_active` | BOOLEAN DEFAULT TRUE | 启用标志(软删除) |
-| `deactivated_at` | TIMESTAMP | 停用时间 |
-| `deactivated_by` | VARCHAR(50) | 停用操作人 |
-| `deactivate_reason` | VARCHAR(200) | 停用原因 |
-| `import_batch_id` | INT FK | 导入批次,便于回溯 |
-| `created_at` / `updated_at` | TIMESTAMP | 自动维护 |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `material_id` | SERIAL PK | 物料ID | 物料内部主键 |
+| `material_code` | VARCHAR(20) NOT NULL | 物料代码 / 代码 | 物料代码,**保留前导 0**;除 `TT内部物料` 外唯一 |
+| `category` | VARCHAR(50) | 分类 | 分类(如"一般耗材"),来自导入文件 |
+| `material_type` | VARCHAR(20) | TT分类 | 入库大类:reagent / consumable / standard / column |
+| `name_cn` | VARCHAR(200) NOT NULL | 物料名称 | 物料名称(中文) |
+| `grade` | VARCHAR(50) | 级别 | 级别(N/A 转 NULL) |
+| `manufacturer` | VARCHAR(100) | 生产商 / 厂家 | 生产商 |
+| `spec_model` | VARCHAR(200) | 规格/型号 | 规格/型号 |
+| `catalog_no` | VARCHAR(100) | 货号 | 货号 |
+| `unit` | VARCHAR(20) NOT NULL | 单位 | 单位(支/瓶/g/mL/盒/包等) |
+| `package_spec` | VARCHAR(100) | 包装规格 | 包装规格 |
+| `hazard_class` | TEXT[] | 危化品分类 | 危化品分类多选:危化品 / 易燃 / 易制毒 / 易制爆 / 剧毒品 |
+| `remark` | TEXT | 备注 | 备注 |
+| `safety_stock` | NUMERIC(12,2) DEFAULT 0 | 安全库存 | 安全库存(导入后单独维护) |
+| `is_active` | BOOLEAN DEFAULT TRUE | 状态 | 启用标志(软删除) |
+| `deactivated_at` | TIMESTAMP | 停用时间 | 停用时间 |
+| `deactivated_by` | VARCHAR(50) | 停用操作人 | 停用操作人 |
+| `deactivate_reason` | VARCHAR(200) | 停用原因 | 停用原因 |
+| `import_batch_id` | INT FK | 导入批次ID | 导入批次,便于回溯 |
+| `created_at` | TIMESTAMP | 创建时间 | 自动维护 |
+| `updated_at` | TIMESTAMP | 更新时间 | 自动维护 |
 
 ### 4.2 `batch` — 批次
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `batch_id` | SERIAL PK | |
-| `material_id` | INT FK | 关联 `material.material_id` |
-| `batch_no` | VARCHAR(100) NOT NULL | 供应商批号 |
-| `expiry_date` | DATE | 效期(可空,部分耗材无效期) |
-| `location_id` | INT FK NOT NULL | 储存位置 |
-| `received_date` | DATE NOT NULL | 到货日期 |
-| `initial_qty` | NUMERIC(12,2) NOT NULL | 入库数量 |
-| `remark` | TEXT | |
-| `intake_type` | VARCHAR(20) | 本批次入库时所在大类 |
-| `concentration` | VARCHAR(50) | 标准物质浓度 |
-| `extinction_coefficient` | NUMERIC(12,2) | 标准物质消光系数 |
-| `serial_no` | VARCHAR(100) | 色谱柱序列号 |
-| `asset_no` | VARCHAR(100) | 色谱柱内部编号/资产编号 |
-| `responsible_person` | VARCHAR(50) | 色谱柱负责人 |
-| `created_at` | TIMESTAMP | |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `batch_id` | SERIAL PK | 批次ID | 批次内部主键 |
+| `material_id` | INT FK | 物料ID | 关联 `material.material_id` |
+| `batch_no` | VARCHAR(100) NOT NULL | 批号 | 供应商批号 |
+| `expiry_date` | DATE | 效期 / 有效期 | 效期(可空,部分耗材无效期) |
+| `location_id` | INT FK NOT NULL | 储存位置ID | 储存位置 |
+| `received_date` | DATE NOT NULL | 到货日期 / 入库日期 | 到货日期 |
+| `initial_qty` | NUMERIC(12,2) NOT NULL | 入库数量 | 首次入库数量 |
+| `remark` | TEXT | 备注 | 备注 |
+| `intake_type` | VARCHAR(20) | 入库类型 | 本批次入库时所在大类 |
+| `concentration` | VARCHAR(50) | 浓度 | 标准物质浓度 |
+| `extinction_coefficient` | NUMERIC(12,2) | 消光系数 | 标准物质消光系数 |
+| `serial_no` | VARCHAR(100) | 序列号 | 色谱柱序列号 |
+| `asset_no` | VARCHAR(100) | 内部编号 / 资产编号 | 色谱柱内部编号/资产编号 |
+| `responsible_person` | VARCHAR(50) | 负责人 | 色谱柱负责人 |
+| `created_at` | TIMESTAMP | 创建时间 | 自动维护 |
 
 **唯一约束**: `(material_id, batch_no, location_id)` 联合唯一。同一物料同一批号允许分散在多个位置上独立计数。
 
 ### 4.3 `inventory_txn` — 出入库流水(库存计算的唯一来源)
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `txn_id` | SERIAL PK | |
-| `batch_id` | INT FK NOT NULL | |
-| `txn_type` | VARCHAR(10) NOT NULL | `IN` / `OUT` / `ADJUST` |
-| `qty` | NUMERIC(12,2) NOT NULL | **入库为正,出库为负,调整有正有负** |
-| `txn_date` | DATE NOT NULL | 发生日期 |
-| `operator` | VARCHAR(50) NOT NULL | 经办人姓名 |
-| `purpose` | VARCHAR(200) | 用途/项目编号(出库时填) |
-| `remark` | TEXT | |
-| `created_at` | TIMESTAMP | |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `txn_id` | SERIAL PK | 流水ID / 记录ID | 出入库流水内部主键 |
+| `batch_id` | INT FK NOT NULL | 批次ID | 关联批次 |
+| `txn_type` | VARCHAR(10) NOT NULL | 操作类型 | `IN` / `OUT` / `ADJUST` |
+| `qty` | NUMERIC(12,2) NOT NULL | 数量 / 调整量 | **入库为正,出库为负,调整有正有负** |
+| `txn_date` | DATE NOT NULL | 日期 / 发生日期 | 发生日期 |
+| `operator` | VARCHAR(50) NOT NULL | 经办人 | 经办人姓名,自动取当前登录用户 |
+| `purpose` | VARCHAR(200) | 用途 / 项目编号 | 用途/项目编号(出库时填) |
+| `remark` | TEXT | 备注 | 备注 |
+| `created_at` | TIMESTAMP | 创建时间 | 自动维护 |
 
 **关键设计原则**: 库存数量**不存表**,实时由 `inventory_txn` 聚合计算,杜绝账实不符。
 
 ### 4.4 `location` — 储存位置
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `location_id` | SERIAL PK | |
-| `room_no` | VARCHAR(20) NOT NULL | 房间号 |
-| `cabinet_no` | VARCHAR(20) NOT NULL | 柜号 |
-| `layer_no` | SMALLINT NOT NULL | 层号,必须 >= 1 |
-| `name` | VARCHAR(80) GENERATED | 生成展示名,如 `2251-A01-L1` |
-| `storage_condition` | VARCHAR(50) | 常温 / 4℃ / -20℃ / -80℃ / 避光 |
-| `remark` | TEXT | |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `location_id` | SERIAL PK | 位置ID | 储存位置内部主键 |
+| `room_no` | VARCHAR(20) NOT NULL | 房间号 | 房间号 |
+| `cabinet_no` | VARCHAR(20) NOT NULL | 柜号 | 柜号 |
+| `layer_no` | SMALLINT NOT NULL | 层号 | 层号,必须 >= 1 |
+| `name` | VARCHAR(80) GENERATED | 储存位置 / 位置 | 生成展示名,如 `2251-A01-L1` |
+| `storage_condition` | VARCHAR(50) | 储存条件 | 常温 / 4℃ / -20℃ / -80℃ / 避光 |
+| `remark` | TEXT | 备注 | 备注 |
 
 **唯一约束**: `(room_no, cabinet_no, layer_no)`。
 
 ### 4.5 `unit_dict` — 单位字典
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `unit` | VARCHAR(20) PK | 如 支、瓶、g、mL |
-| `description` | VARCHAR(100) | |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `unit` | VARCHAR(20) PK | 单位 | 如 支、瓶、g、mL |
+| `description` | VARCHAR(100) | 单位说明 | 单位说明 |
 
 **预置值**(从导入样本提取): 张、卷、个、盒、包、根、袋、瓶、把、kg、支、g、mg、mL、L
 
 ### 4.6 `category_dict` — 分类字典
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `category` | VARCHAR(50) PK | |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `category` | VARCHAR(50) PK | 分类 | 物料分类名称 |
 
 **初始为空**,导入时自动从文件中提取唯一值入库。
 
 ### 4.7 `import_log` — 导入日志
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `import_id` | SERIAL PK | |
-| `file_name` | VARCHAR(200) | |
-| `imported_at` | TIMESTAMP | |
-| `operator` | VARCHAR(50) | |
-| `total_rows` | INT | |
-| `inserted_rows` | INT | |
-| `updated_rows` | INT | |
-| `failed_rows` | INT | |
-| `error_detail` | JSONB | 失败行详情 |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `import_id` | SERIAL PK | 导入ID | 导入记录内部主键 |
+| `file_name` | VARCHAR(200) | 文件名 | 导入文件名 |
+| `imported_at` | TIMESTAMP | 导入时间 | 导入发生时间 |
+| `operator` | VARCHAR(50) | 操作人 | 导入操作人 |
+| `total_rows` | INT | 总行数 | 导入总行数 |
+| `inserted_rows` | INT | 新增行数 | 成功新增行数 |
+| `updated_rows` | INT | 更新行数 | 成功更新行数 |
+| `failed_rows` | INT | 失败行数 | 导入失败行数 |
+| `error_detail` | JSONB | 错误详情 | 失败行详情 |
 
 ### 4.8 `app_user` — 应用账号
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | SERIAL PK | |
-| `username` | VARCHAR(50) UNIQUE | 登录名 |
-| `password_hash` | VARCHAR(255) | bcrypt hash |
-| `role` | VARCHAR(20) | `admin` / `warehouse_admin` / `user` |
-| `is_active` | BOOLEAN | 是否启用 |
-| `must_change_password` | BOOLEAN | 是否要求下次登录改密 |
-| `created_at` / `last_login_at` | TIMESTAMP | 创建 / 最近登录时间 |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `id` | SERIAL PK | 用户ID | 用户内部主键 |
+| `username` | VARCHAR(50) UNIQUE | 用户名 | 登录名 |
+| `password_hash` | VARCHAR(255) | 密码 | bcrypt hash,页面不显示明文 |
+| `role` | VARCHAR(20) | 角色 | `admin` / `warehouse_admin` / `user` |
+| `is_active` | BOOLEAN | 状态 | 是否启用 |
+| `must_change_password` | BOOLEAN | 需改密 | 是否要求下次登录改密 |
+| `created_at` | TIMESTAMP | 创建时间 | 创建时间 |
+| `last_login_at` | TIMESTAMP | 上次登录 | 最近登录时间 |
 
 ### 4.9 `auth_session` — 登录会话
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `token` | VARCHAR(64) PK | 随机 hex token |
-| `user_id` | INT FK | 登录用户 |
-| `created_at` / `expires_at` / `last_seen_at` | TIMESTAMP | 创建 / 过期 / 最近活跃时间 |
-| `source_ip` | VARCHAR(45) | 来源 IP |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `token` | VARCHAR(64) PK | 登录凭证 | 随机 hex token,页面不直接显示 |
+| `user_id` | INT FK | 用户ID | 登录用户 |
+| `created_at` | TIMESTAMP | 登录时间 | 会话创建时间 |
+| `expires_at` | TIMESTAMP | 过期时间 | 会话过期时间 |
+| `last_seen_at` | TIMESTAMP | 最近活跃时间 | 最近一次访问时间 |
+| `source_ip` | VARCHAR(45) | 来源IP | 来源 IP |
 
 ### 4.10 `audit_log` — 操作日志
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | BIGSERIAL PK | |
-| `user_id` / `username` | INT / VARCHAR(50) | 操作用户;username 冗余保留 |
-| `action` | VARCHAR(50) | 如 `material.update`、`inventory.transfer` |
-| `entity_type` / `entity_id` | VARCHAR(50) | 被操作对象 |
-| `before_json` / `after_json` | JSONB | 操作前后快照 |
-| `source_ip` / `created_at` | VARCHAR(45) / TIMESTAMP | 来源 IP / 时间 |
+| 字段 | 类型 | UI 中文名 | 说明 |
+|------|------|------------|------|
+| `id` | BIGSERIAL PK | 日志ID | 操作日志内部主键 |
+| `user_id` | INT | 用户ID | 操作用户ID |
+| `username` | VARCHAR(50) | 操作用户 | 操作用户名,冗余保留 |
+| `action` | VARCHAR(50) | 操作类型 | 如 `material.update`、`inventory.transfer` |
+| `entity_type` | VARCHAR(50) | 对象类型 | 被操作对象类型 |
+| `entity_id` | VARCHAR(50) | 对象ID | 被操作对象ID |
+| `before_json` | JSONB | 操作前 | 操作前快照 |
+| `after_json` | JSONB | 操作后 | 操作后快照 |
+| `source_ip` | VARCHAR(45) | 来源IP | 来源 IP |
+| `created_at` | TIMESTAMP | 操作时间 | 操作发生时间 |
 
 ---
 

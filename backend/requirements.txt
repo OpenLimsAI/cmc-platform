@@ -9,7 +9,7 @@ psycopg2-binary==2.9.9
 pydantic==2.9.2
 pydantic-settings==2.5.2
 python-multipart==0.0.10
-pandas==2.2.3
-openpyxl==3.1.5
-# 用户系统:bcrypt 密码 hash
-bcrypt==4.2.0
+# MDM API 客户端
+httpx==0.27.2
+# JWT 解码（与 MDM Portal 共用密钥）
+python-jose[cryptography]==3.3.0

@@ -21,6 +21,13 @@ TT_INTERNAL_CODE = "TT内部物料"
 # 危化品分类允许的字面值
 HAZARD_CLASS_VALUES = {"危化品", "易燃", "易制毒", "易制爆", "剧毒品"}
 
+# MDM 对齐的 category 枚举值
+CATEGORY_VALUES = {
+    "一般耗材", "关键耗材", "关键试剂", "内包材", "外包材", "劳保",
+    "原辅料", "参比品", "对照品", "工艺用水/气", "标准品",
+    "细胞种子", "自制包材", "试剂", "运输包装材料",
+}
+
 
 # ---------------------------------------------------------------------------
 # 通用
@@ -102,6 +109,20 @@ class MaterialBase(BaseModel):
     def _hc(cls, v):
         return _validate_hazard_class(v)
 
+    @field_validator("category", mode="before")
+    @classmethod
+    def _cat(cls, v):
+        if v is None:
+            return None
+        v = str(v).strip()
+        if not v:
+            return None
+        if v not in CATEGORY_VALUES:
+            raise ValueError(
+                f"分类 '{v}' 不在允许集合中，合法值: {sorted(CATEGORY_VALUES)}"
+            )
+        return v
+
 
 class MaterialCreate(MaterialBase):
     material_code: str = Field(..., min_length=1, max_length=20)
@@ -132,6 +153,7 @@ class MaterialUpdate(BaseModel):
 class MaterialOut(MaterialBase, ORMBase):
     material_id: int
     material_code: str
+    data_source: Optional[str] = "local"
     is_active: bool
     deactivated_at: Optional[datetime] = None
     deactivated_by: Optional[str] = None
@@ -319,100 +341,11 @@ class LowStockAlert(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Import
-# ---------------------------------------------------------------------------
-class ImportPreviewRow(BaseModel):
-    row_index: int  # Excel 中的行号(从 1 起,含表头?这里用业务行号)
-    material_code: Optional[str] = None
-    name_cn: Optional[str] = None
-    action: str  # 'INSERT' | 'UPDATE' | 'ERROR'
-    errors: List[str] = []
-    warnings: List[str] = []
-    raw: dict = {}
-
-
-class ImportPreviewResult(BaseModel):
-    total_rows: int
-    insert_count: int
-    update_count: int
-    error_count: int
-    leading_zero_codes: List[str] = []
-    new_categories: List[str] = []
-    new_units: List[str] = []
-    rows: List[ImportPreviewRow] = []
-
-
-class ImportCommitRequest(BaseModel):
-    file_name: str
-    # operator 由鉴权自动填
-    auto_create_units: bool = True   # 文件中出现新单位时自动加入字典
-    rows: List[dict]                 # 干跑后的逐行数据(已清洗)
-
-
-class ImportCommitResult(BaseModel):
-    import_id: int
-    total_rows: int
-    inserted_rows: int
-    updated_rows: int
-    failed_rows: int
-
-
-class ImportLogOut(ORMBase):
-    import_id: int
-    file_name: Optional[str] = None
-    imported_at: datetime
-    operator: Optional[str] = None
-    total_rows: int
-    inserted_rows: int
-    updated_rows: int
-    failed_rows: int
-    error_detail: Optional[Any] = None
-
-
-# ---------------------------------------------------------------------------
-# 用户 / 鉴权 / 审计
+# 鉴权 / 审计（用户管理已移至 MDM Portal）
 # ---------------------------------------------------------------------------
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=50)
     password: str = Field(..., min_length=1)
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_at: datetime
-    user: "UserOut"
-
-
-class ChangePasswordRequest(BaseModel):
-    old_password: str
-    new_password: str = Field(..., min_length=8)
-
-
-class UserOut(ORMBase):
-    id: int
-    username: str
-    role: str
-    is_active: bool
-    must_change_password: bool
-    created_at: datetime
-    last_login_at: Optional[datetime] = None
-
-
-class UserCreate(BaseModel):
-    username: str = Field(..., min_length=1, max_length=50)
-    password: str = Field(..., min_length=8)
-    role: str = Field(..., pattern="^(admin|warehouse_admin|user)$")
-
-
-class UserUpdate(BaseModel):
-    role: Optional[str] = Field(None, pattern="^(admin|warehouse_admin|user)$")
-    is_active: Optional[bool] = None
-
-
-class AdminResetPasswordRequest(BaseModel):
-    new_password: str = Field(..., min_length=8)
-    require_change_on_login: bool = True
 
 
 class AuditLogOut(ORMBase):
@@ -426,7 +359,3 @@ class AuditLogOut(ORMBase):
     after_json: Optional[Any] = None
     source_ip: Optional[str] = None
     created_at: datetime
-
-
-# 让 TokenResponse 的 forward ref 解析
-TokenResponse.model_rebuild()

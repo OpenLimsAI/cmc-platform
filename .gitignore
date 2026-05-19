@@ -31,3 +31,9 @@ template/物料导入模板.xlsx
 
 # Mac 调试时本地重定向出来的日志(Linux 走 journald)
 logs/
+
+# Node / React 前端构建产物
+node_modules/
+frontend-react/dist/
+frontend-react/.env.local
+*.tsbuildinfo

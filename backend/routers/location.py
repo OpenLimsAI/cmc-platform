@@ -15,9 +15,8 @@ from sqlalchemy.orm import Session
 
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
-from auth import require_warehouse
 from database import get_db
-from models import AppUser
+from auth import CurrentUser, require_warehouse
 from schemas import LocationCreate, LocationOut
 
 router = APIRouter(prefix="/api/locations", tags=["location"])
@@ -32,7 +31,7 @@ def list_locations(db: Session = Depends(get_db)):
 def create_location(
     payload: LocationCreate,
     request: Request,
-    current: AppUser = Depends(require_warehouse),
+    current: CurrentUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
     try:

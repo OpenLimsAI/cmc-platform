@@ -57,7 +57,7 @@ def _render_new_material_form():
                 n_safety = st.number_input("安全库存", min_value=0.0, step=1.0, value=0.0)
             with col2:
                 n_mtype = st.selectbox(
-                    "入库类型", [None] + MATERIAL_TYPE_OPTIONS,
+                    "TT分类", [None] + MATERIAL_TYPE_OPTIONS,
                     format_func=material_type_label,
                     help="决定入库页面的字段布局; 留空表示未分类",
                 )
@@ -237,7 +237,7 @@ if materials and _admin:
                         _cur_mt = m.get("material_type")
                         _mt_idx = _mtype_opts.index(_cur_mt) if _cur_mt in _mtype_opts else 0
                         ed_mtype = st.selectbox(
-                            "入库类型", _mtype_opts,
+                            "TT分类", _mtype_opts,
                             index=_mt_idx,
                             format_func=material_type_label,
                             key=f"ed_mtype_{k}",
