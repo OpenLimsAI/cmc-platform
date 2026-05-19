@@ -58,18 +58,34 @@ sudo systemctl --no-pager --lines=0 status "$FRONTEND_SERVICE" | sed -n '1,8p'
 echo
 
 echo "4. 健康检查"
-if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null; then
-    echo "后端 OK: http://127.0.0.1:${BACKEND_PORT}/health"
-else
-    echo "后端未通过健康检查,查看日志:"
-    echo "sudo journalctl -u $BACKEND_SERVICE -n 80 --no-pager"
+# systemctl restart 返回时,服务进程刚 fork,uvicorn/streamlit 的 socket 还没 listen,
+# 直接 curl 会 connection refused。这里 retry 最多 20 秒,每秒一次。
+backend_ok=0
+for i in $(seq 1 20); do
+    if curl -fsS --max-time 2 "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null 2>&1; then
+        echo "后端 OK: http://127.0.0.1:${BACKEND_PORT}/health (启动 ${i}s)"
+        backend_ok=1
+        break
+    fi
+    sleep 1
+done
+if [ "$backend_ok" -eq 0 ]; then
+    echo "后端 20s 内未通过健康检查,查看日志:"
+    echo "  sudo journalctl -u $BACKEND_SERVICE -n 80 --no-pager"
 fi
 
-if curl -fsSI "http://127.0.0.1:${FRONTEND_PORT}" >/dev/null; then
-    echo "前端 OK: http://${SERVER_IP}:${FRONTEND_PORT}"
-else
-    echo "前端未通过健康检查,查看日志:"
-    echo "sudo journalctl -u $FRONTEND_SERVICE -n 80 --no-pager"
+frontend_ok=0
+for i in $(seq 1 20); do
+    if curl -fsSI --max-time 2 "http://127.0.0.1:${FRONTEND_PORT}" >/dev/null 2>&1; then
+        echo "前端 OK: http://${SERVER_IP}:${FRONTEND_PORT} (启动 ${i}s)"
+        frontend_ok=1
+        break
+    fi
+    sleep 1
+done
+if [ "$frontend_ok" -eq 0 ]; then
+    echo "前端 20s 内未通过健康检查,查看日志:"
+    echo "  sudo journalctl -u $FRONTEND_SERVICE -n 80 --no-pager"
 fi
 echo
 
