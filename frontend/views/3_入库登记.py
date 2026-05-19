@@ -52,9 +52,9 @@ def _render_intake_tab(tab_type: str) -> None:
         return
 
     keyword = st.text_input(
-        "搜索物料(代码 / 名称 / 厂家 / 货号, 支持模糊)", "",
+        "搜索物料(代码 / 名称 / 规格 / 厂家 / 货号, 支持模糊, 空格分隔多关键词)", "",
         key=f"kw_{tab_type}",
-        placeholder="留空显示全部",
+        placeholder="留空显示全部; 例如 'sigma 消泡' 同时含两词的物料",
     )
     filtered = [m for m in materials if fuzzy_match_material(m, keyword)]
 
