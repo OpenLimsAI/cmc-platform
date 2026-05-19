@@ -26,6 +26,21 @@ TT_INTERNAL_CODE = "TT内部物料"
 # v1.2 危化品分类可选值(后端 schemas.HAZARD_CLASS_VALUES 镜像)
 HAZARD_CLASS_OPTIONS = ["危化品", "易燃", "易制毒", "易制爆", "剧毒品"]
 
+# 入库"大类"; 决定入库表单的字段布局
+MATERIAL_TYPE_OPTIONS = ["reagent", "consumable", "standard", "column"]
+MATERIAL_TYPE_LABELS = {
+    "reagent": "试剂",
+    "consumable": "耗材",
+    "standard": "标准物质",
+    "column": "色谱柱",
+}
+
+
+def material_type_label(t: Optional[str]) -> str:
+    if not t:
+        return "(未分类)"
+    return MATERIAL_TYPE_LABELS.get(t, t)
+
 # 标签颜色:与化工常用的安全色靠近,提升现场可读性
 HAZARD_BADGE_COLORS = {
     "危化品": "#d32f2f",  # 红

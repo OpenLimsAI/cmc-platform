@@ -22,6 +22,7 @@ from utils import (
     get_categories, get_locations, get_materials, material_label,
     fuzzy_match_material,
     locations_grouped, render_hazard_badges,
+    material_type_label,
 )
 from auth_helper import require_inventory_access, get_user
 
@@ -56,11 +57,39 @@ sel = st.selectbox("选择物料", list(opt_map.keys()))
 mat = opt_map[sel]
 mat_id = mat["material_id"]
 
+mat_type = mat.get("material_type")
+
 st.info(
     f"**{mat['material_code']} {mat['name_cn']}** | 单位: `{mat['unit']}` | "
-    f"规格: {mat.get('spec_model') or '-'} | 生产商: {mat.get('manufacturer') or '-'}"
+    f"规格: {mat.get('spec_model') or '-'} | 厂家: {mat.get('manufacturer') or '-'} | "
+    f"货号: {mat.get('catalog_no') or '-'} | 级别: {mat.get('grade') or '-'}"
 )
+if mat_type:
+    st.caption(f"📦 入库类型: **{material_type_label(mat_type)}**")
 render_hazard_badges(mat.get("hazard_class"))
+
+# 试剂 / 耗材: 显示当前总库存(参考)
+if mat_type in ("reagent", "consumable"):
+    try:
+        stock_rows = api_get(
+            "/api/stock/by-material",
+            params={
+                "keyword": mat["material_code"],
+                "only_positive": "false",
+                "include_inactive": "true",
+            },
+        ) or []
+        cur_total = next(
+            (Decimal(str(r["total_qty"])) for r in stock_rows
+             if r.get("material_id") == mat_id),
+            Decimal("0"),
+        )
+        st.success(
+            f"📊 当前总库存: **{cur_total} {mat['unit']}** "
+            f"(全部位置合计, 排除已过期批次)"
+        )
+    except APIError:
+        pass
 
 # ---- 2) 入库表单 ----
 st.markdown("---")
@@ -136,7 +165,7 @@ if remove_idx is not None:
     st.session_state["in_loc_rows"].pop(remove_idx)
     st.rerun()
 
-# ── 全局字段(批号 / 到货日期 / 效期 / 备注)──────────────────────────
+# ── 全局字段(批号 / 到货日期 / 效期 / 备注 + 类型特定字段)─────────────
 with st.form("in_form", clear_on_submit=False):
     col1, col2 = st.columns(2)
     with col1:
@@ -146,6 +175,33 @@ with st.form("in_form", clear_on_submit=False):
         has_expiry = st.checkbox("此批次有效期", value=True)
         expiry = st.date_input("效期", value=date.today()) if has_expiry else None
         remark = st.text_area("备注", max_chars=500, height=80)
+
+    # 类型特定字段(标准物质 / 色谱柱); 不属于该类型的留 None, 后端忽略
+    type_extras = {
+        "concentration": None,
+        "serial_no": None,
+        "asset_no": None,
+        "responsible_person": None,
+    }
+    if mat_type == "standard":
+        st.markdown("##### 标准物质专属字段")
+        _v = st.text_input("浓度", max_chars=50, help="例如 10 mg/mL")
+        type_extras["concentration"] = (_v or "").strip() or None
+    elif mat_type == "column":
+        st.markdown("##### 色谱柱专属字段")
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            type_extras["serial_no"] = (
+                st.text_input("序列号", max_chars=100, help="厂家出厂序列号") or ""
+            ).strip() or None
+        with cc2:
+            type_extras["asset_no"] = (
+                st.text_input("内部编号", max_chars=100, help="本实验室资产编号") or ""
+            ).strip() or None
+        with cc3:
+            type_extras["responsible_person"] = (
+                st.text_input("负责人", max_chars=50) or ""
+            ).strip() or None
 
     submitted = st.form_submit_button("✅ 提交入库(全部位置)", type="primary")
 
@@ -176,6 +232,7 @@ def _process_one(loc_id: int, loc_name: str, qty: Decimal,
             "received_date": str(received),
             "initial_qty": str(qty),
             "remark": remark or None,
+            **type_extras,
         })
         return "ok", f"🆕 新建批次:{loc_name} | 批号 {batch_no} | {qty}{mat['unit']}"
     except APIError as e:

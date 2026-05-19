@@ -100,6 +100,10 @@ def create_batch(
         initial_qty=payload.initial_qty,
         operator=current.username,
         remark=payload.remark,
+        concentration=payload.concentration,
+        serial_no=payload.serial_no,
+        asset_no=payload.asset_no,
+        responsible_person=payload.responsible_person,
     )
     write_audit(
         db, current, "batch.create",
@@ -118,6 +122,10 @@ def create_batch(
         "received_date": batch.received_date,
         "initial_qty": batch.initial_qty,
         "remark": batch.remark,
+        "concentration": batch.concentration,
+        "serial_no": batch.serial_no,
+        "asset_no": batch.asset_no,
+        "responsible_person": batch.responsible_person,
         "created_at": batch.created_at,
         "current_qty": qty,
         "location_name": batch.location.name if batch.location else None,

@@ -18,6 +18,7 @@ from utils import (
     api_get, api_patch, api_post, APIError,
     get_categories, get_units, fmt_null, clear_material_cache,
     HAZARD_CLASS_OPTIONS, TT_INTERNAL_CODE,
+    MATERIAL_TYPE_OPTIONS, material_type_label,
 )
 from auth_helper import require_login, can_manage_inventory
 
@@ -55,6 +56,11 @@ def _render_new_material_form():
                 n_unit = st.selectbox("单位 *", units, index=0)
                 n_safety = st.number_input("安全库存", min_value=0.0, step=1.0, value=0.0)
             with col2:
+                n_mtype = st.selectbox(
+                    "入库类型", [None] + MATERIAL_TYPE_OPTIONS,
+                    format_func=material_type_label,
+                    help="决定入库页面的字段布局; 留空表示未分类",
+                )
                 cats_hint = f"已有: {', '.join(cats_existing[:10])}" + (
                     " ..." if len(cats_existing) > 10 else ""
                 ) if cats_existing else "首次新增请直接填,会自动加入字典"
@@ -88,6 +94,7 @@ def _render_new_material_form():
                     "material_code": code,
                     "category": (n_cat or "").strip() or None,
                     "name_cn": name,
+                    "material_type": n_mtype,
                     "grade": (n_grade or "").strip() or None,
                     "manufacturer": (n_mfr or "").strip() or None,
                     "spec_model": (n_spec or "").strip() or None,
@@ -226,6 +233,16 @@ if materials and _admin:
                             key=f"ed_mfr_{k}",
                         )
                     with col2:
+                        _mtype_opts = [None] + MATERIAL_TYPE_OPTIONS
+                        _cur_mt = m.get("material_type")
+                        _mt_idx = _mtype_opts.index(_cur_mt) if _cur_mt in _mtype_opts else 0
+                        ed_mtype = st.selectbox(
+                            "入库类型", _mtype_opts,
+                            index=_mt_idx,
+                            format_func=material_type_label,
+                            key=f"ed_mtype_{k}",
+                            help="决定入库页面的字段布局; 留空表示未分类",
+                        )
                         ed_cat = st.text_input(
                             "分类", value=m.get("category") or "",
                             help="改成新值会自动加入分类字典",
@@ -261,6 +278,7 @@ if materials and _admin:
                         try:
                             api_patch(f"/api/materials/{mat_id}", json={
                                 "category": (ed_cat or "").strip() or None,
+                                "material_type": ed_mtype,
                                 "name_cn": ed_name_clean,
                                 "grade": (ed_grade or "").strip() or None,
                                 "manufacturer": (ed_mfr or "").strip() or None,

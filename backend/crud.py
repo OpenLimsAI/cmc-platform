@@ -332,6 +332,10 @@ def create_batch_with_initial_in(
     initial_qty: Decimal,
     operator: str,
     remark: Optional[str],
+    concentration: Optional[str] = None,
+    serial_no: Optional[str] = None,
+    asset_no: Optional[str] = None,
+    responsible_person: Optional[str] = None,
 ) -> Batch:
     """新建批次并同步写入首笔入库 txn(IN)。"""
     b = Batch(
@@ -342,6 +346,10 @@ def create_batch_with_initial_in(
         received_date=received_date,
         initial_qty=initial_qty,
         remark=remark,
+        concentration=concentration,
+        serial_no=serial_no,
+        asset_no=asset_no,
+        responsible_person=responsible_person,
     )
     db.add(b)
     db.flush()  # 获得 batch_id

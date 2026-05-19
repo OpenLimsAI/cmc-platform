@@ -100,6 +100,9 @@ class Material(Base):
     material_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     material_code: Mapped[str] = mapped_column(String(20), nullable=False)
     category: Mapped[Optional[str]] = mapped_column(String(50))
+    # 入库表单的"大类"; 4 个值之一: reagent / consumable / standard / column
+    # 老物料没分类的可以为 NULL, 入库时回退到普通表单
+    material_type: Mapped[Optional[str]] = mapped_column(String(20))
     name_cn: Mapped[str] = mapped_column(String(200), nullable=False)
     grade: Mapped[Optional[str]] = mapped_column(String(50))
     manufacturer: Mapped[Optional[str]] = mapped_column(String(100))
@@ -150,6 +153,11 @@ class Batch(Base):
     received_date: Mapped[date] = mapped_column(Date, nullable=False)
     initial_qty: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     remark: Mapped[Optional[str]] = mapped_column(Text)
+    # 入库表单"类型特定"字段; 都是 nullable, 没用到的类型留 NULL
+    concentration: Mapped[Optional[str]] = mapped_column(String(50))         # 标准物质
+    serial_no: Mapped[Optional[str]] = mapped_column(String(100))             # 色谱柱
+    asset_no: Mapped[Optional[str]] = mapped_column(String(100))              # 色谱柱 编号
+    responsible_person: Mapped[Optional[str]] = mapped_column(String(50))     # 色谱柱
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     material: Mapped["Material"] = relationship(back_populates="batches")

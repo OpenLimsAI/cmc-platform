@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS material (
     material_id        SERIAL PRIMARY KEY,
     material_code      VARCHAR(20) NOT NULL,
     category           VARCHAR(50),
+    -- 入库表单"大类"; 决定入库页面的字段布局
+    material_type      VARCHAR(20)  CHECK (material_type IS NULL OR material_type IN ('reagent','consumable','standard','column')),
     name_cn            VARCHAR(200) NOT NULL,
     grade              VARCHAR(50),
     manufacturer       VARCHAR(100),
@@ -187,6 +189,11 @@ CREATE TABLE IF NOT EXISTS batch (
     received_date  DATE NOT NULL,
     initial_qty    NUMERIC(12,2) NOT NULL,
     remark         TEXT,
+    -- 入库表单"类型特定"字段, 都是 nullable; 哪类不用就留空
+    concentration       VARCHAR(50),     -- 标准物质浓度(带单位的自由文本, 例 "10 mg/mL")
+    serial_no           VARCHAR(100),    -- 色谱柱厂家序列号
+    asset_no            VARCHAR(100),    -- 色谱柱内部编号/资产编号
+    responsible_person  VARCHAR(50),     -- 色谱柱负责人
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_batch_material_no_loc UNIQUE (material_id, batch_no, location_id)
 );

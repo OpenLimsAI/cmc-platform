@@ -83,6 +83,9 @@ def _validate_hazard_class(v: Optional[List[str]]) -> Optional[List[str]]:
 
 class MaterialBase(BaseModel):
     category: Optional[str] = None
+    material_type: Optional[str] = Field(
+        None, pattern="^(reagent|consumable|standard|column)$"
+    )
     name_cn: str
     grade: Optional[str] = None
     manufacturer: Optional[str] = None
@@ -106,6 +109,9 @@ class MaterialCreate(MaterialBase):
 
 class MaterialUpdate(BaseModel):
     category: Optional[str] = None
+    material_type: Optional[str] = Field(
+        None, pattern="^(reagent|consumable|standard|column)$"
+    )
     name_cn: Optional[str] = None
     grade: Optional[str] = None
     manufacturer: Optional[str] = None
@@ -152,6 +158,11 @@ class BatchBase(BaseModel):
     received_date: date
     initial_qty: Decimal
     remark: Optional[str] = None
+    # 类型特定字段(由前端入库表单按 material_type 条件填):
+    concentration: Optional[str] = None         # 标准物质
+    serial_no: Optional[str] = None             # 色谱柱
+    asset_no: Optional[str] = None              # 色谱柱 编号
+    responsible_person: Optional[str] = None    # 色谱柱
 
 
 class BatchCreate(BatchBase):
