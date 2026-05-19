@@ -279,6 +279,7 @@ class StockByBatch(BaseModel):
     name_cn: str
     category: Optional[str] = None
     material_type: Optional[str] = None
+    intake_type: Optional[str] = None    # 本批次入库时所在 tab(可能与 material_type 不同)
     manufacturer: Optional[str] = None
     spec_model: Optional[str] = None
     catalog_no: Optional[str] = None

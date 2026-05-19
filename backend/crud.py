@@ -339,7 +339,15 @@ def create_batch_with_initial_in(
     asset_no: Optional[str] = None,
     responsible_person: Optional[str] = None,
 ) -> Batch:
-    """新建批次并同步写入首笔入库 txn(IN)。"""
+    """新建批次并同步写入首笔入库 txn(IN)。
+    若 intake_type 提供, 且该物料的 material_type 当前还是 NULL,
+    顺手把物料分到该类型(已分类的不动, 避免覆盖管理员显式设置)。"""
+    # 自动回填 material.material_type
+    if intake_type:
+        mat = db.get(Material, material_id)
+        if mat and mat.material_type is None:
+            mat.material_type = intake_type
+
     b = Batch(
         material_id=material_id,
         batch_no=batch_no,
@@ -635,6 +643,7 @@ def stock_by_batch(
             Material.is_active,
             Material.category,
             Material.material_type,
+            Batch.intake_type,
             Material.manufacturer,
             Material.spec_model,
             Material.catalog_no,
@@ -681,6 +690,7 @@ def stock_by_batch(
             "name_cn": r.name_cn,
             "category": r.category,
             "material_type": r.material_type,
+            "intake_type": r.intake_type,
             "manufacturer": r.manufacturer,
             "spec_model": r.spec_model,
             "catalog_no": r.catalog_no,

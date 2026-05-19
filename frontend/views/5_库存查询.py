@@ -144,6 +144,7 @@ else:  # 按批次明细
                 "代码": r["material_code"],
                 "物料名称": r["name_cn"],
                 "类型": material_type_label(r.get("material_type")),
+                "入库类型": material_type_label(r.get("intake_type")),
                 "生产商": fmt_null(r.get("manufacturer")),
                 "规格/型号": fmt_null(r.get("spec_model")),
                 "货号": fmt_null(r.get("catalog_no")),
