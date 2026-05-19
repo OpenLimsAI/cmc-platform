@@ -287,7 +287,11 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 
 核心功能：
 
-- 物料身份注册（试剂、耗材、标准品、色谱柱四大类，每类下设严格分类枚举）
+- 物料身份注册：
+  - `material_code` 由用户输入公司既有编码（max 20 chars），非系统生成
+  - `material_type` 4 值（reagent / consumable / standard / column）— 系统视角
+  - `category` 公司分类体系 15 值扁平枚举（中文）— 业务视角，与 type 解耦
+  - 两个维度独立：例如 `material_type=column` 的物料其 `category` 可能是「一般耗材」
 
 - 供应商 & 规格管理（生产商、货号、规格型号、包装规格、默认计量单位）
 
@@ -296,6 +300,9 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 - Material → Substance 关联（一个 substance 可对应多个 material）
 
 - Material Batch 批次登记（批号、数量、有效期、存储位置）
+
+- 批量导入：支持公司既有 Excel「物流-物料代码表」一次性导入，
+  脚本 `app/scripts/import_materials_excel.py`（已落地 3702 条真实物料，2026-05-19）
 
 > ⚠ 范围说明
 > MM 只管"这个物料是什么"（身份户口本），不管库存 / 位置 / 出入库（那是下游 cmc-inventory 的事）。
@@ -744,7 +751,7 @@ Linux 虚拟机部署拓扑：
 | Substance | SUB-     | SUB-0000123     | 纯流水号，语义中性，永不复用 |
 | Project   | PRJ-     | PRJ-2026-0123   | 年份 + 流水号，便于按年归档  |
 | Asset     | AST-     | AST-0045        | 纯流水号，资产数量较少       |
-| Material  | MAT-     | MAT-2026-001234 | 年份 + 流水号                |
+| Material  | （无）   | `51001`         | **用户输入公司既有编码**（max 20 chars，非系统生成；trigger 兜底为 MAT-yyyyNNNNNN） |
 | Study     | STD-     | STD-2026-0234   | 年份 + 流水号                |
 
 > ⚠ 编码核心原则

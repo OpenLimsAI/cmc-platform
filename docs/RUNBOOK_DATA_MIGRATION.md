@@ -6,7 +6,7 @@
 | 版本 | V1.0 |
 | 适用 | 首次生产部署 + 后续 alembic 升级 + 跨环境数据迁移（dev → UAT / UAT → 生产）|
 | 合规 | GAMP 5 / 21 CFR Part 11 §11.10(a) 数据完整性 / EU Annex 11 §4.5 数据迁移 |
-| 当前 head | `0034_auth_refresh_token`（共 34 个 migration） |
+| 当前 head | `0039_mm_category_add_waibao`（共 39 个 migration） |
 
 ---
 
@@ -52,9 +52,14 @@
 | 24 | 0031_h1_team_unique_ref_fks | 2026_05_13_0300 | Batch H1：prs.project_team partial UNIQUE WHERE left_at IS NULL + ref 三表 6 个 created/updated_by FK |
 | 25 | 0032_mm_material | 2026_05_13_0400 | Phase 4.A：mm.material 主表（7 类型 / 4 等级 / 5 状态 / MAT-yyyy 年度序列编码 / audit trigger v2）|
 | 26 | 0033_mm_material_batch | 2026_05_13_0500 | Phase 4.A：mm.material_batch（5 状态 / UNIQUE batch_number / audit trigger v2 parent_ref 回填 material_code）|
-| 27 | **0034_auth_refresh_token** | 2026_05_13_0600 | Phase 4.B-1：auth.refresh_token（jti PK + rotated_to_jti + revoked_reason 字典 + ip/ua）— **当前 head** |
+| 27 | 0034_auth_refresh_token | 2026_05_13_0600 | Phase 4.B-1：auth.refresh_token（jti PK + rotated_to_jti + revoked_reason 字典 + ip/ua）|
+| 28 | 0035_protein_ext_coef_float | 2026_05_13_0700 | Phase 4.B-2：srs.substance_protein.ext_coef DECIMAL → REAL（蛋白消光系数科学计算精度）|
+| 29 | 0036_audit_trigger_v3 | 2026_05_14_0100 | 修订十二：audit trigger v3 — CREATE / DELETE 字段级展开 + parent_ref 回填策略 |
+| 30 | 0037_user_force_password_change | 2026_05_16_0100 | Phase 5.A：auth.user.force_password_change 布尔（首次登录强改密）|
+| 31 | 0038_mm_material_v2 | 2026_05_19_0100 | MM v2：material_type 4 值（reagent/consumable/standard/column）+ category 14 值扁平枚举 + grade 自由文本 + 7 新字段（manufacturer/catalog_no/spec_model/unit NOT NULL/package_spec/hazard_class[]/category）|
+| 32 | **0039_mm_category_add_waibao** | 2026_05_19_0200 | MM v2：category CHECK 加 `外包材`（15 值扁平枚举）— **当前 head** |
 
-> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 32 + 2 个文件 (alembic env.py 用 `alembic history` 查看)。
+> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 39 + 个文件用 `alembic history` 查看。
 
 ---
 
@@ -75,7 +80,7 @@ docker compose -f deploy/docker-compose.prod.yml --env-file /etc/cmab-mdm/.env.p
 # 2. 等 PG ready
 until docker exec cmab-mdm-postgres pg_isready -U postgres -d cmab_mdm; do sleep 2; done
 
-# 3. 跑全部 migration（一次性 0001 → 0034）
+# 3. 跑全部 migration（一次性 0001 → 0039）
 docker run --rm \
   --network cmab-mdm-prod_internal \
   --env-file /etc/cmab-mdm/.env.prod \

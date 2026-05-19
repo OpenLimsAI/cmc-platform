@@ -1638,11 +1638,18 @@ DELETE /api/v1/assets/{code}/substances/{substance_code} — 软删除关系
 
 #### 请求体
 
+> `material_code` 必填，由用户输入公司内既有编码（max 20 chars）。
+> `material_type` 4 值：`reagent / consumable / standard / column`。
+> `category` 公司 15 值扁平枚举：一般耗材 / 关键耗材 / 关键试剂 / 内包材 / 外包材 /
+> 劳保 / 原辅料 / 参比品 / 对照品 / 工艺用水/气 / 标准品 / 细胞种子 / 自制包材 /
+> 试剂 / 运输包装材料。
+
 ```json
 {
+  "material_code": "51001",
   "material_name": "PBS 10× 缓冲液",
   "material_type": "reagent",
-  "category": "buffer",
+  "category": "试剂",
   "unit": "瓶",
   "manufacturer": "Gibco / Thermo Fisher",
   "catalog_no": "70011-044",

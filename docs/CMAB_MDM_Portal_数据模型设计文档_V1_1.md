@@ -1521,16 +1521,24 @@ FOR EACH ROW EXECUTE FUNCTION prs.fn_project_status_change();-- 项目衍生/合
 
 ## 10.1 mm.material
 
+> v2 重要变更（migration 0038 + 0039，2026-05-19）：
+> - `material_code` 业务规则：**由用户手动输入**（公司既有编码体系，最长 20 chars）。
+>   trigger `fn_material_assign_code` 保留为兜底（仅当 code 为空时自动生成 `MAT-yyyyNNNNNN`），
+>   API 层 schema 强制 required，正常业务路径下不会触发 trigger 分支。
+> - `material_type` 固定 4 值：`reagent / consumable / standard / column`。
+> - `category` 采用**公司 15 值扁平枚举**（中文存储），与 `material_type` 解耦，
+>   不再按 type 分组。
+
 ```sql
 CREATE TABLE mm.material (
     material_id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    material_code      VARCHAR(32)  NOT NULL,
+    material_code      VARCHAR(32)  NOT NULL,   -- 用户输入（业务层 max 20）
 
     -- 基本信息
     material_name      VARCHAR(255) NOT NULL,
     material_name_en   VARCHAR(255),
     material_type      VARCHAR(32)  NOT NULL,   -- reagent/consumable/standard/column
-    category           VARCHAR(50),             -- 按 type 分组的严格枚举
+    category           VARCHAR(50),             -- 公司分类体系（15 值扁平枚举）
 
     -- 物质引用
     substance_id       BIGINT,                  -- 物理批次对应的 substance（必要时）
@@ -1553,10 +1561,10 @@ CREATE TABLE mm.material (
     source_type        VARCHAR(32),             -- internal/cdmo/vendor
     source_name        VARCHAR(128),
 
-    -- 级别（自由文本）
+    -- 级别（自由文本，建议值通过前端 AutoComplete 提示）
     grade              VARCHAR(32),
 
-    -- 状态
+    -- 状态（无状态机，PUT 直接改）
     status             VARCHAR(32)  NOT NULL DEFAULT 'active',
 
     description        TEXT,
@@ -1573,19 +1581,13 @@ CREATE TABLE mm.material (
     CONSTRAINT uq_material_code     UNIQUE (material_code),
     CONSTRAINT ck_material_type     CHECK (material_type IN
         ('reagent','consumable','standard','column')),
+    -- 公司分类体系（15 值扁平枚举，0039 加入 外包材）
     CONSTRAINT ck_material_category CHECK (
-        category IS NULL
-        OR (material_type = 'reagent' AND category IN (
-            'buffer','culture_media','enzyme','antibody','dye_indicator',
-            'chemical_reagent','kit','other_reagent'))
-        OR (material_type = 'consumable' AND category IN (
-            'filter','tubing','container','chromatography_resin','membrane',
-            'ppe','cleaning_agent','other_consumable'))
-        OR (material_type = 'standard' AND category IN (
-            'reference_standard','working_standard','system_suitability',
-            'calibration_standard','other_standard'))
-        OR (material_type = 'column' AND category IN (
-            'hplc_column','prep_column','gc_column','guard_column','other_column'))
+        category IS NULL OR category IN (
+            '一般耗材','关键耗材','关键试剂','内包材','外包材','劳保',
+            '原辅料','参比品','对照品','工艺用水/气','标准品',
+            '细胞种子','自制包材','试剂','运输包装材料'
+        )
     ),
     CONSTRAINT ck_material_status   CHECK (status IN ('active','quarantine','released','rejected','retired')),
     CONSTRAINT fk_material_substance FOREIGN KEY (substance_id) REFERENCES srs.substance(substance_id),
@@ -1604,6 +1606,8 @@ CREATE TRIGGER trg_material_audit
 AFTER INSERT OR UPDATE OR DELETE ON mm.material
 FOR EACH ROW EXECUTE FUNCTION audit.fn_audit_trigger('material_id', 'material_code');
 
+-- 兜底：用户未提供 material_code 时自动生成 MAT-yyyyNNNNNN（业务层 schema required，
+-- 正常 API 路径不会进入这个分支；保留用于历史数据迁移或 admin 脚本场景）
 CREATE OR REPLACE FUNCTION mm.fn_material_assign_code()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -1623,6 +1627,10 @@ CREATE TRIGGER trg_material_assign_code
 BEFORE INSERT ON mm.material
 FOR EACH ROW EXECUTE FUNCTION mm.fn_material_assign_code();
 ```
+
+**初始数据（2026-05-19）：** 公司既有「物流-物料代码表」3702 条物料经
+`app/scripts/import_materials_excel.py` 一次性导入，分布：
+reagent 1277 / consumable 2259 / standard 116 / column 50。
 
 ## 10.2 mm.material_batch
 
