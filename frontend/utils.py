@@ -35,6 +35,15 @@ MATERIAL_TYPE_LABELS = {
     "column": "色谱柱",
 }
 
+# 标准物质浓度单位 (入库表单的下拉选项); 不够再加
+CONCENTRATION_UNITS = [
+    "mg/mL", "g/L", "μg/mL", "ng/mL", "mg/L",
+    "M", "mM", "μM", "nM", "pM",
+    "mol/L", "mmol/L", "μmol/L",
+    "%", "% w/v", "% w/w", "% v/v",
+    "ppm", "ppb",
+]
+
 
 def material_type_label(t: Optional[str]) -> str:
     if not t:

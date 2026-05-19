@@ -25,7 +25,7 @@ from utils import (
     get_locations, get_materials, material_label,
     fuzzy_match_material,
     locations_grouped, render_hazard_badges,
-    MATERIAL_TYPE_LABELS,
+    MATERIAL_TYPE_LABELS, CONCENTRATION_UNITS,
 )
 from auth_helper import require_inventory_access, get_user
 
@@ -198,25 +198,26 @@ def _render_intake_tab(tab_type: str) -> None:
             sc1, sc2, sc3 = st.columns(3)
             with sc1:
                 _cv = st.text_input(
-                    "浓度数值", max_chars=20, help="例如 10",
+                    "浓度数值 *", max_chars=20, help="例如 10",
                     key=f"in_conc_v_{tab_type}",
                 )
             with sc2:
-                _cu = st.text_input(
-                    "浓度单位", max_chars=30, help="例如 mg/mL",
+                _cu = st.selectbox(
+                    "浓度单位 *", CONCENTRATION_UNITS,
+                    index=None, placeholder="请选择",
                     key=f"in_conc_u_{tab_type}",
                 )
             with sc3:
                 _ec = st.number_input(
-                    "消光系数",
+                    "消光系数 *",
                     min_value=0.0, value=None, step=0.01,
                     format="%.2f",
                     help="ε, 保留 2 位小数",
                     key=f"in_ec_num_{tab_type}",
                 )
-            # 浓度: 有数值才存; 数值带单位则拼成 "数值 单位", 否则只存数值
+            # 浓度: 数值非空才存; 单位存在则拼成 "数值 单位"
             v = (_cv or "").strip()
-            u = (_cu or "").strip()
+            u = _cu or ""
             if v:
                 type_extras["concentration"] = f"{v} {u}".strip() if u else v
             # 消光系数: None 不传; 否则转 str(后端 Pydantic 接 Decimal)
@@ -227,21 +228,21 @@ def _render_intake_tab(tab_type: str) -> None:
             with cc1:
                 type_extras["serial_no"] = (
                     st.text_input(
-                        "序列号", max_chars=100, help="厂家出厂序列号",
+                        "序列号 *", max_chars=100, help="厂家出厂序列号",
                         key=f"in_sn_{tab_type}",
                     ) or ""
                 ).strip() or None
             with cc2:
                 type_extras["asset_no"] = (
                     st.text_input(
-                        "内部编号", max_chars=100, help="本实验室资产编号",
+                        "内部编号 *", max_chars=100, help="本实验室资产编号",
                         key=f"in_an_{tab_type}",
                     ) or ""
                 ).strip() or None
             with cc3:
                 type_extras["responsible_person"] = (
                     st.text_input(
-                        "负责人", max_chars=50,
+                        "负责人 *", max_chars=50,
                         key=f"in_rp_{tab_type}",
                     ) or ""
                 ).strip() or None
@@ -285,6 +286,24 @@ def _render_intake_tab(tab_type: str) -> None:
                 errors.append(f"位置 {r['loc_name']} 在表中重复出现, 请合并或删除")
                 break
             seen_locs.add(r["loc_id"])
+
+        # tab 类型特定字段必填校验
+        if tab_type == "standard":
+            cv = (st.session_state.get(f"in_conc_v_{tab_type}") or "").strip()
+            cu = st.session_state.get(f"in_conc_u_{tab_type}")
+            if not cv:
+                errors.append("浓度数值必填")
+            if not cu:
+                errors.append("浓度单位必填")
+            if st.session_state.get(f"in_ec_num_{tab_type}") is None:
+                errors.append("消光系数必填")
+        elif tab_type == "column":
+            if not type_extras.get("serial_no"):
+                errors.append("序列号必填")
+            if not type_extras.get("asset_no"):
+                errors.append("内部编号必填")
+            if not type_extras.get("responsible_person"):
+                errors.append("负责人必填")
 
         if errors:
             for e in errors:
