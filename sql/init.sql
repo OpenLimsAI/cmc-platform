@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     id                    SERIAL PRIMARY KEY,
     username              VARCHAR(50)  NOT NULL UNIQUE,
     password_hash         VARCHAR(255) NOT NULL,            -- bcrypt
-    role                  VARCHAR(20)  NOT NULL CHECK (role IN ('admin','user')),
+    role                  VARCHAR(20)  NOT NULL CHECK (role IN ('admin','warehouse_admin','user')),
     is_active             BOOLEAN      NOT NULL DEFAULT TRUE,
     must_change_password  BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
