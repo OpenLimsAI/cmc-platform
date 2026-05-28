@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     admin_password: str = "change_me"
     app_env: str = "development"
     app_host: str = "0.0.0.0"
-    app_port: int = 8000
     log_level: str = "INFO"
     # 额外允许的 CORS 来源（逗号分隔）。localhost:3000 始终允许，用于本机开发。
     # 示例：DEV_EXTRA_ORIGINS=http://192.168.1.100:3000,http://10.0.0.5:3000

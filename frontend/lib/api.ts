@@ -2,7 +2,7 @@
 import axios from "axios"
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001",
   timeout: 15000,
   // FastAPI 期望数组参数为 ?groups=TT1&groups=TT5，axios 默认序列化为 groups[]=TT1，需覆盖
   paramsSerializer: (params) =>

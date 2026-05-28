@@ -78,8 +78,8 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
 
 ### API
 
-Backend: `http://localhost:8000` — Swagger: `/docs`
-Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8000`）
+Backend: `http://localhost:8001` — Swagger: `/docs`
+Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8001`）
 
 ## Known Gotchas
 
