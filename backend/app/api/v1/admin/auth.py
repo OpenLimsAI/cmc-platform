@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
@@ -13,7 +14,8 @@ def _compute_token() -> str:
 
 
 async def verify_admin(x_admin_token: str = Header(..., alias="x-admin-token")):
-    if x_admin_token != _compute_token():
+    # 恒定时间比较，避免 token 校验的时序侧信道
+    if not hmac.compare_digest(x_admin_token, _compute_token()):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -27,6 +29,6 @@ class AuthResponse(BaseModel):
 
 @router.post("/auth", response_model=AuthResponse)
 async def authenticate(body: AuthRequest):
-    if body.password != settings.admin_password:
+    if not hmac.compare_digest(body.password, settings.admin_password):
         raise HTTPException(status_code=401, detail="密码错误")
     return AuthResponse(token=_compute_token())

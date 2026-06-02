@@ -73,8 +73,10 @@ def _group_clause(groups: list[str] | None) -> tuple[str, dict]:
     """
     if not groups:
         return "TRUE", {}
-    # 安全：group_id 来自内部枚举值，不含用户输入，直接内联 ARRAY 字面量
-    arr = "ARRAY[" + ",".join(f"'{g}'" for g in groups) + "]"
+    # groups 来自 HTTP query 参数（list[str]，无 enum 白名单），必须防注入。
+    # asyncpg 无法推断 NULL 参数类型，这里内联成 ARRAY 字面量，但每个值都把单引号
+    # 转义成 ''（PG 字符串里的字面单引号），恶意输入只会变成匹配不到任何行的 group_id。
+    arr = "ARRAY[" + ",".join("'" + g.replace("'", "''") + "'" for g in groups) + "]"
     return f"group_id = ANY({arr})", {}
 
 
