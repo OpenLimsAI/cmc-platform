@@ -56,10 +56,8 @@ MDM_DATABASE_URL=postgresql+asyncpg://mdm_admin:<密码>@<mdm_pg_host>:5433/cmc_
 # admin 前端登录密码
 ADMIN_PASSWORD=<自定义密码>
 
-# 其余（默认即可）
+# 其余（默认即可）。监听端口固定在启动命令（uvicorn --port 8030），不走 env。
 APP_ENV=development
-APP_HOST=0.0.0.0
-APP_PORT=8000
 LOG_LEVEL=INFO
 ```
 
@@ -93,13 +91,13 @@ cd ../frontend && pnpm install
 ### 2. 启动（双终端）
 
 ```bash
-# 终端 1
-cd backend && uv run uvicorn app.main:app --reload
-# Swagger: http://localhost:8000/docs
+# 终端 1（本项目编号 30,见 ~/code/PORTS.md）
+cd backend && uv run uvicorn app.main:app --reload --port 8030
+# Swagger: http://localhost:8030/docs
 
 # 终端 2
 cd frontend && pnpm dev
-# 访问: http://localhost:3000
+# 访问: http://localhost:5130
 ```
 
 ---

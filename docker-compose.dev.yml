@@ -10,13 +10,13 @@ services:
       # 挂载 .env 文件
       - ./.env:/app/.env:ro
     ports:
-      - "8000:8000"
+      - "8030:8030"
     environment:
       - PYTHONPATH=/app
     command: >
       uv run uvicorn app.main:app
         --host 0.0.0.0
-        --port 8000
+        --port 8030
         --reload
         --reload-dir /app/app
     # 连接已有的 postgres16 容器网络

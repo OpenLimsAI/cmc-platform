@@ -22,13 +22,13 @@ cmc_analytics.mdm.{personnel,test_method}  →  mart.dim_{employee,method}（WHE
 
 ### Backend (in `backend/`)
 ```bash
-uv run uvicorn app.main:app --reload --port 8001   # dev server（与 frontend/.env.local 对齐；8000 默认端口常被 cmc-inventory 占用）
+uv run uvicorn app.main:app --reload --port 8030   # dev server（本项目编号 30,见 ~/code/PORTS.md；与 frontend lib/api.ts 默认值对齐）
 uv run pytest                               # all tests
 ```
 
 ### Frontend (in `frontend/`)
 ```bash
-pnpm dev    # dev server at http://localhost:3000
+pnpm dev    # dev server at http://localhost:5130（端口在 package.json 的 next dev -p 5130 钉死）
 pnpm build
 pnpm lint
 ```
@@ -78,8 +78,8 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
 
 ### API
 
-Backend: `http://localhost:8001` — Swagger: `/docs`
-Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8001`）
+Backend: `http://localhost:8030` — Swagger: `/docs`
+Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8030`）
 
 ## Known Gotchas
 
