@@ -296,7 +296,7 @@ export default function OverviewPage() {
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <a
-              href={`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/v1/lims/stats/pending-tests-csv${groups.length ? "?" + groups.map((g) => `groups=${encodeURIComponent(g)}`).join("&") : ""}`}
+              href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8030"}/api/v1/lims/stats/pending-tests-csv${groups.length ? "?" + groups.map((g) => `groups=${encodeURIComponent(g)}`).join("&") : ""}`}
               download
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition-colors"
             >
