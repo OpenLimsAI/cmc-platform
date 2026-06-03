@@ -83,6 +83,26 @@ interface StagesMonthly {
   review_avg_days: number | null
 }
 
+// 图表用 3 段（明细表仍用 4 段 STAGE_KEYS）：把「待检+检验中」合并成「分配→完成」一段
+const CHART_STAGES: {
+  label: string
+  color: string
+  value: (d: StagesMonthly) => number | null
+}[] = [
+  { label: "分配前", color: STAGE_COLORS.alloc, value: (d) => d.alloc_avg_days },
+  {
+    label: "待检+检验",
+    color: STAGE_COLORS.wait,
+    value: (d) => {
+      const w = d.wait_avg_days
+      const t = d.test_avg_days
+      if (w === null && t === null) return null
+      return parseFloat(((w ?? 0) + (t ?? 0)).toFixed(1))
+    },
+  },
+  { label: "复核", color: STAGE_COLORS.review, value: (d) => d.review_avg_days },
+]
+
 // 把多个 method 在同月的 4 段按"参与段平均的检项数"加权合并
 function mergeStagesByMonth(items: CycleTimeStagesTrendItem[]): StagesMonthly[] {
   type Acc = {
@@ -445,12 +465,11 @@ export default function CycleTimePage() {
       <div>
         <h2 className="text-base font-semibold text-gray-800 mb-1">日常检项月度周期细分趋势</h2>
         <p className="text-xs text-gray-400 mb-4">
-          按 4 段堆叠展示：
+          按 3 段堆叠展示：
           <span style={{ color: STAGE_COLORS.alloc }}>■ 分配前</span>（收样→分配）
-          <span style={{ color: STAGE_COLORS.wait }} className="ml-2">■ 待检</span>（分配→开始）
-          <span style={{ color: STAGE_COLORS.test }} className="ml-2">■ 检验中</span>（开始→完成）
+          <span style={{ color: STAGE_COLORS.wait }} className="ml-2">■ 待检+检验</span>（分配→检验完成）
           <span style={{ color: STAGE_COLORS.review }} className="ml-2">■ 复核</span>（完成→授权）。
-          每段独立平均（端点缺失的不计入该段），堆叠总高 = 各段均值之和。
+          每段独立平均（端点缺失的不计入该段），堆叠总高 = 各段均值之和。下方明细表仍按 4 段细分。
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {keyMethodCharts.map(({ title, data, target }) => {
@@ -489,21 +508,21 @@ export default function CycleTimePage() {
                 },
               },
               legend: {
-                data: STAGE_KEYS.map((s) => STAGE_LABELS[s]),
+                data: CHART_STAGES.map((s) => s.label),
                 bottom: 0,
                 textStyle: { fontSize: 10 },
               },
               grid: { left: 44, right: 80, top: 28, bottom: 56 },
               xAxis: { type: "category", data: data.map((d) => d.ym), axisLabel: { fontSize: 10, rotate: -30 } },
               yAxis: { type: "value", name: "工作日", axisLabel: { fontSize: 10 } },
-              series: STAGE_KEYS.map((stage, idx) => ({
-                name: STAGE_LABELS[stage],
+              series: CHART_STAGES.map((stage, idx) => ({
+                name: stage.label,
                 type: "bar",
                 stack: "total",
                 emphasis: { focus: "series" },
-                itemStyle: { color: STAGE_COLORS[stage] },
-                data: data.map((d) => d[`${stage}_avg_days`]),
-                ...(target !== null && idx === STAGE_KEYS.length - 1 ? {
+                itemStyle: { color: stage.color },
+                data: data.map((d) => stage.value(d)),
+                ...(target !== null && idx === CHART_STAGES.length - 1 ? {
                   markLine: {
                     silent: true,
                     symbol: "none",
