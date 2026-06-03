@@ -5,11 +5,23 @@
 export const dynamic = "force-dynamic"
 import { useQuery } from "@tanstack/react-query"
 import { useSearchParams } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
 import { fetchOverdue, fetchOverdueList, type OverdueListItem } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatCard } from "@/components/stat-card"
+import { FilterCombo } from "@/components/filter-combo"
 import ReactECharts from "echarts-for-react"
 import dayjs from "dayjs"
+
+// 明细表的 4 个联动筛选字段（key 对应 OverdueListItem 字段）
+const DETAIL_FILTERS = [
+  { key: "project_id", label: "项目编号" },
+  { key: "sample_id", label: "样品编号" },
+  { key: "starter", label: "检验员" },
+  { key: "method_name", label: "检验方法" },
+] as const
+type FilterKey = (typeof DETAIL_FILTERS)[number]["key"]
+type FilterState = Record<FilterKey, string | null>
 
 const fmtDate = (v: string | null) => (v ? dayjs(v).format("YYYY-MM-DD") : "—")
 
@@ -53,6 +65,68 @@ export default function OverduePage() {
     queryKey: ["overdue-list", asOf, groups],
     queryFn: () => fetchOverdueList({ as_of: asOf, groups: groups.length ? groups : undefined }),
   })
+
+  // ---- 明细表联动筛选（纯前端，全量数据已在内存）----
+  const [filters, setFilters] = useState<FilterState>({
+    project_id: null,
+    sample_id: null,
+    starter: null,
+    method_name: null,
+  })
+
+  const allItems = useMemo(() => listData?.items ?? [], [listData])
+
+  // 应用全部筛选，但可排除某个字段（算该字段自身的可选项时用，实现联动）
+  const matchExcept = (items: OverdueListItem[], exclude: FilterKey | null) =>
+    items.filter((it) =>
+      DETAIL_FILTERS.every(({ key }) => {
+        if (key === exclude) return true
+        const fv = filters[key]
+        return !fv || it[key] === fv
+      })
+    )
+
+  // 表格数据：应用全部筛选
+  const filteredItems = useMemo(
+    () => matchExcept(allItems, null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allItems, filters]
+  )
+
+  // 每个筛选框的可选项 = 在「其他筛选条件」下出现过的去重值（联动核心）
+  const optionsByField = useMemo(() => {
+    const r = {} as Record<FilterKey, string[]>
+    for (const { key } of DETAIL_FILTERS) {
+      const vals = new Set<string>()
+      for (const it of matchExcept(allItems, key)) {
+        const v = it[key]
+        if (v != null && v !== "") vals.add(String(v))
+      }
+      r[key] = Array.from(vals).sort((a, b) => a.localeCompare(b, "zh"))
+    }
+    return r
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allItems, filters])
+
+  // 联动副作用：某个已选值因其他筛选变化而不再可选时，自动清空它
+  useEffect(() => {
+    let changed = false
+    const next = { ...filters }
+    for (const { key } of DETAIL_FILTERS) {
+      if (filters[key] && !optionsByField[key].includes(filters[key]!)) {
+        next[key] = null
+        changed = true
+      }
+    }
+    if (changed) setFilters(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optionsByField])
+
+  const hasActiveFilter = DETAIL_FILTERS.some(({ key }) => filters[key])
+  const setFilter = (key: FilterKey, v: string | null) =>
+    setFilters((prev) => ({ ...prev, [key]: v }))
+  const clearFilters = () =>
+    setFilters({ project_id: null, sample_id: null, starter: null, method_name: null })
 
   const pieOption = (
     title: string,
@@ -140,7 +214,10 @@ export default function OverduePage() {
             <CardTitle className="text-sm font-medium text-gray-700">
               超期未检明细
               {listData && (
-                <span className="ml-2 text-xs font-normal text-gray-400">共 {listData.items.length} 项</span>
+                <span className="ml-2 text-xs font-normal text-gray-400">
+                  共 {filteredItems.length} 项
+                  {hasActiveFilter && <span className="text-gray-300"> / 全部 {listData.items.length}</span>}
+                </span>
               )}
             </CardTitle>
             <span className="text-xs text-gray-400">
@@ -152,7 +229,29 @@ export default function OverduePage() {
           {listLoading && <p className="text-sm text-gray-400 py-8 text-center">加载中…</p>}
           {listError && <p className="text-sm text-red-500 py-8 text-center">数据加载失败</p>}
           {listData && (
-            <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
+            <>
+              {/* 联动筛选框：任一筛选会缩小其他筛选框的可选项 */}
+              <div className="flex flex-wrap items-end gap-3 px-4 pb-3">
+                {DETAIL_FILTERS.map(({ key, label }) => (
+                  <FilterCombo
+                    key={key}
+                    label={label}
+                    value={filters[key]}
+                    options={optionsByField[key]}
+                    onChange={(v) => setFilter(key, v)}
+                  />
+                ))}
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="h-8 shrink-0 rounded-md px-2.5 text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    清除筛选
+                  </button>
+                )}
+              </div>
+              <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b bg-gray-50 text-gray-500">
@@ -170,12 +269,14 @@ export default function OverduePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {listData.items.length === 0 ? (
+                  {filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-4 py-8 text-center text-gray-400">暂无数据</td>
+                      <td colSpan={11} className="px-4 py-8 text-center text-gray-400">
+                        {hasActiveFilter ? "无匹配数据" : "暂无数据"}
+                      </td>
                     </tr>
                   ) : (
-                    listData.items.map((item: OverdueListItem, idx: number) => (
+                    filteredItems.map((item: OverdueListItem, idx: number) => (
                       <tr key={`${item.sample_id}-${item.method_code}-${idx}`} className="hover:bg-gray-50 transition-colors">
                         <td
                           className={`px-4 py-2 text-right font-semibold whitespace-nowrap ${
@@ -203,7 +304,8 @@ export default function OverduePage() {
                   )}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
