@@ -824,6 +824,63 @@ async def get_overdue(
     }
 
 
+async def get_overdue_list(
+    db: AsyncSession,
+    as_of: date,
+    groups: list[str] | None = None,
+) -> list[dict]:
+    """
+    超期未检明细：已分配但未授权放行(排除 X)的检项，按"超期未检时间"倒序。
+
+    口径（见 rd-lims-etl/docs/指标口径.md §4.1，2026-06-03 决策）：
+    - 超期未检时间 overdue_days = as_of − assigned_dt（自然日，分配起算）
+    - 范围 = assigned_dt 非空 且 test_authorised_dt 空 且 test_status<>'X'
+      （即 v_overdue_snapshot 的 inprogress + unauthorized 两桶；未分配/未送样无分配日，不入表）
+    - starter（检验员）= tester，JOIN mart.dim_employee 取姓名（无字典记录时回落工号）
+    - target_days = mart.dim_method.target_days（检验时限，用于前端飘红阈值；现 10/79 补录）
+    """
+    group_sql, _ = _group_clause(groups)
+    params = {"end_date": as_of}
+
+    sql = f"""
+        SELECT
+            v.sample_id,
+            v.sample_name,
+            v.batch_number,
+            v.project_id,
+            v.group_id,
+            v.method_code,
+            COALESCE(m.method_name, v.method_name, v.method_code, '（未知）') AS method_name,
+            v.sample_received_dt,
+            v.assigned_dt,
+            COALESCE(e.employee_name, v.tester) AS starter,
+            v.test_status,
+            v.sample_status,
+            m.target_days,
+            CASE
+                WHEN v.test_completed_dt IS NOT NULL AND v.test_authorised_dt IS NULL
+                                                            THEN 'unauthorized'
+                ELSE 'inprogress'
+            END AS overdue_bucket,
+            (CAST(:end_date AS date) - v.assigned_dt::date) AS overdue_days
+        FROM mart.v_test_task_monitor v
+        LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
+        -- 只取 employee_id/employee_name，避免 dim_employee.group_id 与 _group_clause 的
+        -- 非限定 group_id 冲突（"column reference group_id is ambiguous"）
+        LEFT JOIN (SELECT employee_id, employee_name FROM mart.dim_employee) e
+               ON v.tester = e.employee_id
+        WHERE v.assigned_dt IS NOT NULL
+          AND v.assigned_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
+          AND v.test_authorised_dt IS NULL
+          AND (v.test_status IS NULL OR UPPER(v.test_status) <> 'X')
+          AND {group_sql}
+        ORDER BY overdue_days DESC, v.sample_id, v.method_code
+    """
+
+    rows = (await db.execute(text(sql), params)).mappings().all()
+    return [dict(r) for r in rows]
+
+
 # ---------- 待检测检项导出 ----------
 
 async def get_pending_tests(

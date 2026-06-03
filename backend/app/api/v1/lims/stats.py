@@ -20,6 +20,7 @@ from app.schemas.lims.stats import (
     MethodDistributionResponse,
     MethodMonthlyResponse,
     MonthlyTrendResponse,
+    OverdueListResponse,
     OverdueResponse,
     ProjectDistributionResponse,
     SampleListResponse,
@@ -40,6 +41,7 @@ from app.services.lims.stats_service import (
     get_method_monthly,
     get_monthly_trend,
     get_overdue,
+    get_overdue_list,
     get_pending_tests,
     get_project_distribution,
     get_sample_list,
@@ -284,6 +286,21 @@ async def overdue_summary(
 ):
     target = as_of or date.today()
     return await get_overdue(db, as_of=target, groups=groups)
+
+
+@router.get(
+    "/lims/stats/overdue/list",
+    response_model=OverdueListResponse,
+    summary="超期未检明细（已分配未授权检项，按超期天数倒序）",
+)
+async def overdue_list(
+    as_of: date = Query(default=None, description="统计截止日期，默认今天"),
+    groups: list[str] | None = Query(default=None, description="检验组过滤"),
+    db: AsyncSession = Depends(get_analytics_db),
+):
+    target = as_of or date.today()
+    items = await get_overdue_list(db, as_of=target, groups=groups)
+    return {"as_of": target, "items": items}
 
 
 @router.get(

@@ -192,6 +192,9 @@ FROM mart.v_test_task_monitor
 WHERE test_status <> 'X';
 ```
 
+> **超期未检页消费补充（2026-06-03）**：`/dashboard/overdue` 底部新增「超期未检明细表」，按 `v_test_task_monitor` 内联计算 `overdue_days = as_of − assigned_dt`（自然日，分配起算），范围 = `assigned_dt` 非空且未授权（inprogress + unauthorized 两桶），展示 `assigned_dt` 与**检验员姓名**（JOIN `mart.dim_employee` 把 `tester` 工号转姓名）。超期天数飘红阈值取 `mart.dim_method.target_days`（无则默认 14）。复用现有列，**无需新增 mart 列**；依赖 `dim_employee.employee_name`、`dim_method.target_days` 已存在且尽量补全。口径权威定义见 `rd-lims-etl/docs/指标口径.md` §4.1。
+> 同页两个方法分布饼图：仅对占比 ≥5% 的检项显示标签（echarts `minShowLabelAngle: 18`）；长名检项 label/图例用缩写（NR-CE/R-CE/IEX/SEC），tooltip 与明细表仍用全称。
+
 ### 4.5 `mart.v_turnaround_time`（对应旧 `v_turnaround_time`）
 
 在 `v_test_task_monitor` 基础上加 6 个小时数列：`hr_receive_to_grouplead` / `hr_grouplead_to_assign` / `hr_assign_to_start` / `hr_start_to_complete` / `hr_complete_to_authorise` / `hr_total_tat`，公式见旧视图定义。

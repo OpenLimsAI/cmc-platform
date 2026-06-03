@@ -53,6 +53,29 @@ export interface OverdueResponse {
   unsubmitted_distribution: OverdueMethodItem[]
 }
 
+export interface OverdueListItem {
+  sample_id: string | null
+  sample_name: string | null
+  batch_number: string | null
+  project_id: string | null
+  group_id: string | null
+  method_code: string | null
+  method_name: string | null
+  sample_received_dt: string | null
+  assigned_dt: string | null
+  starter: string | null         // 检验员姓名（工号已转姓名，无字典记录时回落工号）
+  test_status: string | null
+  sample_status: string | null
+  target_days: number | null     // 检验时限（dim_method.target_days），飘红阈值
+  overdue_bucket: string | null  // inprogress / unauthorized
+  overdue_days: number | null    // 超期未检天数 = as_of − assigned_dt（自然日）
+}
+
+export interface OverdueListResponse {
+  as_of: string
+  items: OverdueListItem[]
+}
+
 export interface CycleTimeMonthlyTrendItem {
   ym: string
   completed_n: number
@@ -194,6 +217,9 @@ export const fetchMonthlyTrend = (params: { months?: number; groups?: string[] }
 
 export const fetchOverdue = (params: { as_of?: string; groups?: string[] }) =>
   api.get<OverdueResponse>("/api/v1/lims/stats/overdue", { params }).then((r) => r.data)
+
+export const fetchOverdueList = (params: { as_of?: string; groups?: string[] }) =>
+  api.get<OverdueListResponse>("/api/v1/lims/stats/overdue/list", { params }).then((r) => r.data)
 
 export const fetchCycleTimeMonthlyTrend = (params: { months?: number; groups?: string[] }) =>
   api

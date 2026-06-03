@@ -148,6 +148,29 @@ class OverdueResponse(BaseModel):
     unsubmitted_distribution: list[OverdueMethodItem]  # 未送样检项按方法分布
 
 
+class OverdueListItem(BaseModel):
+    sample_id: str | None = None
+    sample_name: str | None = None
+    batch_number: str | None = None
+    project_id: str | None = None
+    group_id: str | None = None
+    method_code: str | None = None
+    method_name: str | None = None
+    sample_received_dt: datetime | None = None
+    assigned_dt: datetime | None = None
+    starter: str | None = None          # 检验员姓名（= tester 工号转姓名，无字典记录时回落工号）
+    test_status: str | None = None
+    sample_status: str | None = None
+    target_days: int | None = None      # 检验时限（dim_method.target_days），用于前端飘红阈值
+    overdue_bucket: str | None = None   # inprogress / unauthorized
+    overdue_days: int | None = None     # 超期未检天数 = as_of − assigned_dt（自然日）
+
+
+class OverdueListResponse(BaseModel):
+    as_of: date
+    items: list[OverdueListItem]
+
+
 # ---------- 员工工时汇总 ----------
 
 class WorkloadItem(BaseModel):
