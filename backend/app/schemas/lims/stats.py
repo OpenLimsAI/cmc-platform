@@ -57,6 +57,13 @@ class CycleTimeByMethodResponse(BaseModel):
     items: list[CycleTimeByMethodItem]
 
 
+class OverTargetPendingResponse(BaseModel):
+    """当前超时限检项数（未检完·收样至今工作日 > 检验时限）"""
+    as_of: date
+    pending_n: int       # 当前未检完检项总数（结存口径 V+C）
+    over_target_n: int   # 其中收样至今工作日 > 检验时限(无则默认) 的检项数
+
+
 class CycleTimeMonthlyTrendItem(BaseModel):
     ym: str
     completed_n: int

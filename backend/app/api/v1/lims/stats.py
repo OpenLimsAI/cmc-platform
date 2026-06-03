@@ -22,6 +22,7 @@ from app.schemas.lims.stats import (
     MonthlyTrendResponse,
     OverdueListResponse,
     OverdueResponse,
+    OverTargetPendingResponse,
     ProjectDistributionResponse,
     SampleListResponse,
     WorkloadByMethodResponse,
@@ -29,6 +30,7 @@ from app.schemas.lims.stats import (
     WorkloadResponse,
 )
 from app.services.lims.stats_service import (
+    get_cycle_overtarget_pending,
     get_cycle_time_by_method,
     get_cycle_time_monthly_trend,
     get_cycle_time_stages_by_method,
@@ -118,6 +120,23 @@ async def cycle_time_by_method(
     end = end_date or today
     items = await get_cycle_time_by_method(db, start=start, end_date=end, groups=groups)
     return CycleTimeByMethodResponse(start_date=start, end_date=end, items=items)
+
+
+@router.get(
+    "/lims/stats/cycle-time/overtarget-pending",
+    response_model=OverTargetPendingResponse,
+    summary="当前超时限检项数（未检完·收样至今工作日>检验时限）",
+)
+async def cycle_time_overtarget_pending(
+    as_of: date = Query(default=None, description="统计基准日，默认今天"),
+    groups: list[str] | None = Query(default=None, description="检验组过滤"),
+    default_target: int = Query(default=14, ge=1, description="方法无 target_days 时的默认时限(工作日)"),
+    db: AsyncSession = Depends(get_analytics_db),
+):
+    target = as_of or date.today()
+    return await get_cycle_overtarget_pending(
+        db, as_of=target, groups=groups, default_target=default_target
+    )
 
 
 @router.get(

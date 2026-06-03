@@ -238,6 +238,21 @@ export const fetchCycleTimeByMethod = (params: {
     .get<CycleTimeByMethodResponse>("/api/v1/lims/stats/cycle-time/by-method", { params })
     .then((r) => r.data)
 
+export interface OverTargetPendingResponse {
+  as_of: string
+  pending_n: number      // 当前未检完检项总数（结存 V+C）
+  over_target_n: number  // 其中收样至今工作日 > 检验时限(无则默认) 的检项数
+}
+
+export const fetchOverTargetPending = (params: {
+  as_of?: string
+  groups?: string[]
+  default_target?: number
+}) =>
+  api
+    .get<OverTargetPendingResponse>("/api/v1/lims/stats/cycle-time/overtarget-pending", { params })
+    .then((r) => r.data)
+
 export const fetchCycleTimeTrendByMethod = (params: { months?: number; groups?: string[] }) =>
   api
     .get<{ months: number; items: CycleTimeTrendByMethodItem[] }>(

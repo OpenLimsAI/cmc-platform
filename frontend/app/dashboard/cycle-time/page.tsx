@@ -13,6 +13,7 @@ import {
   fetchCycleTimeStagesTrendByMethod,
   fetchCycleTimeTrendByMethod,
   fetchMethodTargets,
+  fetchOverTargetPending,
   CycleStage,
   CycleTimeStagesTrendItem,
   CycleTimeTrendByMethodItem,
@@ -194,28 +195,37 @@ export default function CycleTimePage() {
     staleTime: Infinity,
   })
 
+  // 当前超时限检项数（未检完·收样至今工作日 > 检验时限，无则默认 targetDays）
+  const overTargetQuery = useQuery({
+    queryKey: ["cycle-overtarget-pending", today, groupsKey, targetDays],
+    queryFn: () => fetchOverTargetPending({ as_of: today, groups: groups.length ? groups : undefined, default_target: targetDays }),
+  })
+
   // KPI 计算
   const kpi = useMemo(() => {
     const curr = currQuery.data?.items ?? []
     const prev = prevQuery.data?.items ?? []
     if (curr.length === 0) return null
 
+    // 平均检验周期 = 按完成检项数加权的总体均值（= 每检项口径的池化均值），
+    // 与月度趋势的池化均值一致；不能用"各方法均值再简单平均"（会被低量慢方法拉高）。
     const validCurr = curr.filter((i) => i.avg_cycle_days !== null)
-    const overallAvg = validCurr.length > 0
-      ? validCurr.reduce((s, i) => s + (i.avg_cycle_days ?? 0), 0) / validCurr.length
+    const currWeight = validCurr.reduce((s, i) => s + i.completed_n, 0)
+    const overallAvg = currWeight > 0
+      ? validCurr.reduce((s, i) => s + (i.avg_cycle_days ?? 0) * i.completed_n, 0) / currWeight
       : null
     const overallCompleted = curr.reduce((s, i) => s + i.completed_n, 0)
-    const overTargetN = validCurr.filter((i) => (i.avg_cycle_days ?? 0) > targetDays).length
 
     const validPrev = prev.filter((i) => i.avg_cycle_days !== null)
-    const prevAvg = validPrev.length > 0
-      ? validPrev.reduce((s, i) => s + (i.avg_cycle_days ?? 0), 0) / validPrev.length
+    const prevWeight = validPrev.reduce((s, i) => s + i.completed_n, 0)
+    const prevAvg = prevWeight > 0
+      ? validPrev.reduce((s, i) => s + (i.avg_cycle_days ?? 0) * i.completed_n, 0) / prevWeight
       : null
 
     const delta = overallAvg !== null && prevAvg !== null ? overallAvg - prevAvg : null
 
-    return { overallAvg, overallCompleted, overTargetN, delta }
-  }, [currQuery.data, prevQuery.data, targetDays])
+    return { overallAvg, overallCompleted, delta }
+  }, [currQuery.data, prevQuery.data])
 
   // 趋势评语
   const verdict = useMemo(() => {
@@ -393,17 +403,18 @@ export default function CycleTimePage() {
             scheme="green"
           />
           <StatCard
-            label="超目标检项数"
-            value={kpi.overTargetN}
-            sub={`目标 ≤ ${targetDays} 天`}
-            scheme={kpi.overTargetN > 0 ? "red" : "green"}
+            label="当前超时限检项数"
+            value={overTargetQuery.data ? overTargetQuery.data.over_target_n.toLocaleString() : "—"}
+            sub={`未检完 · 超检验时限（无则 ${targetDays} 工作日）`}
+            scheme={overTargetQuery.data && overTargetQuery.data.over_target_n > 0 ? "red" : "green"}
           />
         </div>
       )}
 
       <p className="text-xs text-gray-400">
-        口径：KPI 与明细表统计区间 {tableStart} ～ {tableEnd}（与趋势月数联动）；
-        检验周期 = 工作日（收样日不含，授权完成日含）；上期为相同天数的前序区间；排除 status=&apos;X&apos;/&apos;U&apos;。
+        口径：平均周期/完成检项数/趋势统计区间 {tableStart} ～ {tableEnd}（与趋势月数联动），
+        检验周期 = 工作日（收样日不含，授权完成日含），按检项数加权，排除 status=&apos;X&apos;/&apos;U&apos;；
+        上期为相同天数的前序区间。「当前超时限检项数」为<b>实时</b>口径：未检完（非 A，结存 V+C）检项中，收样至今工作日 &gt; 该方法检验时限（无则 {targetDays} 工作日）。
       </p>
 
       {/* 月度趋势图 */}

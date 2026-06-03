@@ -279,6 +279,45 @@ async def get_cycle_time_by_method(
     return [dict(r) for r in result.mappings().all()]
 
 
+async def get_cycle_overtarget_pending(
+    db: AsyncSession,
+    as_of: date,
+    groups: list[str] | None = None,
+    default_target: int = 14,
+) -> dict:
+    """
+    当前**未检完**（未授权放行 = 状态非 A）检项中，收样至今工作日 > 检验时限的检项数。
+    口径见 rd-lims-etl/docs/口径_检验周期.md §5.3（2026-06-03 改为结存口径）：
+    - 范围：test_authorised_dt IS NULL（非 A）+ 排除取消(X) + 排除未到样(U) + 已收样 → 结存(V+C)
+    - 已耗时 = 收样日 → as_of 的**工作日**
+    - 阈值 = COALESCE(dim_method.target_days, default_target)
+    """
+    group_sql, _ = _group_clause(groups)
+    elapsed = _biz_days_between("v.sample_received_dt", "CAST(:as_of AS date)")
+    sql = f"""
+        WITH pend AS (
+            SELECT
+                v.test_id,
+                {elapsed}                       AS elapsed_biz,
+                COALESCE(m.target_days, :deft)  AS tgt
+            FROM mart.v_test_task_monitor v
+            LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
+            WHERE v.test_authorised_dt IS NULL
+              AND v.sample_received_dt IS NOT NULL
+              AND v.sample_received_dt < (CAST(:as_of AS date) + INTERVAL '1 day')
+              AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
+              AND UPPER(COALESCE(v.test_status,   '')) NOT IN ('X','U')
+              AND {group_sql}
+        )
+        SELECT
+            COUNT(DISTINCT test_id)                                          AS pending_n,
+            COUNT(DISTINCT CASE WHEN elapsed_biz > tgt THEN test_id END)     AS over_target_n
+        FROM pend
+    """
+    row = (await db.execute(text(sql), {"as_of": as_of, "deft": default_target})).mappings().one()
+    return {"as_of": as_of, "pending_n": row["pending_n"] or 0, "over_target_n": row["over_target_n"] or 0}
+
+
 async def get_cycle_time_monthly_trend(
     db: AsyncSession,
     months: int = 12,
