@@ -5,7 +5,7 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 sqlalchemy==2.0.35
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10  # 2.9.9 无 Python 3.13 wheel,2.9.10 起提供 cp313
 pydantic==2.9.2
 pydantic-settings==2.5.2
 python-multipart==0.0.10

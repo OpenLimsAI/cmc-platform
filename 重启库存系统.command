@@ -1,27 +1,29 @@
 #!/usr/bin/env bash
 # 双击此文件即可重启 CMC 库存系统的本机开发服务。
-# 后端: FastAPI / uvicorn, 默认 http://127.0.0.1:8000
-# 前端: Streamlit, 默认 http://127.0.0.1:8503
+# 后端: FastAPI / uvicorn, 固定 http://127.0.0.1:8010(本项目编号 10,见 ~/code/PORTS.md)
+# 前端: React / Vite,   固定 http://localhost:5110
+# 注意:登录依赖 MDM Portal(Docker, :18000),请确保它已启动。
 
 set -u
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$ROOT/backend"
-FRONTEND_DIR="$ROOT/frontend"
+FRONTEND_DIR="$ROOT/frontend-react"
 LOG_DIR="$ROOT/logs"
 
-BACKEND_PORT="${BACKEND_PORT:-8000}"
-FRONTEND_PORT="${FRONTEND_PORT:-8503}"
+BACKEND_PORT="${BACKEND_PORT:-8010}"
+FRONTEND_PORT="${FRONTEND_PORT:-5110}"
 BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
-FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
+# Vite 绑定 localhost(含 IPv6),浏览器请用 localhost 访问
+FRONTEND_HOST="${FRONTEND_HOST:-localhost}"
 
 if [ -f "$ROOT/.env" ]; then
     set -a
     # shellcheck disable=SC1091
     source "$ROOT/.env"
     set +a
-    BACKEND_PORT="${BACKEND_PORT:-8000}"
-    FRONTEND_PORT="${FRONTEND_PORT:-8503}"
+    BACKEND_PORT="${BACKEND_PORT:-8010}"
+    FRONTEND_PORT="${FRONTEND_PORT:-5110}"
 fi
 
 BACKEND_URL="http://${BACKEND_HOST}:${BACKEND_PORT}"
@@ -45,9 +47,16 @@ if [ ! -x "$BACKEND_DIR/.venv/bin/uvicorn" ]; then
     exit 1
 fi
 
-if [ ! -x "$FRONTEND_DIR/.venv/bin/streamlit" ]; then
-    echo "找不到前端启动程序: $FRONTEND_DIR/.venv/bin/streamlit"
-    echo "请先在项目根目录执行: ./install.sh deps"
+if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+    echo "找不到前端依赖: $FRONTEND_DIR/node_modules"
+    echo "请先执行: (cd \"$FRONTEND_DIR\" && npm install)"
+    read -r -p "按回车退出..."
+    exit 1
+fi
+
+NPM_BIN="$(command -v npm || true)"
+if [ -z "$NPM_BIN" ]; then
+    echo "找不到 npm,请确认已安装 Node.js"
     read -r -p "按回车退出..."
     exit 1
 fi
@@ -81,7 +90,8 @@ wait_for_url() {
     local i
 
     for i in $(seq 1 30); do
-        if curl -fsS "$url" >/dev/null 2>&1; then
+        # --noproxy:绕过本机 SOCKS 代理(7890),localhost 直连
+        if curl -fsS --noproxy '*' "$url" >/dev/null 2>&1; then
             echo "$name: 已启动"
             return 0
         fi
@@ -108,14 +118,12 @@ echo "2. 启动后端"
 echo "后端日志: $LOG_DIR/backend.log"
 echo
 
-echo "3. 启动前端"
+echo "3. 启动前端 (React / Vite)"
 (
     cd "$FRONTEND_DIR" || exit 1
-    nohup .venv/bin/streamlit run app.py \
-        --server.port "$FRONTEND_PORT" \
-        --server.address "$FRONTEND_HOST" \
-        --server.headless true \
-        --browser.gatherUsageStats false \
+    nohup "$NPM_BIN" run dev -- \
+        --port "$FRONTEND_PORT" \
+        --strictPort \
         > "$LOG_DIR/frontend.log" 2>&1 &
 )
 echo "前端日志: $LOG_DIR/frontend.log"
