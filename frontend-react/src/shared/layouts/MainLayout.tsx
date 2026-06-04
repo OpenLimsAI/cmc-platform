@@ -20,9 +20,9 @@ import { logout } from "../../api/auth";
 
 const { Header, Sider, Content } = Layout;
 
-// 物料库存 — 所有人可见(只读)
+// 物料库存 — 所有人可见(只读;物料新增/编辑在 MDM Portal)
 const materialReadItems = [
-  { key: "/materials", icon: <AppstoreOutlined />, label: "物料管理" },
+  { key: "/materials", icon: <AppstoreOutlined />, label: "物料查询" },
   { key: "/stock", icon: <DatabaseOutlined />, label: "库存查询" },
 ];
 
