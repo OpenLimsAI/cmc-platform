@@ -270,7 +270,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_session_expires ON auth_session(expires_at);
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_log (
     id           BIGSERIAL PRIMARY KEY,
-    user_id      INT REFERENCES app_user(id) ON DELETE SET NULL,
+    user_id      INT,                                            -- v2.0 起为 MDM user_id,不再外键 app_user
     username     VARCHAR(50),                                    -- 冗余,user 删除后仍可查
     action       VARCHAR(50) NOT NULL,                           -- 例: material.create / inventory.in
     entity_type  VARCHAR(50),                                    -- 例: material / batch / inventory_txn
@@ -331,6 +331,10 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS extinction_coefficient  NUMERIC(12,2)
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS serial_no               VARCHAR(100);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS asset_no                VARCHAR(100);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS responsible_person      VARCHAR(50);
+
+-- audit_log: v2.0 认证对接 MDM 后,user_id 为 MDM user_id,
+-- 必须解除指向旧 app_user 的外键,否则 MDM 新用户的所有写操作都会失败
+ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_user_id_fkey;
 
 -- -----------------------------------------------------------------------------
 -- 完成

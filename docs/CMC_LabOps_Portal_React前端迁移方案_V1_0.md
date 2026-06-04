@@ -19,6 +19,7 @@
 | **版本** | **日期** | **修订人** | **修订内容** |
 |---|---|---|---|
 | V1.0 | 2026-05-19 | CMC IT | 初始版本 |
+| V1.1 | 2026-06-04 | CMC IT | 认证对接 MDM：§2.1 中 /api/auth/change-password、/api/users*（除 /api/users/me）、/api/users/{id}/reset-password 已随本地用户体系移除，由 MDM Portal 承担；Phase 2 的"用户管理页/个人中心改密"不再在本系统实现；新增 /api/mdm/materials*（MDM 物料按需拉取） |
 
 ## 适用范围
 
@@ -169,8 +170,8 @@
 | 2.3 | 盘点调整页 | /material/adjust |
 | 2.4 | 移库页 | /material/transfer |
 | 2.5 | 物料导入页 | /material/import — 文件上传 + 干跑预览 + 确认导入 |
-| 2.6 | 用户管理页 | /admin/users — 含审计日志 Tab |
-| 2.7 | 个人中心 | /profile — 修改密码 |
+| 2.6 | ~~用户管理页~~ → 审计日志页 | /admin/audit（用户管理移至 MDM Portal，V1.1） |
+| 2.7 | ~~个人中心(修改密码)~~ | 改密在 MDM Portal 完成，本系统不实现（V1.1） |
 
 ### 里程碑
 

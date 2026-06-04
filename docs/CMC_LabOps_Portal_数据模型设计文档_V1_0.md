@@ -22,6 +22,8 @@
 | **版本** | **日期** | **修订人** | **修订内容** |
 |---|---|---|---|
 | V1.0 | 2026-05-19 | CMC IT | 初始版本，定义设备管理表结构、认证权限升级、审计升级 |
+| V1.1 | 2026-06-04 | CMC IT | 取消 labops_auth schema（认证对接 MDM Portal，§5 保留作历史参考）；labops_audit 降级为 Phase 4 可选项，当前沿用 material_mgmt.audit_log |
+| V1.2 | 2026-06-04 | CMC IT | 设备主数据移交 MDM eqp 域（eqp.equipment）；equipment_mgmt.equipment 增加 mdm_equipment_id / data_source 列，身份字段从 MDM 按需拉取（§4.2、§7 更新） |
 
 ## 适用范围
 
@@ -34,8 +36,8 @@
 
 1. **保留现有表**：material_mgmt schema 中的 10 张表原样保留，确保 Streamlit 前端在迁移期间继续正常工作
 2. **新模块新 schema**：设备管理使用独立 schema equipment_mgmt
-3. **认证权限升级**：新建 labops_auth schema，支持 RBAC；迁移期间旧 material_mgmt.app_user 保留
-4. **审计升级**：新建 labops_audit schema，增加模块字段和变更原因
+3. **认证对接 MDM（V1.1 变更）**：不建本地用户/角色表，信任 MDM Portal 签发的 JWT；material_mgmt.app_user / auth_session 已停用
+4. **审计沿用现有表（V1.1 变更）**：继续使用 material_mgmt.audit_log；labops_audit（module/reason 字段）降级为 Phase 4 可选项
 5. **软删除**：所有业务表使用 is_active 或 deleted_at 标记，禁止物理删除
 6. **时间戳**：所有时间字段使用 TIMESTAMP（上海本地时间），datetime.now() 写入
 7. **数量精度**：NUMERIC(12,2) 避免浮点误差
@@ -45,27 +47,26 @@
 
 | **Schema** | **用途** | **来源** | **主要表** | **数据规模预估** |
 |---|---|---|---|---|
-| material_mgmt | 物料库存 | 现有保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log | 物料 ~2000，批次 ~10000 |
+| material_mgmt | 物料库存 + 审计 | 现有保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log, audit_log | 物料 ~2000，批次 ~10000 |
 | equipment_mgmt | 仪器设备 | 新增 | equipment, equipment_calibration, equipment_maintenance, equipment_repair, equipment_warranty, equipment_attachment, equipment_reminder | 设备 ~200 |
-| labops_auth | 认证与权限 | 新增（升级） | user, role, permission, user_role, role_permission, login_session | 用户 ~50 |
-| labops_audit | 审计追踪 | 新增（升级） | audit_log | 高速增长 |
+| ~~labops_auth~~ | ~~认证与权限~~ | **已取消（V1.1）** | 认证对接 MDM Portal（JWT），用户/角色在 MDM auth schema 维护 | — |
+| labops_audit | 审计追踪 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log | 高速增长 |
 
-## 2.1 Schema 依赖关系
+## 2.1 Schema 依赖关系（V1.1 修订）
 
 ```text
 依赖方向（A → B 表示 A 引用 B）：
 
-  equipment_mgmt ──→ labops_auth   (设备的 created_by 等引用 user)
   material_mgmt  ──→ material_mgmt (现有内部引用保留)
-  labops_audit   ──→ labops_auth   (审计引用用户)
+  equipment_mgmt ──→ (无跨 schema 外键;created_by 等存 MDM 用户名快照)
 
-  labops_auth 是基础 schema，其他 schema 依赖它
+  用户身份来自 MDM JWT claims(user_id / username / roles),
+  各表的 created_by / operator 字段冗余存 username 字符串,
+  不对 MDM 库建外键 —— 保持两系统数据库解耦。
 
 部署顺序：
-  1. labops_auth  (基础)
-  2. labops_audit (基础)
-  3. material_mgmt (现有，保留)
-  4. equipment_mgmt (新增)
+  1. material_mgmt (现有，保留)
+  2. equipment_mgmt (新增)
 ```
 
 # 3. 现有物料库存表（保留不变）
@@ -81,9 +82,9 @@
 | unit_dict | 单位字典 | ~20 |
 | category_dict | 分类字典 | ~30 |
 | import_log | 导入日志 | ~100 |
-| app_user | 应用账号（迁移后由 labops_auth.user 取代） | ~20 |
-| auth_session | 登录会话（迁移后由 labops_auth.login_session 取代） | ~50 |
-| audit_log | 审计日志（迁移后由 labops_audit.audit_log 取代） | ~10000 |
+| app_user | 应用账号（已停用 — 认证移交 MDM Portal，确认无引用后可删除） | ~20 |
+| auth_session | 登录会话（已停用 — JWT 无状态，确认无引用后可删除） | ~50 |
+| audit_log | 审计日志（继续使用；labops_audit 升级为 Phase 4 可选项） | ~10000 |
 
 关键设计不变：
 - 库存数量不落表，实时由 inventory_txn 聚合计算
@@ -126,6 +127,8 @@
 | commission_date | DATE | | 启用日期 | 首次启用日期 |
 | asset_value | NUMERIC(12,2) | | 资产价值 | 购入金额 |
 | remark | TEXT | | 备注 | 备注 |
+| mdm_equipment_id | BIGINT | | MDM设备ID | V1.2: 引用 MDM eqp.equipment 主键（无跨库外键,API 拉取时回填） |
+| data_source | VARCHAR(20) | NOT NULL DEFAULT 'local' | 主数据来源 | V1.2: mdm=从 MDM 引用建档 / local=本地兜底建(待补登 MDM) |
 | is_active | BOOLEAN | NOT NULL DEFAULT TRUE | 是否有效 | 软删除标记 |
 | deactivated_at | TIMESTAMP | | 报废时间 | 报废/停用时间 |
 | deactivated_by | VARCHAR(50) | | 报废操作人 | 报废操作人 |
@@ -416,7 +419,13 @@ CREATE INDEX ix_reminder_equipment ON equipment_mgmt.equipment_reminder(equipmen
 
 # 5. Schema: labops_auth（认证与权限升级）
 
-## 5.1 升级说明
+> **⚠️ 本章已于 V1.1 整体取消，仅保留作历史参考。**
+> 实际方案：LabOps 对接 MDM Portal 统一认证 —— 登录代理 MDM `/auth/login`，
+> 后端用共享密钥（HS256）本地校验 MDM 签发的 JWT，从 claims 取 user_id / username / roles。
+> 角色映射：`SYS_ADMIN`（全权限）/ `CMC_WAREHOUSE_ADMIN`（物料写）/ `CMC_EQUIPMENT_ADMIN`（设备写）。
+> 用户管理、改密、首登强制改密均由 MDM Portal 承担，LabOps 不建任何用户/角色/会话表。
+
+## 5.1 升级说明（已废弃）
 
 现有 material_mgmt.app_user 采用硬编码 3 角色（admin / warehouse_admin / user）。升级为 RBAC 模型，支持灵活的角色权限组合。
 
@@ -521,6 +530,12 @@ CREATE TABLE labops_auth.role_permission (
 
 # 6. Schema: labops_audit（审计升级）
 
+> **V1.1 说明：** 本章降级为 Phase 4 可选项。当前实现沿用 `material_mgmt.audit_log`
+> （字段：user_id / username / action / entity_type / entity_id / before_json /
+> after_json / source_ip / created_at），username 为冗余快照，不依赖本地用户表。
+> 如未来需要按模块检索或记录变更原因，再按本章建 labops_audit schema 并增加
+> module / reason 字段。
+
 ## 6.1 labops_audit.audit_log
 
 升级版审计表，增加 module 和 reason 字段：
@@ -564,21 +579,24 @@ CREATE INDEX ix_audit_entity      ON labops_audit.audit_log(entity_type, entity_
 CREATE INDEX ix_audit_action      ON labops_audit.audit_log(action, created_at DESC);
 ```
 
-# 7. MDM 数据边界说明
+# 7. MDM 数据边界说明（V1.2 修订）
 
 | **数据域** | **权威源** | **LabOps Portal 中的体现** |
 |---|---|---|
-| 物质身份（Substance） | MDM Portal | 不涉及 |
-| 项目（Project） | MDM Portal | 不涉及 |
-| 资产（Asset） | MDM Portal | 不涉及 |
-| R&D 物料主数据 | MDM Portal（未来） | 不涉及，LabOps 的 material 是部门操作数据 |
+| 物质身份（Substance） | MDM Portal (srs) | 不涉及 |
+| 项目（Project） | MDM Portal (prs) | 不涉及 |
+| 药物资产（Asset） | MDM Portal (ars) | 不涉及 |
+| **物料主数据** | **MDM Portal (mm.material)** | material 表为运营快照（data_source 标记），入库时按编码从 MDM 拉取 |
+| **设备主数据** | **MDM Portal (eqp.equipment)** | equipment 表为运营台账（mdm_equipment_id + data_source），建档时从 MDM 拉取身份字段 |
 | 部门物料库存 | LabOps Portal | 核心能力：批次、出入库、位置、库存 |
-| 仪器设备管理 | LabOps Portal | 核心能力：台账、校验、维护、维修 |
-| 用户认证 | 各系统独立 | 独立用户表（未来可对接 SSO） |
+| 设备运营管理 | LabOps Portal | 核心能力：在用状态/位置/负责人、校验、维护、维修、保修、附件、提醒 |
+| 用户认证 | MDM Portal (auth) | LabOps 信任 MDM JWT，不建用户表 |
 
-未来可选集成：
-- LabOps material 可增加 mdm_substance_id 字段引用 MDM substance
-- 设备数据完全在 LabOps 内部管理，不与 MDM 交互
+集成方式（已实现）：
+- 两系统数据库为独立 PG 实例，**不跨库外键**，全部通过 API 按需拉取
+- 物料：GET /api/mdm/materials* + POST /api/materials/from-mdm/{code}
+- 设备：GET /api/mdm/equipments* + POST /api/equipment/from-mdm/{code}
+- data_source='local' 仅作 MDM 不可用时的兜底，事后应在 MDM 补登
 
 # 8. 附录：设备 ERD
 

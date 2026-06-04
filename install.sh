@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # 文件: install.sh
-# 用途: 一键在 Linux 服务器部署 CMC 物料管理系统
+# 用途: 一键在 Linux 服务器部署 CMC LabOps Portal(原 CMC 物料管理系统)
 #       - 给 backend / frontend 各创建独立 venv 并安装依赖
 #       - 把 systemd unit 装到 /etc/systemd/system/
 #       - daemon-reload + enable --now

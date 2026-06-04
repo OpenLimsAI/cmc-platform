@@ -4,11 +4,12 @@ import {
   Card, Tabs, Form, Input, InputNumber, DatePicker, Select,
   Button, Descriptions, Tag, message, Space, Alert, Typography,
 } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined, ExportOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { createFromMdm, mdmLookup, type Material } from "../../../api/materials";
 import { createBatch, listLocations, type BatchCreate } from "../../../api/inventory";
 import { listMaterials } from "../../../api/materials";
+import { mdmPortalUrl } from "../../../shared/mdmPortal";
 
 type IntakeType = "reagent" | "consumable" | "standard" | "column";
 
@@ -25,6 +26,8 @@ export default function IntakePage() {
   const [resolvedMaterial, setResolvedMaterial] = useState<Material | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  // 本地和 MDM 都没有的编码 → 提供"去 MDM 登记"跳转
+  const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [form] = Form.useForm();
 
   const { data: locations = [] } = useQuery({
@@ -54,6 +57,7 @@ export default function IntakePage() {
 
     setLookupLoading(true);
     setLookupError(null);
+    setNotFoundCode(null);
     setResolvedMaterial(null);
 
     try {
@@ -73,7 +77,7 @@ export default function IntakePage() {
         setResolvedMaterial(created);
         message.info("已从 MDM 获取物料信息");
       } catch {
-        setLookupError(`本地和 MDM 均未找到物料 ${code}，请先在 MDM 中注册或手工新增`);
+        setNotFoundCode(code);
       }
     } catch {
       setLookupError("查询失败，请检查网络");
@@ -136,6 +140,26 @@ export default function IntakePage() {
 
         {lookupError && (
           <Alert type="warning" message={lookupError} style={{ marginTop: 12 }} showIcon />
+        )}
+
+        {notFoundCode && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginTop: 12 }}
+            message={`本地和 MDM 都没有编码为 ${notFoundCode} 的物料`}
+            description="新物料需要先在 MDM 登记身份信息（编码/名称/厂家等），登记完成后回到本页重新查询即可继续入库。"
+            action={
+              <Button
+                type="primary"
+                icon={<ExportOutlined />}
+                href={mdmPortalUrl("/materials/new", { code: notFoundCode })}
+                target="_blank"
+              >
+                去 MDM 登记此物料
+              </Button>
+            }
+          />
         )}
 
         {resolvedMaterial && (

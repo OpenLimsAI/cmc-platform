@@ -359,3 +359,54 @@ class AuditLogOut(ORMBase):
     after_json: Optional[Any] = None
     source_ip: Optional[str] = None
     created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Import (Excel 物料主数据导入)
+# ---------------------------------------------------------------------------
+class ImportPreviewRow(BaseModel):
+    row_index: int                       # Excel 业务行号(数据从第 2 行起)
+    material_code: Optional[str] = None
+    name_cn: Optional[str] = None
+    action: str                          # 'INSERT' | 'UPDATE' | 'ERROR'
+    errors: List[str] = []
+    warnings: List[str] = []
+    raw: dict = {}
+
+
+class ImportPreviewResult(BaseModel):
+    total_rows: int
+    insert_count: int
+    update_count: int
+    error_count: int
+    leading_zero_codes: List[str] = []
+    new_categories: List[str] = []
+    new_units: List[str] = []
+    rows: List[ImportPreviewRow] = []
+
+
+class ImportCommitRequest(BaseModel):
+    file_name: str
+    # operator 由鉴权自动填
+    auto_create_units: bool = True       # 文件中出现新单位时自动加入字典
+    rows: List[dict]                     # 干跑后的逐行数据(已清洗)
+
+
+class ImportCommitResult(BaseModel):
+    import_id: int
+    total_rows: int
+    inserted_rows: int
+    updated_rows: int
+    failed_rows: int
+
+
+class ImportLogOut(ORMBase):
+    import_id: int
+    file_name: Optional[str] = None
+    imported_at: datetime
+    operator: Optional[str] = None
+    total_rows: int
+    inserted_rows: int
+    updated_rows: int
+    failed_rows: int
+    error_detail: Optional[Any] = None

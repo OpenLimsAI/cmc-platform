@@ -11,6 +11,12 @@ import IntakePage from "./modules/intake/pages/IntakePage";
 import OutgoingPage from "./modules/outgoing/pages/OutgoingPage";
 import StockPage from "./modules/stock/pages/StockPage";
 import AlertsPage from "./modules/alerts/pages/AlertsPage";
+import TransferPage from "./modules/transfer/pages/TransferPage";
+import AdjustPage from "./modules/adjust/pages/AdjustPage";
+import ImportPage from "./modules/import/pages/ImportPage";
+import AuditLogPage from "./modules/admin/pages/AuditLogPage";
+import EquipmentListPage from "./modules/equipment/pages/EquipmentListPage";
+import EquipmentDetailPage from "./modules/equipment/pages/EquipmentDetailPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +43,12 @@ export default function App() {
               <Route path="/outgoing" element={<OutgoingPage />} />
               <Route path="/stock" element={<StockPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/transfer" element={<TransferPage />} />
+              <Route path="/adjust" element={<AdjustPage />} />
+              <Route path="/import" element={<ImportPage />} />
+              <Route path="/equipment" element={<EquipmentListPage />} />
+              <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
+              <Route path="/admin/audit" element={<AuditLogPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/materials" replace />} />
           </Routes>

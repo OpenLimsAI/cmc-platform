@@ -22,6 +22,8 @@
 | **版本** | **日期** | **修订人** | **修订内容** |
 |---|---|---|---|
 | V1.0 | 2026-05-19 | CMC IT | 初始版本 |
+| V1.1 | 2026-06-04 | CMC IT | 认证方案变更：取消自建 labops_auth schema，改为对接 MDM Portal 统一认证（JWT 共享密钥）；用户管理/改密由 MDM Portal 承担 |
+| V1.2 | 2026-06-04 | CMC IT | 主数据边界变更：设备主数据移交 MDM Portal 新建的 eqp 域（eqp.equipment，编码 EQP-yyyyXXXXXX）；LabOps equipment 表保留运营数据 + mdm_equipment_id/data_source 引用快照，照物料 from-mdm 模式按需拉取 |
 
 ## 适用范围
 
@@ -64,7 +66,8 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
 │   │  - Substance (SRS)     │   │  - 物料库存管理        │    │
 │   │  - Project (PRS)       │   │  - 仪器设备管理        │    │
 │   │  - Asset (ARS)         │   │  - 统一门户 / 预警     │    │
-│   │  - Material (MM Lite)  │   │                        │    │
+│   │  - Material (MM)       │   │                        │    │
+│   │  - Equipment (EQP)     │   │  (主数据引用自 MDM)    │    │
 │   │                        │   │                        │    │
 │   │  React + FastAPI + PG  │   │  React + FastAPI + PG  │    │
 │   └────────┬───────────────┘   └────────┬───────────────┘    │
@@ -73,18 +76,21 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
 │                       │                                      │
 │              ┌────────▼────────┐                             │
 │              │  PostgreSQL 16  │                             │
-│              │  (共享实例)     │                             │
+│              │ (V1.2: 实际为两 │                             │
+│              │  套独立实例,跨  │                             │
+│              │  系统仅 API 引用)│                            │
 │              │                 │                             │
 │              │  MDM schemas:   │                             │
 │              │   srs/prs/ars/  │                             │
-│              │   mm/ref/audit/ │                             │
-│              │   auth/meta     │                             │
+│              │   mm/eqp/ref/   │                             │
+│              │   audit/auth/   │                             │
+│              │   meta          │                             │
 │              │                 │                             │
 │              │  LabOps schemas:│                             │
 │              │   material_mgmt │                             │
 │              │   equipment_mgmt│                             │
-│              │   labops_auth   │                             │
-│              │   labops_audit  │                             │
+│              │  (认证复用 MDM   │                             │
+│              │   auth schema)  │                             │
 │              └─────────────────┘                             │
 │                                                              │
 │   ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                    │
@@ -103,7 +109,7 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
 | 后端技术栈 | FastAPI + SQLAlchemy 2.0 + Pydantic v2 | 保留现有后端，逐步模块化 |
 | 数据库 | PostgreSQL 16（共享实例，schema 隔离） | 已有环境，运维成本最低 |
 | 架构模式 | 多模块单体（物料 + 设备共享后端进程） | 规模适中，运维简单 |
-| 认证方式 | 自建用户表 + token（现有），未来可接 SSO | 渐进式升级 |
+| 认证方式 | **对接 MDM Portal 统一认证（V1.1 变更）**：登录代理 MDM `/auth/login`，后端用共享密钥本地校验 MDM 签发的 JWT；不再自建用户表 | 全公司统一账号，免去用户数据双向同步 |
 | 部署目标 | Linux 虚拟机（与现有一致） | 复用现有基础设施 |
 | 与 MDM 的关系 | 独立系统，共享 PG 实例，UI 风格对齐 | 避免耦合，保持独立演进 |
 
@@ -165,10 +171,10 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
                         │ PostgreSQL 16│
                         │              │
                         │ Schemas:     │
-                        │  material_mgmt│ ← 现有，保留
+                        │  material_mgmt│ ← 现有，保留(含 audit_log)
                         │  equipment_mgmt│ ← 新增
-                        │  labops_auth │ ← 升级认证
-                        │  labops_audit│ ← 升级审计
+                        │ (认证由 MDM   │
+                        │  Portal 提供) │
                         └──────────────┘
 ```
 
@@ -310,71 +316,70 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 
 | **Schema** | **用途** | **来源** | **主要表** |
 |---|---|---|---|
-| material_mgmt | 物料库存 | 现有，保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log |
+| material_mgmt | 物料库存 + 审计 | 现有，保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log, audit_log |
 | equipment_mgmt | 仪器设备 | 新增 | equipment, calibration, maintenance, repair, warranty, attachment, reminder |
-| labops_auth | 认证与权限 | 从 material_mgmt 升级 | user, role, permission, user_role, role_permission, session |
-| labops_audit | 审计日志 | 从 material_mgmt 升级 | audit_log（升级版） |
+| ~~labops_auth~~ | ~~认证与权限~~ | **已取消（V1.1）** | 认证由 MDM Portal 的 auth schema 提供，LabOps 不建用户/角色表 |
+| labops_audit | 审计日志 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log；如需 module/reason 字段再升级 |
 
-> Schema 隔离原则
+> Schema 隔离原则（V1.1 修订）
 > - material_mgmt 保留现有表不动，保证现有 Streamlit 前端在迁移期间继续工作
 > - equipment_mgmt 为新建 schema
-> - labops_auth 从 material_mgmt.app_user / auth_session 升级，增加 RBAC
-> - labops_audit 从 material_mgmt.audit_log 升级
-> - 迁移期间 material_mgmt 中的 app_user / auth_session / audit_log 保留，React 前端切换完成后再考虑废弃
+> - **认证不再建本地 schema**：LabOps 信任 MDM Portal 签发的 JWT（HS256 共享密钥），用户/角色主数据在 MDM 的 auth schema 中维护
+> - material_mgmt 中历史遗留的 app_user / auth_session 表已停用，可在确认无引用后删除
+> - 审计当前仍写 material_mgmt.audit_log（username 冗余快照，不依赖本地用户表）
 
 ## 4.2 数据流向
 
 ```text
-数据所有权：
+数据所有权（V1.2 修订）：
 
-  CMAB MDM Portal          CMC LabOps Portal
-  ─────────────            ──────────────────
-  Substance 身份 ←──(API)──→  物料主数据
-  Project 登记              (material_mgmt)
-  Asset 登记                
-  Material 主数据(R&D)       批次、出入库流水
-                            位置、库存计算
-                            
-                            设备台账
-                            (equipment_mgmt)
-                            校验、维护、维修
-                            保修、附件、提醒
+  CMAB MDM Portal              CMC LabOps Portal
+  ─────────────                ──────────────────
+  Substance 身份               物料运营快照(material_mgmt.material,
+  Project / Asset 登记           data_source 标记 mdm/local)
+  物料主数据 mm.material  ──→   批次、出入库流水、位置、库存计算
+  设备主数据 eqp.equipment ──→  设备运营台账(equipment_mgmt.equipment,
+   (EQP-yyyyXXXXXX)              mdm_equipment_id + data_source)
+                               校验、维护、维修、保修、附件、提醒
 
-数据引用方向：
-  - 当前阶段：两系统独立，无跨系统引用
-  - 未来阶段：LabOps 物料可引用 MDM substance_id（可选）
-  - 设备数据完全在 LabOps 内部，不与 MDM 交互
+数据引用方向（均通过 API 按需拉取,不跨库外键 —— 两套 PG 实例独立）：
+  - 物料：入库时按 material_code 查 MDM,本地落快照(已实现)
+  - 设备：建台账时按 equipment_code 查 MDM,身份字段以 MDM 为准,
+          运营字段(状态/位置/负责人)本地维护(已实现)
+  - 本地新建(data_source='local')仅作 MDM 不可用时的兜底,事后补登
 ```
 
 # 5. 统一能力设计
 
-## 5.1 统一认证
+## 5.1 统一认证（V1.1 已落地：对接 MDM）
 
-现有认证（token + bcrypt）在迁移期间保留，逐步升级：
+LabOps 不自建用户体系，复用 MDM Portal 统一认证：
 
-| **阶段** | **认证方式** | **说明** |
+| **环节** | **实现** | **说明** |
 |---|---|---|
-| 当前（Streamlit） | 随机 hex token + 10 分钟滑动过期 | 保留不动 |
-| Phase 1（React） | 同上，API 不变 | React 调用相同 /api/auth/* |
-| Phase 2 | JWT access token + 长效 refresh token | 前后端分离更适合 JWT |
-| Phase 3（可选） | 对接公司 AD / SSO | 需公司 IT 基础设施就绪 |
+| 登录 | POST /api/auth/login 代理 MDM `/auth/login` | 返回 MDM 签发的 JWT access token |
+| 校验 | 后端用共享密钥（MDM_SECRET_KEY, HS256）本地解码 JWT | 无需每请求回调 MDM，零额外延迟 |
+| 登出 | JWT 无状态，客户端丢弃 token | 服务端无 session 表 |
+| 用户管理 / 改密 / 首登强制改密 | 由 MDM Portal 承担 | LabOps 不提供相关页面 |
+| 会话过期 | 由 MDM token 有效期控制 | 过期后 401 → 前端跳转登录 |
 
-## 5.2 统一权限（RBAC 升级）
+## 5.2 统一权限（V1.1 修订：角色随 JWT 下发）
 
-从现有 3 角色硬编码升级为 RBAC 模型：
+角色主数据在 MDM 维护，随 JWT 的 roles claim 下发；LabOps 后端按角色做模块级守卫：
 
 ```text
-User ──→ Role ──→ Permission
+MDM User ──→ MDM Role ──(JWT roles claim)──→ LabOps 权限守卫
 
-预设角色：
-  - sys_admin      : 系统管理员，全权限
-  - warehouse_admin : 库管员，物料模块全权限
-  - equipment_admin : 设备管理员，设备模块全权限
-  - user           : 普通用户，只读 + 基本出入库
+角色映射（MDM role_code → LabOps 权限）：
+  - SYS_ADMIN           : 全权限（含审计查询）→ require_admin
+  - CMC_WAREHOUSE_ADMIN : 物料模块写权限（入出库/移库/盘点/导入）→ require_warehouse
+  - CMC_EQUIPMENT_ADMIN : 设备模块写权限（台账/校验/维护/维修）→ require_equipment
+  - 其他登录用户         : 只读（库存/预警/物料/设备查询）
 
 权限粒度：
-  - 模块级：material:access / equipment:access
-  - 操作级：material:create / material:update / equipment:calibrate
+  - 模块级守卫在后端 router dependency 实现
+  - 前端按 roles 隐藏无权限菜单（FR-PLT-003）
+  - 操作级细粒度 RBAC（permission 表）暂不建设，按角色硬映射够用
 ```
 
 ## 5.3 统一审计
@@ -413,8 +418,7 @@ User ──→ Role ──→ Permission
 │   │   │ :5432                  │                         │     │
 │   │   │ material_mgmt          │                         │     │
 │   │   │ equipment_mgmt         │                         │     │
-│   │   │ labops_auth            │                         │     │
-│   │   │ labops_audit           │                         │     │
+│   │   │ (认证复用 MDM auth)    │                         │     │
 │   │   └────────────────────────┘                         │     │
 │   │                                                      │     │
 │   │   迁移期间 Streamlit 仍在运行:                       │     │

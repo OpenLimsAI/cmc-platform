@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Typography, Table, Tag, Tabs } from "antd";
 import { expiryAlerts, lowStockAlerts } from "../../../api/inventory";
+import { equipmentAlerts, type EquipmentAlert } from "../../../api/equipment";
+
+const EQP_ALERT_TYPE: Record<string, string> = {
+  calibration: "校验到期",
+  maintenance: "维护到期",
+  warranty: "保修到期",
+};
 
 export default function AlertsPage() {
   const { data: expiry = [], isLoading: expiryLoading } = useQuery({
@@ -13,9 +20,14 @@ export default function AlertsPage() {
     queryFn: () => lowStockAlerts().then((r) => r.data),
   });
 
+  const { data: eqpAlerts = [], isLoading: eqpLoading } = useQuery({
+    queryKey: ["equipmentAlerts"],
+    queryFn: () => equipmentAlerts(30).then((r) => r.data),
+  });
+
   return (
     <>
-      <Typography.Title level={4}>库存预警</Typography.Title>
+      <Typography.Title level={4}>预警中心</Typography.Title>
       <Tabs items={[
         {
           key: "expiry",
@@ -79,6 +91,47 @@ export default function AlertsPage() {
                   dataIndex: "gap",
                   width: 100,
                   render: (v: number) => <Tag color="red">{v}</Tag>,
+                },
+              ]}
+            />
+          ),
+        },
+        {
+          key: "equipment",
+          label: `设备到期 (${eqpAlerts.length})`,
+          children: (
+            <Table
+              rowKey={(r: EquipmentAlert) => `${r.equipment_id}-${r.alert_type}`}
+              size="small"
+              loading={eqpLoading}
+              dataSource={eqpAlerts}
+              pagination={{ pageSize: 50 }}
+              columns={[
+                { title: "设备编号", dataIndex: "equipment_code", width: 130 },
+                { title: "设备名称", dataIndex: "name", ellipsis: true },
+                {
+                  title: "提醒类型",
+                  dataIndex: "alert_type",
+                  width: 110,
+                  render: (v: string) => EQP_ALERT_TYPE[v] ?? v,
+                },
+                { title: "到期日", dataIndex: "due_date", width: 110 },
+                {
+                  title: "剩余天数",
+                  dataIndex: "days_left",
+                  width: 100,
+                  sorter: (a: EquipmentAlert, b: EquipmentAlert) => a.days_left - b.days_left,
+                  render: (v: number) => (v < 0 ? `已逾期 ${-v} 天` : `${v} 天`),
+                },
+                {
+                  title: "严重度",
+                  dataIndex: "severity",
+                  width: 90,
+                  render: (v: string, r: EquipmentAlert) => (
+                    <Tag color={v === "red" ? "red" : "gold"}>
+                      {r.days_left < 0 ? "已过期" : v === "red" ? "紧急" : "预警"}
+                    </Tag>
+                  ),
                 },
               ]}
             />

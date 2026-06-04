@@ -78,3 +78,10 @@ def require_warehouse(current: CurrentUser = Depends(get_current_user)) -> Curre
     if not (set(current.roles) & allowed):
         raise HTTPException(status_code=403, detail="此操作需要管理员或库管理员权限")
     return current
+
+
+def require_equipment(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    allowed = {"SYS_ADMIN", "CMC_EQUIPMENT_ADMIN"}
+    if not (set(current.roles) & allowed):
+        raise HTTPException(status_code=403, detail="此操作需要管理员或设备管理员权限")
+    return current

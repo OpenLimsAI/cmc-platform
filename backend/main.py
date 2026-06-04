@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from routers import (
-    admin_router, auth_router, batch, inventory,
+    admin_router, auth_router, batch, equipment, import_data, inventory,
     location, material, stock,
 )
 from auth import get_current_user
@@ -21,8 +21,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("cmc-inventory")
 
 app = FastAPI(
-    title="CMC 物料管理系统 API",
-    description="部门级物料管理 MVP — 物料/批次/出入库/库存预警",
+    title="CMC LabOps Portal API",
+    description="CMC 部门运营平台 — 物料库存(物料/批次/出入库/预警) + 仪器设备(台账/校验/维护/维修)",
     version="0.2.0",
 )
 
@@ -57,7 +57,7 @@ async def value_error_handler(_: Request, exc: ValueError):
 
 @app.get("/", tags=["health"])
 def root():
-    return {"name": "CMC 物料管理系统", "status": "ok"}
+    return {"name": "CMC LabOps Portal", "status": "ok"}
 
 
 @app.get("/health", tags=["health"])
@@ -74,5 +74,8 @@ app.include_router(material.router,    dependencies=_AUTHED)
 app.include_router(batch.router,       dependencies=_AUTHED)
 app.include_router(inventory.router,   dependencies=_AUTHED)
 app.include_router(stock.router,       dependencies=_AUTHED)
+app.include_router(import_data.router, dependencies=_AUTHED)
 app.include_router(location.router,    dependencies=_AUTHED)
+app.include_router(equipment.router,   dependencies=_AUTHED)
+app.include_router(equipment.mdm_router, dependencies=_AUTHED)
 app.include_router(admin_router.router, dependencies=_AUTHED)

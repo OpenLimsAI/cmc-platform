@@ -47,8 +47,11 @@ export default function LoginPage() {
           level={3}
           style={{ textAlign: "center", marginBottom: 32 }}
         >
-          CMC 物料管理系统
+          CMC LabOps Portal
         </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ textAlign: "center", marginTop: -24 }}>
+          CMC 部门运营平台 · 物料库存 / 仪器设备
+        </Typography.Paragraph>
         <Form onFinish={onFinish} size="large">
           <Form.Item
             name="username"
