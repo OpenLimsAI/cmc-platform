@@ -3,7 +3,7 @@ Equipment CRUD 关键路径测试（EQP 设备主数据域）
 
 eqp.equipment（0040_eqp_equipment）：
   - equipment_code: 留空自动生成 EQP-yyyyXXXXXX；也可手动传入沿用历史编号
-  - category: 分析仪器/实验设备/辅助设备/其他
+  - category: 分析仪器 / 工艺制备设备 / 通用实验室设备 / 公用工程环境支持 / IT自动化数据系统（5 类）
   - status: active/retired（无状态机，PUT 直接改）
   - 软删除需 change_reason ≥5 字符
 """
@@ -32,6 +32,39 @@ async def test_create_equipment_auto_code(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix):
+    """0041 新增字段 rated_power / origin 创建→详情→更新 往返"""
+    resp = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 培养箱 {unique_suffix}",
+            "category": "通用实验室设备",
+            "rated_power": "1500W",
+            "origin": "德国",
+            "description": "温度范围 5-50℃，CO2 0-20%",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    code = resp.json()["data"]["equipment_code"]
+    d = resp.json()["data"]
+    assert d["rated_power"] == "1500W"
+    assert d["origin"] == "德国"
+    assert d["description"] == "温度范围 5-50℃，CO2 0-20%"
+
+    got = (await admin_client.get(f"/api/v1/equipments/{code}")).json()["data"]
+    assert got["rated_power"] == "1500W"
+    assert got["origin"] == "德国"
+
+    upd = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"rated_power": "220V/50Hz/2kW", "change_reason": "校准额定功率"},
+    )
+    assert upd.status_code == 200, upd.text
+    assert upd.json()["data"]["rated_power"] == "220V/50Hz/2kW"
+    assert upd.json()["data"]["origin"] == "德国"  # 未传不变
+
+
+@pytest.mark.asyncio
 async def test_create_equipment_manual_code(admin_client, unique_suffix):
     """手动传入历史编号原样保存"""
     code = f"EQP-LEGACY-{unique_suffix[:6]}"
@@ -40,7 +73,7 @@ async def test_create_equipment_manual_code(admin_client, unique_suffix):
         json={
             "equipment_code": code,
             "equipment_name": f"pytest 天平 {unique_suffix}",
-            "category": "实验设备",
+            "category": "通用实验室设备",
         },
     )
     assert resp.status_code == 201, resp.text
@@ -54,7 +87,7 @@ async def test_create_equipment_duplicate_code_rejected(admin_client, unique_suf
     payload = {
         "equipment_code": code,
         "equipment_name": f"pytest dup {unique_suffix}",
-        "category": "其他",
+        "category": "通用实验室设备",
     }
     r1 = await admin_client.post("/api/v1/equipments", json=payload)
     assert r1.status_code == 201, r1.text
@@ -81,7 +114,7 @@ async def test_get_update_delete_equipment(admin_client, unique_suffix):
         "/api/v1/equipments",
         json={
             "equipment_name": f"pytest lifecycle {unique_suffix}",
-            "category": "辅助设备",
+            "category": "公用工程/环境与支持系统",
         },
     )
     assert create.status_code == 201, create.text
@@ -144,6 +177,6 @@ async def test_equipment_readonly_cannot_write(readonly_client, unique_suffix):
 
     resp = await readonly_client.post(
         "/api/v1/equipments",
-        json={"equipment_name": f"pytest forbidden {unique_suffix}", "category": "其他"},
+        json={"equipment_name": f"pytest forbidden {unique_suffix}", "category": "通用实验室设备"},
     )
     assert resp.status_code == 403, resp.text

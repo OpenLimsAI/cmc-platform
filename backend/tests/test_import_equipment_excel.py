@@ -58,17 +58,24 @@ def test_parse_decimal(raw, expected):
 
 def test_normalize_category_exact():
     assert normalize_category("分析仪器") == ("分析仪器", False)
+    assert normalize_category("工艺/制备设备") == ("工艺/制备设备", False)
+    assert normalize_category("IT/自动化与数据系统") == ("IT/自动化与数据系统", False)
 
 
 def test_normalize_category_alias():
-    assert normalize_category("分析天平类") == ("分析仪器", False)
-    assert normalize_category("生产设备") == ("实验设备", False)
-    assert normalize_category("公用工程") == ("辅助设备", False)
+    assert normalize_category("高效液相色谱") == ("分析仪器", False)
+    assert normalize_category("生产灌装设备") == ("工艺/制备设备", False)
+    assert normalize_category("公用工程") == ("公用工程/环境与支持系统", False)
+    assert normalize_category("台式电脑") == ("IT/自动化与数据系统", False)
+    assert normalize_category("离心机") == ("通用实验室设备", False)
+    # 英文关键词大小写不敏感
+    assert normalize_category("hplc system") == ("分析仪器", False)
 
 
 def test_normalize_category_default():
-    assert normalize_category("莫名其妙") == ("其他", True)
-    assert normalize_category(None) == ("其他", True)
+    # 新体系无「其他」，无法识别落「通用实验室设备」并标 defaulted
+    assert normalize_category("莫名其妙") == ("通用实验室设备", True)
+    assert normalize_category(None) == ("通用实验室设备", True)
 
 
 def _make_ws(rows: list[list]):
@@ -124,7 +131,7 @@ def test_read_excel_blank_code_ok(tmp_path):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(["设备名称", "类别", "型号"])
-    ws.append(["生物安全柜", "辅助", "BSC-1500"])
+    ws.append(["生物安全柜", "公用工程", "BSC-1500"])
     ws.append(["", "分析仪器", "X"])  # 空名跳过
     p = tmp_path / "eqp.xlsx"
     wb.save(p)
@@ -134,5 +141,5 @@ def test_read_excel_blank_code_ok(tmp_path):
     keep = [r for r in rows if r.skip_reason is None]
     assert len(keep) == 1
     assert keep[0].equipment_name == "生物安全柜"
-    assert keep[0].category == "辅助设备"
+    assert keep[0].category == "公用工程/环境与支持系统"
     assert keep[0].equipment_code is None

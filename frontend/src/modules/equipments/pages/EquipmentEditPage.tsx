@@ -60,6 +60,8 @@ export function EquipmentEditPage() {
       model: v.model,
       manufacturer: v.manufacturer,
       serial_no: v.serial_no,
+      rated_power: v.rated_power,
+      origin: v.origin,
       purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
@@ -102,14 +104,14 @@ export function EquipmentEditPage() {
             <Col span={12}>
               <Form.Item
                 name="equipment_name"
-                label="设备名称"
+                label="设备名称（中文）"
                 rules={[{ required: true }, { max: 255 }]}
               >
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="equipment_name_en" label="英文名称" rules={[{ max: 255 }]}>
+              <Form.Item name="equipment_name_en" label="设备名称（英文）" rules={[{ max: 255 }]}>
                 <Input />
               </Form.Item>
             </Col>
@@ -117,7 +119,20 @@ export function EquipmentEditPage() {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="category" label="设备分类" rules={[{ required: true }]}>
-                <Select options={EQUIPMENT_CATEGORY_OPTIONS} />
+                <Select
+                  options={EQUIPMENT_CATEGORY_OPTIONS}
+                  optionRender={(opt) => {
+                    const o = EQUIPMENT_CATEGORY_OPTIONS.find((x) => x.value === opt.value);
+                    return (
+                      <div>
+                        <div>{o?.label}</div>
+                        <div style={{ fontSize: 12, color: '#999', whiteSpace: 'normal' }}>
+                          {o?.hint}
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -145,6 +160,18 @@ export function EquipmentEditPage() {
           </Row>
           <Row gutter={16}>
             <Col span={8}>
+              <Form.Item name="rated_power" label="额定功率" rules={[{ max: 64 }]}>
+                <Input placeholder="如 1500W、220V/50Hz/2kW" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="origin" label="产地" rules={[{ max: 100 }]}>
+                <Input placeholder="如 美国、德国、中国" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
               <Form.Item name="purchase_date" label="购入日期">
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
@@ -160,8 +187,8 @@ export function EquipmentEditPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} />
+          <Form.Item name="description" label="主要性能参数描述">
+            <Input.TextArea rows={2} placeholder="如 检测器类型、波长范围、流速范围、量程、精度等" />
           </Form.Item>
           <Form.Item name="notes" label="备注">
             <Input.TextArea rows={2} />

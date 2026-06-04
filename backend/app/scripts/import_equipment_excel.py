@@ -57,21 +57,78 @@ from app.shared.audit_context import (
 
 # ---------- 配置 ----------
 
-VALID_CATEGORIES = {"分析仪器", "实验设备", "辅助设备", "其他"}
+VALID_CATEGORIES = {
+    "分析仪器",
+    "工艺/制备设备",
+    "通用实验室设备",
+    "公用工程/环境与支持系统",
+    "IT/自动化与数据系统",
+}
+DEFAULT_CATEGORY = "通用实验室设备"  # 新体系无「其他」，无法识别时落最通用类
 
-# category 别名 → 枚举值。命中 key（子串包含）即归一化。
+# category 别名 → 枚举值。命中 key（子串包含，按顺序首个命中）即归一化。
+# 顺序重要：把强信号（IT/公用工程/工艺）排在通用类前，避免被泛词抢走。
 CATEGORY_ALIASES: list[tuple[str, str]] = [
-    ("分析", "分析仪器"),
-    ("检测", "分析仪器"),
-    ("仪器", "分析仪器"),
+    # IT / 自动化与数据系统
+    ("电脑", "IT/自动化与数据系统"),
+    ("计算机", "IT/自动化与数据系统"),
+    ("服务器", "IT/自动化与数据系统"),
+    ("工作站", "IT/自动化与数据系统"),
+    ("网络", "IT/自动化与数据系统"),
+    ("数据库", "IT/自动化与数据系统"),
+    ("采集", "IT/自动化与数据系统"),
+    ("软件", "IT/自动化与数据系统"),
+    ("LIMS", "IT/自动化与数据系统"),
+    ("ELN", "IT/自动化与数据系统"),
+    # 公用工程 / 环境与支持系统
+    ("纯化水", "公用工程/环境与支持系统"),
+    ("WFI", "公用工程/环境与支持系统"),
+    ("HVAC", "公用工程/环境与支持系统"),
+    ("空调", "公用工程/环境与支持系统"),
+    ("压缩空气", "公用工程/环境与支持系统"),
+    ("洁净", "公用工程/环境与支持系统"),
+    ("灭菌", "公用工程/环境与支持系统"),
+    ("高压灭菌", "公用工程/环境与支持系统"),
+    ("冰箱", "公用工程/环境与支持系统"),
+    ("超低温", "公用工程/环境与支持系统"),
+    ("液氮", "公用工程/环境与支持系统"),
+    ("公用", "公用工程/环境与支持系统"),
+    ("环境", "公用工程/环境与支持系统"),
+    # 工艺 / 制备设备
+    ("反应器", "工艺/制备设备"),
+    ("发酵", "工艺/制备设备"),
+    ("层析", "工艺/制备设备"),
+    ("色谱柱", "工艺/制备设备"),
+    ("TFF", "工艺/制备设备"),
+    ("超滤", "工艺/制备设备"),
+    ("配液", "工艺/制备设备"),
+    ("灌装", "工艺/制备设备"),
+    ("制剂", "工艺/制备设备"),
+    ("中试", "工艺/制备设备"),
+    ("工艺", "工艺/制备设备"),
+    ("生产", "工艺/制备设备"),
+    # 分析仪器
     ("色谱", "分析仪器"),
     ("光谱", "分析仪器"),
-    ("实验", "实验设备"),
-    ("生产", "实验设备"),
-    ("工艺", "实验设备"),
-    ("辅助", "辅助设备"),
-    ("公用", "辅助设备"),
-    ("配套", "辅助设备"),
+    ("质谱", "分析仪器"),
+    ("HPLC", "分析仪器"),
+    ("UPLC", "分析仪器"),
+    ("GC", "分析仪器"),
+    ("酶标", "分析仪器"),
+    ("Biacore", "分析仪器"),
+    ("溶出", "分析仪器"),
+    ("检测", "分析仪器"),
+    ("分析", "分析仪器"),
+    ("仪器", "分析仪器"),
+    # 通用实验室设备
+    ("离心", "通用实验室设备"),
+    ("天平", "通用实验室设备"),
+    ("pH", "通用实验室设备"),
+    ("移液", "通用实验室设备"),
+    ("培养箱", "通用实验室设备"),
+    ("水浴", "通用实验室设备"),
+    ("振荡", "通用实验室设备"),
+    ("显微镜", "通用实验室设备"),
 ]
 
 # 表头别名（规范化后） → 目标字段。规范化：去空格、转小写。
@@ -94,6 +151,8 @@ _reg("category", "类别", "分类", "设备类别", "设备分类", "类型")
 _reg("model", "型号", "规格型号", "规格/型号", "规格", "spec", "model")
 _reg("manufacturer", "生产商", "厂商", "制造商", "生产厂家", "厂家", "品牌", "manufacturer")
 _reg("serial_no", "序列号", "出厂编号", "出厂序列号", "sn", "serialno", "serialnumber")
+_reg("rated_power", "额定功率", "功率", "ratedpower", "power")
+_reg("origin", "产地", "原产地", "生产国", "国别", "origin")
 _reg("purchase_date", "购置日期", "采购日期", "购入日期", "启用日期", "购置时间")
 _reg("asset_value", "资产原值", "资产价值", "原值", "金额", "价值", "采购金额")
 _reg("supplier", "供应商", "供货商", "经销商", "代理商")
@@ -109,6 +168,8 @@ MAXLEN = {
     "model": 200,
     "manufacturer": 100,
     "serial_no": 100,
+    "rated_power": 64,
+    "origin": 100,
     "supplier": 200,
 }
 
@@ -123,6 +184,8 @@ class ParsedRow:
     model: str | None = None
     manufacturer: str | None = None
     serial_no: str | None = None
+    rated_power: str | None = None
+    origin: str | None = None
     purchase_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = None
@@ -196,15 +259,20 @@ def parse_decimal(val) -> Decimal | None:
 
 
 def normalize_category(raw: str | None) -> tuple[str, bool]:
-    """返回 (category, defaulted)。无法识别 → ('其他', True)。"""
+    """返回 (category, defaulted)。无法识别 → (DEFAULT_CATEGORY=通用实验室设备, True)。
+
+    匹配既支持 category 列原值，也兼容把设备名称当 raw 传入做关键词推断
+    （LIMS 无 category 来源时按 NAME 推断会用到）。英文关键词大小写不敏感。
+    """
     if not raw:
-        return "其他", True
+        return DEFAULT_CATEGORY, True
     if raw in VALID_CATEGORIES:
         return raw, False
+    up = raw.upper()
     for needle, mapped in CATEGORY_ALIASES:
-        if needle in raw:
+        if needle.upper() in up:
             return mapped, False
-    return "其他", True
+    return DEFAULT_CATEGORY, True
 
 
 # ---------- 表头探测 + 行解析 ----------
@@ -376,6 +444,8 @@ async def import_rows(
                             model=pr.model,
                             manufacturer=pr.manufacturer,
                             serial_no=pr.serial_no,
+                            rated_power=pr.rated_power,
+                            origin=pr.origin,
                             purchase_date=pr.purchase_date,
                             asset_value=pr.asset_value,
                             supplier=pr.supplier,

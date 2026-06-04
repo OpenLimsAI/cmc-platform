@@ -95,11 +95,13 @@ export function EquipmentDetailPage() {
       <Card>
         <Descriptions bordered size="small" column={2}>
           <Descriptions.Item label="设备编码">{eq.equipment_code}</Descriptions.Item>
-          <Descriptions.Item label="设备名称">{eq.equipment_name}</Descriptions.Item>
-          <Descriptions.Item label="英文名称">{eq.equipment_name_en ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="设备分类">{eq.category}</Descriptions.Item>
+          <Descriptions.Item label="设备名称（中文）">{eq.equipment_name}</Descriptions.Item>
+          <Descriptions.Item label="设备名称（英文）">{eq.equipment_name_en ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="型号规格">{eq.model ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="生产商">{eq.manufacturer ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="额定功率">{eq.rated_power ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="产地">{eq.origin ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="序列号">{eq.serial_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="供应商">{eq.supplier ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="购入日期">{eq.purchase_date ?? '—'}</Descriptions.Item>
@@ -110,7 +112,7 @@ export function EquipmentDetailPage() {
           <Descriptions.Item label="更新时间">
             <TimeDisplay value={eq.updated_at} />
           </Descriptions.Item>
-          <Descriptions.Item label="描述" span={2}>
+          <Descriptions.Item label="主要性能参数描述" span={2}>
             {eq.description ?? '—'}
           </Descriptions.Item>
           <Descriptions.Item label="备注" span={2}>

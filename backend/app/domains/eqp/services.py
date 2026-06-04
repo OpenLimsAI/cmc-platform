@@ -116,6 +116,8 @@ class EquipmentService:
             model=payload.model,
             manufacturer=payload.manufacturer,
             serial_no=payload.serial_no,
+            rated_power=payload.rated_power,
+            origin=payload.origin,
             purchase_date=payload.purchase_date,
             asset_value=payload.asset_value,
             supplier=payload.supplier,

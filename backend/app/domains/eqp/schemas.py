@@ -8,23 +8,31 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-EquipmentCategory = Literal["分析仪器", "实验设备", "辅助设备", "其他"]
+EquipmentCategory = Literal[
+    "分析仪器",
+    "工艺/制备设备",
+    "通用实验室设备",
+    "公用工程/环境与支持系统",
+    "IT/自动化与数据系统",
+]
 EquipmentStatus = Literal["active", "retired"]
 
 
 class EquipmentBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    equipment_name: str = Field(..., max_length=255)
-    equipment_name_en: str | None = Field(None, max_length=255)
+    equipment_name: str = Field(..., max_length=255, description="设备名称（中文）")
+    equipment_name_en: str | None = Field(None, max_length=255, description="设备名称（英文）")
     category: EquipmentCategory
     model: str | None = Field(None, max_length=200)
     manufacturer: str | None = Field(None, max_length=100)
     serial_no: str | None = Field(None, max_length=100)
+    rated_power: str | None = Field(None, max_length=64, description="额定功率（自由文本，如 1500W）")
+    origin: str | None = Field(None, max_length=100, description="产地")
     purchase_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
-    description: str | None = None
+    description: str | None = Field(None, description="主要性能参数描述")
     notes: str | None = None
     extra: dict | None = None
 
@@ -48,17 +56,19 @@ class EquipmentUpdate(BaseModel):
 
     change_reason: str | None = None
 
-    equipment_name: str | None = Field(None, max_length=255)
-    equipment_name_en: str | None = Field(None, max_length=255)
+    equipment_name: str | None = Field(None, max_length=255, description="设备名称（中文）")
+    equipment_name_en: str | None = Field(None, max_length=255, description="设备名称（英文）")
     category: EquipmentCategory | None = None
     model: str | None = Field(None, max_length=200)
     manufacturer: str | None = Field(None, max_length=100)
     serial_no: str | None = Field(None, max_length=100)
+    rated_power: str | None = Field(None, max_length=64, description="额定功率")
+    origin: str | None = Field(None, max_length=100, description="产地")
     purchase_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
     status: EquipmentStatus | None = None
-    description: str | None = None
+    description: str | None = Field(None, description="主要性能参数描述")
     notes: str | None = None
     extra: dict | None = None
 

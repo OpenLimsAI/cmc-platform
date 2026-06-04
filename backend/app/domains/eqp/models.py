@@ -30,7 +30,8 @@ class Equipment(Base):
     __table_args__ = (
         UniqueConstraint("equipment_code", name="uq_eqp_equipment_code"),
         CheckConstraint(
-            "category IN ('分析仪器','实验设备','辅助设备','其他')",
+            "category IN ('分析仪器','工艺/制备设备','通用实验室设备',"
+            "'公用工程/环境与支持系统','IT/自动化与数据系统')",
             name="ck_equipment_category",
         ),
         CheckConstraint(
@@ -52,6 +53,8 @@ class Equipment(Base):
     model: Mapped[str | None] = mapped_column(String(200))
     manufacturer: Mapped[str | None] = mapped_column(String(100))
     serial_no: Mapped[str | None] = mapped_column(String(100))
+    rated_power: Mapped[str | None] = mapped_column(String(64))  # 额定功率(自由文本)
+    origin: Mapped[str | None] = mapped_column(String(100))  # 产地
 
     # 采购属性
     purchase_date: Mapped[date | None] = mapped_column(Date)

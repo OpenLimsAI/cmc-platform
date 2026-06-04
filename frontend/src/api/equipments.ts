@@ -1,7 +1,12 @@
 import { api, unwrap, unwrapList } from './client';
 
 // ============== EQP 设备主数据类型 ==============
-export type EquipmentCategory = '分析仪器' | '实验设备' | '辅助设备' | '其他';
+export type EquipmentCategory =
+  | '分析仪器'
+  | '工艺/制备设备'
+  | '通用实验室设备'
+  | '公用工程/环境与支持系统'
+  | 'IT/自动化与数据系统';
 export type EquipmentStatus = 'active' | 'retired';
 
 export interface EquipmentBrief {
@@ -19,6 +24,8 @@ export interface EquipmentBrief {
 
 export interface EquipmentDetail extends EquipmentBrief {
   equipment_id: number;
+  rated_power: string | null;
+  origin: string | null;
   purchase_date: string | null;
   asset_value: string | null;
   supplier: string | null;
@@ -39,6 +46,8 @@ export interface EquipmentCreatePayload {
   model?: string | null;
   manufacturer?: string | null;
   serial_no?: string | null;
+  rated_power?: string | null;
+  origin?: string | null;
   purchase_date?: string | null;
   asset_value?: string | number | null;
   supplier?: string | null;

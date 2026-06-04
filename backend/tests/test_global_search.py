@@ -412,7 +412,7 @@ async def test_search_finds_equipment_by_code(admin_client, unique_suffix):
     """设备编码精确命中排在分组最前"""
     create = await admin_client.post(
         "/api/v1/equipments",
-        json={"equipment_name": f"sr eqp code {unique_suffix}", "category": "实验设备"},
+        json={"equipment_name": f"sr eqp code {unique_suffix}", "category": "通用实验室设备"},
     )
     ecode = create.json()["data"]["equipment_code"]
     resp = await admin_client.get(
