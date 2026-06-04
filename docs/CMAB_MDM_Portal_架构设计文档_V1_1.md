@@ -32,12 +32,13 @@
 |----|----|----|----|
 | V1.0 | 2026-05-11 | CMC IT 架构组 | 初始版本，定义平台总体架构、技术栈选型、域分治模型与分阶段实施路线 |
 | V1.1 | 2026-05-12 | CMC IT 架构组 | V1.0→V1.1：11 项修订（§4.3 service commit / §6.5 bypass session+parent_ref / §7.1 \`meta.error.type\`+iat 精度 / §7.2.1 失败计数+JWT 黑名单 / §7.2.2 权限组合+GUC 禁用 / §7.4 备份状态 / §10.6 路线图） |
+| V1.2 | 2026-06-04 | CMC IT | 新增 EQP 设备主数据域（第五个业务域）：eqp.equipment 为全公司仪器设备身份注册表，定位为下游 CMC LabOps Portal（部门运营系统）设备模块的数据上游；LabOps 同期将物料/设备主数据维护入口统一收敛到本系统（其前端仅保留"去 MDM 登记"跳转，/materials/new 与 /equipments/new 支持 ?code=/?name= 预填）。 |
 
 ## 适用范围
 
 - 本文档适用于 CMAB MDM Portal 的总体架构设计、技术选型与实施规划
 
-- 覆盖 Substance Registration（SRS）、Project Registration（PRS）、Asset Registration（ARS）、Material Master（MM）四大主数据域
+- 覆盖 Substance Registration（SRS）、Project Registration（PRS）、Asset Registration（ARS）、Material Master（MM）、Equipment Master（EQP，V1.2 新增）五大主数据域
 
 - 作为后续详细设计文档（数据模型、API 规范、UI 设计）的上位参考
 
@@ -69,7 +70,7 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 
 ### 1.2.1 业务目标
 
-- 建立 Substance、Project、Asset、Material 四大核心主数据域的唯一权威源
+- 建立 Substance、Project、Asset、Material、Equipment（V1.2 新增）五大核心主数据域的唯一权威源
 
 - 落地 SMP-RD-NUM-001 V2.1 中的四层编码架构（Substance / Asset / Project / Study）
 

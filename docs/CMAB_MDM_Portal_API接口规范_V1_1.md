@@ -30,6 +30,7 @@
 |----|----|----|----|
 | V1.0 | 2026-05-11 | CMC IT 架构组 | 初始版本，定义 API 设计原则、所有 endpoint、错误码、认证流程 |
 | V1.1 | 2026-05-12 | CMC IT 架构组 | V1.0→V1.1：修订认证路线图、权限组合、审计上下文、错误码 / meta.error.type 字典、SRS/ARS 推迟端点与资产状态机端点。 |
+| V1.2 | 2026-06-04 | CMC IT | 新增 EQP 设备主数据域 5 端点（§5.1.6A）；权限码新增 equipment:create/read/update。下游 CMC LabOps Portal 通过本组端点按需拉取设备身份信息。 |
 
 ## 适用范围
 
@@ -817,6 +818,21 @@ meta.error.type 全字典：
 | GET | /api/v1/materials/{code}/batches | 批次列表 | material:read |
 | POST | /api/v1/materials/{code}/batches | 添加批次 | material:update |
 | PUT | /api/v1/materials/{code}/batches/{batch_id} | 更新批次 | material:update |
+
+### 5.1.6A EQP（Equipment Master，V1.2 新增）
+
+| **方法** | **路径** | **说明** | **权限** |
+|----|----|----|----|
+| GET | /api/v1/equipments | 设备列表（q 多关键词 / category / status / manufacturer 筛选） | equipment:read |
+| POST | /api/v1/equipments | 创建设备（equipment_code 留空自动 EQP-yyyyXXXXXX；支持 Idempotency-Key） | equipment:create |
+| GET | /api/v1/equipments/{code} | 详情 | equipment:read |
+| PUT | /api/v1/equipments/{code} | 更新（支持 change_reason 写审计） | equipment:update |
+| DELETE | /api/v1/equipments/{code} | 软删除（change_reason 必填 ≥5 字符） | equipment:update |
+
+> 下游消费方：CMC LabOps Portal 后端以登录用户的 JWT 透传调用
+> GET /equipments（搜索）与 GET /equipments/{code}（按编码取身份字段），
+> 在本地 equipment_mgmt.equipment 落快照（mdm_equipment_id + data_source='mdm'）。
+> 详见 LabOps 文档 DM-LABOPS-001 V1.2 §7。
 
 ### 5.1.7 全局功能
 

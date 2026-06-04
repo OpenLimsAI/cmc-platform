@@ -29,6 +29,7 @@
 |----|----|----|----|
 | V1.0 | 2026-05-11 | CMC IT 架构组 | 初始版本，定义所有 schema、表结构、约束、索引、触发器 |
 | V1.1 | 2026-05-12 | CMC IT 架构组 | 吸收 DEV-MDM-001 V1.2 偏离说明：补 asset_status_history、project_status_history.e_signature_id、ref 关系表 soft-delete 一致性、parent_ref 审计触发器、asset_market_id.deleted_by、asset_phase discontinued 中文，以及 V1.1 实施侧 GUC 审计上下文说明。 |
+| V1.2 | 2026-06-04 | CMC IT | 新增 eqp 设备主数据域（§10A）：eqp.equipment 主表 + EQP-yyyyXXXXXX 年度编码触发器 + 审计 v3；auth 新增 equipment:create/read/update 权限及 CMC_EQUIPMENT_ADMIN / CMC_WAREHOUSE_ADMIN 预置角色。定位为下游 CMC LabOps Portal 设备模块的数据上游。 |
 
 ## 适用范围
 
@@ -144,6 +145,7 @@
 | prs | Project Registration | project, project_milestone, project_team, project_status_history | Project ~200 |
 | ars | Asset Registration | asset, asset_market_id, asset_status_history | Asset ~30 |
 | mm | Material Master | material, material_batch, material_attribute | Material ~10000 |
+| eqp | Equipment Master（V1.2 新增） | equipment | Equipment ~200 |
 | ref | 跨域引用 | ref_project_substance, ref_asset_substance, ref_material_substance | 随业务 |
 | audit | 审计追踪 | audit_log, change_history, e_signature | 高速增长 |
 
@@ -1676,6 +1678,68 @@ CREATE TABLE mm.material_batch (
 CREATE INDEX ix_material_batch_material ON mm.material_batch(material_id);
 CREATE INDEX ix_material_batch_expiry   ON mm.material_batch(expiry_date) WHERE deleted_at IS NULL;
 ```
+
+# 10A. Schema: eqp（Equipment Master，V1.2 新增）
+
+> **定位**：全公司仪器设备身份注册表，是下游 **CMC LabOps Portal**（cmc-inventory 仓库，
+> 文档 ARCH-LABOPS-001 / DM-LABOPS-001 V1.2 起）设备模块的数据上游。
+> 本域仅管**主数据**（身份与采购属性）；设备的日常运营（在用状态、所在房间、负责人、
+> 计量校验、维护、维修、保修、附件、到期提醒）全部在 LabOps 的 equipment_mgmt schema
+> 中维护，两库为独立 PG 实例，**不跨库外键**，LabOps 通过 API 按需拉取
+> （GET /api/v1/equipments、GET /api/v1/equipments/{code}）。
+
+## 10A.1 eqp.equipment
+
+设计完全对标 mm.material：无状态机（status 两值，PUT 直接改）、无 version 乐观锁、
+无电子签名；接入审计 v3 触发器（id_col='equipment_id', code_col='equipment_code'）。
+
+| **字段** | **类型** | **约束** | **说明** |
+|----|----|----|----|
+| equipment_id | BIGINT | PK, Identity | 内部主键 |
+| equipment_code | VARCHAR(32) | UNIQUE NOT NULL | 设备编码。留空由 BEFORE INSERT 触发器自动分配 **EQP-yyyyXXXXXX**（年度序列，走 meta.fn_ensure_year_sequence/fn_next_code）；也可手动传入沿用部门历史编号 |
+| equipment_name | VARCHAR(255) | NOT NULL | 设备名称 |
+| equipment_name_en | VARCHAR(255) | | 英文名称 |
+| category | VARCHAR(64) | NOT NULL, CHECK | 分析仪器 / 实验设备 / 辅助设备 / 其他 |
+| model | VARCHAR(200) | | 型号规格 |
+| manufacturer | VARCHAR(100) | | 生产商 |
+| serial_no | VARCHAR(100) | | 厂家序列号 |
+| purchase_date | DATE | | 购入日期 |
+| asset_value | NUMERIC(12,2) | | 资产价值（元） |
+| supplier | VARCHAR(200) | | 供应商 |
+| status | VARCHAR(32) | NOT NULL DEFAULT 'active', CHECK | active（在册）/ retired（已退役） |
+| description / notes / extra | TEXT / TEXT / JSONB | | 描述 / 备注 / 扩展 |
+| created_at/by, updated_at/by, deleted_at/by | 标准审计列 | created_by 等 FK → auth.user | 软删除（deleted_at），与全库一致 |
+
+索引：category / status 部分索引（deleted_at IS NULL）、manufacturer、
+equipment_name gin_trgm（模糊搜索）。
+
+Migration：`2026_06_04_0100_0040_eqp_equipment.py`（含 schema 创建、
+updated_at 触发器、编码触发器、审计 v3 触发器；downgrade 同步清理年度序列）。
+
+## 10A.2 权限与角色（auth 域同步变更）
+
+| **权限码** | **说明** |
+|----|----|
+| equipment:create | 创建设备 |
+| equipment:read | 查询设备 |
+| equipment:update | 更新 / 软删除设备 |
+
+预置角色变更（seed_data.py 与 live 库同步）：
+
+- **CMC_EQUIPMENT_ADMIN**（新增）：equipment:create/read/update + material:read。
+  同时是 LabOps 设备模块写权限角色——LabOps 信任本系统 JWT 的 roles claim。
+- **CMC_WAREHOUSE_ADMIN**（补入 seed，此前仅存在于 live 库）：material:create/read/update
+  + equipment:read。同时是 LabOps 物料模块写权限角色。
+- CMC_RESEARCHER / READ_ONLY_USER 增加 equipment:read。
+
+## 10A.3 与下游 LabOps 的引用约定
+
+- LabOps 的 equipment_mgmt.equipment 行携带 `mdm_equipment_id`（本表主键快照）与
+  `data_source`（mdm / local）；身份字段以本表为权威，运营字段归 LabOps。
+- LabOps 前端不提供本地新增主数据入口（标准化决议，2026-06-04）：新设备一律先在
+  本系统登记，LabOps "新增设备(从 MDM 引用)" 搜索选中后仅补运营字段。
+- 本系统前端 /equipments/new、/materials/new 支持 `?code=` / `?name=` 查询参数预填，
+  承接 LabOps "去 MDM 登记" 跳转。
 
 # 11. Schema: ref（跨域引用）
 
