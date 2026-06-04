@@ -184,13 +184,18 @@ async def test_export_csv_no_filter_large_volume(admin_client, http_client):
     )
     assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("text/csv")
-    # 至少有 header 行
-    lines = [l for l in r.text.splitlines() if l.strip()]
-    assert len(lines) >= 1
-    # 行数 = X-Row-Count + 1 header（不超过 50000 上限）
+    # 用真正的 CSV 解析器统计记录数：reason/changes 单元格可能含被引号包裹的换行，
+    # 简单 splitlines() 会把单条记录算成多行，必须按 CSV record 计数。
+    import csv
+    import io
+
+    rows = list(csv.reader(io.StringIO(r.text.lstrip("﻿"))))
+    rows = [row for row in rows if row]  # 去掉尾部空记录
+    assert len(rows) >= 1  # 至少 header 行
+    # 记录数 = X-Row-Count + 1 header（不超过 50000 上限）
     row_count = int(r.headers.get("x-row-count", "0"))
     assert row_count <= 50000
-    assert len(lines) == row_count + 1
+    assert len(rows) == row_count + 1
 
 
 @pytest.mark.asyncio

@@ -69,7 +69,13 @@ async def test_get_role_detail(admin_client):
     d = r.json()["data"]
     assert d["is_system"] is True
     codes = {p["permission_code"] for p in d["permissions"]}
-    assert codes == {"substance:read", "project:read", "asset:read", "material:read"}
+    assert codes == {
+        "substance:read",
+        "project:read",
+        "asset:read",
+        "material:read",
+        "equipment:read",
+    }
 
 
 @pytest.mark.asyncio
