@@ -10,6 +10,7 @@ from app.api.v1 import (
     assets,
     auth,
     dashboard,
+    equipments,
     lookups,
     materials,
     projects,
@@ -25,6 +26,8 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 # Phase 4.A 物料域（M4.1）
 api_router.include_router(materials.router, prefix="/materials", tags=["materials"])
+# EQP 设备主数据域（下游 CMC LabOps Portal 的数据上游）
+api_router.include_router(equipments.router, prefix="/equipments", tags=["equipments"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 # V1.2 评审 API11:B 部分立即做（2026-05-13）
 api_router.include_router(lookups.router, prefix="/lookups", tags=["lookups"])

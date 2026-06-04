@@ -13,12 +13,12 @@ import {
   Typography,
   message,
 } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { materialsApi } from '@/api/materials';
 import { applyFormErrors } from '@/shared/utils/formErrors';
 import { searchApi } from '@/api/search';
-import type { MaterialCreatePayload } from '@/api/types';
+import type { MaterialCreatePayload, MaterialType } from '@/api/types';
 import {
   CATEGORY_OPTIONS,
   GRADE_SUGGESTIONS,
@@ -39,6 +39,9 @@ interface FormValues extends MaterialCreatePayload {
 export function MaterialCreatePage() {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
+  // 支持从 LabOps "去 MDM 登记"跳转带入预填编码(?code=)
+  const [searchParams] = useSearchParams();
+  const prefillCode = searchParams.get('code') ?? undefined;
   const [subQuery, setSubQuery] = useState('');
 
 
@@ -94,7 +97,7 @@ export function MaterialCreatePage() {
           layout="vertical"
           onFinish={onFinish}
           requiredMark
-          initialValues={{ material_type: 'reagent', unit: 'ea' }}
+          initialValues={{ material_type: 'reagent', unit: 'ea', material_code: prefillCode }}
         >
           {/* ── 基本信息 ── */}
           <Divider orientation="left" orientationMargin={0} style={{ marginTop: 0 }}>

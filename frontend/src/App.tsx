@@ -15,6 +15,10 @@ import { AssetCreatePage } from './modules/assets/pages/AssetCreatePage';
 import { AssetDetailPage } from './modules/assets/pages/AssetDetailPage';
 import { AssetEditPage } from './modules/assets/pages/AssetEditPage';
 import { MaterialListPage } from './modules/materials/pages/MaterialListPage';
+import { EquipmentListPage } from './modules/equipments/pages/EquipmentListPage';
+import { EquipmentCreatePage } from './modules/equipments/pages/EquipmentCreatePage';
+import { EquipmentDetailPage } from './modules/equipments/pages/EquipmentDetailPage';
+import { EquipmentEditPage } from './modules/equipments/pages/EquipmentEditPage';
 import { MaterialCreatePage } from './modules/materials/pages/MaterialCreatePage';
 import { MaterialDetailPage } from './modules/materials/pages/MaterialDetailPage';
 import { MaterialEditPage } from './modules/materials/pages/MaterialEditPage';
@@ -61,6 +65,12 @@ export default function App() {
           <Route path="/materials/new" element={<MaterialCreatePage />} />
           <Route path="/materials/:code" element={<MaterialDetailPage />} />
           <Route path="/materials/:code/edit" element={<MaterialEditPage />} />
+
+          {/* EQP 设备主数据域 */}
+          <Route path="/equipments" element={<EquipmentListPage />} />
+          <Route path="/equipments/new" element={<EquipmentCreatePage />} />
+          <Route path="/equipments/:code" element={<EquipmentDetailPage />} />
+          <Route path="/equipments/:code/edit" element={<EquipmentEditPage />} />
 
           {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
           <Route path="/admin/users" element={<UserListPage />} />

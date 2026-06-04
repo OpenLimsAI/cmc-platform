@@ -8,6 +8,7 @@ import {
   InboxOutlined,
   AuditOutlined,
   SettingOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
@@ -53,6 +54,13 @@ const MENU_ITEMS: MenuItem[] = [
     icon: <InboxOutlined />,
     path: '/materials',
     permission: 'material:read',
+  },
+  {
+    key: 'equipments',
+    label: '设备',
+    icon: <ToolOutlined />,
+    path: '/equipments',
+    permission: 'equipment:read',
   },
   {
     key: 'audit',

@@ -1,0 +1,185 @@
+import {
+  Breadcrumb,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Typography,
+  message,
+} from 'antd';
+import dayjs from 'dayjs';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { equipmentsApi, type EquipmentUpdatePayload } from '@/api/equipments';
+import {
+  EQUIPMENT_CATEGORY_OPTIONS,
+  EQUIPMENT_STATUS_OPTIONS,
+} from '../constants';
+
+const { Title, Text } = Typography;
+
+export function EquipmentEditPage() {
+  const { code = '' } = useParams<{ code: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm();
+
+  const { data: eq, isLoading } = useQuery({
+    queryKey: ['equipment', code],
+    queryFn: () => equipmentsApi.get(code),
+    enabled: !!code,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (payload: EquipmentUpdatePayload) => equipmentsApi.update(code, payload),
+    onSuccess: () => {
+      message.success('更新成功');
+      queryClient.invalidateQueries({ queryKey: ['equipment', code] });
+      queryClient.invalidateQueries({ queryKey: ['equipments'] });
+      navigate(`/equipments/${encodeURIComponent(code)}`);
+    },
+  });
+
+  if (isLoading || !eq) {
+    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+  }
+
+  const onFinish = async () => {
+    const v = await form.validateFields();
+    mutation.mutate({
+      equipment_name: v.equipment_name,
+      equipment_name_en: v.equipment_name_en,
+      category: v.category,
+      model: v.model,
+      manufacturer: v.manufacturer,
+      serial_no: v.serial_no,
+      purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
+      asset_value: v.asset_value ?? null,
+      supplier: v.supplier,
+      status: v.status,
+      description: v.description,
+      notes: v.notes,
+      change_reason: v.change_reason,
+    });
+  };
+
+  return (
+    <div>
+      <Breadcrumb
+        style={{ marginBottom: 12 }}
+        items={[
+          { title: <Link to="/equipments">设备</Link> },
+          { title: <Link to={`/equipments/${encodeURIComponent(code)}`}>{code}</Link> },
+          { title: '编辑' },
+        ]}
+      />
+      <Card style={{ marginBottom: 16 }}>
+        <Title level={3} style={{ margin: 0 }}>
+          编辑设备: {eq.equipment_code}
+        </Title>
+        <Text type="secondary">设备编码不可修改</Text>
+      </Card>
+
+      <Card>
+        <Form
+          form={form}
+          layout="vertical"
+          style={{ maxWidth: 880 }}
+          initialValues={{
+            ...eq,
+            purchase_date: eq.purchase_date ? dayjs(eq.purchase_date) : null,
+            asset_value: eq.asset_value != null ? Number(eq.asset_value) : null,
+          }}
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="equipment_name"
+                label="设备名称"
+                rules={[{ required: true }, { max: 255 }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="equipment_name_en" label="英文名称" rules={[{ max: 255 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="category" label="设备分类" rules={[{ required: true }]}>
+                <Select options={EQUIPMENT_CATEGORY_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="status" label="主数据状态">
+                <Select options={EQUIPMENT_STATUS_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="model" label="型号规格" rules={[{ max: 200 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="manufacturer" label="生产商" rules={[{ max: 100 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="serial_no" label="序列号" rules={[{ max: 100 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="purchase_date" label="购入日期">
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="asset_value" label="资产价值(元)">
+                <InputNumber min={0} precision={2} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="supplier" label="供应商" rules={[{ max: 200 }]}>
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="notes" label="备注">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="change_reason" label="变更原因">
+            <Input placeholder="本次修改的原因（写入审计）" maxLength={2000} />
+          </Form.Item>
+
+          <Space>
+            <Button type="primary" loading={mutation.isPending} onClick={onFinish}>
+              保存
+            </Button>
+            <Button onClick={() => navigate(`/equipments/${encodeURIComponent(code)}`)}>
+              取消
+            </Button>
+          </Space>
+        </Form>
+      </Card>
+    </div>
+  );
+}

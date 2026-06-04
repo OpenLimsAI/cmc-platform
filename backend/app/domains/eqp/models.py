@@ -1,0 +1,79 @@
+"""Equipment Master ORM 模型
+
+全公司仪器设备身份注册表，作为下游 CMC LabOps Portal(cmc-inventory) 的数据上游。
+仅管主数据(身份/采购属性);运营数据(在用状态/位置/负责人/校验/维护/维修)在 LabOps。
+"""
+from datetime import date, datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.core.database import Base
+
+
+class Equipment(Base):
+    """设备主表（身份注册）"""
+
+    __tablename__ = "equipment"
+    __table_args__ = (
+        UniqueConstraint("equipment_code", name="uq_eqp_equipment_code"),
+        CheckConstraint(
+            "category IN ('分析仪器','实验设备','辅助设备','其他')",
+            name="ck_equipment_category",
+        ),
+        CheckConstraint(
+            "status IN ('active','retired')",
+            name="ck_equipment_status",
+        ),
+        {"schema": "eqp"},
+    )
+
+    equipment_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    equipment_code: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    # 基本信息
+    equipment_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    equipment_name_en: Mapped[str | None] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    # 厂商 & 规格(身份属性)
+    model: Mapped[str | None] = mapped_column(String(200))
+    manufacturer: Mapped[str | None] = mapped_column(String(100))
+    serial_no: Mapped[str | None] = mapped_column(String(100))
+
+    # 采购属性
+    purchase_date: Mapped[date | None] = mapped_column(Date)
+    asset_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    supplier: Mapped[str | None] = mapped_column(String(200))
+
+    # 主数据状态(无状态机,PUT 直接改;运营状态在 LabOps)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
+    # 描述
+    description: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    extra: Mapped[dict | None] = mapped_column(JSONB)
+
+    # 审计
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_by: Mapped[int | None] = mapped_column(BigInteger)
