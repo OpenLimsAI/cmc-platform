@@ -24,6 +24,7 @@
 | V1.0 | 2026-05-19 | CMC IT | 初始版本，定义设备管理表结构、认证权限升级、审计升级 |
 | V1.1 | 2026-06-04 | CMC IT | 取消 labops_auth schema（认证对接 MDM Portal，§5 保留作历史参考）；labops_audit 降级为 Phase 4 可选项，当前沿用 material_mgmt.audit_log |
 | V1.2 | 2026-06-04 | CMC IT | 设备主数据移交 MDM eqp 域（eqp.equipment）；equipment_mgmt.equipment 增加 mdm_equipment_id / data_source 列，身份字段从 MDM 按需拉取（§4.2、§7 更新） |
+| V1.3 | 2026-06-04 | CMC IT | 无表结构变更。明确同步语义：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照（"用时拉取"）；data_source='local' 仅产生于后端 API 兜底，前端已无本地新增入口（§7 更新） |
 
 ## 适用范围
 
@@ -596,7 +597,9 @@ CREATE INDEX ix_audit_action      ON labops_audit.audit_log(action, created_at D
 - 两系统数据库为独立 PG 实例，**不跨库外键**，全部通过 API 按需拉取
 - 物料：GET /api/mdm/materials* + POST /api/materials/from-mdm/{code}
 - 设备：GET /api/mdm/equipments* + POST /api/equipment/from-mdm/{code}
-- data_source='local' 仅作 MDM 不可用时的兜底，事后应在 MDM 补登
+- 同步机制 = 用时拉取：MDM 登记后无后台同步任务，物料在首次入库、设备在建档时实时拉取落快照
+- data_source='local' 仅产生于后端 API 兜底（V1.3 起前端无本地新增入口），使用后须在 MDM 补登
+- MDM 侧 eqp 域设计详见 DM-MDM-001 V1.2 §10A，API 详见 API-MDM-001 V1.2 §5.1.6A
 
 # 8. 附录：设备 ERD
 

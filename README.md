@@ -23,6 +23,31 @@
 
 **明确不做(当前阶段范围外)**:申购审批流、CoA 文件管理、质量状态管理、供应商管理、GMP 合规审计追踪(电子签名)、报表看板、ERP/LIMS 对接。
 
+> ⚠️ 本节为 v1.2 时期的目标描述。v2.x 起新增仪器设备模块,并对接 CMAB MDM Portal,
+> 边界见下节"与 MDM 的关系"及 docs/ 设计文档(V1.1~V1.3 修订记录)。
+
+---
+
+## 一·五、与 CMAB MDM Portal 的关系(v2.x)
+
+| 能力 | 在哪做 | 说明 |
+|---|---|---|
+| 登录认证 / 用户 / 角色 | **MDM Portal** | 本系统代理 MDM 登录,本地校验其 JWT;不建用户表 |
+| 物料主数据(编码/名称/厂家/规格) | **MDM Portal**(mm.material) | 本系统前端无新增入口,"物料查询"页只读 |
+| 设备主数据(编码/名称/型号/序列号) | **MDM Portal**(eqp.equipment,编码 EQP-yyyyXXXXXX) | 设备新增仅"从 MDM 引用",编辑仅运营字段 |
+| 物料出入库/移库/盘点/库存/预警 | **本系统** | material_mgmt schema |
+| 设备运营(状态/位置/负责人/校验/维护/维修/保修/附件) | **本系统** | equipment_mgmt schema |
+
+集成机制(关键约定):
+- 两系统为**独立 PG 实例**,不跨库外键;本地表存快照 + `mdm_*_id` / `data_source`(mdm/local)标记
+- **用时拉取**:MDM 登记后无后台同步任务,物料在首次入库、设备在建档时按编码实时拉取
+- 查无主数据时,各入口提供"**去 MDM 登记**"跳转(MDM 新建页 `?code=/?name=` 预填;
+  地址由 `frontend-react/.env` 的 `VITE_MDM_PORTAL_URL` 配置)
+- 本地建档端点(POST /api/materials、/api/equipment)仅作后端 API 兜底,前端无入口
+- LabOps 写权限角色随 MDM JWT 下发:`SYS_ADMIN` / `CMC_WAREHOUSE_ADMIN`(物料) /
+  `CMC_EQUIPMENT_ADMIN`(设备)
+- MDM 侧设计文档:DM-MDM-001 V1.2 §10A、API-MDM-001 V1.2 §5.1.6A(cmab-mdm-platform/docs/)
+
 ---
 
 ## 二、技术栈

@@ -24,6 +24,7 @@
 | V1.0 | 2026-05-19 | CMC IT | 初始版本 |
 | V1.1 | 2026-06-04 | CMC IT | 认证方案变更：取消自建 labops_auth schema，改为对接 MDM Portal 统一认证（JWT 共享密钥）；用户管理/改密由 MDM Portal 承担 |
 | V1.2 | 2026-06-04 | CMC IT | 主数据边界变更：设备主数据移交 MDM Portal 新建的 eqp 域（eqp.equipment，编码 EQP-yyyyXXXXXX）；LabOps equipment 表保留运营数据 + mdm_equipment_id/data_source 引用快照，照物料 from-mdm 模式按需拉取 |
+| V1.3 | 2026-06-04 | CMC IT | 主数据入口治理（标准化决议）：本系统前端不再提供物料/设备主数据的本地新增与身份编辑入口——"物料管理"更名为只读"物料查询"，设备新增仅"从 MDM 引用 + 补运营字段"、编辑仅运营字段；各入口提供"去 MDM 登记"跳转（MDM 新建页 ?code=/?name= 预填，地址由 VITE_MDM_PORTAL_URL 配置）。同步机制明确为"用时拉取"：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照。本地建档端点（POST /api/materials、POST /api/equipment）仅保留为后端 API 兜底，前端无入口。MDM 侧设计见 DM-MDM-001 V1.2 §10A、API-MDM-001 V1.2 §5.1.6A |
 
 ## 适用范围
 
@@ -40,7 +41,7 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
 
 部门同时面临仪器设备管理的系统化需求。大量分析仪器和实验设备目前依靠 Excel 和纸质台账管理，缺少系统化的计量校验跟踪、维护记录管理、到期提醒等能力。
 
-公司层面已启动 CMAB MDM Portal（主数据管理平台），采用 React 18 + TypeScript + Ant Design 5 前端和 FastAPI 后端，管理 Substance、Project、Asset、Material 四大主数据域。
+公司层面已启动 CMAB MDM Portal（主数据管理平台），采用 React 18 + TypeScript + Ant Design 5 前端和 FastAPI 后端，管理 Substance、Project、Asset、Material、Equipment（V1.2 起）五大主数据域。
 
 ## 1.2 系统定位与命名
 
@@ -107,11 +108,11 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
 | 系统名称 | CMC LabOps Portal | 准确定位，可扩展 |
 | 前端技术栈 | React 18 + TypeScript + Ant Design 5 | 与 MDM 保持一致，复用视觉规范和组件 |
 | 后端技术栈 | FastAPI + SQLAlchemy 2.0 + Pydantic v2 | 保留现有后端，逐步模块化 |
-| 数据库 | PostgreSQL 16（共享实例，schema 隔离） | 已有环境，运维成本最低 |
+| 数据库 | PostgreSQL 16（V1.2 修订：与 MDM 为两套独立实例，本系统内部按 schema 隔离） | 已有环境，运维成本最低；跨系统解耦 |
 | 架构模式 | 多模块单体（物料 + 设备共享后端进程） | 规模适中，运维简单 |
 | 认证方式 | **对接 MDM Portal 统一认证（V1.1 变更）**：登录代理 MDM `/auth/login`，后端用共享密钥本地校验 MDM 签发的 JWT；不再自建用户表 | 全公司统一账号，免去用户数据双向同步 |
 | 部署目标 | Linux 虚拟机（与现有一致） | 复用现有基础设施 |
-| 与 MDM 的关系 | 独立系统，共享 PG 实例，UI 风格对齐 | 避免耦合，保持独立演进 |
+| 与 MDM 的关系 | 独立系统、独立 PG 实例（V1.2 修订）；统一认证（JWT）+ 主数据 API 引用 + UI 风格对齐 | 避免耦合，保持独立演进 |
 
 # 2. 系统架构
 
@@ -135,7 +136,8 @@ CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Stre
                    ▼                  ▼
           ┌────────────────┐  ┌───────────────────┐
           │ PostgreSQL 16  │  │ CMAB MDM Portal   │
-          │ 共享实例       │  │ (未来 API 引用)   │
+          │ (LabOps 专属   │  │ (统一认证 + 物料/ │
+          │  实例)         │  │  设备主数据 API)  │
           └────────────────┘  └───────────────────┘
 ```
 
@@ -290,7 +292,7 @@ frontend/
 | 后端 ORM | SQLAlchemy 2.0 | 2.0+ | 保留现有 |
 | 数据校验 | Pydantic v2 | 2.x | 保留现有 |
 | 认证 | bcrypt + token | — | 保留现有，渐进升级 |
-| 数据库 | PostgreSQL | 16 | 保留现有共享实例 |
+| 数据库 | PostgreSQL | 16 | 本系统专属实例（与 MDM 实例独立，V1.2 修订） |
 | 部署 | Linux VM + systemd | — | 保留现有部署模式 |
 | 反向代理 | Nginx（可选） | — | 生产环境建议加入 |
 
@@ -302,7 +304,7 @@ frontend/
 | UI 组件库 | Ant Design 5 | Ant Design 5 | 完全一致 |
 | 状态管理 | Zustand + React Query | Zustand + TanStack Query | 完全一致 |
 | 后端框架 | FastAPI + SQLAlchemy 2.0 | FastAPI + SQLAlchemy 2.0 | 完全一致 |
-| 数据库 | PostgreSQL 16 | PostgreSQL 16（同实例） | 完全一致 |
+| 数据库 | PostgreSQL 16 | PostgreSQL 16（独立实例，V1.2 修订） | 版本一致、实例独立 |
 | 认证 | JWT + RBAC | token + RBAC（渐进升级） | 部分对齐 |
 | 审计 | Part 11 合规级 | 部门操作级 | 精简版 |
 | 布局风格 | Header + Sidebar + Content | Header + Sidebar + Content | 完全一致 |
@@ -346,7 +348,9 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
   - 物料：入库时按 material_code 查 MDM,本地落快照(已实现)
   - 设备：建台账时按 equipment_code 查 MDM,身份字段以 MDM 为准,
           运营字段(状态/位置/负责人)本地维护(已实现)
-  - 本地新建(data_source='local')仅作 MDM 不可用时的兜底,事后补登
+  - 本地建档(data_source='local')仅保留为后端 API 兜底(V1.3 起前端无入口),
+    使用后须在 MDM 补登
+  - 同步机制 = 用时拉取:MDM 登记后无后台同步任务,首次使用时实时拉取
 ```
 
 # 5. 统一能力设计
