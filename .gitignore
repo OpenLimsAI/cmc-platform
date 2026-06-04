@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# 诊断/扫描产物（可再生，不入库）
+inventories/*.html
+inventories/**/*.json

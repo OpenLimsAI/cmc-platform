@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# dbmig —— 全库 schema 迁移的统一入口（Mac 与 Linux 通用）。
+#
+# 用法:
+#   dbmig list                         # 列出所有库 + 当前版本
+#   dbmig <库> <alembic 子命令...>      # 对某库执行 alembic 命令
+#
+# 例:
+#   dbmig cmc_rd revision -m "加 xxx 列"   # 写迁移
+#   dbmig cmc_rd upgrade head              # 落地（Mac 测试 / Linux 部署同命令）
+#   dbmig cmc_data_platform history
+#   dbmig cmab_mdm upgrade head            # 转发到 cmab-mdm-platform app 自带 alembic
+#
+# 管理范围:
+#   cmc_rd / cmc_analytics / cmc_data_platform / cmc_gmp  → 本仓库多环境 alembic
+#   cmab_mdm                                              → cmab-mdm-platform/backend（autogenerate）
+#
+# 日常流程（任何库都一样）:
+#   Mac:   改 schema → dbmig <库> revision -m "..." → 编辑迁移 → dbmig <库> upgrade head → git push
+#   Linux: git pull → dbmig <库> upgrade head
+set -euo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ALEMBIC="$REPO/.venv/bin/alembic"
+CMAB_DIR="${CMAB_DIR:-$(cd "$REPO/.." && pwd)/cmab-mdm-platform/backend}"
+CENTRAL="cmc_rd cmc_analytics cmc_data_platform cmc_gmp"
+
+cmab() { ( cd "$CMAB_DIR" && uv run alembic "$@" ); }
+
+db="${1:-list}"; shift || true
+
+case "$db" in
+  cmc_rd|cmc_analytics|cmc_data_platform|cmc_gmp)
+    exec "$ALEMBIC" -n "$db" "$@" ;;
+  cmab_mdm)
+    cmab "$@" ;;
+  list)
+    echo "库 → 当前 alembic 版本:"
+    for d in $CENTRAL; do
+      printf "  %-20s %s\n" "$d" "$("$ALEMBIC" -n "$d" current 2>/dev/null | tail -1)"
+    done
+    printf "  %-20s %s\n" "cmab_mdm" "$(cmab current 2>/dev/null | tail -1)"
+    ;;
+  -h|--help|help)
+    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *)
+    echo "未知库: '$db'"
+    echo "可选: $CENTRAL cmab_mdm | list" >&2
+    exit 1 ;;
+esac
