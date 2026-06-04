@@ -14,13 +14,32 @@ Phase 1 用简化方案：测试**直接打 HTTP 到容器内运行的 uvicorn**
 测试数据采用 uuid 后缀避免冲突；必要时 `make reset-db` 清理 dev DB。
 Phase 2 将切换到独立 test DB + per-test 事务回滚。
 """
+import os
 import uuid
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-BASE_URL = "http://localhost:8000"
+# 默认打 dev 服务(8000)；`make test-be`/run_tests.sh 会设 TEST_BASE_URL 指向
+# 独立 test DB 的测试服务(8001)，与 dev 数据完全隔离。
+BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+
+
+def pg_connect_kwargs() -> dict:
+    """asyncpg 直连参数，指向**当前测试目标库**（与测试服务同一库）。
+
+    少数测试（如 auth 安全用例）需绕过 API 直接读写 DB；它们必须连到测试服务
+    实际使用的库，否则会出现「写 dev 库、服务读 test 库」的错配。
+    run_tests.sh 会导出 TEST_DB=cmab_test；旧 test-be-dev 流程不设 → 默认 cmab_mdm。
+    """
+    return {
+        "host": os.getenv("TEST_DB_HOST", "postgres"),
+        "port": int(os.getenv("TEST_DB_PORT", "5432")),
+        "user": os.getenv("POSTGRES_USER", "cmab_app"),
+        "password": os.getenv("POSTGRES_PASSWORD", "__REDACTED_POSTGRES_PASSWORD__"),
+        "database": os.getenv("TEST_DB", "cmab_mdm"),
+    }
 
 
 @pytest_asyncio.fixture

@@ -19,10 +19,9 @@ import pytest
 async def _db(sql: str, *args):
     import asyncpg
 
-    conn = await asyncpg.connect(
-        host="postgres", port=5432, user="cmab_app",
-        password="__REDACTED_POSTGRES_PASSWORD__", database="cmab_mdm",
-    )
+    from tests.conftest import pg_connect_kwargs
+
+    conn = await asyncpg.connect(**pg_connect_kwargs())
     try:
         return await conn.fetch(sql, *args)
     finally:

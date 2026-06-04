@@ -1,4 +1,4 @@
-.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be lint-be lint-fe gen-types docs-extract docs-check backup restore check-schema
+.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be test-be-dev lint-be lint-fe gen-types docs-extract docs-check backup restore check-schema
 
 COMPOSE := docker compose -f deploy/docker-compose.dev.yml
 
@@ -77,6 +77,10 @@ shell-db:
 	$(COMPOSE) exec postgres psql -U cmab_app -d cmab_mdm
 
 test-be:
+	$(COMPOSE) exec backend bash scripts/run_tests.sh -v
+
+# 旧策略：直接打 dev 服务(8000/cmab_mdm)，会受 dev 数据漂移影响；仅快速本地调试用
+test-be-dev:
 	$(COMPOSE) exec backend pytest -v
 
 lint-be:

@@ -19,13 +19,12 @@ async def _create_throwaway_user(admin_client, http_client, unique_suffix):
     """直接通过 DB 创建临时用户用于测试。绕过用户管理 API（M2.5.2 暂未上线）"""
     import asyncpg
 
+    from tests.conftest import pg_connect_kwargs
+
     suffix = unique_suffix
     username = f"sec_{suffix}"
     password = "TestSec@2026!"
-    conn = await asyncpg.connect(
-        host="postgres", port=5432, user="cmab_app",
-        password="__REDACTED_POSTGRES_PASSWORD__", database="cmab_mdm",
-    )
+    conn = await asyncpg.connect(**pg_connect_kwargs())
     # bcrypt hash 生成（与 backend 相同 schema）
     import bcrypt
     pwd_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
@@ -60,10 +59,10 @@ async def _login(http_client, username, password):
 
 async def _db_exec(sql, *args):
     import asyncpg
-    conn = await asyncpg.connect(
-        host="postgres", port=5432, user="cmab_app",
-        password="__REDACTED_POSTGRES_PASSWORD__", database="cmab_mdm",
-    )
+
+    from tests.conftest import pg_connect_kwargs
+
+    conn = await asyncpg.connect(**pg_connect_kwargs())
     try:
         return await conn.fetchrow(sql, *args)
     finally:
