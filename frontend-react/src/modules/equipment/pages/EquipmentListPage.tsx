@@ -3,12 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Typography, Table, Tag, Input, Select, Space, Button, Modal, Form,
-  DatePicker, InputNumber, message, Switch, Radio, Alert, Descriptions, Spin,
+  DatePicker, message, Switch, Alert, Descriptions, Spin,
 } from "antd";
 import { PlusOutlined, ExportOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
-  listEquipment, createEquipment, updateEquipment, listEquipmentCategories,
+  listEquipment, updateEquipment, listEquipmentCategories,
   searchMdmEquipments, createEquipmentFromMdm,
   STATUS_LABEL, type Equipment, type EquipmentPayload, type MdmEquipmentBrief,
 } from "../../../api/equipment";
@@ -25,6 +25,10 @@ function errDetail(err: unknown, fallback: string): string {
   );
 }
 
+/**
+ * 设备台账 — 身份信息(名称/型号/厂家等)以 MDM 为权威源,只能从 MDM 引用建档;
+ * LabOps 仅维护运营信息(状态/位置/负责人/启用日期)及校验/维护/维修记录。
+ */
 export default function EquipmentListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -37,8 +41,6 @@ export default function EquipmentListPage() {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [editing, setEditing] = useState<Equipment | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  // 新建模式: 从 MDM 引用(推荐) / 本地新建(MDM 不可用时兜底)
-  const [createMode, setCreateMode] = useState<"mdm" | "local">("mdm");
   const [mdmOptions, setMdmOptions] = useState<MdmEquipmentBrief[]>([]);
   const [mdmSelected, setMdmSelected] = useState<MdmEquipmentBrief | null>(null);
   const [mdmSearching, setMdmSearching] = useState(false);
@@ -67,6 +69,7 @@ export default function EquipmentListPage() {
     setEditing(null);
     setMdmSelected(null);
     setMdmOptions([]);
+    setMdmLastSearch("");
     form.resetFields();
   };
 
@@ -77,12 +80,10 @@ export default function EquipmentListPage() {
     queryClient.invalidateQueries({ queryKey: ["equipmentCategories"] });
   };
 
-  const saveMutation = useMutation({
-    mutationFn: (data: EquipmentPayload) =>
-      editing
-        ? updateEquipment(editing.equipment_id, data)
-        : createEquipment(data),
-    onSuccess: () => onSaved(editing ? "设备已更新" : "设备已创建(本地,请尽快在 MDM 补登主数据)"),
+  // 编辑 = 仅运营字段(身份信息在 MDM 维护)
+  const updateMutation = useMutation({
+    mutationFn: (data: EquipmentPayload) => updateEquipment(editing!.equipment_id, data),
+    onSuccess: () => onSaved("运营信息已更新"),
     onError: (err: unknown) => message.error(errDetail(err, "保存失败")),
   });
 
@@ -107,7 +108,7 @@ export default function EquipmentListPage() {
     } catch {
       if (seq === mdmSearchSeq.current) {
         setMdmOptions([]);
-        message.warning("MDM 暂不可用,可切换为本地新建");
+        message.warning("MDM 暂不可用,请稍后重试");
       }
     } finally {
       if (seq === mdmSearchSeq.current) setMdmSearching(false);
@@ -116,9 +117,9 @@ export default function EquipmentListPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setCreateMode("mdm");
     setMdmSelected(null);
     setMdmOptions([]);
+    setMdmLastSearch("");
     form.resetFields();
     setModalOpen(true);
   };
@@ -126,8 +127,11 @@ export default function EquipmentListPage() {
   const openEdit = (record: Equipment) => {
     setEditing(record);
     form.setFieldsValue({
-      ...record,
-      purchase_date: record.purchase_date ? dayjs(record.purchase_date) : null,
+      location_room: record.location_room,
+      location_detail: record.location_detail,
+      responsible_person: record.responsible_person,
+      status: record.status,
+      remark: record.remark,
       commission_date: record.commission_date ? dayjs(record.commission_date) : null,
     });
     setModalOpen(true);
@@ -135,119 +139,31 @@ export default function EquipmentListPage() {
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    if (!editing && createMode === "mdm") {
-      if (!mdmSelected) {
-        message.warning("请先搜索并选择 MDM 中的设备");
-        return;
-      }
-      fromMdmMutation.mutate({
-        location_room: values.location_room,
-        location_detail: values.location_detail,
-        responsible_person: values.responsible_person,
-        commission_date: values.commission_date?.format("YYYY-MM-DD") ?? null,
-        status: values.status ?? "in_use",
-        remark: values.remark,
-      });
+    const operational = {
+      location_room: values.location_room,
+      location_detail: values.location_detail,
+      responsible_person: values.responsible_person,
+      commission_date: values.commission_date?.format("YYYY-MM-DD") ?? null,
+      status: values.status ?? "in_use",
+      remark: values.remark,
+    };
+    if (editing) {
+      updateMutation.mutate(operational as EquipmentPayload);
       return;
     }
-    const payload: EquipmentPayload = {
-      ...values,
-      purchase_date: values.purchase_date?.format("YYYY-MM-DD") ?? null,
-      commission_date: values.commission_date?.format("YYYY-MM-DD") ?? null,
-    };
-    if (editing) delete payload.equipment_code; // 编号不可修改
-    saveMutation.mutate(payload);
+    if (!mdmSelected) {
+      message.warning("请先搜索并选择 MDM 中的设备");
+      return;
+    }
+    fromMdmMutation.mutate(operational);
   };
-
-  // 运营字段(两种新建模式共用 + 编辑)
-  const operationalFields = (
-    <>
-      <Space.Compact block>
-        <Form.Item name="location_room" label="所在房间" style={{ width: "50%", marginRight: 8 }}>
-          <Input placeholder="如 2251" />
-        </Form.Item>
-        <Form.Item name="location_detail" label="安装位置" style={{ width: "50%" }}>
-          <Input />
-        </Form.Item>
-      </Space.Compact>
-      <Space.Compact block>
-        <Form.Item name="responsible_person" label="负责人" style={{ width: "33%", marginRight: 8 }}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="commission_date" label="启用日期" style={{ width: "33%", marginRight: 8 }}>
-          <DatePicker style={{ width: "100%" }} />
-        </Form.Item>
-        <Form.Item name="status" label="状态" style={{ width: "34%" }} initialValue="in_use">
-          <Select options={STATUS_OPTIONS} />
-        </Form.Item>
-      </Space.Compact>
-      <Form.Item name="remark" label="备注">
-        <Input.TextArea rows={2} />
-      </Form.Item>
-    </>
-  );
-
-  // 身份字段(仅本地新建/编辑可改;MDM 引用模式由 MDM 带入)
-  const identityFields = (
-    <>
-      <Space.Compact block>
-        <Form.Item
-          name="equipment_code"
-          label="设备编号(唯一,不可修改)"
-          style={{ width: "50%", marginRight: 8 }}
-          rules={[{ required: true, message: "请输入设备编号" }]}
-        >
-          <Input placeholder="如 EQP-0001" disabled={!!editing} />
-        </Form.Item>
-        <Form.Item
-          name="name"
-          label="设备名称"
-          style={{ width: "50%" }}
-          rules={[{ required: true, message: "请输入设备名称" }]}
-        >
-          <Input />
-        </Form.Item>
-      </Space.Compact>
-      <Space.Compact block>
-        <Form.Item
-          name="category"
-          label="设备分类"
-          style={{ width: "50%", marginRight: 8 }}
-          rules={[{ required: true, message: "请选择或输入分类" }]}
-        >
-          <Select
-            showSearch
-            allowClear
-            placeholder="分析仪器 / 实验设备 / 辅助设备…"
-            options={[...new Set([...categories, "分析仪器", "实验设备", "辅助设备"])].map(
-              (c) => ({ value: c, label: c }),
-            )}
-          />
-        </Form.Item>
-        <Form.Item name="model" label="型号规格" style={{ width: "50%" }}>
-          <Input />
-        </Form.Item>
-      </Space.Compact>
-      <Space.Compact block>
-        <Form.Item name="manufacturer" label="生产商" style={{ width: "33%", marginRight: 8 }}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="serial_no" label="序列号" style={{ width: "33%", marginRight: 8 }}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="asset_value" label="资产价值(元)" style={{ width: "34%" }}>
-          <InputNumber min={0} style={{ width: "100%" }} />
-        </Form.Item>
-      </Space.Compact>
-      <Form.Item name="purchase_date" label="购入日期">
-        <DatePicker style={{ width: "100%" }} />
-      </Form.Item>
-    </>
-  );
 
   return (
     <>
       <Typography.Title level={4}>设备台账</Typography.Title>
+      <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
+        设备身份信息(名称/型号/厂家)在 MDM 登记;此处从 MDM 引用建档并维护运营信息与校验/维护/维修记录。
+      </Typography.Paragraph>
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
           placeholder="搜索编号/名称/型号/序列号/负责人"
@@ -277,7 +193,7 @@ export default function EquipmentListPage() {
         </Space>
         {canEdit && (
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新增设备
+            新增设备(从 MDM 引用)
           </Button>
         )}
       </Space>
@@ -340,29 +256,34 @@ export default function EquipmentListPage() {
 
       <Modal
         open={modalOpen}
-        title={editing ? `编辑设备: ${editing.equipment_code}` : "新增设备"}
+        title={editing ? `编辑运营信息: ${editing.equipment_code}` : "新增设备(从 MDM 引用)"}
         onCancel={closeModal}
         onOk={handleSave}
-        confirmLoading={saveMutation.isPending || fromMdmMutation.isPending}
+        confirmLoading={updateMutation.isPending || fromMdmMutation.isPending}
         width={680}
         destroyOnClose
       >
-        {!editing && (
-          <Radio.Group
-            value={createMode}
-            onChange={(e) => {
-              setCreateMode(e.target.value as "mdm" | "local");
-              setMdmSelected(null);
-              form.resetFields();
-            }}
+        {editing && (
+          <Alert
+            type="info"
             style={{ marginBottom: 16 }}
-          >
-            <Radio.Button value="mdm">从 MDM 引用(推荐)</Radio.Button>
-            <Radio.Button value="local">本地新建</Radio.Button>
-          </Radio.Group>
+            message={`${editing.name}${editing.model ? ` / ${editing.model}` : ""} — 名称/型号/厂家等身份信息请在 MDM Portal 修改`}
+            action={
+              editing.data_source === "mdm" ? (
+                <Button
+                  size="small"
+                  icon={<ExportOutlined />}
+                  href={mdmPortalUrl(`/equipments/${encodeURIComponent(editing.equipment_code)}`)}
+                  target="_blank"
+                >
+                  去 MDM 查看
+                </Button>
+              ) : undefined
+            }
+          />
         )}
 
-        {!editing && createMode === "mdm" && (
+        {!editing && (
           <>
             <Select
               showSearch
@@ -400,7 +321,7 @@ export default function EquipmentListPage() {
                 showIcon
                 style={{ marginBottom: 16 }}
                 message={`MDM 中没有匹配"${mdmLastSearch}"的设备`}
-                description="新购设备需要先在 MDM 登记身份信息（名称/型号/厂家/序列号），登记完成后回到这里重新搜索即可。"
+                description="新购设备需要先在 MDM 登记身份信息(名称/型号/厂家/序列号),登记完成后回到这里重新搜索即可。"
                 action={
                   <Button
                     type="primary"
@@ -423,15 +344,28 @@ export default function EquipmentListPage() {
         )}
 
         <Form form={form} layout="vertical">
-          {(editing || createMode === "local") && identityFields}
-          {!editing && createMode === "local" && (
-            <Alert
-              type="warning"
-              style={{ marginBottom: 16 }}
-              message="本地新建仅作 MDM 不可用时的兜底;请事后在 MDM Portal 补登该设备主数据"
-            />
-          )}
-          {operationalFields}
+          <Space.Compact block>
+            <Form.Item name="location_room" label="所在房间" style={{ width: "50%", marginRight: 8 }}>
+              <Input placeholder="如 2251" />
+            </Form.Item>
+            <Form.Item name="location_detail" label="安装位置" style={{ width: "50%" }}>
+              <Input />
+            </Form.Item>
+          </Space.Compact>
+          <Space.Compact block>
+            <Form.Item name="responsible_person" label="负责人" style={{ width: "33%", marginRight: 8 }}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="commission_date" label="启用日期" style={{ width: "33%", marginRight: 8 }}>
+              <DatePicker style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="status" label="状态" style={{ width: "34%" }} initialValue="in_use">
+              <Select options={STATUS_OPTIONS} />
+            </Form.Item>
+          </Space.Compact>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={2} />
+          </Form.Item>
         </Form>
       </Modal>
     </>
