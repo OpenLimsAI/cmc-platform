@@ -13,6 +13,7 @@ const ENTITY_LABEL: Record<string, string> = {
   project: '项目',
   asset: '资产',
   material: '物料',
+  equipment: '设备',
 };
 
 const ENTITY_PATH: Record<string, string> = {
@@ -20,6 +21,7 @@ const ENTITY_PATH: Record<string, string> = {
   project: '/projects',
   asset: '/assets',
   material: '/materials',
+  equipment: '/equipments',
 };
 
 const ENTITY_COLOR: Record<string, string> = {
@@ -27,6 +29,7 @@ const ENTITY_COLOR: Record<string, string> = {
   project: 'green',
   asset: 'purple',
   material: 'cyan',
+  equipment: 'volcano',
 };
 
 const FIELD_LABEL: Record<string, string> = {
@@ -40,6 +43,9 @@ const FIELD_LABEL: Record<string, string> = {
   objective: '目标',
   xref: '标识符',
   source_name: '来源',
+  model: '型号',
+  manufacturer: '厂商',
+  serial_no: '序列号',
 };
 
 /**
@@ -69,11 +75,14 @@ export function GlobalSearchBox() {
   const options = useMemo(() => {
     // G2-API6（V1.1 §8.3）+ M4.4：分组结构 {substance, project, asset, material} 各含 items
     if (!data) return [];
-    const groups: Array<['substance' | 'project' | 'asset' | 'material', SearchHit[]]> = [
+    const groups: Array<
+      ['substance' | 'project' | 'asset' | 'material' | 'equipment', SearchHit[]]
+    > = [
       ['substance', data.results.substance.items],
       ['project', data.results.project.items],
       ['asset', data.results.asset.items],
       ['material', data.results.material.items],
+      ['equipment', data.results.equipment.items],
     ];
     return groups
       .filter(([, list]) => list.length > 0)
@@ -137,7 +146,7 @@ export function GlobalSearchBox() {
         size="middle"
         allowClear
         prefix={<SearchOutlined style={{ color: token.colorTextSecondary }} />}
-        placeholder="搜索物质 / 项目 / 资产 / 物料编码、名称、INN..."
+        placeholder="搜索物质 / 项目 / 资产 / 物料 / 设备编码、名称、INN..."
         onFocus={() => setOpen(true)}
       />
     </AutoComplete>

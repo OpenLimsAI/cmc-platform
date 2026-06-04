@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 interface EntityCodeLinkProps {
-  type: 'substance' | 'project' | 'asset' | 'material';
+  type: 'substance' | 'project' | 'asset' | 'material' | 'equipment';
   code: string;
   name?: string | null;
   withName?: boolean;
@@ -12,6 +12,7 @@ const PATH_MAP = {
   project: 'projects',
   asset: 'assets',
   material: 'materials',
+  equipment: 'equipments',
 };
 
 export function EntityCodeLink({ type, code, name, withName }: EntityCodeLinkProps) {

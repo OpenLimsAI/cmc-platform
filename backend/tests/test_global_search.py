@@ -19,7 +19,7 @@ def _all_hits(payload: dict) -> list:
     """从分组结构提取所有 hits（测试方便）"""
     data = payload["data"]
     out: list = []
-    for group_key in ("substance", "project", "asset", "material"):
+    for group_key in ("substance", "project", "asset", "material", "equipment"):
         out.extend(data["results"][group_key]["items"])
     return out
 
@@ -120,6 +120,7 @@ async def test_search_types_filter(admin_client, unique_suffix):
     assert data["results"]["project"]["total"] == 0
     assert data["results"]["asset"]["total"] == 0
     assert data["results"]["material"]["total"] == 0
+    assert data["results"]["equipment"]["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -238,17 +239,18 @@ async def test_search_types_filter_asset_only(admin_client, unique_suffix):
     assert data["results"]["substance"]["total"] == 0
     assert data["results"]["project"]["total"] == 0
     assert data["results"]["material"]["total"] == 0
+    assert data["results"]["equipment"]["total"] == 0
 
 
 @pytest.mark.asyncio
-async def test_search_default_returns_all_four_types(admin_client, unique_suffix):
-    """缺省 types 时四种实体都应能返回（M4.4 起加 material）"""
-    tag = f"AllFour{unique_suffix}"
+async def test_search_default_returns_all_five_types(admin_client, unique_suffix):
+    """缺省 types 时五种实体都应能返回（M4.4 起加 material，EQP 起加 equipment）"""
+    tag = f"AllFive{unique_suffix}"
     await admin_client.post(
         "/api/v1/substances",
         json={
             "substance_type": "mab",
-            "internal_code": f"TEST-A4-{unique_suffix}",
+            "internal_code": f"TEST-A5-{unique_suffix}",
             "preferred_name": tag,
         },
     )
@@ -262,7 +264,11 @@ async def test_search_default_returns_all_four_types(admin_client, unique_suffix
     )
     await admin_client.post(
         "/api/v1/materials",
-        json={"material_code": f"A4-{unique_suffix[:7]}", "material_name": tag, "material_type": "reagent"},
+        json={"material_code": f"A5-{unique_suffix[:7]}", "material_name": tag, "material_type": "reagent"},
+    )
+    await admin_client.post(
+        "/api/v1/equipments",
+        json={"equipment_name": tag, "category": "分析仪器"},
     )
     resp = await admin_client.get(
         "/api/v1/search", params={"q": tag, "limit": 20}
@@ -273,11 +279,12 @@ async def test_search_default_returns_all_four_types(admin_client, unique_suffix
     assert data["results"]["project"]["total"] >= 1
     assert data["results"]["asset"]["total"] >= 1
     assert data["results"]["material"]["total"] >= 1
+    assert data["results"]["equipment"]["total"] >= 1
 
 
 @pytest.mark.asyncio
 async def test_search_response_structure(admin_client):
-    """API6（V1.1 §8.3 行 1688-1721）：响应分组结构严格断言（M4.4 起含 material）"""
+    """API6（V1.1 §8.3 行 1688-1721）：响应分组结构严格断言（含 material + equipment）"""
     resp = await admin_client.get(
         "/api/v1/search", params={"q": "SUB-", "limit": 5}
     )
@@ -286,8 +293,10 @@ async def test_search_response_structure(admin_client):
     assert set(data.keys()) == {"query", "total", "results"}
     assert data["query"] == "SUB-"
     assert isinstance(data["total"], int)
-    assert set(data["results"].keys()) == {"substance", "project", "asset", "material"}
-    for group_key in ("substance", "project", "asset", "material"):
+    assert set(data["results"].keys()) == {
+        "substance", "project", "asset", "material", "equipment"
+    }
+    for group_key in ("substance", "project", "asset", "material", "equipment"):
         group = data["results"][group_key]
         assert set(group.keys()) == {"total", "items"}
         assert isinstance(group["total"], int)
@@ -378,3 +387,60 @@ async def test_search_types_filter_material_only(admin_client, unique_suffix):
     assert data["results"]["substance"]["total"] == 0
     assert data["results"]["project"]["total"] == 0
     assert data["results"]["asset"]["total"] == 0
+    assert data["results"]["equipment"]["total"] == 0
+
+
+# ============== EQP 设备搜索 ==============
+@pytest.mark.asyncio
+async def test_search_finds_equipment_by_name(admin_client, unique_suffix):
+    name = f"SearchableEqp {unique_suffix}"
+    await admin_client.post(
+        "/api/v1/equipments",
+        json={"equipment_name": name, "category": "分析仪器"},
+    )
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": f"SearchableEqp {unique_suffix}", "limit": 10}
+    )
+    hits = _all_hits(resp.json())
+    assert any(
+        h["entity_type"] == "equipment" and h["name"] == name for h in hits
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_finds_equipment_by_code(admin_client, unique_suffix):
+    """设备编码精确命中排在分组最前"""
+    create = await admin_client.post(
+        "/api/v1/equipments",
+        json={"equipment_name": f"sr eqp code {unique_suffix}", "category": "实验设备"},
+    )
+    ecode = create.json()["data"]["equipment_code"]
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": ecode, "limit": 5}
+    )
+    eqp_items = _group_items(resp.json(), "equipment")
+    assert eqp_items
+    assert eqp_items[0]["code"] == ecode
+    assert eqp_items[0]["matched_field"] == "code"
+
+
+@pytest.mark.asyncio
+async def test_search_finds_equipment_by_manufacturer(admin_client, unique_suffix):
+    """厂商命中，matched_field=manufacturer"""
+    mfr = f"Acmefg{unique_suffix}"
+    await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"sr eqp mfr {unique_suffix}",
+            "category": "分析仪器",
+            "manufacturer": mfr,
+        },
+    )
+    resp = await admin_client.get(
+        "/api/v1/search", params={"q": mfr, "limit": 5}
+    )
+    hits = _all_hits(resp.json())
+    match = next((h for h in hits if h["entity_type"] == "equipment"), None)
+    assert match is not None
+    assert match["matched_field"] == "manufacturer"
+    assert mfr in (match["snippet"] or "")

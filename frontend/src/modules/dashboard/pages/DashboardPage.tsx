@@ -4,6 +4,7 @@ import {
   FolderOpenOutlined,
   GoldOutlined,
   InboxOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,6 +24,10 @@ import {
 import {
   MATERIAL_TYPE_OPTIONS,
 } from '@/modules/materials/constants';
+import {
+  EQUIPMENT_CATEGORY_OPTIONS,
+  EQUIPMENT_STATUS_OPTIONS,
+} from '@/modules/equipments/constants';
 import { DistributionPieCard } from '../components/DistributionPieCard';
 import { TrendLineCard } from '../components/TrendLineCard';
 import { ProjectGanttCard } from '../components/ProjectGanttCard';
@@ -98,6 +103,12 @@ export function DashboardPage() {
       value: totals?.material ?? 0,
       icon: <InboxOutlined style={{ fontSize: 28, color: '#722ED1' }} />,
       onClick: () => navigate('/materials'),
+    },
+    {
+      title: '设备',
+      value: totals?.equipment ?? 0,
+      icon: <ToolOutlined style={{ fontSize: 28, color: '#D4380D' }} />,
+      onClick: () => navigate('/equipments'),
     },
   ];
 
@@ -208,6 +219,27 @@ export function DashboardPage() {
                   title="物料等级分布"
                   variant="bar"
                   data={summary.distributions.material_by_grade}
+                />
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 16 }}>
+                <DistributionPieCard
+                  title="设备类别分布"
+                  data={summary.distributions.equipment_by_category}
+                  labelMap={optionsToLabelMap(EQUIPMENT_CATEGORY_OPTIONS)}
+                />
+              </div>
+            </Col>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 16 }}>
+                <DistributionPieCard
+                  title="设备状态分布"
+                  data={summary.distributions.equipment_by_status}
+                  labelMap={optionsToLabelMap(EQUIPMENT_STATUS_OPTIONS)}
                 />
               </div>
             </Col>

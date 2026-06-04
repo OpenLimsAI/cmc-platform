@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import DATE
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.ars.models import Asset
+from app.domains.eqp.models import Equipment
 from app.domains.mm.models import Material
 from app.domains.prs.models import Project, ProjectMilestone
 from app.domains.srs.models import Substance
@@ -66,6 +67,7 @@ class DashboardService:
             ("project", Project),
             ("asset", Asset),
             ("material", Material),
+            ("equipment", Equipment),
         ]:
             r = await self.db.execute(
                 select(func.count()).select_from(table).where(table.deleted_at.is_(None))
@@ -89,13 +91,18 @@ class DashboardService:
             self.db, Material, Material.material_type
         )
         material_by_grade = await _group_count(self.db, Material, Material.grade)
+        equipment_by_category = await _group_count(
+            self.db, Equipment, Equipment.category
+        )
+        equipment_by_status = await _group_count(self.db, Equipment, Equipment.status)
 
-        # 30 天趋势（4 域并行不需要，单 await 串行即可，dev 数据量小）
+        # 30 天趋势（5 域并行不需要，单 await 串行即可，dev 数据量小）
         trend_30d = {
             "substance": await _trend_30d(self.db, Substance),
             "project": await _trend_30d(self.db, Project),
             "asset": await _trend_30d(self.db, Asset),
             "material": await _trend_30d(self.db, Material),
+            "equipment": await _trend_30d(self.db, Equipment),
         }
 
         return {
@@ -109,6 +116,8 @@ class DashboardService:
                 "asset_by_status": asset_by_status,
                 "material_by_type": material_by_type,
                 "material_by_grade": material_by_grade,
+                "equipment_by_category": equipment_by_category,
+                "equipment_by_status": equipment_by_status,
             },
             "trend_30d": trend_30d,
         }

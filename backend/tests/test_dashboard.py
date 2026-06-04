@@ -19,8 +19,10 @@ async def test_summary_shape(admin_client):
     assert r.status_code == 200
     data = r.json()["data"]
     assert set(data.keys()) == {"totals", "distributions", "trend_30d"}
-    assert set(data["totals"].keys()) == {"substance", "project", "asset", "material"}
-    # 8 个分布
+    assert set(data["totals"].keys()) == {
+        "substance", "project", "asset", "material", "equipment"
+    }
+    # 10 个分布
     assert set(data["distributions"].keys()) == {
         "substance_by_type",
         "substance_by_status",
@@ -30,9 +32,13 @@ async def test_summary_shape(admin_client):
         "asset_by_status",
         "material_by_type",
         "material_by_grade",
+        "equipment_by_category",
+        "equipment_by_status",
     }
-    # 4 域趋势
-    assert set(data["trend_30d"].keys()) == {"substance", "project", "asset", "material"}
+    # 5 域趋势
+    assert set(data["trend_30d"].keys()) == {
+        "substance", "project", "asset", "material", "equipment"
+    }
 
 
 @pytest.mark.asyncio
@@ -43,10 +49,12 @@ async def test_totals_match_list_endpoints(admin_client):
     r_proj = (await admin_client.get("/api/v1/projects?page=1&page_size=1")).json()
     r_ast = (await admin_client.get("/api/v1/assets?page=1&page_size=1")).json()
     r_mat = (await admin_client.get("/api/v1/materials?page=1&page_size=1")).json()
+    r_eqp = (await admin_client.get("/api/v1/equipments?page=1&page_size=1")).json()
     assert r_sum["totals"]["substance"] == r_sub["meta"]["pagination"]["total"]
     assert r_sum["totals"]["project"] == r_proj["meta"]["pagination"]["total"]
     assert r_sum["totals"]["asset"] == r_ast["meta"]["pagination"]["total"]
     assert r_sum["totals"]["material"] == r_mat["meta"]["pagination"]["total"]
+    assert r_sum["totals"]["equipment"] == r_eqp["meta"]["pagination"]["total"]
 
 
 @pytest.mark.asyncio
@@ -70,7 +78,7 @@ async def test_distribution_keys_and_count_sum(admin_client):
 @pytest.mark.asyncio
 async def test_trend_30d_always_30_days(admin_client):
     data = (await admin_client.get("/api/v1/dashboard/summary")).json()["data"]
-    for entity in ("substance", "project", "asset", "material"):
+    for entity in ("substance", "project", "asset", "material", "equipment"):
         series = data["trend_30d"][entity]
         assert len(series) == 30, f"{entity} 趋势应该恰好 30 天"
         # 每项含 date + count

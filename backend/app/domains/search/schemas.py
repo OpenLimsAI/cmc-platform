@@ -5,10 +5,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-SearchEntityType = Literal["substance", "project", "asset", "material"]
+SearchEntityType = Literal["substance", "project", "asset", "material", "equipment"]
 MatchedField = Literal[
     "code", "name", "name_en", "internal_code", "objective", "xref",
-    "trade_name", "inn_name", "source_name",
+    "trade_name", "inn_name", "source_name", "model", "manufacturer", "serial_no",
 ]
 
 
