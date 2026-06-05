@@ -64,10 +64,22 @@ export function EquipmentListPage() {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      width: 100,
+      width: 200,
       render: (c: string) => {
         const def = EQUIPMENT_CATEGORY_OPTIONS.find((o) => o.value === c);
-        return <Tag color={def?.color ?? 'default'}>{def?.label ?? c}</Tag>;
+        return (
+          <Tag
+            color={def?.color ?? 'default'}
+            style={{
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {def?.label ?? c}
+          </Tag>
+        );
       },
     },
     {

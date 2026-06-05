@@ -70,6 +70,9 @@ def test_normalize_category_alias():
     assert normalize_category("离心机") == ("通用实验室设备", False)
     # 英文关键词大小写不敏感
     assert normalize_category("hplc system") == ("分析仪器", False)
+    # 泛词垫底：「分析天平」是天平→通用，不能被「分析」抢成分析仪器
+    assert normalize_category("电子分析天平") == ("通用实验室设备", False)
+    assert normalize_category("分析天平") == ("通用实验室设备", False)
 
 
 def test_normalize_category_default():
