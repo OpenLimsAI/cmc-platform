@@ -37,11 +37,11 @@ def _in_list(values) -> str:
     return ", ".join("'" + v.replace("'", "''") + "'" for v in values)
 
 
-# 用裸 SQL + 按列发现旧约束名后删除，再以干净名 ck_equipment_category 重建。
+# 按 category 列发现旧约束名后删除（不写死名字）。
 # 背景：metadata naming_convention(ck_%(table)s_%(constraint_name)s) 会对既有约束名
-# 二次套前缀——0040 实际产出的是 ck_equipment_ck_equipment_category（双重前缀）。
-# 各机当前名可能不一致（双重前缀 / 已手工规整），故 DROP 不写死名字，按 category 列发现。
-def _swap_constraint(values) -> None:
+# 二次套前缀——0040 实际产出的是 ck_equipment_ck_equipment_category（双重前缀）；
+# 各机当前名可能不一致（双重前缀 / 已手工规整），故 DROP 按列发现。
+def _drop_category_constraint() -> None:
     op.execute(
         """
         DO $$
@@ -56,24 +56,31 @@ def _swap_constraint(values) -> None:
         END $$;
         """
     )
+
+
+def _add_category_constraint(values) -> None:
     op.execute(
         "ALTER TABLE eqp.equipment ADD CONSTRAINT ck_equipment_category "
         f"CHECK (category IN ({_in_list(values)}))"
     )
 
 
+# 关键顺序：先删旧约束 → 再 UPDATE 重映射到新值 → 最后加新约束。
+# 否则把 category 改成新值时旧约束仍生效会 CheckViolation（表非空时必现）。
 def upgrade() -> None:
     op.execute("ALTER TABLE eqp.equipment DISABLE TRIGGER trg_equipment_audit")
+    _drop_category_constraint()
     op.execute("UPDATE eqp.equipment SET category='通用实验室设备' WHERE category IN ('实验设备','其他')")
     op.execute("UPDATE eqp.equipment SET category='公用工程/环境与支持系统' WHERE category='辅助设备'")
+    _add_category_constraint(NEW_CATEGORIES)
     op.execute("ALTER TABLE eqp.equipment ENABLE TRIGGER trg_equipment_audit")
-    _swap_constraint(NEW_CATEGORIES)
 
 
 def downgrade() -> None:
     op.execute("ALTER TABLE eqp.equipment DISABLE TRIGGER trg_equipment_audit")
+    _drop_category_constraint()
     op.execute("UPDATE eqp.equipment SET category='实验设备' WHERE category IN ('工艺/制备设备','通用实验室设备')")
     op.execute("UPDATE eqp.equipment SET category='辅助设备' WHERE category='公用工程/环境与支持系统'")
     op.execute("UPDATE eqp.equipment SET category='其他' WHERE category='IT/自动化与数据系统'")
+    _add_category_constraint(OLD_CATEGORIES)
     op.execute("ALTER TABLE eqp.equipment ENABLE TRIGGER trg_equipment_audit")
-    _swap_constraint(OLD_CATEGORIES)
