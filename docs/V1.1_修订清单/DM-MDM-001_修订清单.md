@@ -204,3 +204,51 @@
 ---
 
 **附**：本清单仅覆盖 DM-MDM-001（数据模型）。DEV-MDM-001 V1.2 §7（架构）/ §8（API）/ §9（UI）的修订建议另立 ARCH-MDM-001 / API-MDM-001 / UI-MDM-001 同名修订清单。
+
+---
+
+# V1.3 勘误登记（2026-06-05，待 V1.3 docx Word 修订吸收）
+
+> 以下为 **V1.1 docx（及派生 md）的事实性勘误**：文档与已实施代码不符，且错误方为文档。按文档控制约定不直接修改签字 docx、不手改派生 md（`make docs-check` 强制一致）；**过渡期以本节为准**（索引见 DEV-MDM-001 V1.2 §1A）。V1.3 批次以 Word 修订模式统一吸收。
+
+### 勘误 #E1 — §5.2 meta.lookup_value seed：substance_type 缺 `other`
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §5.2 lookup_value 初始化数据 |
+| V1.1 现状 | seed 列表仅 6 值（mab/bispecific/adc/fusion/small_molecule/oligonucleotide），缺 `other` |
+| 实施事实 | §7.2 DDL CHECK 为 7 值（含 `other`）；migration 0030 实际 seed 含 `('substance_type','other','其他','Other',99)` |
+| 建议吸收文字 | seed 列表补一行：`('substance_type', 'other', '其他', 'Other', 99),` |
+| 来源 | 2026-06-05 文档一致性审查 |
+
+### 勘误 #E2 — §7.2.1 字段表：substance_type 枚举注释不全
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §7.2.1 srs.substance 字段定义表 |
+| V1.1 现状 | 说明列写 `mab/bispecific/adc/fusion/small_molecule/oligo`（6 值且 `oligo` 为缩写） |
+| 实施事实 | DDL CHECK（§7.2.2 及 migration 0001）为 `oligonucleotide` 全写 + `other` 共 7 值 |
+| 建议吸收文字 | 说明列改为 `mab/bispecific/adc/fusion/small_molecule/oligonucleotide/other` |
+| 来源 | 2026-06-05 文档一致性审查 |
+
+### 勘误 #E3 — §2.1 Schema 总表：ref / mm 表清单与实现不符
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §2.1 Schema 划分总表 |
+| V1.1 现状 | ref 行列出 `ref_project_substance, ref_asset_substance, ref_material_substance`；mm 行列出 `material, material_batch, material_attribute`；**（2026-06-06 扩展）** srs 行漏 `substance_adc / substance_small_molecule / substance_alias` 三表；prs 行漏 `project_relationship` |
+| 实施事实 | ref 域实际三表：`project_substance / asset_substance / project_asset`（§11.2-§11.4 正文一致；`ref_material_substance` 从未定义）；mm 域仅 `material / material_batch`（`material_attribute` 从未定义，§10 正文一致）；srs 漏列的 3 表与 prs 的 project_relationship **均在本文档正文定义（§7.4/§7.5/§7.8/§9.x）且代码已实现**（migration 0016/0018），仅 §2.1 总表漏列 |
+| 建议吸收文字 | srs 行补 `substance_adc, substance_small_molecule, substance_alias`；prs 行补 `project_relationship`；ref 行改为 `project_substance, asset_substance, project_asset`；mm 行改为 `material, material_batch`；并补 eqp 行 `equipment`（V1.2）。**修正后的 §2.1 总表与 ARCH §6.1（勘误 #E9）须为同一份清单** |
+| 来源 | 2026-06-05 文档一致性审查；2026-06-06 外部复核报告 S3/N3 扩展（migration 0016_prs_relation / 0018_srs_subtables 实物核对） |
+
+### 勘误 #E12 — §4.3 角色 seed：REGULATORY_USER 仅存在于本文档，四方角色集不一致 ✅ 已决策方案 A（删除），已落地
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §4.3 auth.role 初始化数据（行 483-491） |
+| V1.1 现状 | seed 列 7 个系统角色，含 `('REGULATORY_USER', '注册人员', '查询所有数据，导出申报材料', TRUE)` |
+| 实施事实 | 四方角色集各不相同：**DM 7**（含 REGULATORY_USER）/ **ARCH §7.2.2 6**（camelCase，无 REGULATORY_USER，见 ARCH 勘误 #E10）/ **UI §2.2 6**（无 REGULATORY_USER，见 UI 勘误 #E4）/ **代码 seed 8**（无 REGULATORY_USER，含 V1.2 两新角色）。REGULATORY_USER 从未实现：无 seed、无权限绑定、无 UI 列、无测试 |
+| 处置决议 | **方案 A（删除），2026-06-06 项目负责人决策**。决策依据：原型阶段简化角色体系——现有角色已覆盖业务，"注册人员查询导出"场景用 READ_ONLY_USER + 临时权限码等价实现 |
+| 落地情况 | **已落地（2026-06-06，migration N/A）**：代码侧 `seed_data.py` 经核实**从未包含**该角色（全仓库 grep 零命中），无代码改动需要；新增一次性兜底清理脚本 `backend/app/scripts/cleanup_regulatory_user.py`（幂等：解绑 user_role + 软删 auth.role，输出受影响 user_id），dev 库实跑结果 no-op（角色从未存在）。终态 = 代码现状（8 角色） |
+| 建议吸收文字 | V1.3 docx：删除 §4.3 seed 中 REGULATORY_USER 行（7 角色 → 与代码一致的 8 角色清单，含 V1.2 两新角色） |
+| 来源 | 2026-06-06 外部复核报告 S4/N4（seed_data.py + UI §2.2 + ARCH §7.2.2 四方对账）；决议 2026-06-06 |

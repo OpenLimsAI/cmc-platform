@@ -25,13 +25,16 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 - [CMAB_MDM_Portal_API接口规范_V1_1.docx](./docs/CMAB_MDM_Portal_API接口规范_V1_1.docx)（API-MDM-001）
 - [CMAB_MDM_Portal_UI信息架构与线框图_V1_1.docx](./docs/CMAB_MDM_Portal_UI信息架构与线框图_V1_1.docx)（UI-MDM-001）
 
+> 注：文档版本号管理采用渐进式策略 — 4 份 docx 当前内容为 V1.1 签字基线 + V1.2 修订记录登记（修订内容已在 md 派生与代码中落地，docx 封面字段保留 V1.1）；正式 V1.2/V1.3 docx 修订批次将在进入 GMP 准备阶段时一次性处理。原型阶段以 md 派生 + 偏离说明 V1.3_draft 为代码侧的唯一权威来源（详见文末「原型阶段文档使用约定」）。
+
 每份 docx 旁都有同名 `.md` 派生副本（由 `make docs-extract` 自动生成，**不可手工修改**），方便程序读取与 grep。
 
 **Phase 0 设计基准 V1.0**（已归档基线，保留作 V1.1 修订溯源）：
 - [V1.0 docx × 4](./docs/) — 文件命名 `*_V1.0.docx`
 
-**设计基准偏离说明**（DEV-MDM-001 系列，待 IT 架构组评审）：
-- [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 覆盖 Phase 1 / Phase 2 / Phase 2.5 + M3.0 回归 + M3.1-M3.4 ARS + 跨域引用 + 跨 4 文档检查（含附录 C 测试覆盖映射表）
+**设计基准偏离说明**（DEV-MDM-001 系列）：
+- [V1.3_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md) — **当前活跃**：覆盖 migration 0037-0044 + Phase 5 + MM v2 + EQP 设备域 + 测试基线桥 + V1.3 批次工作清单
+- [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 已封版归档（cap 0036，见其 §1B）：覆盖 Phase 1-4 + V1.2 评审 13 项决议 + §1A 勘误索引 E1-E12
 
 **V1.0 → V1.1 修订清单**（评审决议过程档，决议已全部落地至 V1.1 docx）：
 - [DM-MDM-001_修订清单](./docs/V1.1_修订清单/DM-MDM-001_修订清单.md)（12 项 · 9 接受 + 2 已决议 + 1 可选）
@@ -113,11 +116,11 @@ docker compose -f deploy/docker-compose.dev.yml exec backend \
 docker compose -f deploy/docker-compose.dev.yml exec backend \
     python -m app.scripts.seed_data
 
-# 6. 访问
-# 前端：       http://localhost:5173
-# 后端 API：   http://localhost:8000
-# API 文档：   http://localhost:8000/api/v1/docs
-# 数据库：     localhost:5432 (用户/库见 .env)
+# 6. 访问（宿主侧默认端口，可用 HOST_*_PORT 环境变量覆盖；容器内为 5173/8000/5432/6379）
+# 前端：       http://localhost:15173
+# 后端 API：   http://localhost:18000
+# API 文档：   http://localhost:18000/api/v1/docs
+# 数据库：     localhost:15432 (用户/库见 .env)
 ```
 
 ### 默认账号
@@ -266,6 +269,26 @@ docker compose -f deploy/docker-compose.prod.yml exec backend \
 ```
 
 详见 `docs/DEPLOY-MDM-001`（待编制）。
+
+## 原型阶段文档使用约定
+
+本项目当前为原型阶段，文档体系按"够用即可"原则简化：
+
+1. **代码侧权威源**：
+   - 4 份 V1.1 派生 md（`docs/CMAB_MDM_Portal_*_V1_1.md`）
+   - 偏离说明 V1.3_draft（`docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md`）
+   - 各文档 V1.3 勘误登记段（`docs/V1.1_修订清单/*.md` 末尾，E1-E12）
+
+2. **暂不维护项**（待 GMP 准备阶段一次性补）：
+   - docx 封面版本号 / 文件名重命名
+   - V1.3 docx 正文修订批次（Word 修订模式 + 会签）
+   - OQ 追溯矩阵 +104 测试用例定级（`docs/csv_oq_traceability.md` §0 已登记缺口）
+
+3. **新发现的偏离**：直接登记到 V1.3_draft，无需走评审；代码可先行，文档登记不晚于本周 commit。
+
+4. **进入 GMP 准备阶段的触发条件**（任一满足即本节作废，立即切换完整文档控制 SOP——docx 重命名、Word 修订、QA 会签、CSV 验证全套）：
+   - 任一商业化产品的 CMC 申报涉及本系统数据；或
+   - QA 部门提出"系统进入 GxP 范围"决议。
 
 ## License
 

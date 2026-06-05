@@ -234,3 +234,20 @@
 - 偏离说明（决议依据）：`docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md` §6.4 / §8.3 / §9
 - 偏离说明（401 分流背景）：`docs/CMAB_MDM_Portal_设计基准偏离说明_V1.1_draft.md` §5.5
 - 其他 V1.1 修订清单：DM-MDM-001 / API-MDM-001 / ARCH-MDM-001（同目录）
+
+---
+
+# V1.3 勘误登记（2026-06-05，待 V1.3 docx Word 修订吸收）
+
+> **V1.1 docx（及派生 md）的事实性勘误**：文档与已实施代码不符，错误方为文档。不直接改签字 docx、不手改派生 md（`make docs-check` 强制 docx↔md 一致）；**过渡期以本节为准**（索引见 DEV-MDM-001 V1.2 §1A）。
+
+### 勘误 #E4 — §2.2 模块权限可见性矩阵：缺设备行、缺 V1.2 新角色列、STEWARD 审计列错误
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §2.2 模块权限可见性 |
+| V1.1 现状 | 矩阵仅 7 模块行 × 6 角色列：无"设备"行；无 CMC_WAREHOUSE_ADMIN / CMC_EQUIPMENT_ADMIN 两列；SUBSTANCE_STEWARD 审计列为 — |
+| 实施事实 | ① §2.1 导航树已含 `🔧 设备 (/equipments)`（V1.2 修订记录），设备模块入口权限 `equipment:read`；② `seed_data.py` 预置 8 角色，含 V1.2 新增 CMC_WAREHOUSE_ADMIN（material:create/read/update + equipment:read）与 CMC_EQUIPMENT_ADMIN（equipment:create/read/update + material:read），两角色同时是下游 LabOps 对应模块写权限角色（随 JWT 下发）；③ SUBSTANCE_STEWARD seed 含 `audit:read`（审计模块对其可见）；④ 2026-06-05 代码侧已补 STEWARD project:read / asset:read / material:read，对齐本矩阵既有 ✓（278 测试全过，含 `test_get_role_detail_substance_steward` 权限集断言） |
+| 建议吸收文字 | 矩阵补"设备（V1.2）"行：SYS_ADMIN ✓ / STEWARD — / PM — / RESEARCHER ✓(read) / QA — / READ_ONLY ✓(read) / WAREHOUSE_ADMIN ✓(read) / EQUIPMENT_ADMIN ✓(create/read/update)；补两新角色列（仪表盘 ✓、物料/设备按上述、其余 —）；STEWARD 审计列 — 改 ✓ |
+| 关联决议（已闭环） | DM §4.3 曾定义 REGULATORY_USER（本矩阵从未含此列，代码亦未实现）——**E12 已决策方案 A 删除（2026-06-06）并落地，UI/API 无需补列**，本矩阵不动 |
+| 来源 | 2026-06-05 文档一致性审查 + seed_data.py 实物核对；2026-06-06 补 REGULATORY_USER 关联（外部复核 S4/N4） |

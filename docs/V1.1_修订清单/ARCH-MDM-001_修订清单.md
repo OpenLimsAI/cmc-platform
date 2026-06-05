@@ -203,3 +203,59 @@ V1.2 偏离说明中提到的「§11.300 / §15.2 / §6.5」是 DM-MDM-001 数�
 - 「推迟项」不要求 V1.1 引入新章节描述实施方案，仅在 §10.6 路线图标注计划阶段；具体实施方案待 Phase 4 / 5 启动时另立设计文档（DEPLOY-MDM-001 等）。
 - 修订 #9 的章节归属（§7.2.2 vs §6.5）建议评审会现场决定；DBA 视角可能更适合 §6.5，安全视角更适合 §7.2.2。
 - 章节号若因新增 §10.6 等导致后续编号变化，秘书在 Word 修订时一并处理目录重建。
+
+---
+
+# V1.3 勘误登记（2026-06-06，待 V1.3 docx Word 修订吸收）
+
+> **V1.1 docx（及派生 md）的事实性勘误**：文档与已实施代码不符，错误方为文档。不直接改签字 docx、不手改派生 md（`make docs-check` 强制 docx↔md 一致）；**过渡期以本节为准**（索引见 DEV-MDM-001 V1.2 §1A）。ARCH 是 V1.2 EQP 增补落地最不完整的一份：仅修订记录行 + 适用范围两处提及，正文实质章节全部未同步。
+
+### 勘误 #E7 — §1.3.2 范围外清单：设备主数据仍列为 Out-of-Scope，与 V1.2 修订记录直接矛盾
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §1.3.2 范围外（行 120） |
+| V1.1 现状 | 范围外列表含"设备主数据（未来纳入 CMMS 或独立 Equipment Master）" |
+| 实施事实 | V1.2（2026-06-04）EQP 设备域已为本系统第五业务域（migration 0040-0044：eqp.equipment + 三标识体系 + 5 类分类 + 工作站字段），修订记录行与适用范围"五大主数据域"均已声明 |
+| 建议吸收文字 | 从范围外列表删除该行；如需保留语义，改为"设备**运营**数据（在用状态/位置/校验/维护等）— 归下游 CMC LabOps Portal，本系统仅管设备主数据（身份/采购属性）" |
+| 来源 | 2026-06-06 文档一致性审查（外部复核报告 S2/N2 确认） |
+
+### 勘误 #E8 — §3.2 各域职责定义：缺 Equipment Master 子节
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §3.2（行 229-325，现有 3.2.1 SRS / 3.2.2 PRS / 3.2.3 ARS / 3.2.4 MM / 3.2.5 REF / 3.2.6 AUDIT 六子节） |
+| V1.1 现状 | 无 EQP 子节；§3.1 主数据域分治模型、§3.3 数据流向同样未含设备域 |
+| 实施事实 | eqp.equipment 已实现：全公司仪器设备身份注册表；EQP-yyyy 年度序列设备ID + equipment_no（业务）/ fixed_asset_no（财务）三标识；5 类分类体系；无状态机（简化设计）；下游 LabOps 经 API 拉取，不跨库外键 |
+| 建议吸收文字 | 新增 §3.2.4A（或重编号为 3.2.5）Equipment Master (EQP) 子节，内容按 migration 0040-0044 docstring 与 DM §10A 表述对齐；§3.1 / §3.3 图示同步补第五域 |
+| 来源 | 2026-06-06 文档一致性审查（S2/N2） |
+
+### 勘误 #E9 — §6.1 PostgreSQL Schema 划分表：缺 eqp 行 + 表清单多处与实现不符
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §6.1 Schema 划分表（行 729-738） |
+| V1.1 现状 | ① 无 eqp 行；② srs 行缺 substance_small_molecule / substance_alias；③ mm 行列有不存在的 material_attribute；④ ref 行写 `ref_project_substance, ref_asset_substance, ref_material_substance`——前缀写法与实现不符且 ref_material_substance 从未定义、漏 project_asset；⑤ prs 行缺 project_relationship；⑥ auth 行缺 login_history / password_history |
+| 实施事实 | 实际 9 个业务 schema；srs 7 表 / prs 5 表 / ars 3 表 / mm 2 表 / eqp 1 表 / ref 3 表（project_substance, asset_substance, project_asset）— 与 DM 修订清单 #E3（含扩展）一致 |
+| 建议吸收文字 | 按实现重写该表（与 DM §2.1 修正稿保持同一份表清单，避免两文档再次漂移） |
+| 来源 | 2026-06-06 文档一致性审查（S2/S3/N2，代码侧 migration 0001-0044 实物核对） |
+
+### 勘误 #E10 — §7.2.2 预设角色：命名 camelCase 与实现不符 + 角色集不完整
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §7.2.2 RBAC（行 944-950） |
+| V1.1 现状 | 6 角色，camelCase（SystemAdmin / SubstanceSteward / ProjectManager / CMCResearcher / QAReviewer / ReadOnlyUser） |
+| 实施事实 | 代码 role_code 为 SNAKE_CASE，且 seed 共 **8** 角色：SYS_ADMIN / SUBSTANCE_STEWARD / PROJECT_MANAGER / CMC_RESEARCHER / QA_REVIEWER / READ_ONLY_USER + V1.2 新增 CMC_WAREHOUSE_ADMIN / CMC_EQUIPMENT_ADMIN。注意：DM §4.3 还列有 REGULATORY_USER（代码无），四处角色集不一致的统一决议见 DM 修订清单 #E12 |
+| 建议吸收文字 | 角色名改 SNAKE_CASE 并补全 8 角色（REGULATORY_USER 去留按 #E12 决议结果同步） |
+| 来源 | 2026-06-06 文档一致性审查（S4/N4 + seed_data.py 实物核对） |
+
+### 勘误 #E11 — §1.4 关键决策摘要：JWT 签名算法未注明环境分野
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §1.4（行 141） |
+| V1.1 现状 | "认证方式 \| 系统自建用户表 + JWT" |
+| 实施事实 | Phase 5.C 已落地 RS256（生产）/ HS256（开发）双模式（见 RUNBOOK_JWT_RS256.md）；API-MDM-001 §2 已注明，ARCH 作为上位文档未同步 |
+| 建议吸收文字 | 改为"系统自建用户表 + JWT（HS256 开发 / RS256 生产，密钥管理见 RUNBOOK_JWT_RS256）" |
+| 来源 | 2026-06-06 文档一致性审查 |

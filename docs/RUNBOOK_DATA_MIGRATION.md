@@ -6,15 +6,15 @@
 | 版本 | V1.0 |
 | 适用 | 首次生产部署 + 后续 alembic 升级 + 跨环境数据迁移（dev → UAT / UAT → 生产）|
 | 合规 | GAMP 5 / 21 CFR Part 11 §11.10(a) 数据完整性 / EU Annex 11 §4.5 数据迁移 |
-| 当前 head | `0039_mm_category_add_waibao`（共 39 个 migration） |
+| 当前 head | `0044_eqp_identifiers`（共 44 个 migration，2026-06-05） |
 
 ---
 
 ## 0. 用途与范围
 
 本 SOP 用于：
-1. **首次生产部署**：从空 PG 实例完整执行 0001→0034 全部 migration + baseline seed
-2. **alembic 升级部署**：现有 head 升级到新 head（举例 0034 → 0035）
+1. **首次生产部署**：从空 PG 实例完整执行 0001→0044 全部 migration + baseline seed
+2. **alembic 升级部署**：现有 head 升级到新 head（举例 0044 → 0045）
 3. **跨环境迁移**：dev / UAT / 生产之间用 pg_dump + pg_restore 整体迁移（结构 + 数据）
 4. **基线快照演练**：UAT/Staging 环境上跑一次完整 reset → migrate → seed → 抽检，确保灾难恢复路径可走
 
@@ -57,9 +57,14 @@
 | 29 | 0036_audit_trigger_v3 | 2026_05_14_0100 | 修订十二：audit trigger v3 — CREATE / DELETE 字段级展开 + parent_ref 回填策略 |
 | 30 | 0037_user_force_password_change | 2026_05_16_0100 | Phase 5.A：auth.user.force_password_change 布尔（首次登录强改密）|
 | 31 | 0038_mm_material_v2 | 2026_05_19_0100 | MM v2：material_type 4 值（reagent/consumable/standard/column）+ category 14 值扁平枚举 + grade 自由文本 + 7 新字段（manufacturer/catalog_no/spec_model/unit NOT NULL/package_spec/hazard_class[]/category）|
-| 32 | **0039_mm_category_add_waibao** | 2026_05_19_0200 | MM v2：category CHECK 加 `外包材`（15 值扁平枚举）— **当前 head** |
+| 32 | 0039_mm_category_add_waibao | 2026_05_19_0200 | MM v2：category CHECK 加 `外包材`（15 值扁平枚举）|
+| 33 | 0040_eqp_equipment | 2026_06_04_0100 | EQP 设备域第 1 步：eqp schema + equipment 主表 + assign_code（EQP-yyyy 年度序列）+ audit trigger；定位为 LabOps 数据上游 |
+| 34 | 0041_eqp_add_fields | 2026_06_04_0200 | EQP：新增 rated_power（额定功率）/ origin（产地）+ 列注释语义校准 |
+| 35 | 0042_eqp_category_5class | 2026_06_04_0300 | EQP：设备分类 4 类 → 5 类体系（分析仪器/工艺制备/通用实验室/公用工程/IT自动化）+ 旧值重映射 |
+| 36 | 0043_eqp_workstation | 2026_06_05_0100 | EQP：has_workstation 布尔 + workstation_info JSONB（附带专用工作站配置）|
+| 37 | **0044_eqp_identifiers** | 2026_06_05_0200 | EQP：三标识体系 — equipment_code 定位为系统设备ID（不可改）+ 新增 equipment_no（业务）/ fixed_asset_no（财务）— **当前 head** |
 
-> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 39 + 个文件用 `alembic history` 查看。
+> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 44 个文件用 `alembic history` 查看。
 
 ---
 
@@ -80,7 +85,7 @@ docker compose -f deploy/docker-compose.prod.yml --env-file /etc/cmab-mdm/.env.p
 # 2. 等 PG ready
 until docker exec cmab-mdm-postgres pg_isready -U postgres -d cmab_mdm; do sleep 2; done
 
-# 3. 跑全部 migration（一次性 0001 → 0039）
+# 3. 跑全部 migration（一次性 0001 → 0044）
 docker run --rm \
   --network cmab-mdm-prod_internal \
   --env-file /etc/cmab-mdm/.env.prod \
@@ -91,7 +96,7 @@ docker run --rm \
 # 4. 验证 head
 docker exec cmab-mdm-postgres psql -U cmab_app -d cmab_mdm -c \
   "SELECT version_num FROM alembic_version"
-# 应输出：0034_auth_refresh_token
+# 应输出：0044_eqp_identifiers
 
 # 5. baseline seed（权限/角色/默认用户/必备字典）
 docker run --rm \
@@ -113,13 +118,13 @@ curl -k https://<域名>/health
 
 | 验证项 | 命令 | 期望 |
 |---|---|---|
-| alembic head | `docker exec cmab-mdm-postgres psql -U cmab_app -d cmab_mdm -c "SELECT * FROM alembic_version"` | `0034_auth_refresh_token` |
+| alembic head | `docker exec cmab-mdm-postgres psql -U cmab_app -d cmab_mdm -c "SELECT * FROM alembic_version"` | `0044_eqp_identifiers` |
 | schema 对齐 | `make check-schema`（dev 端做，生产用相同脚本） | exit 0 |
 | 权限表行数 | `psql -c "SELECT count(*) FROM auth.permission"` | ≥ 20 |
-| 角色表 | `psql -c "SELECT role_code FROM auth.role"` | 6 行（SYS_ADMIN/SUBSTANCE_STEWARD/PROJECT_MANAGER/CMC_RESEARCHER/QA_REVIEWER/READ_ONLY_USER） |
-| code_sequence | 4 行（substance/project/asset/material）+ 年度序列动态创建 | `psql -c "SELECT sequence_name FROM meta.code_sequence"` |
+| 角色表 | `psql -c "SELECT role_code FROM auth.role"` | 8 行（SYS_ADMIN/SUBSTANCE_STEWARD/PROJECT_MANAGER/CMC_RESEARCHER/QA_REVIEWER/READ_ONLY_USER/CMC_WAREHOUSE_ADMIN/CMC_EQUIPMENT_ADMIN） |
+| code_sequence | 5 域（substance/project/asset/material/equipment）年度序列动态创建 | `psql -c "SELECT sequence_name FROM meta.code_sequence"` |
 | audit trigger 在位 | `psql -c "SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'trg_%_audit'"` | ≥ 12 |
-| OQ 测试通过 | UAT 上跑 `make test-be` | 174 passed |
+| OQ 测试通过 | UAT 上跑 `make test-be` | 277 passed（2026-06-05 基线）|
 
 ---
 
@@ -127,7 +132,7 @@ curl -k https://<域名>/health
 
 ### 3.1 升级时机
 
-任何新增 migration（如 0035+）合并到 main 后，先在 UAT 跑通，再走生产升级。
+任何新增 migration（如 0045+）合并到 main 后，先在 UAT 跑通，再走生产升级。
 
 ### 3.2 升级步骤
 

@@ -79,6 +79,26 @@ async def test_get_role_detail(admin_client):
 
 
 @pytest.mark.asyncio
+async def test_get_role_detail_substance_steward(admin_client):
+    """STEWARD 权限集与 UI §2.2 权限矩阵对齐：物质域全权 + 跨域只读 + 审计只读。"""
+    r = await admin_client.get("/api/v1/roles/SUBSTANCE_STEWARD")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["is_system"] is True
+    codes = {p["permission_code"] for p in d["permissions"]}
+    assert codes == {
+        "substance:read",
+        "substance:update",
+        "substance:approve",
+        "substance:sign",
+        "audit:read",
+        "project:read",
+        "asset:read",
+        "material:read",
+    }
+
+
+@pytest.mark.asyncio
 async def test_get_role_not_found(admin_client):
     r = await admin_client.get("/api/v1/roles/NOPE_NOT_REAL")
     assert r.status_code == 404

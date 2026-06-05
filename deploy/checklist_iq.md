@@ -73,10 +73,10 @@
 | 5.1 | 数据库已建 | `cmab_mdm` 存在 | `psql -U postgres -c "\l" \| grep cmab_mdm` | ☐ |
 | 5.2 | 应用账号已建 | `cmab_app` 存在 + 可登录 | `psql -U postgres -c "\du cmab_app"` | ☐ |
 | 5.3 | 审计审查账号 | `cmab_audit_reader` 存在 + 仅 audit schema 只读 | `psql -U postgres -c "\du cmab_audit_reader"` | ☐ |
-| 5.4 | 全部 schema 已建 | auth / meta / audit / srs / prs / ars / mm / ref 8 个 schema | `psql -U cmab_app -d cmab_mdm -c "\dn"` 数行 = 8（含 public）| ☐ |
-| 5.5 | alembic head | `0034_auth_refresh_token` | `docker exec cmab-mdm-backend alembic current` | ⚠️ ☐ |
-| 5.6 | 关键表行数 | auth.permission ≥ 20 / auth.role ≥ 6 / auth.user ≥ 5（含 admin）/ meta.lookup_value ≥ 30 / meta.system_config ≥ 5 | 见执行命令章节 | ☐ |
-| 5.7 | code_sequence | 全部 4 个序列就绪（substance / project / asset / material）| `psql -c "SELECT sequence_name FROM meta.code_sequence"` | ☐ |
+| 5.4 | 全部 schema 已建 | auth / meta / audit / srs / prs / ars / mm / ref 8 个（init.sql 建）+ eqp（migration 0040 建）共 9 个 schema | `psql -U cmab_app -d cmab_mdm -c "\dn"` 数行 = 9（另含 public）| ☐ |
+| 5.5 | alembic head | `0044_eqp_identifiers` | `docker exec cmab-mdm-backend alembic current` | ⚠️ ☐ |
+| 5.6 | 关键表行数 | auth.permission ≥ 23 / auth.role ≥ 8 / auth.user ≥ 5（含 admin）/ meta.lookup_value ≥ 30 / meta.system_config ≥ 5 | 见执行命令章节 | ☐ |
+| 5.7 | code_sequence | 5 域年度序列就绪（substance / project / asset / material / equipment）| `psql -c "SELECT sequence_name FROM meta.code_sequence"` | ☐ |
 | 5.8 | 全部 audit trigger 在位 | 业务表均挂 `trg_*_audit` | `psql -c "SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'trg_%_audit'"` ≥ 12 | ⚠️ ☐ |
 
 ## 6. 服务启动与健康检查

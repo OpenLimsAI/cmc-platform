@@ -7,7 +7,8 @@
 - ✅ Docker Desktop（Mac/Windows）或 Docker Engine + Compose v2（Linux）
 - ✅ Git
 - ✅ 至少 2GB 可用内存
-- ✅ 端口可用：5173（前端）、8000（后端）、5432（数据库）、6379（Redis）
+- ✅ 宿主端口可用：15173（前端）、18000（后端）、15432（数据库）、16379（Redis）
+  > 这是宿主侧默认映射（容器内仍是 5173/8000/5432/6379）；可在启动前通过环境变量 `HOST_FRONTEND_PORT` / `HOST_BACKEND_PORT` / `HOST_POSTGRES_PORT` / `HOST_REDIS_PORT` 覆盖
 
 ## 五步启动
 
@@ -52,9 +53,9 @@ make seed
 
 | 入口 | URL | 默认账号 |
 |------|-----|---------|
-| 前端 | http://localhost:5173 | qingcheng / __REDACTED_SEED_PASSWORD_2__ |
-| API 文档 | http://localhost:8000/api/v1/docs | - |
-| 健康检查 | http://localhost:8000/health | - |
+| 前端 | http://localhost:15173 | qingcheng / __REDACTED_SEED_PASSWORD_2__ |
+| API 文档 | http://localhost:18000/api/v1/docs | - |
+| 健康检查 | http://localhost:18000/health | - |
 
 ---
 
@@ -93,7 +94,11 @@ make seed
 
 ### Q1：端口冲突
 
-如果 5432、6379、5173、8000 被占用，编辑 `deploy/docker-compose.dev.yml` 改 `ports` 映射。
+如果 15432、16379、15173、18000 被占用，在启动前设置环境变量覆盖（无需改 compose 文件）：
+
+```bash
+HOST_BACKEND_PORT=28000 HOST_FRONTEND_PORT=25173 make up
+```
 
 ### Q2：迁移失败
 

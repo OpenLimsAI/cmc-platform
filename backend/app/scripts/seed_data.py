@@ -78,8 +78,9 @@ PERMISSIONS = [
 ROLES = [
     ("SYS_ADMIN", "系统管理员", "全权限，仅限 IT", "ALL"),
     ("SUBSTANCE_STEWARD", "物质数据管家",
-     "Substance 域审核、合并、状态变更",
-     ["substance:read", "substance:update", "substance:approve", "substance:sign", "audit:read"]),
+     "Substance 域审核、合并、状态变更；跨域只读（项目/资产/物料模块可见性，对齐 UI §2.2 权限矩阵）",
+     ["substance:read", "substance:update", "substance:approve", "substance:sign", "audit:read",
+      "project:read", "asset:read", "material:read"]),
     ("PROJECT_MANAGER", "项目经理", "Project 域全权限",
      ["substance:read", "project:create", "project:read", "project:update", "project:approve",
       "project:sign", "asset:create", "asset:read", "asset:update", "asset:sign", "material:read"]),

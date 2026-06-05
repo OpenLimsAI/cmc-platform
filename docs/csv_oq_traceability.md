@@ -6,13 +6,16 @@
 | 版本 | V1.0 |
 | 适用 | CSV OQ（操作确认）阶段证据链 |
 | 合规 | GAMP 5 / 21 CFR Part 11 §11.10(a-k) / EU Annex 11 §4.5 |
-| 基线 | pytest 174 用例（2026-05-13 全过）/ migration head `0034_auth_refresh_token` |
+| 基线 | pytest 278 用例（2026-06-06 全过，含 STEWARD 权限集断言）/ migration head `0044_eqp_identifiers` |
+| 矩阵覆盖 | 本矩阵 §1-§8 逐条映射的是 2026-05-13 的 174 用例基线；其后新增的 104 用例（Phase 5 用户/角色/审计/仪表盘 + MM v2 + EQP 设备域 + 设备导入工具 + STEWARD 权限断言）**尚未纳入映射**，OQ 执行前需扩展本矩阵（见 §0 缺口说明；增量分时点明细见 DEV-MDM-001 V1.3_draft §4 测试基线桥）|
 
 ---
 
 ## 0. 用途说明
 
-本矩阵把现有 174 个 pytest 用例**逐条映射到 V1.1 上位文档章节 + GxP 风险等级**，作为 CSV OQ 阶段的证据链。
+本矩阵把 2026-05-13 基线的 174 个 pytest 用例**逐条映射到 V1.1 上位文档章节 + GxP 风险等级**，作为 CSV OQ 阶段的证据链。
+
+> ⚠️ **缺口说明（2026-06-06 更新）**：当前测试套件已增至 278 用例（make test-be 全过）。新增的 104 用例分布在 Phase 5（auth 用户管理/角色/审计查询/仪表盘）、MM v2（material_type/category 改造）、EQP 设备域（CRUD + 三标识 + 分类 + 工作站）、Excel 批量导入工具与 STEWARD 权限集断言，均未进入 §1-§8 映射表。**OQ 正式执行前必须把这 104 条补入矩阵并定级**，否则证据链不完整。分时点增量明细见 DEV-MDM-001 V1.3_draft §4。
 
 - **GxP-Critical**：直接影响数据完整性 / 电子签名 / 审计追踪 / 权限隔离，**必须 100% 通过**
 - **Major**：影响业务正确性但不直接影响合规，**允许 ≤ 2% 失败但需 CAPA**
@@ -23,18 +26,20 @@
 | 模块 | 用例数 | Critical | Major | Minor | V1.1 主要覆盖章节 |
 |---|---|---|---|---|---|
 | auth（认证 + 安全）| 4 | 4 | 0 | 0 | API §2 / ARCH §7.1-§7.2 |
-| auth（refresh token + 限流 + 幂等）| 16 | 13 | 3 | 0 | API §2.2 / §3.4 / §3.5 / ARCH §7.2.1 / ARCH11 |
+| auth（refresh token + 限流 + 幂等）| 15 | 13 | 1 | 1 | API §2.2 / §3.4 / §3.5 / ARCH §7.2.1 / ARCH11 |
 | audit（触发器 v1 + v2）| 7 | 7 | 0 | 0 | DM §6 / API §3.6 |
 | smoke（健康检查 + 鉴权）| 2 | 0 | 0 | 2 | ARCH §7.2.1 / API §1.4 |
 | srs（substance 域）| 13 | 8 | 5 | 0 | DM §7 / API §5.1.3 / §11.2.1 |
 | srs（state machine + check_sameness）| 10 | 7 | 3 | 0 | API §11.2.1 / §11.4 |
 | srs（signature 电子签名）| 9 | 9 | 0 | 0 | DM §6.4 / 21 CFR Part 11 §11.50/11.70 |
 | prs（project 域 + state + milestone/team）| 25 | 14 | 11 | 0 | DM §9 / API §5.1.4 / §11.2.2 |
-| ars（asset 域 + state + market id）| 32 | 18 | 14 | 0 | DM §8 / API §5.1.5 |
+| ars（asset 域 + state + market id）| 23 | 14 | 9 | 0 | DM §8 / API §5.1.5 |
 | mm（material 域 + batch + 反向）| 25 | 13 | 12 | 0 | DM §10 / API §5.1.6 |
-| ref（跨域引用三组）| 24 | 14 | 10 | 0 | DM §11 / API §5.1.3-§5.1.5 反向 |
+| ref（跨域引用三组）| 25 | 12 | 13 | 0 | DM §11 / API §5.1.3-§5.1.5 反向 |
 | global_search | 16 | 0 | 14 | 2 | API §8.3 / UI §3.5 |
-| **总计** | **174** | **107** | **72** | **4** | — |
+| **总计** | **174** | **101** | **68** | **5** | — |
+
+> 📌 **2026-06-05 对账勘误**：原版总览明细行加总 183 ≠ 总计 174。根因三处：① `test_asset_substance_link.py` 9 用例在 ars 行与 ref 行**双重计数**（§7.2 原注"已在 §5.3 列出"）——现归属 ref（跨域引用表）单边计数；② auth refresh 行 16 实为 15（6+3+6）；③ ref 行 24 实为 25（8+9+8）。明细行与总计现以 git 基线（commit f477d86，2026-05-13，pytest 174 passed）逐文件清点为准；风险分布按 §1-§8 逐条表重新加总（§5.2/§5.3/§7 逐条表为本次勘误补全）。
 
 ---
 
@@ -60,7 +65,7 @@
 | test_refresh_with_bogus_cookie_rejected | API §2.2 | Critical | 伪造 cookie → 40103 token_invalid |
 | test_logout_revokes_and_clears_cookie | API §2.2 | Critical | logout 撤销 + 清 cookie + 后续 refresh 401 |
 
-### 1.3 test_rate_limit.py — 3 用例 / 2 Critical + 1 Minor
+### 1.3 test_rate_limit.py — 3 用例 / 1 Critical + 1 Major + 1 Minor
 
 | 用例 | V1.1 章节 | 风险 | 验证点 |
 |---|---|---|---|
@@ -216,7 +221,7 @@
 
 ---
 
-## 5. ARS（资产域）— 32 用例 / 18 Critical + 14 Major
+## 5. ARS（资产域）— 23 用例 / 14 Critical + 9 Major
 
 ### 5.1 test_asset_crud.py — 11 用例
 
@@ -234,13 +239,26 @@
 | test_asset_audit_log_entity_code | Critical |
 | test_readonly_cannot_create_asset | Critical |
 
-### 5.2 test_asset_state_machine.py — 12 用例 / 主体 Critical（含 terminate 电子签名）
+### 5.2 test_asset_state_machine.py — 12 用例 / 8 Critical + 4 Major
 
 主要覆盖：API §8.x + DM §8.4 / 8.1 + 21 CFR Part 11
 
-### 5.3 test_asset_substance_link.py — 9 用例
+| 用例 | 风险 |
+|---|---|
+| test_hold_resume_roundtrip | Major |
+| test_terminate_requires_signature | Critical |
+| test_terminate_wrong_password_rejected | Critical |
+| test_terminate_correct_password_signs_and_transitions | Critical |
+| test_terminate_from_on_hold | Major |
+| test_resume_from_active_rejected | Critical |
+| test_status_history_recorded | Critical |
+| test_asset_not_found_returns_40404 | Major |
+| test_terminate_requires_sign_permission | Critical |
+| test_market_id_crud_roundtrip | Major |
+| test_market_id_duplicate_rejected | Critical |
+| test_market_id_audit_inherits_asset_code | Critical |
 
-主要覆盖：DM §11.3 + 业务规则 ASSET_STATUS_FORBID_LINK / SUBSTANCE_STATUS_FORBID_LINK
+> 注：`test_asset_substance_link.py`（9 用例）属跨域引用表 `ref.asset_substance`，归 §7.2 计数（2026-06-05 勘误前曾在本节重复计数）。
 
 ---
 
@@ -260,17 +278,53 @@
 
 ---
 
-## 7. REF（跨域引用）— 24 用例 / 14 Critical + 10 Major
+## 7. REF（跨域引用）— 25 用例 / 12 Critical + 13 Major
 
-### 7.1 test_project_substance_link.py — 8 用例
+### 7.1 test_project_substance_link.py — 8 用例 / 4 Critical + 4 Major
 
 主要覆盖：DM §11.2 / 业务规则 PROJECT_STATUS_FORBID_LINK + SUBSTANCE_STATUS_FORBID_LINK
 
-### 7.2 test_asset_substance_link.py — 9 用例（已在 §5.3 列出）
+| 用例 | 风险 |
+|---|---|
+| test_link_unlink_roundtrip | Major |
+| test_duplicate_active_relation_rejected | Critical |
+| test_different_relation_types_can_coexist | Major |
+| test_relink_after_unlink_restores_record | Major |
+| test_invalid_relation_type_rejected | Major |
+| test_link_obsoleted_substance_rejected | Critical |
+| test_link_terminated_project_rejected | Critical |
+| test_link_audit_inherits_project_code | Critical |
 
-### 7.3 test_project_asset_link.py — 8 用例
+### 7.2 test_asset_substance_link.py — 9 用例 / 4 Critical + 5 Major
+
+主要覆盖：DM §11.3 + 业务规则 ASSET_STATUS_FORBID_LINK / SUBSTANCE_STATUS_FORBID_LINK（2026-06-05 勘误：自 §5.3 移入本节，消除双重计数）
+
+| 用例 | 风险 |
+|---|---|
+| test_link_unlink_roundtrip | Major |
+| test_duplicate_active_role_rejected | Critical |
+| test_different_component_roles_coexist | Major |
+| test_relink_after_unlink | Major |
+| test_invalid_component_role_rejected | Major |
+| test_terminated_asset_forbids_new_link | Critical |
+| test_obsoleted_substance_forbids_new_link | Critical |
+| test_unlinked_record_exposes_deleted_by | Major |
+| test_link_audit_inherits_asset_code | Critical |
+
+### 7.3 test_project_asset_link.py — 8 用例 / 4 Critical + 4 Major
 
 主要覆盖：DM §11.4 / 复合 PK 仅 (project_id, asset_id) — relation_type 不入 PK
+
+| 用例 | 风险 |
+|---|---|
+| test_link_unlink_roundtrip_from_project | Major |
+| test_link_from_asset_side | Major |
+| test_unlink_from_asset_side | Major |
+| test_duplicate_active_pair_rejected | Critical |
+| test_relink_after_unlink | Major |
+| test_terminated_asset_forbids_link_from_both_sides | Critical |
+| test_terminated_project_forbids_link_from_both_sides | Critical |
+| test_link_audit_inherits_project_code | Critical |
 
 ---
 
@@ -288,7 +342,7 @@ test_global_search.py 覆盖：API §8.3 分组结构（4 类齐：substance/pro
 # 完整 OQ 跑一次（约 50 秒）
 docker exec cmab-mdm-backend pytest tests/ -v --tb=short --color=no > oq_run_$(date -u +%Y%m%d_%H%M).log 2>&1
 
-# 验证：174 passed
+# 验证：278 passed（2026-06-06 基线；矩阵扩展后同步更新此数）
 grep "passed" oq_run_*.log | tail -1
 ```
 
@@ -296,9 +350,9 @@ grep "passed" oq_run_*.log | tail -1
 
 | 风险等级 | 通过标准 |
 |---|---|
-| Critical（107 项）| 100% 通过 — 任何 fail 直接整改后重测 |
-| Major（72 项）| ≥ 98% 通过（允许 ≤ 1 项偶发 fail）；fail 需 CAPA 单号 |
-| Minor（4 项）| ≥ 90% 通过；fail 仅需记录 |
+| Critical（101 项）| 100% 通过 — 任何 fail 直接整改后重测 |
+| Major（68 项）| ≥ 98% 通过（允许 ≤ 1 项偶发 fail）；fail 需 CAPA 单号 |
+| Minor（5 项）| ≥ 90% 通过；fail 仅需记录 |
 
 ### 9.3 失败处置
 

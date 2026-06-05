@@ -380,3 +380,29 @@
 - 上游：`/Users/qingcheng/code/cmab-mdm-platform/docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md` §6.4 / §6.5 / §6.6 / §6.7 / §8.1 / §8.2 / §8.3
 - 背景：`/Users/qingcheng/code/cmab-mdm-platform/docs/CMAB_MDM_Portal_设计基准偏离说明_V1.1_draft.md` §5.5（`meta.error.type` 401 双重语义分流）
 - V1.0 原文：`/tmp/mdm_docs_extract/API_____V1_0.txt`（OpenAPI 3.0 / REST / JSON / JWT，API-MDM-001 V1.0，2026-05-11 发布）
+
+---
+
+# V1.3 勘误登记（2026-06-05，待 V1.3 docx Word 修订吸收）
+
+> **V1.1 docx（及派生 md）的事实性勘误**：文档与已实施代码不符，错误方为文档。不直接改签字 docx、不手改派生 md；**过渡期以本节为准**（索引见 DEV-MDM-001 V1.2 §1A）。
+
+### 勘误 #E5 — §5.1.3 物质反向查询：`/substances/{code}/materials` 权限标注错误
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §5.1.3 substance 反向查询端点表 |
+| V1.1 现状 | `GET /substances/{code}/materials` 权限标注 `substance:read` |
+| 实施事实 | 路由实际为 `require_permission("material:read")`，测试断言一致（`test_material_substance_link.py`：无 material:read 的用户访问 403）。同节 `/projects`、`/assets` 两端点为 `substance:read` 无误 |
+| 建议吸收文字 | 该行权限列改为 `material:read` |
+| 来源 | 2026-06-05 文档一致性审查 + 路由/测试实物核对 |
+
+### 勘误 #E6 — 修订 #16（ref.asset_substance 端点）：端点形态与实现不符
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §8.1.x ref.asset_substance 关系端点（本清单修订 #16 引入） |
+| 核实结论（销项部分） | `substance_code` 作路径参数**不是问题**：service 层 `_get_substance()` 按 `substance_code` 解析为内部 ID（`ref/services.py`），与 DM 复合 PK 不冲突 |
+| 勘误部分 | ① 文档列有 `PUT /assets/{code}/substances/{substance_code}`，实现**无此端点**（关系变更走 DELETE + POST relink）；② DELETE 实际路径为 `/assets/{code}/substances/{substance_code}/{component_role}` **三段**（PK 含 component_role，同一对 asset/substance 可按不同 component_role 并存，必须三键定位） |
+| 建议吸收文字 | 删去 PUT 行；DELETE 行路径补 `{component_role}` 段并注明三键定位理由 |
+| 来源 | 2026-06-05 文档一致性审查 + `assets.py` 路由实物核对 |

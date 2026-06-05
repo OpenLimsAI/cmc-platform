@@ -29,7 +29,7 @@
 - **Batch G2**：API9 补 11 错误码 + API6 全局搜索响应分组 + UI1 Footer/Sidebar 底部 + UI2 偏好设置 + UI5 物质列表筛选 + UI6 列表关联计数 + UI10 PRS 列表 4 过滤接入 + UI11 详情页头部 3 动作 — ✅ 已落地（2026-05-13）
 - **Batch G3.A**：ARCH12 meta.lookup_value + meta.system_config 建表 + seed（migration 0030）+ API5 三域 POST 主资源 Location 头 — ✅ 已落地（2026-05-13）
 - **Batch G3.B**：ARCH11 API 限流 + API7 Idempotency-Key — 🚧 推迟到 Phase 4（强依赖 Redis 应用层接入）
-- **Batch G3.C**：9 项进 V1.2 评审会议（见 `docs/CMAB_MDM_Portal_V1.2_评审会议材料.md`）— ARCH9 前端技术栈 / API4 项目嵌套 / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API13 protein/adc 写端点 / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分
+- **Batch G3.C**：8 项进 V1.2 评审会议（见 `docs/CMAB_MDM_Portal_V1.2_评审会议材料.md`）— ARCH9 前端技术栈 / API4 项目嵌套 / API10 用户角色权限 12 端点 / API11 全局功能 5 端点 / API13 protein/adc 写端点 / UI7 项目概览 Tab 重构 / UI8 资产阶段时间线 / UI9 物质关联 Tab 拆分。连同数据模型侧 P3 / R8 与 S5 / S6 / P8 共 5 项，评审会合计处置 **13 项**（A 决议 5 项 + B 决议 8 项）（2026-06-05 勘误：原文"9 项"与列表 8 项不符，且未说明与评审会 13 项的关系）
 - **Batch H（评审决议落地）**：H1 migration 0031（P3:A team partial UNIQUE + R8:A ref 6 FK）+ H2 4 个新 endpoint（API11:B 部分 lookups/system + API13:A protein/adc PUT）+ H3 三 UI 改版（UI7:A 项目概览 / UI8:A 资产阶段 Timeline / UI9:B 物质血缘 Tab） — ✅ 已落地（2026-05-13）
 - **Phase 4.A 物料域（MM）**：V1.1 §10 整域落地 — migration 0032 mm.material（7 类型 / 4 等级 / 5 状态 / MAT-yyyy 年度序列编码 / audit trigger v2）+ migration 0033 mm.material_batch（5 状态批次，UNIQUE batch_number）+ domains/mm 完整套件 + 9 API 端点（CRUD + audit-logs + batches + substance 反向）+ 全局搜索接入（substance/project/asset/material 4 分组）+ 前端 4 页面 + BatchTable + DEMO_MATERIALS=4 — ✅ 已落地（2026-05-13）
 - **Phase 4.B-1 Refresh Token**：V1.1 §7.2 + ARCH §7.2.1 + API §2 — migration 0034 auth.refresh_token（jti PK + 旋转链审计字段 rotated_to_jti + revoked_reason 字典 + ip/ua）+ /auth/refresh /auth/logout 端点 + HttpOnly Cookie（SameSite=Strict, Path=/api/v1/auth）+ 改密自动撤销该 user 全部活跃 refresh + 前端 axios 拦截器 401 token_expired 静默 refresh + 串行化（多并发只触发一次 refresh）— ✅ 已落地（2026-05-13，DB 表实现 Redis 黑名单语义；Redis 接入仍是 Phase 5 目标）
@@ -54,6 +54,39 @@
 
 新增标签：
 - **⚠️ API / 前端表面缺口**：DB 字段齐全但 Pydantic schema / 前端未暴露，归 Batch F 集中补。
+
+---
+
+## 1A. 过渡期勘误索引（2026-06-05，2026-06-06 扩充 E7-E12）
+
+V1.1 上位文档（docx 签字基准及其派生 md）存在以下**事实性勘误**。按文档控制约定：docx 为受控源文件，不做非正式修改；派生 md 不做手工修正（`make docs-check` 强制 docx↔md 一致）。**过渡期以 `docs/V1.1_修订清单/` 对应清单的勘误条目为准**，V1.3 批次以 Word 修订模式统一吸收。
+
+| # | 上位文档 | 位置 | 勘误内容（实施事实） | 登记处 |
+|---|---|---|---|---|
+| E1 | DM-MDM-001 | §5.2 lookup_value seed | substance_type seed 缺 `other`（DDL CHECK 与 migration 0030 seed 均含 7 值） | DM 修订清单 |
+| E2 | DM-MDM-001 | §7.2.1 字段表 | substance_type 注释 `oligo` 应为 `oligonucleotide`，且缺 `other` | DM 修订清单 |
+| E3 | DM-MDM-001 | §2.1 Schema 表 | ref 域实际三表为 project_substance / asset_substance / project_asset（无 ref_material_substance）；mm 域无 material_attribute 表；（06-06 扩展）srs 行漏 substance_adc / substance_small_molecule / substance_alias，prs 行漏 project_relationship——四表均在正文定义且代码已实现（migration 0016/0018） | DM 修订清单 |
+| E4 | UI-MDM-001 | §2.2 权限矩阵 | 缺"设备"行与 CMC_WAREHOUSE_ADMIN / CMC_EQUIPMENT_ADMIN 两角色列；SUBSTANCE_STEWARD 审计列应为 ✓（seed 含 audit:read） | UI 修订清单 |
+| E5 | API-MDM-001 | §5.1.3 反向查询 | `GET /substances/{code}/materials` 实际权限为 `material:read`（文档误写 substance:read；/projects、/assets 为 substance:read 无误） | API 修订清单 |
+| E6 | API-MDM-001 | 修订 #16（ref.asset_substance 端点） | `substance_code` 路径参数无问题（service 做 code→id 解析）；但实现**无 PUT** 端点，DELETE 实际路径为 `/{code}/substances/{substance_code}/{component_role}` 三段（PK 含 component_role） | API 修订清单 |
+| E7 | ARCH-MDM-001 | §1.3.2 范围外 | "设备主数据（未来纳入 CMMS…）"仍列范围外，与 V1.2 修订记录直接矛盾；应改为仅设备**运营**数据归 LabOps | ARCH 修订清单 |
+| E8 | ARCH-MDM-001 | §3.2 / §3.1 / §3.3 | 各域职责定义缺 Equipment Master 子节，分治模型与数据流向图均未含第五域 | ARCH 修订清单 |
+| E9 | ARCH-MDM-001 | §6.1 Schema 划分表 | 缺 eqp 行；srs/prs/mm/ref/auth 各行表清单多处与实现不符（与 E3 同源，两文档须用同一份修正清单） | ARCH 修订清单 |
+| E10 | ARCH-MDM-001 | §7.2.2 RBAC | 角色名 camelCase 与实现 SNAKE_CASE 不符；角色集 6 个 vs 代码 8 个 | ARCH 修订清单 |
+| E11 | ARCH-MDM-001 | §1.4 关键决策 | 认证方式未注明 JWT HS256（开发）/ RS256（生产）分野（Phase 5.C 已落地） | ARCH 修订清单 |
+| E12 | DM-MDM-001 | §4.3 角色 seed | REGULATORY_USER 仅存在于 DM（ARCH 6 / UI 6 / 代码 8 均无）；✅ **已决策方案 A 删除并落地（2026-06-06）**，详见 DM 修订清单 #E12 | DM 修订清单 |
+
+> 关联代码侧修复（2026-06-05，不属于文档勘误）：seed SUBSTANCE_STEWARD 补 project:read / asset:read / material:read 对齐 UI §2.2 矩阵（278 测试全过）。
+
+> 📌 **另登记一项文档控制层面发现（N1，无独立勘误编号）**：四份上位文档**封面版本字段均为 V1.1、文件名均为 \*_V1_1**，但派生 md 的修订记录表已含 V1.2（2026-06-04）行——且该 V1.2 行**只存在于 md**（docx 未含，docx 本身仍是自洽的 V1.1）。V1.3 docx 批次落地时必须三者绑定：新增修订行 → 封面版本字段 → 文件名，一次改齐并重跑 `make docs-extract`。
+
+---
+
+## 1B. V1.2_draft 封版声明（2026-06-06）
+
+**本文档覆盖范围封版于 migration `0036_audit_trigger_v3`（修订十二，2026-05-14）。** 其后代码主线已推进：migration 0037（Phase 5.A force_password_change）/ 0038-0039（MM v2 物料身份注册表改造，**取代**本文档 §11.5.1 所记 0032 时期的"7 类型 / 4 等级"业务规则——现行为 material_type 4 值 + category 15 值扁平枚举）/ 0040-0044（EQP 设备域）+ Phase 5 全部（用户/角色/审计/仪表盘/JWT RS256）+ 测试 174 → 277。
+
+**上述 0037+ 的偏离与演化不再增补进本文档**，统一归入接力文档 `CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md`（覆盖 head cap：0044）。本文档转入只读归档状态，仅 §1A 勘误索引随 V1.3 docx 吸收进度更新登记处状态。
 
 ---
 
@@ -344,6 +377,8 @@ V1.2 在 §10 增补 1 项（asyncpg 池 SET LOCAL GUC 泄漏修复），见下�
 技术栈 / 分层结构 / JWT 认证 / RBAC / 审计追踪 / 中间件链均与 ARCH-MDM-001 V1.0 一致。架构层面对齐率 **95%**（缺口主要在生产部署 / 可观测性，非核心阻塞）。
 
 **⚠️ 2026-05-13 修订**：本节"~95%"声明经独立复核**不准确**，实际约 **~85%**，新发现偏离详见 §7.4。
+
+**📌 2026-06-05 口径收口**：本节及各章正文出现的对齐率数字均为**所在修订时点的历史快照**，相互之间不可比、不再维护。全文档对齐率以**附录 A 为唯一权威口径**（含统计方法说明）；引用本文档对齐率时一律引附录 A。
 
 ### 7.4 §7 架构 独立复核增补（2026-05-13）
 
@@ -755,7 +790,7 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 | §7.3 substance_protein DB 触发器（hash 自动算）| `test_audit_trigger.py` + `test_audit_trigger_v2.py` | 4+3 | INSERT/UPDATE hash 一致；parent_ref 回填 substance_code |
 | 物质同一性判定（业务功能）| `test_check_sameness.py` | 5 | 序列哈希命中 / xref 命中 / 不同 substance_type 不判同 |
 
-**SRS 小计**：34 条用例（M3.4 32 + M3.5 新增 2）
+**SRS 小计**：35 条用例（M3.4 32 + M3.5 新增 2 + M3.9 signature_reason 重写 net +1，与 C.8 一致）
 
 ### C.2 PRS（§9 项目域）
 
@@ -827,6 +862,8 @@ V1.1 §附录 A 提到的"schema 一致性检查脚本"仍未实现，列入 Pha
 | 全局搜索（test_global_search） | 12 | M3.4 11 + **M3.10 +1（API6 分组结构）** |
 | 冒烟（test_smoke） | 2 | — |
 | **合计** | **126** | ✅ M3.10 全量通过（2026-05-13）|
+
+> 📌 **时点说明（2026-06-05 勘误）**：本表合计 126 为 **M3.10 时点快照**；M3.12（Batch H2）+4 条（PUT protein / PUT adc / lookups / system_info，已计入 C.1 行内说明但未重算本表）后为 **130**（与附录 B 及 C.9 门禁数一致，已 git 考古核实 commit b682c76 实测 130）。本附录此后**不再随用例增长维护**；当前基线（2026-06-05：277 用例）及逐条风险定级以 `docs/csv_oq_traceability.md` 为唯一权威。
 
 ### C.9 验证门禁
 
