@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -63,6 +64,10 @@ class Equipment(Base):
 
     # 主数据状态(无状态机,PUT 直接改;运营状态在 LabOps)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
+    # 附带专用工作站（如自带控制电脑的分析仪器；IT 类设备本身即电脑）
+    has_workstation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    workstation_info: Mapped[dict | None] = mapped_column(JSONB)
 
     # 描述
     description: Mapped[str | None] = mapped_column(Text)

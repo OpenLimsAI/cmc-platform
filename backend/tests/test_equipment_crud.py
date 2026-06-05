@@ -65,6 +65,52 @@ async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix
 
 
 @pytest.mark.asyncio
+async def test_create_equipment_with_workstation(admin_client, unique_suffix):
+    """附带专用工作站：has_workstation + workstation_info JSONB 往返"""
+    ws = {
+        "brand": "Dell",
+        "model": "OptiPlex 7090",
+        "serial": f"WS-{unique_suffix}",
+        "os": "Windows 10 LTSC",
+        "cpu": "i7-11700",
+        "gpu": "UHD 750",
+        "ram": "32GB",
+        "disk": "1TB SSD",
+        "monitor_brand": "Dell",
+        "monitor_model": "P2422H",
+        "monitor_serial": f"MON-{unique_suffix}",
+    }
+    resp = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest HPLC 带工作站 {unique_suffix}",
+            "category": "分析仪器",
+            "has_workstation": True,
+            "workstation_info": ws,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    code = resp.json()["data"]["equipment_code"]
+    d = resp.json()["data"]
+    assert d["has_workstation"] is True
+    assert d["workstation_info"]["cpu"] == "i7-11700"
+
+    got = (await admin_client.get(f"/api/v1/equipments/{code}")).json()["data"]
+    assert got["workstation_info"]["os"] == "Windows 10 LTSC"
+    assert got["workstation_info"]["monitor_serial"] == f"MON-{unique_suffix}"
+
+    # 取消勾选 → 清空配置
+    upd = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"has_workstation": False, "workstation_info": None,
+              "change_reason": "拆除专用工作站"},
+    )
+    assert upd.status_code == 200, upd.text
+    assert upd.json()["data"]["has_workstation"] is False
+    assert upd.json()["data"]["workstation_info"] is None
+
+
+@pytest.mark.asyncio
 async def test_create_equipment_manual_code(admin_client, unique_suffix):
     """手动传入历史编号原样保存"""
     code = f"EQP-LEGACY-{unique_suffix[:6]}"

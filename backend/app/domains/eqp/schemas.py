@@ -32,6 +32,11 @@ class EquipmentBase(BaseModel):
     purchase_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
+    has_workstation: bool = Field(False, description="是否附带专用工作站")
+    workstation_info: dict | None = Field(
+        None,
+        description="工作站/本机硬件配置：brand/model/serial/os/cpu/gpu/ram/disk/monitor_*",
+    )
     description: str | None = Field(None, description="主要性能参数描述")
     notes: str | None = None
     extra: dict | None = None
@@ -68,6 +73,8 @@ class EquipmentUpdate(BaseModel):
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
     status: EquipmentStatus | None = None
+    has_workstation: bool | None = None
+    workstation_info: dict | None = None
     description: str | None = Field(None, description="主要性能参数描述")
     notes: str | None = None
     extra: dict | None = None

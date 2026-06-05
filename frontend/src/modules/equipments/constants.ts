@@ -38,6 +38,29 @@ export const EQUIPMENT_CATEGORY_OPTIONS: {
   },
 ];
 
+// 分类值常量（避免散落的魔法字符串）
+export const IT_CATEGORY: EquipmentCategory = 'IT/自动化与数据系统';
+
+// 工作站/本机硬件配置字段。group=identity 的三项对 IT 类设备复用主字段(生产商/型号/序列号)，
+// IT 自动展开时只渲染 spec 子集；非 IT「附带专用工作站」时渲染全部。
+export const WORKSTATION_FIELDS: {
+  key: string;
+  label: string;
+  group: 'identity' | 'spec';
+}[] = [
+  { key: 'brand', label: '电脑品牌', group: 'identity' },
+  { key: 'model', label: '电脑型号', group: 'identity' },
+  { key: 'serial', label: '电脑序列号', group: 'identity' },
+  { key: 'os', label: '操作系统', group: 'spec' },
+  { key: 'cpu', label: 'CPU', group: 'spec' },
+  { key: 'gpu', label: 'GPU', group: 'spec' },
+  { key: 'ram', label: '内存', group: 'spec' },
+  { key: 'disk', label: '硬盘', group: 'spec' },
+  { key: 'monitor_brand', label: '显示器品牌', group: 'spec' },
+  { key: 'monitor_model', label: '显示器型号', group: 'spec' },
+  { key: 'monitor_serial', label: '显示器序列号', group: 'spec' },
+];
+
 export const EQUIPMENT_STATUS_OPTIONS: {
   value: EquipmentStatus;
   label: string;

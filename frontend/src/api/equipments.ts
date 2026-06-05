@@ -22,6 +22,20 @@ export interface EquipmentBrief {
   updated_at: string;
 }
 
+export interface WorkstationInfo {
+  brand?: string | null;
+  model?: string | null;
+  serial?: string | null;
+  os?: string | null;
+  cpu?: string | null;
+  gpu?: string | null;
+  ram?: string | null;
+  disk?: string | null;
+  monitor_brand?: string | null;
+  monitor_model?: string | null;
+  monitor_serial?: string | null;
+}
+
 export interface EquipmentDetail extends EquipmentBrief {
   equipment_id: number;
   rated_power: string | null;
@@ -29,6 +43,8 @@ export interface EquipmentDetail extends EquipmentBrief {
   purchase_date: string | null;
   asset_value: string | null;
   supplier: string | null;
+  has_workstation: boolean;
+  workstation_info: WorkstationInfo | null;
   description: string | null;
   notes: string | null;
   extra: Record<string, unknown> | null;
@@ -51,6 +67,8 @@ export interface EquipmentCreatePayload {
   purchase_date?: string | null;
   asset_value?: string | number | null;
   supplier?: string | null;
+  has_workstation?: boolean;
+  workstation_info?: WorkstationInfo | null;
   description?: string | null;
   notes?: string | null;
 }

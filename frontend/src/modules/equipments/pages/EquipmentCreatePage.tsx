@@ -16,7 +16,8 @@ import {
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { equipmentsApi, type EquipmentCreatePayload } from '@/api/equipments';
-import { EQUIPMENT_CATEGORY_OPTIONS } from '../constants';
+import { EQUIPMENT_CATEGORY_OPTIONS, IT_CATEGORY } from '../constants';
+import { WorkstationFields } from '../components/WorkstationFields';
 
 const { Title, Text } = Typography;
 
@@ -40,6 +41,7 @@ export function EquipmentCreatePage() {
 
   const onFinish = async () => {
     const v = await form.validateFields();
+    const showWs = v.category === IT_CATEGORY || !!v.has_workstation;
     mutation.mutate({
       equipment_code: v.equipment_code || null,
       equipment_name: v.equipment_name,
@@ -53,6 +55,8 @@ export function EquipmentCreatePage() {
       purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
+      has_workstation: !!v.has_workstation,
+      workstation_info: showWs ? (v.workstation_info ?? null) : null,
       description: v.description,
       notes: v.notes,
     });
@@ -174,6 +178,8 @@ export function EquipmentCreatePage() {
               </Form.Item>
             </Col>
           </Row>
+          <WorkstationFields />
+
           <Form.Item name="description" label="主要性能参数描述">
             <Input.TextArea rows={2} placeholder="如 检测器类型、波长范围、流速范围、量程、精度等" />
           </Form.Item>

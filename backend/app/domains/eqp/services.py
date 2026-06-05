@@ -122,6 +122,8 @@ class EquipmentService:
             asset_value=payload.asset_value,
             supplier=payload.supplier,
             status="active",
+            has_workstation=payload.has_workstation,
+            workstation_info=payload.workstation_info,
             description=payload.description,
             notes=payload.notes,
             extra=payload.extra,

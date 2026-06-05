@@ -21,7 +21,9 @@ import { equipmentsApi, type EquipmentUpdatePayload } from '@/api/equipments';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
+  IT_CATEGORY,
 } from '../constants';
+import { WorkstationFields } from '../components/WorkstationFields';
 
 const { Title, Text } = Typography;
 
@@ -66,6 +68,11 @@ export function EquipmentEditPage() {
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
       status: v.status,
+      has_workstation: !!v.has_workstation,
+      workstation_info:
+        v.category === IT_CATEGORY || !!v.has_workstation
+          ? (v.workstation_info ?? null)
+          : null,
       description: v.description,
       notes: v.notes,
       change_reason: v.change_reason,
@@ -98,6 +105,7 @@ export function EquipmentEditPage() {
             ...eq,
             purchase_date: eq.purchase_date ? dayjs(eq.purchase_date) : null,
             asset_value: eq.asset_value != null ? Number(eq.asset_value) : null,
+            workstation_info: eq.workstation_info ?? {},
           }}
         >
           <Row gutter={16}>
@@ -187,6 +195,8 @@ export function EquipmentEditPage() {
               </Form.Item>
             </Col>
           </Row>
+          <WorkstationFields />
+
           <Form.Item name="description" label="主要性能参数描述">
             <Input.TextArea rows={2} placeholder="如 检测器类型、波长范围、流速范围、量程、精度等" />
           </Form.Item>

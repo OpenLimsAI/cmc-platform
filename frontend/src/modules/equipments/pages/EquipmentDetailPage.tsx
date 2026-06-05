@@ -21,6 +21,8 @@ import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
+  IT_CATEGORY,
+  WORKSTATION_FIELDS,
 } from '../constants';
 
 const { Title, Text } = Typography;
@@ -112,6 +114,9 @@ export function EquipmentDetailPage() {
           <Descriptions.Item label="更新时间">
             <TimeDisplay value={eq.updated_at} />
           </Descriptions.Item>
+          <Descriptions.Item label="附带专用工作站">
+            {eq.category === IT_CATEGORY ? '—（设备本身即电脑）' : eq.has_workstation ? '是' : '否'}
+          </Descriptions.Item>
           <Descriptions.Item label="主要性能参数描述" span={2}>
             {eq.description ?? '—'}
           </Descriptions.Item>
@@ -120,6 +125,27 @@ export function EquipmentDetailPage() {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      {(() => {
+        const isIT = eq.category === IT_CATEGORY;
+        if (!isIT && !eq.has_workstation) return null;
+        const ws = eq.workstation_info ?? {};
+        const fields = WORKSTATION_FIELDS.filter((f) => (isIT ? f.group === 'spec' : true));
+        return (
+          <Card
+            title={isIT ? '本机硬件 / 系统配置' : '专用工作站配置'}
+            style={{ marginTop: 16 }}
+          >
+            <Descriptions bordered size="small" column={2}>
+              {fields.map((f) => (
+                <Descriptions.Item key={f.key} label={f.label}>
+                  {(ws as Record<string, string | null | undefined>)[f.key] ?? '—'}
+                </Descriptions.Item>
+              ))}
+            </Descriptions>
+          </Card>
+        );
+      })()}
 
       <Modal
         open={deleteOpen}
