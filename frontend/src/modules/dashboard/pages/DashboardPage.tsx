@@ -123,9 +123,9 @@ export function DashboardPage() {
 
       <Row gutter={16}>
         {cards.map((c) => (
-          <Col xs={24} sm={12} lg={6} key={c.title}>
+          <Col flex="1 1 0" style={{ minWidth: 150 }} key={c.title}>
             <Card hoverable onClick={c.onClick} style={{ marginBottom: 16 }}>
-              <Space size="large" style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Statistic title={c.title} value={c.value} loading={summaryLoading} />
                 {c.icon}
               </Space>
