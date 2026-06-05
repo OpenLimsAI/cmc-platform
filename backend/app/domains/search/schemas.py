@@ -9,6 +9,7 @@ SearchEntityType = Literal["substance", "project", "asset", "material", "equipme
 MatchedField = Literal[
     "code", "name", "name_en", "internal_code", "objective", "xref",
     "trade_name", "inn_name", "source_name", "model", "manufacturer", "serial_no",
+    "equipment_no", "fixed_asset_no",
 ]
 
 

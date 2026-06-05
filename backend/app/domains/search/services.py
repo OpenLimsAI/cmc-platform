@@ -259,6 +259,8 @@ class GlobalSearchService:
             .where(
                 Equipment.deleted_at.is_(None),
                 (Equipment.equipment_code.ilike(pat))
+                | (Equipment.equipment_no.ilike(pat))
+                | (Equipment.fixed_asset_no.ilike(pat))
                 | (Equipment.equipment_name.ilike(pat))
                 | (Equipment.equipment_name_en.ilike(pat))
                 | (Equipment.model.ilike(pat))
@@ -279,7 +281,9 @@ class GlobalSearchService:
                     matched_field=field,
                     sub_type=eq.category,
                     snippet=(
-                        eq.model if field == "model"
+                        eq.equipment_no if field == "equipment_no"
+                        else eq.fixed_asset_no if field == "fixed_asset_no"
+                        else eq.model if field == "model"
                         else eq.manufacturer if field == "manufacturer"
                         else eq.serial_no if field == "serial_no"
                         else None
@@ -345,6 +349,10 @@ def _which_field_equipment(q: str, eq) -> str:
     ql = q.lower()
     if eq.equipment_code and ql in eq.equipment_code.lower():
         return "code"
+    if eq.equipment_no and ql in eq.equipment_no.lower():
+        return "equipment_no"
+    if eq.fixed_asset_no and ql in eq.fixed_asset_no.lower():
+        return "fixed_asset_no"
     if eq.equipment_name and ql in eq.equipment_name.lower():
         return "name"
     if eq.equipment_name_en and ql in eq.equipment_name_en.lower():
@@ -375,7 +383,7 @@ def _rank(hit: SearchHit, q: str) -> tuple[int, int]:
         weight = 4
     elif hit.matched_field in (
         "name_en", "internal_code", "trade_name", "inn_name",
-        "model", "manufacturer", "serial_no",
+        "model", "manufacturer", "serial_no", "equipment_no", "fixed_asset_no",
     ):
         weight = 5
     elif hit.matched_field in ("xref", "objective", "source_name"):

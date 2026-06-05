@@ -128,27 +128,28 @@ FETCH_SQL = """
 
 def map_row(r: dict) -> dict:
     name = clean(r["NAME"], 255)
-    code = clean(r["IDENTITY"], 32)
+    # IDENTITY 是 LIMS 业务编号 → 设备编号(equipment_no)；设备ID 由本平台另行系统生成
+    eq_no = clean(r["IDENTITY"], 64)
+    fixed_asset_no = clean(r["FIXED_ASSET_NO"], 64)
     cat, defaulted = infer_category(name)
     raw_status = (r["STATUS"] or "").strip().upper()
     status = "retired" if raw_status == "R" else "active"
 
     extra = {"source": "lims", "lims_status": raw_status or None}
-    for src, key in [("HISTORICAL_SN", "historical_sn"),
-                     ("FIXED_ASSET_NO", "fixed_asset_no"),
-                     ("CT_LEVEL", "ct_level")]:
+    for src, key in [("HISTORICAL_SN", "historical_sn"), ("CT_LEVEL", "ct_level")]:
         val = clean(r[src])
         if val:
             extra[key] = val
 
     skip = None
-    if not code:
-        skip = "empty_code"
+    if not eq_no:
+        skip = "empty_no"
     elif not name:
         skip = "empty_name"
 
     return {
-        "equipment_code": code,
+        "equipment_no": eq_no,
+        "fixed_asset_no": fixed_asset_no,
         "equipment_name": name,
         "category": cat,
         "category_defaulted": defaulted,
@@ -163,13 +164,16 @@ def map_row(r: dict) -> dict:
 
 
 # ---------- 入库 ----------
+# 设备ID(equipment_code) 留空 → 触发器系统生成；按设备编号 equipment_no 去重
 INSERT_SQL = """
     INSERT INTO eqp.equipment
-      (equipment_code, equipment_name, category, manufacturer, model, serial_no,
-       status, has_workstation, description, extra, created_by, updated_by)
+      (equipment_no, fixed_asset_no, equipment_name, category, manufacturer,
+       model, serial_no, status, has_workstation, description, extra,
+       created_by, updated_by)
     VALUES
-      (%(equipment_code)s, %(equipment_name)s, %(category)s, %(manufacturer)s,
-       %(model)s, %(serial_no)s, %(status)s, FALSE, %(description)s, %(extra)s,
+      (%(equipment_no)s, %(fixed_asset_no)s, %(equipment_name)s, %(category)s,
+       %(manufacturer)s, %(model)s, %(serial_no)s, %(status)s, FALSE,
+       %(description)s, %(extra)s,
        %(uid)s, %(uid)s)
 """
 
@@ -196,8 +200,8 @@ def run(rows: list[dict], pg: dict, dry_run: bool) -> dict:
     cur.execute("SELECT set_config('app.username', 'admin (lims-import)', false)")
     cur.execute("SELECT set_config('app.change_reason', 'LIMS 设备主数据迁移', false)")
 
-    # 已有 code（含软删，避免 unique 冲突）
-    cur.execute("SELECT equipment_code FROM eqp.equipment")
+    # 已有设备编号（含软删），按业务编号去重；设备ID 系统生成不参与
+    cur.execute("SELECT equipment_no FROM eqp.equipment WHERE equipment_no IS NOT NULL")
     existing = {x[0] for x in cur.fetchall()}
 
     seen: set[str] = set()
@@ -207,21 +211,22 @@ def run(rows: list[dict], pg: dict, dry_run: bool) -> dict:
         if pr["skip_reason"]:
             stats["skipped"][pr["skip_reason"]] = stats["skipped"].get(pr["skip_reason"], 0) + 1
             continue
-        code = pr["equipment_code"]
-        if code in existing:
-            pr["skip_reason"] = "db_dup_code"
-            stats["skipped"]["db_dup_code"] = stats["skipped"].get("db_dup_code", 0) + 1
+        no = pr["equipment_no"]
+        if no in existing:
+            pr["skip_reason"] = "db_dup_no"
+            stats["skipped"]["db_dup_no"] = stats["skipped"].get("db_dup_no", 0) + 1
             continue
-        if code in seen:
-            pr["skip_reason"] = "inner_dup_code"
-            stats["skipped"]["inner_dup_code"] = stats["skipped"].get("inner_dup_code", 0) + 1
+        if no in seen:
+            pr["skip_reason"] = "inner_dup_no"
+            stats["skipped"]["inner_dup_no"] = stats["skipped"].get("inner_dup_no", 0) + 1
             continue
-        seen.add(code)
+        seen.add(no)
         stats["cat_dist"][pr["category"]] = stats["cat_dist"].get(pr["category"], 0) + 1
         stats["status_dist"][pr["status"]] = stats["status_dist"].get(pr["status"], 0) + 1
         if not dry_run:
             cur.execute(INSERT_SQL, {
-                "equipment_code": code, "equipment_name": pr["equipment_name"],
+                "equipment_no": no, "fixed_asset_no": pr["fixed_asset_no"],
+                "equipment_name": pr["equipment_name"],
                 "category": pr["category"], "manufacturer": pr["manufacturer"],
                 "model": pr["model"], "serial_no": pr["serial_no"],
                 "status": pr["status"], "description": pr["description"],
@@ -242,13 +247,14 @@ def run(rows: list[dict], pg: dict, dry_run: bool) -> dict:
 def write_report(rows: list[dict], path: Path) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["decision", "skip_reason", "equipment_code", "equipment_name",
-                    "category", "category_defaulted", "status", "manufacturer",
-                    "model", "serial_no", "extra"])
+        w.writerow(["decision", "skip_reason", "equipment_no", "fixed_asset_no",
+                    "equipment_name", "category", "category_defaulted", "status",
+                    "manufacturer", "model", "serial_no", "extra"])
         for pr in rows:
             w.writerow([
                 "SKIP" if pr["skip_reason"] else "IMPORT", pr["skip_reason"] or "",
-                pr["equipment_code"] or "", pr["equipment_name"] or "", pr["category"],
+                pr["equipment_no"] or "", pr["fixed_asset_no"] or "",
+                pr["equipment_name"] or "", pr["category"],
                 "Y" if pr["category_defaulted"] else "", pr["status"],
                 pr["manufacturer"] or "", pr["model"] or "", pr["serial_no"] or "",
                 json.dumps(pr["extra"], ensure_ascii=False),

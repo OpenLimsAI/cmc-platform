@@ -96,8 +96,10 @@ export function EquipmentDetailPage() {
 
       <Card>
         <Descriptions bordered size="small" column={2}>
-          <Descriptions.Item label="设备编码">{eq.equipment_code}</Descriptions.Item>
+          <Descriptions.Item label="设备ID">{eq.equipment_code}</Descriptions.Item>
           <Descriptions.Item label="设备分类">{eq.category}</Descriptions.Item>
+          <Descriptions.Item label="设备编号">{eq.equipment_no ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="固资编号">{eq.fixed_asset_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="设备名称（中文）">{eq.equipment_name}</Descriptions.Item>
           <Descriptions.Item label="设备名称（英文）">{eq.equipment_name_en ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="型号规格">{eq.model ?? '—'}</Descriptions.Item>

@@ -24,6 +24,8 @@ class EquipmentBase(BaseModel):
     equipment_name: str = Field(..., max_length=255, description="设备名称（中文）")
     equipment_name_en: str | None = Field(None, max_length=255, description="设备名称（英文）")
     category: EquipmentCategory
+    equipment_no: str | None = Field(None, max_length=64, description="设备编号（业务/历史号）")
+    fixed_asset_no: str | None = Field(None, max_length=64, description="固资编号")
     model: str | None = Field(None, max_length=200)
     manufacturer: str | None = Field(None, max_length=100)
     serial_no: str | None = Field(None, max_length=100)
@@ -45,15 +47,9 @@ class EquipmentBase(BaseModel):
 class EquipmentCreate(EquipmentBase):
     """POST 请求体（status 默认 active）
 
-    equipment_code 可留空 → 触发器自动分配 EQP-yyyyXXXXXX;
-    也可手动传入(如沿用部门历史编号),唯一性由 service 预检 + DB 约束兜底。
+    设备ID(equipment_code)一律由系统生成 EQP-yyyy-NNNNNN，不接受手填——
+    与物质编码一致。业务/历史号请填 equipment_no（设备编号）。
     """
-
-    equipment_code: str | None = Field(
-        None,
-        max_length=32,
-        description="设备编码;留空自动生成 EQP-yyyyXXXXXX",
-    )
 
 
 class EquipmentUpdate(BaseModel):
@@ -64,6 +60,8 @@ class EquipmentUpdate(BaseModel):
     equipment_name: str | None = Field(None, max_length=255, description="设备名称（中文）")
     equipment_name_en: str | None = Field(None, max_length=255, description="设备名称（英文）")
     category: EquipmentCategory | None = None
+    equipment_no: str | None = Field(None, max_length=64, description="设备编号（业务/历史号）")
+    fixed_asset_no: str | None = Field(None, max_length=64, description="固资编号")
     model: str | None = Field(None, max_length=200)
     manufacturer: str | None = Field(None, max_length=100)
     serial_no: str | None = Field(None, max_length=100)
@@ -90,6 +88,8 @@ class EquipmentBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     equipment_code: str
+    equipment_no: str | None = None
+    fixed_asset_no: str | None = None
     equipment_name: str
     equipment_name_en: str | None = None
     category: EquipmentCategory

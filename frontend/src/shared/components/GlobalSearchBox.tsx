@@ -46,6 +46,8 @@ const FIELD_LABEL: Record<string, string> = {
   model: '型号',
   manufacturer: '厂商',
   serial_no: '序列号',
+  equipment_no: '设备编号',
+  fixed_asset_no: '固资编号',
 };
 
 /**

@@ -46,13 +46,21 @@ export function EquipmentListPage() {
 
   const columns = [
     {
-      title: '设备编码',
+      title: '设备ID',
       dataIndex: 'equipment_code',
       key: 'equipment_code',
       width: 150,
       render: (code: string) => (
         <Link to={`/equipments/${encodeURIComponent(code)}`}>{code}</Link>
       ),
+    },
+    {
+      title: '设备编号',
+      dataIndex: 'equipment_no',
+      key: 'equipment_no',
+      width: 130,
+      ellipsis: true,
+      render: (v: string | null) => v ?? '—',
     },
     {
       title: '名称',
@@ -155,7 +163,7 @@ export function EquipmentListPage() {
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} sm={10} md={8}>
             <Input
-              placeholder="搜索编码 / 名称 / 型号 / 生产商 / 序列号（多关键词空格分隔）"
+              placeholder="搜索设备ID / 设备编号 / 固资编号 / 名称 / 型号 / 生产商 / 序列号（多关键词空格分隔）"
               prefix={<SearchOutlined />}
               allowClear
               value={pendingQ}

@@ -1087,7 +1087,9 @@ export type SearchMatchedField =
   | 'source_name'
   | 'model'
   | 'manufacturer'
-  | 'serial_no';
+  | 'serial_no'
+  | 'equipment_no'
+  | 'fixed_asset_no';
 
 export interface SearchHit {
   entity_type: SearchEntityType;

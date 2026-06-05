@@ -98,11 +98,11 @@ def test_detect_header_and_parse_row():
     header_row, col_field = detect_header(ws)
     assert header_row == 2
     assert set(col_field.values()) == {
-        "equipment_code", "equipment_name", "category", "manufacturer"
+        "equipment_no", "equipment_name", "category", "manufacturer"
     }
-    pr = parse_row(3, ("EQP-OLD-001", "高效液相色谱仪", "分析", "Agilent"), col_field)
+    pr = parse_row(3, ("QC-OLD-001", "高效液相色谱仪", "分析", "Agilent"), col_field)
     assert pr.skip_reason is None
-    assert pr.equipment_code == "EQP-OLD-001"
+    assert pr.equipment_no == "QC-OLD-001"
     assert pr.equipment_name == "高效液相色谱仪"
     assert pr.category == "分析仪器"  # 「分析」别名归一化
     assert pr.manufacturer == "Agilent"
@@ -125,7 +125,7 @@ def test_natural_key_for_codeless_row():
     ws = _make_ws([["名称", "生产商", "序列号"], ["pH 计", "Mettler", "SN123"]])
     _, col_field = detect_header(ws)
     pr = parse_row(2, ("pH 计", "Mettler", "SN123"), col_field)
-    assert pr.equipment_code is None
+    assert pr.equipment_no is None
     assert pr.natural_key() == "ph 计|mettler|sn123"
 
 
@@ -145,4 +145,4 @@ def test_read_excel_blank_code_ok(tmp_path):
     assert len(keep) == 1
     assert keep[0].equipment_name == "生物安全柜"
     assert keep[0].category == "公用工程/环境与支持系统"
-    assert keep[0].equipment_code is None
+    assert keep[0].equipment_no is None

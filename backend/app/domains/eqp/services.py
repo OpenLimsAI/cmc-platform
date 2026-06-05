@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import DuplicateCodeError, NotFoundError
+from app.core.exceptions import NotFoundError
 from app.domains.auth.models import User
 from app.domains.eqp.models import Equipment
 from app.domains.eqp.schemas import (
@@ -41,6 +41,8 @@ class EquipmentService:
                 stmt = stmt.where(
                     or_(
                         Equipment.equipment_code.ilike(kw),
+                        Equipment.equipment_no.ilike(kw),
+                        Equipment.fixed_asset_no.ilike(kw),
                         Equipment.equipment_name.ilike(kw),
                         Equipment.equipment_name_en.ilike(kw),
                         Equipment.model.ilike(kw),
@@ -96,20 +98,11 @@ class EquipmentService:
 
     # ----------- 创建 -----------
     async def create(self, payload: EquipmentCreate, current_user: User) -> EquipmentDetail:
-        if payload.equipment_code:
-            existing = await self.db.execute(
-                select(Equipment.equipment_id).where(
-                    Equipment.equipment_code == payload.equipment_code,
-                )
-            )
-            if existing.scalar_one_or_none() is not None:
-                raise DuplicateCodeError(
-                    f"设备编码 '{payload.equipment_code}' 已存在（含已删除记录），请更换编码"
-                )
-
         equipment = Equipment(
-            # 留空时传 None,由 eqp.fn_equipment_assign_code 触发器分配
-            equipment_code=payload.equipment_code or None,
+            # 设备ID 一律留空 → 由 eqp.fn_equipment_assign_code 触发器生成 EQP-yyyy-NNNNNN
+            equipment_code=None,
+            equipment_no=payload.equipment_no,
+            fixed_asset_no=payload.fixed_asset_no,
             equipment_name=payload.equipment_name,
             equipment_name_en=payload.equipment_name_en,
             category=payload.category,

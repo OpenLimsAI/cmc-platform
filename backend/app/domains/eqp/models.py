@@ -43,7 +43,11 @@ class Equipment(Base):
     )
 
     equipment_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # 设备ID：系统生成 EQP-yyyy-NNNNNN，全局唯一、不可改（主数据主标识）
     equipment_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    # 设备编号(业务/历史号，如 QC001) + 固资编号(财务)
+    equipment_no: Mapped[str | None] = mapped_column(String(64))
+    fixed_asset_no: Mapped[str | None] = mapped_column(String(64))
 
     # 基本信息
     equipment_name: Mapped[str] = mapped_column(String(255), nullable=False)

@@ -149,7 +149,9 @@ def _norm_header(s: str) -> str:
     return "".join(str(s).split()).lower().replace("（", "(").replace("）", ")")
 
 
-_reg("equipment_code", "设备编码", "设备编号", "编码", "编号", "资产编号", "设备代码")
+# 设备ID(equipment_code) 系统生成, 不从 Excel 取；公司编号→设备编号(equipment_no)
+_reg("equipment_no", "设备编号", "设备编码", "编号", "编码", "设备代码")
+_reg("fixed_asset_no", "固定资产编号", "固资编号", "固定资产号", "资产编号")
 _reg("equipment_name", "设备名称", "名称", "仪器名称", "设备")
 _reg("equipment_name_en", "英文名称", "设备英文名", "英文名", "englishname", "name(en)")
 _reg("category", "类别", "分类", "设备类别", "设备分类", "类型")
@@ -166,7 +168,8 @@ _reg("notes", "备注", "remark", "remarks", "note", "notes")
 
 # 字段长度上限（与 ORM / DB 对齐）
 MAXLEN = {
-    "equipment_code": 32,
+    "equipment_no": 64,
+    "fixed_asset_no": 64,
     "equipment_name": 255,
     "equipment_name_en": 255,
     "category": 64,
@@ -182,7 +185,8 @@ MAXLEN = {
 @dataclass
 class ParsedRow:
     excel_row: int
-    equipment_code: str | None = None
+    equipment_no: str | None = None
+    fixed_asset_no: str | None = None
     equipment_name: str | None = None
     equipment_name_en: str | None = None
     category: str | None = None
@@ -351,24 +355,27 @@ def read_excel(path: Path, sheet: str | None) -> list[ParsedRow]:
 # ---------- 入库 ----------
 
 async def get_existing(db) -> tuple[set[str], set[str]]:
-    """返回 (已有 code 集, 已有自然键集)。仅未软删记录。"""
+    """返回 (已有 设备编号 集, 已有自然键集)。仅未软删记录。
+
+    设备ID(equipment_code)系统生成不参与去重；按业务设备编号 equipment_no 判重。
+    """
     res = await db.execute(
         select(
-            Equipment.equipment_code,
+            Equipment.equipment_no,
             Equipment.equipment_name,
             Equipment.manufacturer,
             Equipment.serial_no,
         ).where(Equipment.deleted_at.is_(None))
     )
-    codes: set[str] = set()
+    nos: set[str] = set()
     nat: set[str] = set()
-    for code, name, mfr, sn in res.all():
-        if code:
-            codes.add(code)
+    for no, name, mfr, sn in res.all():
+        if no:
+            nos.add(no)
         nat.add("|".join([
             (name or "").lower(), (mfr or "").lower(), (sn or "").lower()
         ]))
-    return codes, nat
+    return nos, nat
 
 
 async def import_rows(
@@ -394,9 +401,9 @@ async def import_rows(
         token_name = audit_username.set("admin (excel-import)")
         try:
             await set_audit_session_vars(db)
-            existing_codes, existing_nat = await get_existing(db)
+            existing_nos, existing_nat = await get_existing(db)
 
-            seen_codes: set[str] = set()
+            seen_nos: set[str] = set()
             seen_nat: set[str] = set()
             to_insert: list[ParsedRow] = []
 
@@ -407,17 +414,17 @@ async def import_rows(
                 if pr.category_defaulted:
                     stats["category_defaulted"] += 1
 
-                # 去重：有 code 走 code，无 code 走自然键
-                if pr.equipment_code:
-                    if pr.equipment_code in existing_codes:
+                # 去重：有设备编号走编号，无编号走自然键
+                if pr.equipment_no:
+                    if pr.equipment_no in existing_nos:
                         stats["duplicated"] += 1
-                        pr.skip_reason = "db_dup_code"
+                        pr.skip_reason = "db_dup_no"
                         continue
-                    if pr.equipment_code in seen_codes:
-                        pr.skip_reason = "inner_dup_code"
-                        _bump(stats["skipped_by_reason"], "inner_dup_code")
+                    if pr.equipment_no in seen_nos:
+                        pr.skip_reason = "inner_dup_no"
+                        _bump(stats["skipped_by_reason"], "inner_dup_no")
                         continue
-                    seen_codes.add(pr.equipment_code)
+                    seen_nos.add(pr.equipment_no)
                 else:
                     nk = pr.natural_key()
                     if nk in existing_nat:
@@ -441,8 +448,10 @@ async def import_rows(
                 for pr in to_insert:
                     db.add(
                         Equipment(
-                            # 留空 → 触发器分配 EQP-yyyyXXXXXX
-                            equipment_code=pr.equipment_code or None,
+                            # 设备ID 一律自动：留 None → 触发器分配 EQP-yyyy-NNNNNN
+                            equipment_code=None,
+                            equipment_no=pr.equipment_no,
+                            fixed_asset_no=pr.fixed_asset_no,
                             equipment_name=pr.equipment_name,
                             equipment_name_en=pr.equipment_name_en,
                             category=pr.category,
@@ -481,15 +490,16 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
         w = csv.writer(f)
         w.writerow([
             "excel_row", "decision", "skip_reason",
-            "equipment_code", "equipment_name", "category", "category_defaulted",
-            "model", "manufacturer", "serial_no",
+            "equipment_no", "fixed_asset_no", "equipment_name", "category",
+            "category_defaulted", "model", "manufacturer", "serial_no",
             "purchase_date", "asset_value", "supplier", "notes",
         ])
         for pr in rows:
             decision = "SKIP" if pr.skip_reason else "IMPORT"
             w.writerow([
                 pr.excel_row, decision, pr.skip_reason or "",
-                pr.equipment_code or "", pr.equipment_name or "", pr.category or "",
+                pr.equipment_no or "", pr.fixed_asset_no or "",
+                pr.equipment_name or "", pr.category or "",
                 "Y" if pr.category_defaulted else "",
                 pr.model or "", pr.manufacturer or "", pr.serial_no or "",
                 pr.purchase_date.isoformat() if pr.purchase_date else "",

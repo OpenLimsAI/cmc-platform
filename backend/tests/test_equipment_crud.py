@@ -111,34 +111,54 @@ async def test_create_equipment_with_workstation(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
-async def test_create_equipment_manual_code(admin_client, unique_suffix):
-    """手动传入历史编号原样保存"""
-    code = f"EQP-LEGACY-{unique_suffix[:6]}"
+async def test_equipment_id_always_auto_no_manual(admin_client, unique_suffix):
+    """设备ID 一律系统生成：即使前端误传 equipment_code 也被忽略, 不沿用"""
     resp = await admin_client.post(
         "/api/v1/equipments",
         json={
-            "equipment_code": code,
+            "equipment_code": "SHOULD-BE-IGNORED",  # 不在 schema 内, 被忽略
             "equipment_name": f"pytest 天平 {unique_suffix}",
             "category": "通用实验室设备",
         },
     )
     assert resp.status_code == 201, resp.text
-    assert resp.json()["data"]["equipment_code"] == code
+    assert resp.json()["data"]["equipment_code"].startswith("EQP-")
 
 
 @pytest.mark.asyncio
-async def test_create_equipment_duplicate_code_rejected(admin_client, unique_suffix):
-    """重复设备编码应被拒绝"""
-    code = f"EQP-DUP-{unique_suffix[:6]}"
-    payload = {
-        "equipment_code": code,
-        "equipment_name": f"pytest dup {unique_suffix}",
-        "category": "通用实验室设备",
-    }
-    r1 = await admin_client.post("/api/v1/equipments", json=payload)
-    assert r1.status_code == 201, r1.text
-    r2 = await admin_client.post("/api/v1/equipments", json=payload)
-    assert r2.status_code == 409, r2.text
+async def test_equipment_no_and_fixed_asset_no_roundtrip(admin_client, unique_suffix):
+    """设备编号(业务) + 固资编号 创建→详情→更新 往返；设备ID 仍自动"""
+    no = f"QC-{unique_suffix[:6]}"
+    fa = f"ZJSW-{unique_suffix[:6]}"
+    resp = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_no": no,
+            "fixed_asset_no": fa,
+            "equipment_name": f"pytest 编号 {unique_suffix}",
+            "category": "通用实验室设备",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    d = resp.json()["data"]
+    assert d["equipment_code"].startswith("EQP-")
+    assert d["equipment_no"] == no
+    assert d["fixed_asset_no"] == fa
+    code = d["equipment_code"]
+
+    got = (await admin_client.get(f"/api/v1/equipments/{code}")).json()["data"]
+    assert got["equipment_no"] == no and got["fixed_asset_no"] == fa
+
+    # q 搜索可按设备编号命中
+    lst = (await admin_client.get(f"/api/v1/equipments?q={no}")).json()
+    assert any(it["equipment_no"] == no for it in lst["data"])
+
+    upd = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"equipment_no": f"{no}-R", "change_reason": "更正业务编号"},
+    )
+    assert upd.status_code == 200, upd.text
+    assert upd.json()["data"]["equipment_no"] == f"{no}-R"
 
 
 @pytest.mark.asyncio

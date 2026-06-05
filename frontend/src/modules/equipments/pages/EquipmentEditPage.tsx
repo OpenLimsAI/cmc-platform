@@ -56,6 +56,8 @@ export function EquipmentEditPage() {
   const onFinish = async () => {
     const v = await form.validateFields();
     mutation.mutate({
+      equipment_no: v.equipment_no,
+      fixed_asset_no: v.fixed_asset_no,
       equipment_name: v.equipment_name,
       equipment_name_en: v.equipment_name_en,
       category: v.category,
@@ -91,9 +93,9 @@ export function EquipmentEditPage() {
       />
       <Card style={{ marginBottom: 16 }}>
         <Title level={3} style={{ margin: 0 }}>
-          编辑设备: {eq.equipment_code}
+          编辑设备 · 设备ID: {eq.equipment_code}
         </Title>
-        <Text type="secondary">设备编码不可修改</Text>
+        <Text type="secondary">设备ID（系统生成）不可修改；设备编号/固资编号可维护</Text>
       </Card>
 
       <Card>
@@ -121,6 +123,18 @@ export function EquipmentEditPage() {
             <Col span={12}>
               <Form.Item name="equipment_name_en" label="设备名称（英文）" rules={[{ max: 255 }]}>
                 <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="equipment_no" label="设备编号（业务/历史号）" rules={[{ max: 64 }]}>
+                <Input placeholder="如 QC001、11J1815002" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="fixed_asset_no" label="固资编号" rules={[{ max: 64 }]}>
+                <Input placeholder="财务固定资产编号" />
               </Form.Item>
             </Col>
           </Row>

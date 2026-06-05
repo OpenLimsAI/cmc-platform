@@ -27,7 +27,8 @@ export function EquipmentCreatePage() {
   // 支持从 LabOps "去 MDM 登记"跳转带入预填值(?code= / ?name=)
   const [searchParams] = useSearchParams();
   const prefill = {
-    equipment_code: searchParams.get('code') ?? undefined,
+    // 设备ID 系统生成；LabOps 跳转带来的 ?code= 是业务/历史号，预填到设备编号
+    equipment_no: searchParams.get('code') ?? undefined,
     equipment_name: searchParams.get('name') ?? undefined,
   };
 
@@ -43,7 +44,8 @@ export function EquipmentCreatePage() {
     const v = await form.validateFields();
     const showWs = v.category === IT_CATEGORY || !!v.has_workstation;
     mutation.mutate({
-      equipment_code: v.equipment_code || null,
+      equipment_no: v.equipment_no,
+      fixed_asset_no: v.fixed_asset_no,
       equipment_name: v.equipment_name,
       equipment_name_en: v.equipment_name_en,
       category: v.category,
@@ -82,17 +84,21 @@ export function EquipmentCreatePage() {
 
       <Card>
         <Form form={form} layout="vertical" style={{ maxWidth: 880 }} initialValues={prefill}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+            设备ID 由系统自动生成（EQP-yyyy-NNNNNN，全局唯一、不可改）；下方"设备编号"填业务/历史号
+          </Text>
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="equipment_code"
-                label="设备编码（留空自动生成 EQP-yyyyXXXXXX）"
-                rules={[{ max: 32 }]}
-              >
-                <Input placeholder="可沿用历史编号，或留空自动生成" />
+            <Col span={8}>
+              <Form.Item name="equipment_no" label="设备编号（业务/历史号）" rules={[{ max: 64 }]}>
+                <Input placeholder="如 QC001、11J1815002" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={8}>
+              <Form.Item name="fixed_asset_no" label="固资编号" rules={[{ max: 64 }]}>
+                <Input placeholder="财务固定资产编号" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
               <Form.Item
                 name="category"
                 label="设备分类"

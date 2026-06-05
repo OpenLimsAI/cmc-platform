@@ -10,7 +10,9 @@ export type EquipmentCategory =
 export type EquipmentStatus = 'active' | 'retired';
 
 export interface EquipmentBrief {
-  equipment_code: string;
+  equipment_code: string; // 设备ID（系统生成 EQP-）
+  equipment_no: string | null; // 设备编号（业务/历史号）
+  fixed_asset_no: string | null; // 固资编号
   equipment_name: string;
   equipment_name_en: string | null;
   category: EquipmentCategory;
@@ -55,7 +57,9 @@ export interface EquipmentDetail extends EquipmentBrief {
 }
 
 export interface EquipmentCreatePayload {
-  equipment_code?: string | null; // 留空自动生成 EQP-yyyyXXXXXX
+  // 设备ID(equipment_code) 系统自动生成, 不提交
+  equipment_no?: string | null; // 设备编号（业务/历史号）
+  fixed_asset_no?: string | null; // 固资编号
   equipment_name: string;
   equipment_name_en?: string | null;
   category: EquipmentCategory;
