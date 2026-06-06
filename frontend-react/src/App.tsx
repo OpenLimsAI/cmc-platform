@@ -30,7 +30,18 @@ const WAREHOUSE_ROLES = ["SYS_ADMIN", "CMC_WAREHOUSE_ADMIN"];
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider locale={zhCN}>
+      <ConfigProvider
+        locale={zhCN}
+        theme={{
+          token: {
+            // 与 CMAB MDM Portal 视觉规范一致(UI-LABOPS-001 §1.2 色彩系统)
+            colorPrimary: "#1F4E79",
+            borderRadius: 4,
+            fontFamily:
+              "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+          },
+        }}
+      >
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

@@ -1,18 +1,27 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Form, Input, Button, Card, Typography, message } from "antd";
+import { Form, Input, Button, Card, Typography, message, Alert } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { login } from "../../../api/auth";
 import { useAuthStore } from "../../../stores/authStore";
 import { getErrorDetail } from "../../../shared/errors";
 
+const { Title, Text } = Typography;
+
+/**
+ * 登录页 — 视觉与 CMAB MDM Portal 登录页保持一致
+ * (渐变背景 #1F4E79→#2E75B6、白色标题、400px 卡片、卡内错误 Alert)。
+ * 认证代理 MDM /auth/login,账号/改密在 MDM Portal 维护。
+ */
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const { data } = await login(values);
       setAuth(data.access_token, data.user);
@@ -23,9 +32,7 @@ export default function LoginPage() {
       }
       navigate("/materials");
     } catch (err: unknown) {
-      const detail =
-        getErrorDetail(err, "登录失败");
-      message.error(detail);
+      setErrorMessage(getErrorDetail(err, "登录失败"));
     } finally {
       setLoading(false);
     }
@@ -34,43 +41,72 @@ export default function LoginPage() {
   return (
     <div
       style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
         minHeight: "100vh",
-        background: "#f5f5f5",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%)",
+        padding: 24,
       }}
     >
-      <Card style={{ width: 400 }}>
-        <Typography.Title
-          level={3}
-          style={{ textAlign: "center", marginBottom: 32 }}
-        >
+      <div style={{ marginBottom: 40, textAlign: "center" }}>
+        <Title level={1} style={{ color: "#fff", marginBottom: 8 }}>
           CMC LabOps Portal
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ textAlign: "center", marginTop: -24 }}>
+        </Title>
+        <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 16 }}>
           CMC 部门运营平台 · 物料库存 / 仪器设备
-        </Typography.Paragraph>
-        <Form onFinish={onFinish} size="large">
+        </Text>
+      </div>
+
+      <Card style={{ width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+        <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: "center" }}>
+          账号登录
+        </Title>
+
+        {errorMessage && (
+          <Alert
+            type="error"
+            message={errorMessage}
+            showIcon
+            style={{ marginBottom: 16 }}
+            closable
+            onClose={() => setErrorMessage(null)}
+          />
+        )}
+
+        <Form name="login" onFinish={onFinish} autoComplete="off" size="large" layout="vertical">
           <Form.Item
             name="username"
+            label="用户名"
             rules={[{ required: true, message: "请输入用户名" }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
+            <Input prefix={<UserOutlined />} placeholder="用户名" autoFocus />
           </Form.Item>
+
           <Form.Item
             name="password"
+            label="密码"
             rules={[{ required: true, message: "请输入密码" }]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="密码" />
           </Form.Item>
-          <Form.Item>
+
+          <Form.Item style={{ marginBottom: 8 }}>
             <Button type="primary" htmlType="submit" loading={loading} block>
-              登录
+              登 录
             </Button>
           </Form.Item>
+
+          <div style={{ textAlign: "center", color: "#8c8c8c", fontSize: 13 }}>
+            账号与密码统一在 MDM Portal 维护,忘记密码请联系系统管理员
+          </div>
         </Form>
       </Card>
+
+      <div style={{ marginTop: 32, color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+        © 2026 CMAB · CMC LabOps Portal · 内部系统
+      </div>
     </div>
   );
 }
