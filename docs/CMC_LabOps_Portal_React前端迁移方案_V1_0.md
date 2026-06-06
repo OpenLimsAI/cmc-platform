@@ -7,11 +7,11 @@
 | | |
 |---|---|
 | **文档编号** | MIG-LABOPS-001 |
-| **版本** | V1.0 |
+| **版本** | V1.2（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
-| **上位文档** | ARCH-LABOPS-001 V1.0 |
+| **上位文档** | ARCH-LABOPS-001 V1.4 |
 | **分类** | 内部技术文档 |
 
 # 修订记录
@@ -20,6 +20,7 @@
 |---|---|---|---|
 | V1.0 | 2026-05-19 | CMC IT | 初始版本 |
 | V1.1 | 2026-06-04 | CMC IT | 认证对接 MDM：§2.1 中 /api/auth/change-password、/api/users*（除 /api/users/me）、/api/users/{id}/reset-password 已随本地用户体系移除，由 MDM Portal 承担；Phase 2 的"用户管理页/个人中心改密"不再在本系统实现；新增 /api/mdm/materials*（MDM 物料按需拉取） |
+| V1.2 | 2026-06-06 | CMC IT | 消除与 V1.1 修订记录的矛盾：§2.1 表中已移除的认证/用户端点补"已移除"标注并修正复用结论；§2.1 补 MDM 物料集成端点、§2.2 补设备模块 MDM 集成端点（from-mdm / sync-mdm / batch-from-mdm / /api/mdm/equipments*），与 DM-LABOPS-001 V1.4 §7.2 对齐。注：本文档为迁移实施计划，迁移已完成，本次修订仅作归档勘误 |
 
 ## 适用范围
 
@@ -58,7 +59,7 @@
 | /api/auth/login | POST | 登录 | ✓ |
 | /api/auth/logout | POST | 登出 | ✓ |
 | /api/users/me | GET | 当前用户 | ✓ |
-| /api/auth/change-password | POST | 改密 | ✓ |
+| ~~/api/auth/change-password~~ | ~~POST~~ | ~~改密~~ | ✗ V1.1 已移除（MDM 承担） |
 | /api/materials | GET | 物料列表 | ✓ |
 | /api/materials | POST | 新增物料 | ✓ |
 | /api/materials/{id} | GET | 物料详情 | ✓ |
@@ -84,20 +85,27 @@
 | /api/import/materials/dry-run | POST | 导入预览 | ✓ |
 | /api/import/materials/commit | POST | 正式导入 | ✓ |
 | /api/import/logs | GET | 导入历史 | ✓ |
-| /api/users | GET | 用户列表 | ✓ |
-| /api/users | POST | 新建用户 | ✓ |
-| /api/users/{id} | PATCH | 编辑用户 | ✓ |
-| /api/users/{id}/reset-password | POST | 重置密码 | ✓ |
+| ~~/api/users~~ | ~~GET/POST~~ | ~~用户列表/新建~~ | ✗ V1.1 已移除（MDM 承担） |
+| ~~/api/users/{id}~~ | ~~PATCH~~ | ~~编辑用户~~ | ✗ V1.1 已移除（MDM 承担） |
+| ~~/api/users/{id}/reset-password~~ | ~~POST~~ | ~~重置密码~~ | ✗ V1.1 已移除（MDM 承担） |
 | /api/audit/logs | GET | 审计日志 | ✓ |
+| /api/mdm/materials | GET | MDM 物料搜索（透传，V1.1 新增） | ✓ |
+| /api/mdm/materials/{code} | GET | MDM 物料详情（透传，V1.1 新增） | ✓ |
+| /api/materials/from-mdm/{code} | POST | 从 MDM 引用建物料（V1.1 新增） | ✓ |
 
-**结论：现有 32 个 API 端点全部可直接复用，React 前端零后端改动即可开始迁移。**
+**结论（V1.2 修订）：除 V1.1 移交 MDM 的 5 个用户/改密端点外，其余端点全部可直接复用。**
 
 ## 2.2 需要新增的后端 API（设备模块）
 
 | **API** | **方法** | **用途** |
 |---|---|---|
 | /api/equipment | GET | 设备列表 |
-| /api/equipment | POST | 新增设备 |
+| /api/equipment | POST | 新增设备（后端 API 兜底，前端无入口 — V1.3） |
+| /api/mdm/equipments | GET | MDM 设备搜索（透传，V1.2 补记） |
+| /api/mdm/equipments/{code} | GET | MDM 设备详情（透传，V1.2 补记） |
+| /api/equipment/from-mdm/{code} | POST | 从 MDM 引用建档（V1.2 补记） |
+| /api/equipment/{id}/sync-mdm | POST | 从 MDM 刷新快照（V1.4 功能，V1.2 补记） |
+| /api/equipment/batch-from-mdm | POST | 从 MDM 批量引用建档（V1.4 功能，V1.2 补记） |
 | /api/equipment/{id} | GET | 设备详情 |
 | /api/equipment/{id} | PATCH | 编辑设备 |
 | /api/equipment/{id}/deactivate | POST | 报废设备 |

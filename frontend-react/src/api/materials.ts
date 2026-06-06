@@ -17,6 +17,10 @@ export interface Material {
   safety_stock: number;
   data_source: string | null;
   is_active: boolean;
+  deactivated_at: string | null;
+  deactivated_by: string | null;
+  deactivate_reason: string | null;
+  import_batch_id: number | null;
   created_at: string;
   updated_at: string;
 }

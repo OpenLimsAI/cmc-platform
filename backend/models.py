@@ -15,6 +15,7 @@ from typing import Optional, List
 from sqlalchemy import (
     String,
     Integer,
+    BigInteger,
     SmallInteger,
     Boolean,
     Date,
@@ -202,7 +203,8 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
     __table_args__ = {"schema": "material_mgmt"}
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # DB 列为 BIGSERIAL(高频审计写入),ORM 对齐 BigInteger 防溢出
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[Optional[int]] = mapped_column(Integer)
     username: Mapped[Optional[str]] = mapped_column(String(50))
     action: Mapped[str] = mapped_column(String(50), nullable=False)
