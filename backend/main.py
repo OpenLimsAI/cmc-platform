@@ -18,7 +18,7 @@ from routers import (
 from auth import get_current_user
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-log = logging.getLogger("cmc-inventory")
+log = logging.getLogger("cmc-labops")
 
 app = FastAPI(
     title="CMC LabOps Portal API",

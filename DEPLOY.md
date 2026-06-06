@@ -3,7 +3,7 @@
 > **架构选择**:不用 Docker 跑应用,后端 Python venv + systemd,前端 React 构建后 vite preview 伺服。
 > 原因:数据库已在宿主机、镜像源被墙、调试更直接。
 >
-> 整体目录:`/opt/cmc-inventory`,运行身份 `prometheus`,数据库 `cmc_data_platform`。
+> 整体目录:`/opt/cmc-labops`,运行身份 `prometheus`,数据库 `cmc_data_platform`。
 >
 > **v2.x 重要变化**(本文已按 v2.x 更新):
 > - 前端为 React(frontend-react/),旧 Streamlit 前端已删除
@@ -22,9 +22,9 @@
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip git nodejs npm
 
-# 2) 让 prometheus 用户可以写 /opt/cmc-inventory(若还没建):
-sudo mkdir -p /opt/cmc-inventory
-sudo chown prometheus:prometheus /opt/cmc-inventory
+# 2) 让 prometheus 用户可以写 /opt/cmc-labops(若还没建):
+sudo mkdir -p /opt/cmc-labops
+sudo chown prometheus:prometheus /opt/cmc-labops
 ```
 
 ---
@@ -47,7 +47,7 @@ EOF
 接着用 `cmc_user` 在 `material_mgmt` schema 内建表/索引/字典:
 
 ```bash
-cd /opt/cmc-inventory
+cd /opt/cmc-labops
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 ```
@@ -64,9 +64,9 @@ PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
 ## 2. 拉代码
 
 ```bash
-git clone git@github.com:qingcheng81/cmc-inventory.git /opt/cmc-inventory
+git clone git@github.com:qingcheng81/cmc-labops.git /opt/cmc-labops
 # 或
-git clone https://github.com/qingcheng81/cmc-inventory.git /opt/cmc-inventory
+git clone https://github.com/qingcheng81/cmc-labops.git /opt/cmc-labops
 ```
 
 ---
@@ -74,7 +74,7 @@ git clone https://github.com/qingcheng81/cmc-inventory.git /opt/cmc-inventory
 ## 3. 准备 .env
 
 ```bash
-cd /opt/cmc-inventory
+cd /opt/cmc-labops
 cp .env.example .env
 vim .env   # 修改 DATABASE_URL 中的密码,与第 1 步保持一致
 ```
@@ -100,7 +100,7 @@ MDM_JWT_ALGORITHM=HS256
 ## 4. 一键安装并启动
 
 ```bash
-cd /opt/cmc-inventory
+cd /opt/cmc-labops
 ./install.sh
 ```
 
@@ -127,7 +127,7 @@ cd /opt/cmc-inventory
 | 重启前后端(推荐) | `./restart.sh` |
 | 重启前后端(旧方式) | `./install.sh restart` |
 | 查状态 | `sudo systemctl status cmc-backend cmc-frontend` |
-| 改代码后重启 | `cd /opt/cmc-inventory && git pull && ./restart.sh`(自动检测前端是否需重新构建) |
+| 改代码后重启 | `cd /opt/cmc-labops && git pull && ./restart.sh`(自动检测前端是否需重新构建) |
 | 改了 requirements.txt / 前端依赖 | `./install.sh deps && ./restart.sh` |
 | 卸载(只删 unit/进程,不删数据) | `./install.sh uninstall` |
 
@@ -158,7 +158,7 @@ ssh -L 28010:127.0.0.1:8010 prometheus@<服务器IP>
 > 不需要 down time(systemd restart 间隔约 1-2 秒)。
 
 ```bash
-cd /opt/cmc-inventory
+cd /opt/cmc-labops
 
 # 1) 拉新代码
 git pull --ff-only
@@ -197,7 +197,7 @@ LabOps 写权限角色:SYS_ADMIN / CMC_WAREHOUSE_ADMIN(物料) / CMC_EQUIPMENT_A
 
 ```bash
 # 1) 停服务、删 systemd unit
-cd /opt/cmc-inventory && ./install.sh uninstall
+cd /opt/cmc-labops && ./install.sh uninstall
 
 # 2) 删 schema 和账号
 sudo -u postgres psql -d cmc_data_platform <<'EOF'
@@ -207,7 +207,7 @@ DROP USER cmc_user;
 EOF
 
 # 3) 删代码 / venv
-sudo rm -rf /opt/cmc-inventory
+sudo rm -rf /opt/cmc-labops
 ```
 
 ---

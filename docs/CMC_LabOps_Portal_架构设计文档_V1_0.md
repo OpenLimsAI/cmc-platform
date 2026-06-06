@@ -38,7 +38,7 @@
 
 ## 1.1 背景
 
-CMC 部门当前运行 cmc-inventory v1.2 物料库存管理系统，基于 Streamlit + FastAPI + PostgreSQL 16 构建，运行于 material_mgmt schema 中。系统已实现物料导入、批次级入出库、移库、盘点、库存预警等完整闭环。
+CMC 部门当前运行 cmc-labops v1.2 物料库存管理系统，基于 Streamlit + FastAPI + PostgreSQL 16 构建，运行于 material_mgmt schema 中。系统已实现物料导入、批次级入出库、移库、盘点、库存预警等完整闭环。
 
 部门同时面临仪器设备管理的系统化需求。大量分析仪器和实验设备目前依靠 Excel 和纸质台账管理，缺少系统化的计量校验跟踪、维护记录管理、到期提醒等能力。
 

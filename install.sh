@@ -11,7 +11,7 @@
 #   ./install.sh deps        只更新 venv 依赖,不动 systemd
 #
 # 假定:
-#   - 项目克隆在 /opt/cmc-inventory(若改路径,sudo 步骤里需要同步改 unit 文件中 WorkingDirectory)
+#   - 项目克隆在 /opt/cmc-labops(若改路径,sudo 步骤里需要同步改 unit 文件中 WorkingDirectory)
 #   - 当前用户在 sudo 组(install / remove unit 需要 sudo)
 #   - 系统有 python3 (>= 3.10);默认走 python3,可用 PYTHON 环境变量覆盖
 #   - 系统有 Node.js 20+ 与 npm(React 前端构建与 vite preview 伺服)

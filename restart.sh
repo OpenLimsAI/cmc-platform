@@ -4,7 +4,7 @@
 # 用途: Linux 服务器上一键重启 CMC 库存系统前后端
 #
 # 用法:
-#   cd /opt/cmc-inventory
+#   cd /opt/cmc-labops
 #   ./restart.sh
 #
 # 如果提示 sudo 密码,输入 Linux 登录用户的密码即可。

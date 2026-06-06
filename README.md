@@ -1,4 +1,4 @@
-# CMC LabOps Portal (`cmc-inventory`)
+# CMC LabOps Portal (`cmc-labops`)
 
 > CMC 部门运营平台(原"CMC 物料管理系统",集成设备管理后更名,命名决策见 docs/架构设计文档 §1.2)。
 > **物料库存模块**聚焦核心闭环:物料导入 → 入库 → 出库 → 移库 → 盘点 → 库存统计 → 预警;
@@ -72,7 +72,7 @@
 ## 三、目录结构
 
 ```
-cmc-inventory/
+cmc-labops/
 ├── README.md                        本文档(开发与 Mac 调试指南)
 ├── DEPLOY.md                        Linux 服务器部署指南(生产)
 ├── install.sh                       Linux 一键装/起/重启/卸载脚本
@@ -632,8 +632,8 @@ EOF
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform -f sql/init.sql
 
 # 2) 拉代码 + 配 .env
-git clone git@github.com:qingcheng81/cmc-inventory.git /opt/cmc-inventory
-cd /opt/cmc-inventory && cp .env.example .env  # 改密码 / 端口
+git clone git@github.com:qingcheng81/cmc-labops.git /opt/cmc-labops
+cd /opt/cmc-labops && cp .env.example .env  # 改密码 / 端口
 
 # 3) 一键装 venv + systemd unit + enable --now
 ./install.sh
@@ -645,7 +645,7 @@ cd /opt/cmc-inventory && cp .env.example .env  # 改密码 / 端口
 
 ```bash
 ssh <你的用户>@<服务器IP>
-cd /opt/cmc-inventory
+cd /opt/cmc-labops
 ./restart.sh
 ```
 
@@ -664,13 +664,13 @@ cd /opt/cmc-inventory
 
 ```bash
 ssh <你的用户>@<服务器IP>
-cd /opt/cmc-inventory && ./restart.sh
+cd /opt/cmc-labops && ./restart.sh
 ```
 
 按改动类型,稍微更完整的流程如下:
 
 ```bash
-cd /opt/cmc-inventory
+cd /opt/cmc-labops
 
 # A. 改了 Python 代码 / 前端页面 → 拉代码并重启进程,不动 systemd
 git pull

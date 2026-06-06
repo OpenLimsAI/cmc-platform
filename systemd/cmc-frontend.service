@@ -7,7 +7,7 @@
 
 [Unit]
 Description=CMC LabOps Portal Frontend (React / vite preview)
-Documentation=https://github.com/qingcheng81/cmc-inventory
+Documentation=https://github.com/qingcheng81/cmc-labops
 After=network-online.target cmc-backend.service
 Wants=network-online.target cmc-backend.service
 
@@ -15,11 +15,11 @@ Wants=network-online.target cmc-backend.service
 Type=simple
 User=prometheus
 Group=prometheus
-WorkingDirectory=/opt/cmc-inventory/frontend-react
+WorkingDirectory=/opt/cmc-labops/frontend-react
 # 端口由 .env 中的 FRONTEND_PORT 控制;BACKEND_PORT 供 vite preview 代理 /api 用
 # 注意:不要再用 Environment= 兜底 —— systemd 中 Environment= 会覆盖
 #       EnvironmentFile= 中的同名变量,导致 .env 失效
-EnvironmentFile=/opt/cmc-inventory/.env
+EnvironmentFile=/opt/cmc-labops/.env
 
 # vite preview 伺服 dist 并把 /api 代理到后端(见 vite.config.ts 的 preview 段)
 # 用 /usr/bin/env 找 npm,兼容 apt 装的 /usr/bin/npm 与其他常规路径;

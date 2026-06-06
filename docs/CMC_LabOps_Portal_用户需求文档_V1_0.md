@@ -36,7 +36,7 @@
 
 ## 1.1 背景
 
-CMC 部门当前已建成物料库存管理系统（cmc-inventory v1.2），覆盖物料导入、入库、出库、移库、盘点、库存查询、预警等核心闭环。系统运行稳定，满足部门日常物料管理需要。
+CMC 部门当前已建成物料库存管理系统（cmc-labops v1.2），覆盖物料导入、入库、出库、移库、盘点、库存查询、预警等核心闭环。系统运行稳定，满足部门日常物料管理需要。
 
 随着部门业务扩展，以下需求日益迫切：
 
@@ -74,7 +74,7 @@ CMC 部门当前已建成物料库存管理系统（cmc-inventory v1.2），覆�
 
 # 2. 物料库存模块需求
 
-> 以下需求基于 cmc-inventory v1.2 已实现功能，部分为增强需求。
+> 以下需求基于 cmc-labops v1.2 已实现功能，部分为增强需求。
 
 ## 2.1 物料主数据管理
 
@@ -323,7 +323,7 @@ CMC 部门当前已建成物料库存管理系统（cmc-inventory v1.2），覆�
 
 | **文档** | **说明** |
 |---|---|
-| cmc-inventory README.md | 当前物料库存系统 v1.2 技术文档 |
+| cmc-labops README.md | 当前物料库存系统 v1.2 技术文档 |
 | ARCH-LABOPS-001 | CMC LabOps Portal 总体架构设计文档 |
 | DM-LABOPS-001 | CMC LabOps Portal 数据模型设计文档 |
 | UI-LABOPS-001 | CMC LabOps Portal UI 信息架构与线框图 |

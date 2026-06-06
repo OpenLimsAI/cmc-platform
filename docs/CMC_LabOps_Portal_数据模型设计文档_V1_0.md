@@ -73,7 +73,7 @@
 
 # 3. 现有物料库存表（保留不变）
 
-> 以下 10 张表位于 material_mgmt schema，原样保留。详细字段定义参见 cmc-inventory README §四。
+> 以下 10 张表位于 material_mgmt schema，原样保留。详细字段定义参见 cmc-labops README §四。
 
 | **表名** | **用途** | **记录数预估** |
 |---|---|---|

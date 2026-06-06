@@ -17,7 +17,7 @@ from models import AuditLog
 if TYPE_CHECKING:
     from auth import CurrentUser
 
-log = logging.getLogger("cmc-inventory.audit")
+log = logging.getLogger("cmc-labops.audit")
 
 SENSITIVE_KEYS = {"password", "password_hash", "old_password", "new_password", "token", "access_token"}
 
