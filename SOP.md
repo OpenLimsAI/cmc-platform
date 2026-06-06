@@ -1,6 +1,6 @@
-# cmc_data_platform 数据库标准操作流程（SOP）
+# CMC 数据平台 数据库标准操作流程（SOP）
 
-> 适用范围：`cmc_data_platform` 数据库的所有结构（schema/表/列/索引/约束/视图/函数）变更。
+> 适用范围：本仓库管理的 4 个库 + cmab_mdm 的所有**结构变更**（schema/表/列/索引/约束/视图/函数）。
 > 不适用：纯数据 INSERT/UPDATE/DELETE、应用代码里的 SQL 查询。
 
 ---
@@ -8,287 +8,186 @@
 ## 0. 系统拓扑
 
 ```
-                         ┌─────────────────────────┐
-                         │ cmc-schema-migrations   │
-                         │  (git 远端，单一真理)    │
-                         └──────────┬──────────────┘
-                                    │  git push / pull
-                ┌───────────────────┼────────────────────┐
-                │                   │                    │
-        ┌───────▼──────┐   ┌────────▼─────────┐  ┌──────▼────────┐
-        │  Mac (dev)   │   │  Linux VM (deploy)│  │ Windows (备份) │
-        │  Docker PG16 │   │  原生 PG16        │  │ 不直连数据库   │
-        │  容器:        │   │  端口: 5432       │  │ 仅留工具脚本   │
-        │  rd_pg :5432 │   │  ssh -p 13568     │  │                │
-        │ (旧postgres16│   │                   │  │                │
-        │  已删除)      │   │                   │  │                │
-        └──────────────┘   └──────────────────┘  └────────────────┘
+                 ┌────────────────────────────────────┐
+                 │  GitHub: qingcheng81/                │
+                 │  cmc-schema-migrations (private)     │  ← 4 库的单一真理
+                 └──────────────┬───────────────────────┘
+                      git push  │  git pull
+            ┌───────────────────┴────────────────────┐
+            │                                         │
+     ┌──────▼───────┐                         ┌───────▼────────┐
+     │  Mac (dev)   │                         │ Linux VM(deploy)│
+     │  Docker:     │                         │  原生三实例:     │
+     │  rd_pg :5432 │  ──测试OK后 push──▶      │  rd_pg  :5432   │
+     │  gmp_pg:5434 │                         │  mdm_pg :5433   │
+     │  cmab :15432 │                         │  gmp_pg :5434   │
+     └──────────────┘   ssh -p 13568 ...      └────────────────┘
 ```
 
-**铁律**：所有 `cmc_data_platform` 结构变更 → 写 Alembic migration → 落地 → push → 另一端 `alembic upgrade head`。
+**每个库的归属：**
+
+| 库 | 实例 | 谁管 |
+|---|---|---|
+| cmc_rd / cmc_analytics / cmc_data_platform | rd_pg | **本仓库**（`dbmig <库>`）|
+| cmc_gmp | gmp_pg | **本仓库**（`dbmig cmc_gmp`）|
+| cmab_mdm | mdm_pg | **cmab-mdm-platform app**（`dbmig cmab_mdm` 转发，autogenerate）|
+
+**铁律**：所有结构变更 → 写 Alembic migration → 落地测试 → push → 另一端 `dbmig <库> upgrade head`。
 **永远不要**用 `psql -c "ALTER TABLE..."` 直接改库。
 
 ---
 
-## 1. 日常：改一个 schema 的标准流程
+## 1. 日常：改一个库的标准流程
+
+不管改哪个库，四步都一样（把 `<库>` 换成实际库名）。
 
 ### 1.1 在 Mac 上写迁移
 
 ```bash
-cd ~/cmc-schema-migrations
-source .venv/bin/activate
-
-# 起一个空白迁移，文件名按你做的事命名
-alembic revision -m "add status_color column to dim_method"
-# 生成: alembic/versions/004_add_status_color_column_to_dim_method.py
+cd ~/code/cmc-schema-migrations
+./dbmig <库> revision -m "add status_color to material"
+# 生成: alembic/versions/<库>/<时间戳>_..._add_status_color_to_material.py
 ```
 
-打开生成的 `.py`，写 `upgrade()` 和 `downgrade()`：
+打开生成的 `.py`，写 `upgrade()` / `downgrade()`：
 
 ```python
 def upgrade() -> None:
-    op.add_column(
-        "dim_method",
+    op.add_column("material",
         sa.Column("status_color", sa.Text(), nullable=True),
-        schema="meta",
-    )
+        schema="material_mgmt")
 
 def downgrade() -> None:
-    op.drop_column("dim_method", "status_color", schema="meta")
+    op.drop_column("material", "status_color", schema="material_mgmt")
 ```
 
-### 1.2 在 Mac 上落地 + 验证
+### 1.2 在 Mac 落地 + 验证
 
 ```bash
-# 看一下要跑什么
-alembic upgrade head --sql                    # 仅打印 SQL，不执行（dry-run）
-
-# 真正执行
-alembic upgrade head
-
-# 验证当前版本
-alembic current                                # 应该看到 004 (head)
-
-# 进库看看效果
-docker exec -i rd_pg psql -U postgres -d cmc_data_platform -c "\d material_mgmt.material"
+./dbmig <库> upgrade head --sql      # dry-run，仅打印 SQL
+./dbmig <库> upgrade head            # 真正执行（落到 Mac docker）
+./dbmig <库> current                 # 应看到新 head
+# 进库看效果（Mac docker）：
+docker exec -it rd_pg psql -U postgres -d <库> -c "\d material_mgmt.material"
 ```
 
-### 1.3 跑应用代码确认没踩坑
+### 1.3 跑应用验证
 
-启动你的应用（tt-lims-platform / cmc-inventory / ...），验证新字段、新表确实工作正常。
+启动相关 app（cmc-inventory / dashboard / ETL …），确认新结构工作正常。
 
-### 1.4 push 到远端
+### 1.4 push
 
 ```bash
-cd ~/cmc-schema-migrations
-git add alembic/versions/004_*.py             # 注意：如果有大段 DDL，也要 add assets/004/
-git commit -m "add status_color to meta.dim_method"
+git add alembic/versions/<库>/ alembic/baselines/   # 若引用了 baseline/asset 也一并 add
+git commit -m "feat(<库>): add status_color to material"
 git push
 ```
 
-### 1.5 在 Linux 上同步
-
-```powershell
-# Windows PowerShell，SSH 进 Linux
-ssh -p 13568 prometheus@172.19.0.105
-```
-
-在 Linux 上：
+### 1.5 Linux 同步
 
 ```bash
+ssh -p 13568 prometheus@172.19.0.105
 cd ~/cmc-schema-migrations
 git pull
-source .venv/bin/activate
-
-# dry-run 看一眼
-alembic upgrade head --sql
-
-# 真正执行（需要写库权限，所以走 sudo -u postgres）
-sudo -u postgres bash -c '
-  cd /home/prometheus/cmc-schema-migrations
-  ./.venv/bin/alembic upgrade head
-'
-
-# 验证
-sudo -u postgres /home/prometheus/cmc-schema-migrations/.venv/bin/alembic current
-sudo -u postgres psql -d cmc_data_platform -c "SELECT * FROM alembic_version;"
+./dbmig <库> upgrade head --sql       # 先 dry-run 看一眼
+./dbmig <库> upgrade head             # 执行
+./dbmig <库> current                  # 验证
 ```
 
-完成。两库结构一致。
+> Linux 通过 TCP（127.0.0.1 + .env 里的 postgres 密码）连库，**无需 sudo**。
+> cmab_mdm 的迁移在 `cmab-mdm-platform` repo 里写/push，Linux 上 `dbmig cmab_mdm upgrade head` 落地。
 
 ---
 
-## 2. 紧急体检：用对比脚本验证两库一致
+## 2. 漂移体检（兜底，建议每月一次）
 
-这是兜底机制——万一有人绕过了 Alembic 直接改库，靠这一步发现。**建议每月一次**。
-
-### 2.1 Mac 上跑盘点
+万一有人绕过 Alembic 直接改了某库，靠列级指纹对比发现。
 
 ```bash
-cd ~                                           # 或脚本所在目录
-source pg-inventory-venv/bin/activate
+# 对某库，导出两端 information_schema.columns 指纹并 diff：
+QRY="SELECT c.table_schema||'.'||c.table_name||'|'||c.column_name||'|'||c.data_type||'|'||c.is_nullable \
+  FROM information_schema.columns c JOIN information_schema.tables t \
+  ON t.table_schema=c.table_schema AND t.table_name=c.table_name AND t.table_type='BASE TABLE' \
+  WHERE c.table_schema NOT IN ('pg_catalog','information_schema') ORDER BY 1"
 
-PGPASSWORD=YourStrongPassword_2026 python3 export_postgres_inventory.py \
-  --host 127.0.0.1 --port 5432 --user postgres \
-  --maintenance-db postgres \
-  --outdir ./pg_inventory_mac_$(date +%Y-%m-%d)
-
-# 直接送到 Linux（或 Windows，看你怎么集中）
-scp -P 13568 -r ./pg_inventory_mac_$(date +%Y-%m-%d) prometheus@172.19.0.105:/tmp/
+# Mac:   docker exec rd_pg  psql -U postgres -d <库> -tAc "$QRY" | sort > /tmp/mac.txt
+# Linux: psql -h127.0.0.1 -p <端口> -U postgres -d <库> -tAc "$QRY" | sort > /tmp/lin.txt
+# diff /tmp/mac.txt /tmp/lin.txt   → 期望无差异
 ```
 
-### 2.2 Linux 上跑盘点
-
-```bash
-cd ~/sql
-source pg-inventory-venv/bin/activate
-
-DAY=$(date +%Y-%m-%d)
-OUT=/tmp/pg_inventory_linux_$DAY
-sudo -u postgres /home/prometheus/sql/pg-inventory-venv/bin/python \
-  /home/prometheus/sql/export_postgres_inventory.py \
-  --host /var/run/postgresql --port 5432 --user postgres \
-  --maintenance-db postgres \
-  --outdir $OUT
-```
-
-### 2.3 拉回 Windows + 对比
-
-```powershell
-cd F:\Python\sql\
-
-# 假设你已经把两份盘点放到 F:\Python\sql\ 下
-python compare_pg_inventory.py `
-  pg_inventory_mac_2026-XX-XX\inventory_full.json `
-  pg_inventory_linux_2026-XX-XX\inventory_full.json `
-  --database cmc_data_platform `
-  --left-label mac --right-label linux `
-  --out diff_mac_vs_linux_2026-XX-XX.md
-```
-
-**期望结果**：`总差异条目数：0`。
-任何非 0 的差异 → 进入 §3 应急处理。
+`tools/` 下还有更全的盘点/对比脚本（含视图/函数/索引），半年一次深度体检用。
 
 ---
 
 ## 3. 应急：发现漂移怎么办
 
-### 3.1 先搞清楚漂的是谁
-
-看 diff 报告里的"只在 mac 有 / 只在 linux 有"，对照 git log：
-
-```bash
-git log alembic/versions/ --oneline | head -20
-```
-
-最后一次 commit 之后，谁多了东西、谁缺东西？
-
-### 3.2 三种处理路径
-
 | 情况 | 处理 |
 |---|---|
-| 漂出来的是 Alembic 还没写的合法变更 | 在 Mac 上**追写 migration**，`alembic upgrade head` 落到 Mac，push，Linux 拉 |
-| 漂出来的是临时调试遗留物 | 在那一端**手动 DROP 掉**，并写进未来的 Alembic（也可不写） |
-| 两边都 drift 且方向不一致 | 走 2026-05-13 那次的流程：手动对齐 + 补一个 baseline 迁移 |
+| 漂出来的是还没写迁移的合法变更 | 在 Mac 上**追写 migration**（见 §5），`dbmig <库> upgrade head` 落 Mac，push，Linux 拉 |
+| 临时调试遗留物 | 在那端**手动 DROP**，必要时补进迁移 |
+| 两边都漂且方向不一致 | 先用列级对比定位，手动对齐后**重做该库 baseline**（pg_dump → 新 baseline → 两端 stamp --purge）|
 
-### 3.3 千万别做
-
-- **不要** `git reset` 删 migration 文件
-- **不要** 用 `alembic stamp <old>` 把版本号回退（会让数据库认为没改过，下次 upgrade 就跑两遍）
-- **不要** 删 `alembic_version` 表
-
----
-
-## 4. 新加一台环境（比如开发新 VM）
-
-```bash
-# 在新机器上，假设已经装了 PostgreSQL 16
-git clone <你的远端>/cmc-schema-migrations.git
-cd cmc-schema-migrations
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# 配 .env（按这台机器的连接方式）
-cp .env.example .env
-# 编辑 .env 填 DATABASE_URL
-
-# 把数据库 schema 从 0 建到当前 head
-createdb cmc_data_platform                    # 如果还没建库
-alembic upgrade head                          # 一气呵成跑完 001 → 003 → 现在
-```
-
-这就是 Alembic 最爽的地方：一行命令从空数据库建到最新结构。
+**千万别做：**
+- 不要 `git reset` 删迁移文件
+- 不要用 `dbmig <库> stamp <old>` 把版本号往回退
+- 不要手删 `alembic_version` 表
 
 ---
 
-## 5. 反向：从结构变更"逆向"出 Alembic 迁移
+## 4. 新机器 / 新库 bootstrap
 
-如果你（或别人）已经在某个库上手动改了 schema，要把它**追录**进 Alembic：
+**新机器**（见 README「bootstrap」）：`git clone` → `uv venv` + 装依赖 → `cp .env.example .env` 填密码 → `./dbmig list`。
 
-### 5.1 写一个新 migration
-
+**全新空库从 0 建到最新：**
 ```bash
-alembic revision -m "describe the manual change that was made"
-```
-
-### 5.2 在 upgrade() 里写**与已发生的变更等价**的 op.\* 调用
-
-```python
-def upgrade() -> None:
-    op.add_column("foo", sa.Column("bar", sa.Text()), schema="meta")
-```
-
-### 5.3 在已变更过的数据库上 `alembic stamp head`
-
-这样 alembic_version 知道"我们已经到这里了"，不会在这台库上重跑 SQL。
-
-### 5.4 其他没改过的数据库上 `alembic upgrade head`
-
-那些库会真正执行 SQL 把结构追上。
-
-> 这正是 2026-05-13 我们处理 baseline 时走的路。看 `alembic/versions/003_align_dual_env_baseline.py` 的注释作为案例。
-
----
-
-## 6. 一些常用速查
-
-### 查当前版本
-```bash
-alembic current
-```
-
-### 查完整迁移历史
-```bash
-alembic history --verbose
-```
-
-### 看下一次 upgrade 会跑什么
-```bash
-alembic upgrade head --sql > preview.sql
-```
-
-### 强行回退一个版本（谨慎！）
-```bash
-alembic downgrade -1
-```
-
-### 看某个 revision 的细节
-```bash
-alembic show 003
+createdb <库>                         # 或 docker exec ... createdb
+./dbmig <库> upgrade head             # baseline 能从空库一把建全
 ```
 
 ---
 
-## 7. Mac / Linux 命令对照表
+## 5. 反向：把手动改的 schema 追录进 Alembic
 
-写迁移文件本身两边一样，只是**连接和 sudo 不同**：
+如果某库已经被手动改了，要补录：
+
+```bash
+./dbmig <库> revision -m "describe the manual change"
+# 在 upgrade() 写与已发生变更等价的 op.* 调用
+# 已改过的那端：./dbmig <库> stamp head     （只打标，不重跑）
+# 没改过的那端：./dbmig <库> upgrade head    （真正执行追上）
+```
+
+> 2026-06-04 我们就是这么把 Mac 手工建的 `equipment_mgmt`（cmc_data_platform）和
+> `eqp`（cmab_mdm）补齐到 Linux 的——后者走的是 cmab app 的 alembic `0040`。
+
+---
+
+## 6. 常用速查
+
+```bash
+./dbmig list                          # 所有库当前版本一览
+./dbmig <库> current                  # 某库当前版本
+./dbmig <库> history --verbose        # 完整历史
+./dbmig <库> upgrade head --sql       # 预览将执行的 SQL（不执行）
+./dbmig <库> downgrade -1             # 回退一个版本（谨慎！）
+./dbmig <库> show <rev>               # 看某 revision 细节
+```
+
+重做某库 baseline（结构演进很大、想清账时）：
+```bash
+# Mac 上：pg_dump --schema-only -d <库> > alembic/baselines/<库>.sql
+# 替换 baseline 迁移 → 两端 ./dbmig <库> stamp <库>_baseline --purge
+```
+
+---
+
+## 7. Mac / Linux 连接对照
+
+写迁移文件两边完全一样，只是连库方式不同：
 
 | 操作 | Mac (Docker) | Linux (原生) |
 |---|---|---|
-| 进数据库 | `docker exec -it rd_pg psql -U postgres -d cmc_data_platform` | `sudo -u postgres psql -d cmc_data_platform` |
-| 跑 alembic | 普通 `alembic upgrade head`（venv 用户即可） | `sudo -u postgres ./.venv/bin/alembic upgrade head`（因为要写 alembic_version 表） |
-| 灌 SQL 文件 | `docker exec -i rd_pg psql -U postgres -d cmc_data_platform < ./x.sql` | `sudo -u postgres psql -d cmc_data_platform -f /path/to/x.sql` |
-| 导 SQL | `docker exec -e PGPASSWORD=YourStrongPassword_2026 rd_pg pg_dump ... > ./x.sql` | `sudo -u postgres pg_dump ... > /tmp/x.sql` |
-| 看版本号 | `docker exec -i rd_pg psql -U postgres -d cmc_data_platform -c "SELECT * FROM alembic_version;"` | `sudo -u postgres psql -d cmc_data_platform -c "SELECT * FROM alembic_version;"` |
+| 跑迁移 | `./dbmig <库> upgrade head` | `./dbmig <库> upgrade head`（同命令）|
+| 进数据库 | `docker exec -it <实例> psql -U postgres -d <库>` | `psql -h127.0.0.1 -p <端口> -U postgres -d <库>` 或 `sudo -u postgres psql -p <端口> -d <库>` |
+| 实例→端口 | rd_pg=5432, gmp_pg=5434, cmab=15432 | rd_pg=5432, gmp_pg=5434, mdm_pg=5433 |
+| 连接凭据 | `.env` 共享（postgres / 统一密码 / 端口按库）；Mac↔Linux 通用 | 同左 |

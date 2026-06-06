@@ -1,151 +1,152 @@
 # cmc-schema-migrations
 
-`cmc_data_platform` 数据库结构的**单一真理来源（single source of truth）**。
+CMC 数据平台**多个共享数据库结构的单一真理来源**，用多环境 Alembic 管理。
 
-四个应用（tt-lims-platform、cmc-inventory、qc_lims_etl、rd_lims_etl）共享这一个 PostgreSQL 库，但**只有这个仓库**有权改它的 schema。
+本仓库管 **4 个无 ORM 的共享库**（被多个 app 共用，所以由这个中立仓库统一管，而不是某个 app）：
 
-## 使用场景
+| 库 | 实例（端口）| 主要使用方 |
+|---|---|---|
+| `cmc_rd` | rd_pg : 5432 | rd-lims-etl（raw + meta）|
+| `cmc_analytics` | rd_pg : 5432 | dashboard / quality-analytics / 各 ETL（dim/staging/mart…）|
+| `cmc_data_platform` | rd_pg : 5432 | cmc-inventory / cmc-cost-modeler（material_mgmt / cost_accounting / equipment_mgmt）|
+| `cmc_gmp` | gmp_pg : 5434 | qc-lims-etl（GMP LabVantage raw + meta）|
 
-- **改 schema** = 在这里写一个 Alembic 迁移，`alembic upgrade head`，push
-- **新环境部署** = clone 这个仓库，配 `.env`，`alembic upgrade head`，DB schema 完全就位
-- **结构走样了** = 用 `compare_pg_inventory.py` 对比，发现差异；要么补迁移、要么 reset 到 head
+> `cmab_mdm`（MDM Portal）**不在此**——它是单一 app 独占库，由 `cmab-mdm-platform` 自带 alembic（autogenerate）管理。
+> 但通过 `dbmig` 可用同一套命令访问它（见下）。架构定义见 `CMAB-DA-WP-001` 白皮书。
 
-## 快速上手
+---
 
-### 0. 装环境（首次）
+## 统一入口：`dbmig`
+
+无论改哪个库，命令都一样：
 
 ```bash
+./dbmig list                          # 看所有库的当前版本
+./dbmig <库> revision -m "改了啥"      # 写迁移
+./dbmig <库> upgrade head             # 落地
+./dbmig <库> history                  # 历史
+./dbmig <库> current                  # 当前版本
+```
+
+`<库>` ∈ `cmc_rd` / `cmc_analytics` / `cmc_data_platform` / `cmc_gmp` / `cmab_mdm`。
+（`cmab_mdm` 会自动转发到 `cmab-mdm-platform/backend` 的 alembic。）
+
+底层其实是 `alembic -n <库> ...`（一个 `alembic/env.py` 按 `-n` 选库），`dbmig` 只是薄封装。
+
+---
+
+## 日常工作流（任何库、任何实例，完全一致）
+
+```
+Mac 开发：
+  1. 改 schema（写迁移）
+     ./dbmig <库> revision -m "add foo column"
+  2. 编辑生成的迁移 .py（写 upgrade/downgrade）
+  3. ./dbmig <库> upgrade head          ← 落到 Mac 测试
+  4. 跑应用验证
+  5. git commit + git push
+
+Linux 部署：
+  6. ssh -p 13568 prometheus@172.19.0.105
+  7. cd ~/cmc-schema-migrations && git pull
+  8. ./dbmig <库> upgrade head
+  9. ./dbmig <库> current 验证
+```
+
+**铁律**：所有结构变更（schema/表/列/索引/约束/视图/函数）必须经 Alembic。
+**永远不要**手动 `psql -c "ALTER TABLE..."` 改库。详见 [`SOP.md`](./SOP.md)。
+
+---
+
+## 首次在一台新机器上用（bootstrap）
+
+```bash
+git clone git@github.com:qingcheng81/cmc-schema-migrations.git
 cd cmc-schema-migrations
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
 
-### 1. 配 `.env`
+# 1) 建 venv（用 uv）
+uv venv .venv
+uv pip install -r requirements.txt --python .venv/bin/python
 
-把 `.env.example` 复制成 `.env`，填上 DB URL：
-
-```bash
+# 2) 配 .env（含 DB 密码，不入库）
 cp .env.example .env
-# 然后编辑 .env
+#   填 PG_USER / PG_PASSWORD / 端口
+
+# 3) 看状态
+./dbmig list
 ```
 
-举例：
+`.env` 用**共享凭据**（一套 `PG_USER`/`PG_PASSWORD` + 端口按库），且 **Mac(docker) 与 Linux(原生) 端口相同**，所以同一份 `.env` 两端通用。
+
+> **从空库重建**：每个库都有一个能从空库一把建出全部结构的 baseline。
+> 新库：`createdb <库>` 后 `./dbmig <库> upgrade head` 即可。
+
+---
+
+## 连接模型（`.env`）
 
 ```bash
-# Mac (Docker, 密码连接) —— 2026-06-03 起库在 rd_pg 容器，端口仍是 5432
-DATABASE_URL=postgresql+psycopg2://postgres:YourStrongPassword_2026@127.0.0.1:5432/cmc_data_platform
-
-# Linux (本机 Unix socket peer，无需密码)
-DATABASE_URL=postgresql+psycopg2:///cmc_data_platform?host=/var/run/postgresql
-
-# Linux (TCP 密码连接，备选)
-DATABASE_URL=postgresql+psycopg2://postgres:xxx@127.0.0.1:5432/cmc_data_platform
+PG_HOST=127.0.0.1
+PG_USER=postgres
+PG_PASSWORD=...          # Mac docker 与 Linux 原生 已统一为同一值
+PG_PORT_RD=5432          # cmc_rd / cmc_analytics / cmc_data_platform
+PG_PORT_GMP=5434         # cmc_gmp
 ```
 
-`.env` 已经在 `.gitignore` 里，不会被 commit。
+`alembic/env.py` 据 `-n <库名>` 自动拼连接串：`cmc_gmp` 走 `PG_PORT_GMP`，其余走 `PG_PORT_RD`。
 
-### 2. 看当前状态
-
-```bash
-alembic current      # 当前版本
-alembic history      # 全部历史
-alembic heads        # 头部版本号
-```
-
-### 3. 把库追到最新
-
-```bash
-alembic upgrade head
-```
-
-### 4. 写一个新迁移
-
-```bash
-alembic revision -m "describe what you change"
-# 编辑 alembic/versions/xxx_describe_what_you_change.py
-# 测试: alembic upgrade head
-# 满意了就 git commit + push
-```
-
-## 日常工作流（简版，详版见 `SOP.md`）
-
-```
-Mac 上改 schema:
-  1. cd cmc-schema-migrations && source .venv/bin/activate
-  2. alembic revision -m "add foo column to bar"
-  3. 编辑生成的 .py，写 upgrade / downgrade
-  4. alembic upgrade head            ← 落到 Mac 的 Docker PG
-  5. 用 docker exec -it postgres16 psql 进库看效果
-  6. 跑应用代码验证
-  7. git commit -am "..." && git push
-
-Linux 部署:
-  1. ssh -p 13568 prometheus@172.19.0.105
-  2. cd ~/cmc-schema-migrations && git pull
-  3. sudo -u postgres bash -c 'cd ~/cmc-schema-migrations && ./.venv/bin/alembic upgrade head'
-  4. 用 sudo -u postgres psql -d cmc_data_platform 验证
-```
-
-**铁律**：永远不要手动 `psql -c "ALTER TABLE ..."` 改结构。所有结构变更必须经 Alembic。
-完整 SOP 看 [`SOP.md`](./SOP.md)。
+---
 
 ## 仓库结构
 
 ```
 cmc-schema-migrations/
-├─ alembic.ini                          # Alembic 配置
+├─ dbmig                          # ★ 统一入口脚本
+├─ alembic.ini                    # 多 section（每库一段）
 ├─ alembic/
-│  ├─ env.py                            # 从 DATABASE_URL 读连接，简单同步引擎
-│  ├─ script.py.mako                    # 新迁移模板
-│  └─ versions/                         # 迁移脚本
-│     ├─ 001_add_target_days_to_dim_method.py
-│     ├─ 002_dim_method_std_minutes_to_numeric.py
-│     ├─ 003_align_dual_env_baseline.py
-│     └─ 004_rehome_to_rd_pg_and_drop_meta_raw_qc_lims.py
-├─ assets/                              # 大段 DDL / baseline 快照（被 migration 引用）
-│  ├─ 003/
-│  │  ├─ 01_material_mgmt_auth_tables.sql
-│  │  ├─ 02_raw_qc_lims_schema.sql
-│  │  └─ 03_cost_accounting_schema.sql
-│  └─ 004/
-│     └─ baseline_schema_2026-06-03.sql  # 重组后真实结构全量快照（灾备真理来源）
-├─ requirements.txt                     # alembic, psycopg2-binary, python-dotenv
-├─ .env.example                         # 文档化 DATABASE_URL（不含真密码）
-├─ .gitignore                           # 排除 .env, .venv 等
-└─ README.md
+│  ├─ env.py                      # 共享：按 -n <库> 拼连接
+│  ├─ script.py.mako
+│  ├─ baselines/                  # 各库全量结构快照（baseline 迁移引用）
+│  │  ├─ cmc_rd.sql / cmc_analytics.sql / cmc_data_platform.sql / cmc_gmp.sql
+│  └─ versions/
+│     ├─ cmc_rd/                  # 每库独立 versions 目录与版本表
+│     ├─ cmc_analytics/
+│     ├─ cmc_data_platform/
+│     ├─ cmc_gmp/
+│     └─ _legacy/                 # 旧 001-004（已归档，不再使用）
+├─ assets/                        # 历史 DDL 片段（_legacy 迁移引用）
+├─ deploy/linux-native/           # ★ Linux 三实例部署 runbook + 纪要 + schema 快照
+├─ tools/                         # 盘点/对比脚本（半年体检用）
+├─ .env.example  .gitignore  requirements.txt
+└─ README.md  SOP.md
 ```
 
-## 与盘点工具的关系
+---
 
-`F:\Python\sql\` 下的 `export_postgres_inventory.py` 和 `compare_pg_inventory.py` **不再是同步主力**，
-退居为：
+## 部署与架构
 
-- **半年一次的体检**：跑盘点 + 对比，确认没人偷偷改库
-- **怀疑 Alembic 漂移**时的真相校验
+- **Linux 三原生 PG 实例**（rd_pg:5432 / mdm_pg:5433 / gmp_pg:5434）的完整部署见
+  [`deploy/linux-native/README.md`](./deploy/linux-native/README.md)，过程纪要见同目录
+  `部署纪要_2026-06-03.md`。
+- Mac 用 Docker（rd_pg / gmp_pg / cmab-mdm-postgres），Linux 用原生集群，端口对齐。
 
-正常情况下，git pull + `alembic upgrade head` 就能保证两库一致。
+---
 
-## 历史背景（2026-05-13 baseline）
+## 漂移体检（兜底）
 
-在这个仓库建立之前，`cmc_data_platform` 经过一段时间的双环境（Mac/Linux）并行演进，
-两边结构曾出现 116 处差异。差异已通过手动对齐消除，结果记录在 migration `003` 中。
+万一有人绕过 Alembic 直接改库，靠 `tools/` 下的盘点+对比脚本发现。建议每月一次。
+正常情况下，`git pull` + `./dbmig <库> upgrade head` 就能保证两端一致。
 
-`alembic_version` 表此前从未存在过——之前的迁移文件（001、002）虽已写在 tt-lims-platform 里，
-但实际 schema 变更都是手动 `psql` 执行的。本仓库建立后，两个数据库均通过 `alembic stamp head`
-直接打标到 `003`，从此**强制**走 Alembic。
+快速列级对比（任一库）：导出两端 `information_schema.columns` 指纹并 diff。
 
-## 历史背景（2026-06-03 重组 + 重建 baseline）
+---
 
-Mac 端做了一次大调整：
+## 历史背景（简记）
 
-- 项目目录从 `~/Python/cmc-schema-migrations` 挪到 `~/code/cmc-schema-migrations`（旧 `.venv` 因此失效，已重建）。
-- 专用容器 `postgres16` 被删除；其数据 volume `postgres16_postgres16_data` 仍残留但已弃用。
-- `cmc_data_platform` 迁入 `rd_pg` 容器（host 端口仍 5432）。
-- 范围**有意缩减**：`meta` 与 `raw_qc_lims` 两个 schema 被拆走/退役，本库今后只管 `material_mgmt` + `cost_accounting`。
-- 迁入后该库没有 `alembic_version` 表。通过 migration `004` + `alembic stamp head` 重新接管，
-  并以 `assets/004/baseline_schema_2026-06-03.sql` 作为新的全量灾备真理来源
-  （历史链 001→003 只是在既有库上打补丁，从来不能从空库构建）。
+- **2026-05-13**：`cmc_data_platform` 曾双环境漂移 116 处，手动对齐后记录在旧 `003`。
+- **2026-06-03**：Mac 大重构——`postgres16` 容器删除、库迁入 `rd_pg`、单库拆为多库
+  （cmc_rd / cmc_analytics / cmc_gmp / cmab_mdm），`meta`/`raw_qc_lims` 等拆走。
+- **2026-06-04**：Linux 重建为三原生实例并与 Mac 对齐；本仓库改为**多环境 alembic** 管 4 库，
+  每库重做干净 baseline（旧 001-004 归档 `_legacy`），加 `dbmig` 统一入口，git 化接通两端。
 
-> ⚠️ **Linux VM 尚未处理**：Linux 上的 `cmc_data_platform` 很可能仍停在旧的「4 schema / v003」状态，
-> 与 Mac 现状已分叉。是否让 Linux 也跟着缩范围（drop meta/raw_qc_lims、升到 004），需另行决定。
+完整经过见 `deploy/linux-native/部署纪要_2026-06-03.md`。
