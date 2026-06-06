@@ -477,19 +477,16 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 | POST | `/api/import/materials/commit` | 正式导入 |
 | GET | `/api/import/logs` | 导入历史 |
 
-### 7.7 鉴权 / 用户 / 审计
+### 7.7 鉴权 / 审计(v2.0 修订:用户管理移交 MDM Portal)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/auth/login` | 登录,返回 token |
+| POST | `/api/auth/login` | 登录(代理 MDM /auth/login,返回 MDM 签发的 JWT) |
 | POST | `/api/auth/logout` | 登出 |
-| GET | `/api/users/me` | 当前用户 |
-| POST | `/api/auth/change-password` | 修改密码 |
-| GET | `/api/users` | 用户列表(admin) |
-| POST | `/api/users` | 新建用户(admin) |
-| PATCH | `/api/users/{user_id}` | 修改用户角色/启停(admin) |
-| POST | `/api/users/{user_id}/reset-password` | 重置密码(admin) |
-| GET | `/api/audit/logs` | 操作日志(admin) |
+| GET | `/api/users/me` | 当前用户(解码 JWT) |
+| GET | `/api/audit/logs` | 操作日志(SYS_ADMIN) |
+
+> 改密 / 用户增删改 / 重置密码 / 角色分配均在 **MDM Portal** 操作,本系统已无这些端点。
 
 ---
 
@@ -500,7 +497,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 |  | Mac(开发调试) | Linux(生产) |
 |---|---|---|
 | PostgreSQL | Docker 容器,host 端口暴露(默认 5432) | 宿主机原生(`apt install postgresql`) |
-| 后端 / 前端 | venv + 直接 `uvicorn` / `streamlit` 起进程 | venv + `systemd` unit(由 `install.sh` 装) |
+| 后端 / 前端 | 后端 venv+`uvicorn`,前端 `npm run dev`(Vite) | 后端 venv+systemd,前端 `npm run build`+vite preview(systemd,由 `install.sh` 装) |
 | 数据库主机 | `127.0.0.1`(到 docker 暴露端口) | `127.0.0.1`(到宿主机 PG) |
 | 是否跑 `install.sh` | **不要跑**(`systemctl`/`sudo` 在 mac 没意义) | **要跑**,见 `DEPLOY.md` |
 
@@ -589,19 +586,18 @@ python3 -m venv .venv
 set -a; source ../.env; set +a
 .venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port "$BACKEND_PORT"
 
-# 5) 起前端(终端 B)
-cd frontend
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-set -a; source ../.env; set +a
-.venv/bin/streamlit run app.py --server.port "$FRONTEND_PORT"
+# 5) 起前端(终端 B,React + Vite)
+cd frontend-react
+npm install
+npm run dev          # 固定 5110 端口,自动代理 /api 到后端 8010
 
 # 6)(可选)生成 Excel 导入模板
 cd template && python3 generate_template.py
 
 # 7) 访问(以下端口若 .env 中改过,以 .env 为准)
-#    前端: http://localhost:$FRONTEND_PORT     # 默认 8501
-#    后端 API 文档: http://localhost:$BACKEND_PORT/docs   # 默认 8000
+#    前端: http://localhost:5110
+#    后端 API 文档: http://localhost:8010/docs
+#    注意:登录依赖 MDM Portal 后端(Docker,127.0.0.1:18000),需先启动
 ```
 
 **Mac 常见问题**:

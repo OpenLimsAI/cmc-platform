@@ -665,7 +665,7 @@ CREATE INDEX ix_audit_action      ON labops_audit.audit_log(action, created_at D
 - 设备：GET /api/mdm/equipments* + POST /api/equipment/from-mdm/{code} + POST /api/equipment/{id}/sync-mdm（V1.4 新增，手动刷新快照）+ POST /api/equipment/batch-from-mdm（V1.4 新增，台账初始化批量引用建档：遍历 MDM 设备列表，本地不存在的逐台拉详情落快照，支持分类过滤，默认跳过已存在与 MDM 已退役设备，运营字段留空待补录）
 - 同步机制 = 用时拉取 + 手动刷新：MDM 登记后无后台同步任务，物料在首次入库、设备在建档时实时拉取落快照；设备详情页提供"从 MDM 刷新"按钮整体覆盖快照字段并更新 mdm_synced_at
 - MDM 后端地址通过 `MDM_BASE_URL` 环境变量配置，开发环境默认 `http://127.0.0.1:18000/api/v1`（与 MDM Docker 端口约定一致）
-- data_source='local' 仅产生于后端 API 兜底（V1.3 起前端无本地新增入口），使用后须在 MDM 补登；补登后可通过 sync-mdm 按编码回挂（回填 mdm_equipment_id 并转 data_source='mdm'）
+- data_source='local' 产生于两个来源：①后端 API 兜底（V1.3 起前端无本地新增入口）②物料 Excel 批量导入（**主数据治理的唯一文档化例外**，定位为历史数据初始化，见 URD FR-MAT-001 V1.4）。两者均属"待在 MDM 补登"状态；设备补登后可通过 sync-mdm 按编码回挂（回填 mdm_equipment_id 并转 data_source='mdm'）
 - MDM 侧 eqp 域设计详见 DM-MDM-001 V1.2 §10A（含迁移 0040~0044），API 详见 API-MDM-001 V1.2 §5.1.6A
 
 # 8. 附录：设备 ERD

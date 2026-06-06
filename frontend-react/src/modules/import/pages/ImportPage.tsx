@@ -66,6 +66,14 @@ export default function ImportPage() {
     <>
       <Typography.Title level={4}>物料导入</Typography.Title>
 
+      <Alert
+        type="warning"
+        showIcon
+        style={{ maxWidth: 720, marginBottom: 12 }}
+        message="本页仅用于历史数据批量初始化(主数据治理的唯一例外,见 URD FR-MAT-001)"
+        description="日常新增物料请在 MDM Portal 登记后由入库流程自动引用。本页导入产生的记录标记为'本地'(data_source=local),属待在 MDM 补登状态。历史数据全部迁入 MDM 后此入口将下线。"
+      />
+
       <Card style={{ maxWidth: 720, marginBottom: 16 }}>
         <Upload.Dragger
           accept=".xlsx,.xls"

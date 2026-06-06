@@ -22,7 +22,10 @@ WorkingDirectory=/opt/cmc-inventory/frontend-react
 EnvironmentFile=/opt/cmc-inventory/.env
 
 # vite preview 伺服 dist 并把 /api 代理到后端(见 vite.config.ts 的 preview 段)
-ExecStart=/usr/bin/npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT}
+# 用 /usr/bin/env 找 npm,兼容 apt 装的 /usr/bin/npm 与其他常规路径;
+# 若服务器用 nvm 等用户级 Node,需在此追加:
+#   Environment=PATH=/home/<user>/.nvm/versions/node/<ver>/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT}
 
 Restart=on-failure
 RestartSec=5
