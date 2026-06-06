@@ -79,6 +79,14 @@ def get_material(material_id: int, db: Session = Depends(get_db)):
     return obj
 
 
+# MDM 快照字段:data_source='mdm' 时本系统只读,修改须回 MDM(物料无 sync 端点,
+# 身份变更走 MDM 后重新入库拉取);material_type 是入库 tab 权威(本地运营),不在此列
+MATERIAL_MDM_READONLY_FIELDS = {
+    "name_cn", "category", "grade", "manufacturer", "spec_model",
+    "catalog_no", "unit", "package_spec", "hazard_class",
+}
+
+
 @router.patch("/materials/{material_id}", response_model=MaterialOut)
 def update_material(
     material_id: int,
@@ -92,7 +100,17 @@ def update_material(
         raise HTTPException(status_code=404, detail=f"物料 #{material_id} 不存在")
     before = model_snapshot(obj)
 
-    obj = crud.update_material(db, material_id, payload.model_dump(exclude_unset=True))
+    data = payload.model_dump(exclude_unset=True)
+    if obj.data_source == "mdm":
+        blocked = sorted(MATERIAL_MDM_READONLY_FIELDS & data.keys())
+        if blocked:
+            raise HTTPException(
+                status_code=400,
+                detail=f"字段 {', '.join(blocked)} 为 MDM 主数据快照,本系统只读;"
+                       f"请在 MDM Portal 修改物料主数据",
+            )
+
+    obj = crud.update_material(db, material_id, data)
 
     write_audit(
         db, current, "material.update",

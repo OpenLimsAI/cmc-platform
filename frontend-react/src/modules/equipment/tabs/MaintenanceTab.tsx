@@ -9,6 +9,7 @@ import {
   listMaintenances, createMaintenance, MAINTENANCE_TYPE_LABEL,
 } from "../../../api/equipment";
 import { useAuthStore } from "../../../stores/authStore";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function MaintenanceTab({
   equipmentId, canEdit,
@@ -34,7 +35,7 @@ export default function MaintenanceTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "添加失败",
+        getErrorDetail(err, "添加失败"),
       ),
   });
 

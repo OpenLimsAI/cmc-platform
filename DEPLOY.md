@@ -1,9 +1,15 @@
 # Linux 服务器部署指南(无 Docker 版)
 
-> **架构选择**:不用 Docker 跑应用,直接 Python venv + systemd。
+> **架构选择**:不用 Docker 跑应用,后端 Python venv + systemd,前端 React 构建后 vite preview 伺服。
 > 原因:数据库已在宿主机、镜像源被墙、调试更直接。
 >
 > 整体目录:`/opt/cmc-inventory`,运行身份 `prometheus`,数据库 `cmc_data_platform`。
+>
+> **v2.x 重要变化**(本文已按 v2.x 更新):
+> - 前端为 React(frontend-react/),旧 Streamlit 前端已删除
+> - 登录认证移交 CMAB MDM Portal:服务器必须能访问 MDM 后端(.env 的 MDM_BASE_URL),
+>   不再有本地 admin 账号与 ADMIN_INITIAL_PASSWORD 首登流程
+> - 端口约定:后端 8010 / 前端 5110(见 ~/code/PORTS.md 编号 10)
 
 ---
 
@@ -12,9 +18,9 @@
 服务器 OS 上需要:
 
 ```bash
-# 1) Python 3.10+(Debian 12 / Ubuntu 22.04 默认是 3.11,直接装包就行)
+# 1) Python 3.10+ 与 Node.js 20+(React 前端构建/伺服需要)
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip git
+sudo apt install -y python3 python3-venv python3-pip git nodejs npm
 
 # 2) 让 prometheus 用户可以写 /opt/cmc-inventory(若还没建):
 sudo mkdir -p /opt/cmc-inventory
@@ -76,11 +82,14 @@ vim .env   # 修改 DATABASE_URL 中的密码,与第 1 步保持一致
 `.env` 关键项:
 
 ```
-BACKEND_PORT=8000
-FRONTEND_PORT=8501
+BACKEND_PORT=8010
+FRONTEND_PORT=5110
 DATABASE_URL=postgresql://cmc_user:你的真实密码@127.0.0.1:5432/cmc_data_platform
-API_BASE_URL=http://localhost:8000
-ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin
+API_BASE_URL=http://localhost:8010
+MDM_BASE_URL=http://<MDM服务器>:18000/api/v1
+MDM_TIMEOUT=5
+MDM_SECRET_KEY=<与 MDM 后端 SECRET_KEY 一致,JWT 本地校验用>
+MDM_JWT_ALGORITHM=HS256
 ```
 
 > **格式严格** —— systemd 不允许加引号,KEY=VALUE 之间不能有空格。
@@ -97,14 +106,14 @@ cd /opt/cmc-inventory
 
 脚本做了什么:
 1. `python3 -m venv backend/.venv` + `pip install -r backend/requirements.txt`
-2. `python3 -m venv frontend/.venv` + `pip install -r frontend/requirements.txt`
+2. `cd frontend-react && npm ci && npm run build`(产物在 frontend-react/dist)
 3. 把 `systemd/*.service` 复制到 `/etc/systemd/system/`(需 sudo)
 4. `systemctl daemon-reload` + `enable --now` 两个服务
 
 成功后:
 
-- 前端: `http://<服务器IP>:8501`
-- 后端:只监听服务器本机 `127.0.0.1:8000`;看 Swagger `/docs` 需要 SSH 隧道,见第 6 节
+- 前端: `http://<服务器IP>:5110`(vite preview 伺服 dist 并把 /api 代理到后端)
+- 后端:只监听服务器本机 `127.0.0.1:8010`;看 Swagger `/docs` 需要 SSH 隧道,见第 6 节
 
 ---
 
@@ -118,8 +127,8 @@ cd /opt/cmc-inventory
 | 重启前后端(推荐) | `./restart.sh` |
 | 重启前后端(旧方式) | `./install.sh restart` |
 | 查状态 | `sudo systemctl status cmc-backend cmc-frontend` |
-| 改代码后重启 | `cd /opt/cmc-inventory && git pull && ./restart.sh` |
-| 改了 requirements.txt | `./install.sh deps && ./restart.sh` |
+| 改代码后重启 | `cd /opt/cmc-inventory && git pull && ./restart.sh`(自动检测前端是否需重新构建) |
+| 改了 requirements.txt / 前端依赖 | `./install.sh deps && ./restart.sh` |
 | 卸载(只删 unit/进程,不删数据) | `./install.sh uninstall` |
 
 ---
@@ -129,16 +138,16 @@ cd /opt/cmc-inventory
 后端 uvicorn 只绑 `127.0.0.1`;虽然已有应用登录鉴权,仍不建议把 API 直接暴露给内网用户。只放通前端端口:
 
 ```bash
-sudo ufw allow 8501/tcp comment 'cmc-inventory frontend'
-# 不放通 8000:后端只允许同机 localhost 访问
+sudo ufw allow 5110/tcp comment 'cmc-labops frontend'
+# 不放通 8010:后端只允许同机 localhost 访问(前端经 vite preview 代理到它)
 ```
 
 需要从办公网看 Swagger `/docs` 时,用 SSH 隧道把后端临时映射出来:
 
 ```bash
-# 在自己的笔记本上跑
-ssh -L 18000:127.0.0.1:8000 prometheus@<服务器IP>
-# 浏览器打开 http://localhost:18000/docs
+# 在自己的笔记本上跑(本地端口避开 18000,那是 MDM 后端的约定端口)
+ssh -L 28010:127.0.0.1:8010 prometheus@<服务器IP>
+# 浏览器打开 http://localhost:28010/docs
 ```
 
 ---
@@ -163,26 +172,24 @@ PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/migrate_v1_2.sql
 
-# 3) 确认 .env 里有 ADMIN_INITIAL_PASSWORD(首次启动后端会用它自动建 admin)
-grep -q '^ADMIN_INITIAL_PASSWORD=' .env || \
-    echo 'ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin' >> .env
+# 3) 确认 .env 里有 MDM 配置(v2.x 认证与主数据引用都依赖 MDM Portal)
+grep -q '^MDM_BASE_URL=' .env || vim .env   # 按第 3 节补 MDM_* 四项
 
-# 4) 装/更新依赖 + 重装 systemd unit + 重启
+# 4) 跑设备模块建表脚本(v2.x 新增 equipment_mgmt schema,幂等)
+PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
+    -d cmc_data_platform -f sql/equipment_init.sql
+
+# 5) 装/更新依赖 + 重装 systemd unit + 重启
 ./install.sh deps
 ./install.sh install
 ./restart.sh
 ```
 
-启动后端日志会打印:`已创建初始 admin 账号(must_change_password=True)`。
+**登录(v2.x):** 浏览器开 `http://<server-ip>:5110` → 用 **MDM Portal 的账号**登录
+(本系统代理 MDM /auth/login,本地不建用户)。账号/角色/改密都在 MDM Portal 操作;
+LabOps 写权限角色:SYS_ADMIN / CMC_WAREHOUSE_ADMIN(物料) / CMC_EQUIPMENT_ADMIN(设备)。
 
-**首次登录:** 浏览器开 `http://<server-ip>:8501` → 用户名 `admin`,密码 = 你设的 `ADMIN_INITIAL_PASSWORD` → 系统会强制让你改密码 → 改完后用新密码重新登录。
-
-之后:
-
-- 普通同事:在「用户管理」页给他们建 user 账号,告诉他们用户名 + 初始密码,他们自己改密
-- `.env` 中的 `ADMIN_INITIAL_PASSWORD` 改完后**保留即可**(后续启动若 app_user 已有数据,这个变量不再生效)
-
-⚠️ 升级后,**手填的"经办人"输入框消失了** —— 入库 / 出库 / 盘点 / 物料停用 等操作的"经办人"自动取登录用户名,所有写操作记 audit_log,可在「用户管理 → 操作日志」tab 中查询。
+⚠️ 所有写操作的"经办人"自动取登录用户名,落 audit_log,在「系统管理 → 审计日志」页查询。
 
 ---
 
@@ -217,10 +224,15 @@ PGPASSWORD='...' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform -f sql/init.
 ```
 
 **Q: 前端打开但调用接口报错**
-A: 检查 backend 是否在跑:`curl http://127.0.0.1:8000/health`。另外 `.env` 里 `API_BASE_URL` 应是 `http://localhost:8000` 或 `http://127.0.0.1:8000`(同机部署)。
+A: 检查 backend 是否在跑:`curl http://127.0.0.1:8010/health`。前端经 vite preview 同源代理 /api,
+无需配置 API 地址;若改过 `BACKEND_PORT`,重启前端服务让代理拿到新端口。
+
+**Q: 登录报错 / 一直 401**
+A: 检查服务器能否访问 MDM Portal 后端:`curl <MDM_BASE_URL>/health`;
+确认 `.env` 的 `MDM_SECRET_KEY` 与 MDM 后端一致(JWT 本地校验依赖它)。
 
 **Q: 端口被占用**
-A: `ss -ltnp | grep -E '8000|8501'` 查谁占着。通常只需要改 `.env` 中的 `BACKEND_PORT` / `FRONTEND_PORT`,并同步修改 `API_BASE_URL` 的端口,然后 `./restart.sh`。
+A: `ss -ltnp | grep -E '8010|5110'` 查谁占着。通常只需要改 `.env` 中的 `BACKEND_PORT` / `FRONTEND_PORT`,然后 `./restart.sh`。
 
 **Q: 想加开机自启 / 取消自启**
 A: install.sh 默认已 `enable`。

@@ -486,6 +486,14 @@ def get_equipment(equipment_id: int, db: Session = Depends(get_db)):
     return _get_equipment_or_404(db, equipment_id)
 
 
+# MDM 快照字段:data_source='mdm' 时本系统只读,修改须回 MDM 后用 sync-mdm 刷新;
+# data_source='local' 的兜底记录放行(补登前允许本地修正)
+EQUIPMENT_MDM_READONLY_FIELDS = {
+    "name", "category", "model", "manufacturer", "serial_no",
+    "purchase_date", "asset_value",
+}
+
+
 @router.patch("/{equipment_id}", response_model=EquipmentOut)
 def update_equipment(
     equipment_id: int,
@@ -497,6 +505,14 @@ def update_equipment(
     obj = _get_equipment_or_404(db, equipment_id)
     before = model_snapshot(obj)
     data = payload.model_dump(exclude_unset=True)
+    if obj.data_source == "mdm":
+        blocked = sorted(EQUIPMENT_MDM_READONLY_FIELDS & data.keys())
+        if blocked:
+            raise HTTPException(
+                status_code=400,
+                detail=f"字段 {', '.join(blocked)} 为 MDM 主数据快照,本系统只读;"
+                       f"请在 MDM Portal 修改后,在设备详情页'从 MDM 刷新'同步",
+            )
     for k, v in data.items():
         setattr(obj, k, v)
     obj.updated_by = current.username

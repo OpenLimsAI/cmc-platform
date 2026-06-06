@@ -14,16 +14,11 @@ import {
 } from "../../../api/equipment";
 import { useAuthStore } from "../../../stores/authStore";
 import { mdmPortalUrl } from "../../../shared/mdmPortal";
+import { getErrorDetail } from "../../../shared/errors";
 
 const STATUS_OPTIONS = Object.entries(STATUS_LABEL).map(([value, v]) => ({
   value, label: v.text,
 }));
-
-function errDetail(err: unknown, fallback: string): string {
-  return (
-    (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? fallback
-  );
-}
 
 /**
  * 设备台账 — 身份信息(名称/型号/厂家等)以 MDM 为权威源,只能从 MDM 引用建档;
@@ -84,14 +79,14 @@ export default function EquipmentListPage() {
   const updateMutation = useMutation({
     mutationFn: (data: EquipmentPayload) => updateEquipment(editing!.equipment_id, data),
     onSuccess: () => onSaved("运营信息已更新"),
-    onError: (err: unknown) => message.error(errDetail(err, "保存失败")),
+    onError: (err: unknown) => message.error(getErrorDetail(err, "保存失败")),
   });
 
   const fromMdmMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       createEquipmentFromMdm(mdmSelected!.equipment_code, data),
     onSuccess: () => onSaved(`已从 MDM 引用建档: ${mdmSelected?.equipment_code}`),
-    onError: (err: unknown) => message.error(errDetail(err, "建档失败")),
+    onError: (err: unknown) => message.error(getErrorDetail(err, "建档失败")),
   });
 
   // 批量同步 = 台账初始化:MDM 全量设备一键建档,运营字段留空待补
@@ -107,7 +102,7 @@ export default function EquipmentListPage() {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
       queryClient.invalidateQueries({ queryKey: ["equipmentCategories"] });
     },
-    onError: (err: unknown) => message.error(errDetail(err, "批量同步失败")),
+    onError: (err: unknown) => message.error(getErrorDetail(err, "批量同步失败")),
   });
 
   const handleMdmSearch = async (q: string) => {

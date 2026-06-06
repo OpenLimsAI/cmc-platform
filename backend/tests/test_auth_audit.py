@@ -1,27 +1,30 @@
 """
 文件: backend/tests/test_auth_audit.py
-用途: 鉴权 / 角色 / 审计 关键路径
+用途: 鉴权 / 角色 / 审计 关键路径(v2.0:认证为 MDM JWT,本地不建用户表)
 覆盖:
     - 匿名访问写接口 → 401
-    - user 角色访问写接口 → 403
-    - admin 写接口 → 200,且产生 audit_log 行
-    - 改密成功后旧 token 失效
-    - 错误密码 → 401
-    - operator 字段被忽略,实际写入的是登录用户
+    - 伪造/错误类型 token → 401
+    - 无写权限角色访问写接口 → 403(物料 / 设备各一)
+    - SYS_ADMIN 写接口 → 201,且产生 audit_log 行
+    - 审计写入失败时业务回滚
+    - operator 字段取登录用户(JWT username),不可被请求体伪造
+    - 批次创建的首笔 IN 流水也单独落审计(inventory.in)
+说明:
+    改密/用户管理/首登强制改密已移交 MDM Portal,不在本系统测试范围。
 """
 from __future__ import annotations
 
 from datetime import date
 
+from jose import jwt
 from sqlalchemy import text
 
-
-def _login(client, username, password):
-    return client.post("/api/auth/login", json={"username": username, "password": password})
+from tests.conftest import auth_headers, mint_token
+from auth import MDM_JWT_ALGORITHM
 
 
 # ---------------------------------------------------------------------------
-# 1. 匿名 / 错误密码
+# 1. 匿名 / 坏 token
 # ---------------------------------------------------------------------------
 def test_anon_blocked_from_write_endpoint(anon_client):
     resp = anon_client.post("/api/materials", json={
@@ -30,49 +33,51 @@ def test_anon_blocked_from_write_endpoint(anon_client):
     assert resp.status_code == 401
 
 
-def test_anon_can_login(anon_client):
-    resp = _login(anon_client, "testadmin", "test_pwd_123")
-    assert resp.status_code == 200
-    assert resp.json()["user"]["role"] == "admin"
-
-
-def test_login_wrong_password(anon_client):
-    resp = _login(anon_client, "testadmin", "wrong")
+def test_forged_token_rejected(anon_client):
+    """用错误密钥签的 token → 401(MDM_SECRET_KEY 本地校验)。"""
+    bad = jwt.encode(
+        {"sub": "1", "username": "hacker", "roles": ["SYS_ADMIN"], "type": "access"},
+        "wrong-secret-key-not-the-mdm-one-at-all!!",
+        algorithm=MDM_JWT_ALGORITHM,
+    )
+    resp = anon_client.get(
+        "/api/materials", headers={"Authorization": f"Bearer {bad}"},
+    )
     assert resp.status_code == 401
-    assert "用户名或密码错误" in resp.json()["detail"]
+
+
+def test_wrong_token_type_rejected(anon_client):
+    """type != access(如 refresh token)→ 401。"""
+    headers = {"Authorization": f"Bearer {mint_token(['SYS_ADMIN'], token_type='refresh')}"}
+    resp = anon_client.get("/api/materials", headers=headers)
+    assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------
-# 2. 角色控制:user 不能写
+# 2. 角色控制:无写权限角色不能写
 # ---------------------------------------------------------------------------
-def test_user_role_forbidden_from_write(anon_client, db):
-    """建一个普通 user,登录后试图新增物料 → 403。"""
-    from auth import hash_password
-    from models import AppUser
-    db.add(AppUser(
-        username="ordinary",
-        password_hash=hash_password("user_pwd_xx"),
-        role="user",
-        is_active=True,
-        must_change_password=False,
-    ))
-    db.commit()
-
-    resp = _login(anon_client, "ordinary", "user_pwd_xx")
-    assert resp.status_code == 200
-    token = resp.json()["access_token"]
-
+def test_readonly_role_forbidden_from_material_write(anon_client):
     resp = anon_client.post(
         "/api/materials",
         json={"material_code": "U0001", "name_cn": "x", "unit": "支"},
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(["READ_ONLY_USER"], username="ordinary", user_id=99),
     )
     assert resp.status_code == 403
     assert "管理员" in resp.json()["detail"]
 
 
+def test_warehouse_role_forbidden_from_equipment_write(anon_client):
+    """库管角色可写物料但不可写设备(角色按模块隔离)。"""
+    resp = anon_client.post(
+        "/api/equipment",
+        json={"equipment_code": "EQX-1", "name": "x", "category": "分析仪器"},
+        headers=auth_headers(["CMC_WAREHOUSE_ADMIN"], username="wh", user_id=98),
+    )
+    assert resp.status_code == 403
+
+
 # ---------------------------------------------------------------------------
-# 3. admin 写操作 + audit_log 落库 + operator 自动填登录用户
+# 3. SYS_ADMIN 写操作 + audit_log 落库 + operator 自动填登录用户
 # ---------------------------------------------------------------------------
 def test_admin_create_material_writes_audit(client, db):
     resp = client.post("/api/materials", json={
@@ -110,22 +115,19 @@ def test_material_create_rolls_back_when_audit_fails(db, monkeypatch):
     app.dependency_overrides[get_db] = _override
     try:
         with TestClient(app, raise_server_exceptions=False) as c:
-            resp = c.post("/api/auth/login", json={
-                "username": "testadmin", "password": "test_pwd_123",
-            })
-            assert resp.status_code == 200
-            token = resp.json()["access_token"]
             monkeypatch.setattr(material_router, "write_audit", _boom)
-
             resp = c.post(
                 "/api/materials",
                 json={"material_code": "AUDITFAIL", "name_cn": "不应保存", "unit": "支"},
-                headers={"Authorization": f"Bearer {token}"},
+                headers=auth_headers(["SYS_ADMIN"]),
             )
             assert resp.status_code == 500
     finally:
         app.dependency_overrides.clear()
 
+    # 生产路径里请求结束 session 关闭,未 commit 的 flush 即被丢弃;
+    # 测试与端点共用同一 session,需先 rollback 再查,模拟 session 关闭后的可见性
+    db.rollback()
     row = db.execute(text(
         "SELECT 1 FROM material WHERE material_code='AUDITFAIL'"
     )).first()
@@ -133,7 +135,7 @@ def test_material_create_rolls_back_when_audit_fails(db, monkeypatch):
 
 
 def test_inventory_in_uses_login_user_as_operator(client, db, seed_material):
-    """创建批次 + 入库 → inventory_txn.operator 应是 testadmin,不是 client 传的字段。"""
+    """创建批次 + 入库 → inventory_txn.operator 应是 JWT 里的登录用户。"""
     mid, _code, loc = seed_material
 
     resp = client.post("/api/batches", json={
@@ -152,109 +154,31 @@ def test_inventory_in_uses_login_user_as_operator(client, db, seed_material):
     assert op == "testadmin"
 
 
-def test_cannot_remove_last_active_admin(client, db):
-    """最后一个启用的 admin 不能被降级。"""
-    admin_id = db.execute(text(
-        "SELECT id FROM app_user WHERE username='testadmin'"
-    )).scalar_one()
+def test_batch_create_audits_initial_txn(client, db, seed_material):
+    """批次创建的首笔 IN 流水也应单独落 audit_log(action=inventory.in)。"""
+    mid, _code, loc = seed_material
 
-    resp = client.patch(f"/api/users/{admin_id}", json={"role": "warehouse_admin"})
-    assert resp.status_code == 400
-    assert "admin" in resp.json()["detail"]
+    resp = client.post("/api/batches", json={
+        "material_id": mid,
+        "batch_no": "AUDIT-B2",
+        "expiry_date": str(date.today().replace(year=date.today().year + 1)),
+        "location_id": loc,
+        "received_date": str(date.today()),
+        "initial_qty": "5",
+    })
+    assert resp.status_code == 200, resp.json()
+    batch_id = resp.json()["batch_id"]
 
+    # batch.create 与 inventory.in 各一行
+    n_batch = db.execute(text(
+        "SELECT count(*) FROM audit_log WHERE action='batch.create' AND entity_id=:eid"
+    ), {"eid": str(batch_id)}).scalar()
+    assert n_batch == 1
 
-def test_admin_cannot_demote_self_even_with_other_admin(client, db):
-    """即使还有其他 admin,当前登录 admin 也不能把自己降级。"""
-    from auth import hash_password
-    from models import AppUser
-
-    db.add(AppUser(
-        username="other_admin",
-        password_hash=hash_password("other_pwd_123"),
-        role="admin",
-        is_active=True,
-        must_change_password=False,
-    ))
-    db.commit()
-
-    admin_id = db.execute(text(
-        "SELECT id FROM app_user WHERE username='testadmin'"
-    )).scalar_one()
-    resp = client.patch(f"/api/users/{admin_id}", json={"role": "warehouse_admin"})
-    assert resp.status_code == 400
-    assert "自己" in resp.json()["detail"]
-
-
-# ---------------------------------------------------------------------------
-# 4. 改密后旧 token 失效
-# ---------------------------------------------------------------------------
-def test_change_password_invalidates_old_tokens(anon_client, db):
-    """临时建一个用户 → 登录拿 token → 改密 → 用旧 token 调 /me 应 401。"""
-    from auth import hash_password
-    from models import AppUser
-    db.add(AppUser(
-        username="rotateuser",
-        password_hash=hash_password("first_password_8"),
-        role="admin",
-        is_active=True,
-        must_change_password=False,
-    ))
-    db.commit()
-
-    resp = _login(anon_client, "rotateuser", "first_password_8")
-    assert resp.status_code == 200
-    old_token = resp.json()["access_token"]
-
-    # 用旧 token 改密
-    resp = anon_client.post(
-        "/api/auth/change-password",
-        json={"old_password": "first_password_8", "new_password": "second_password_9"},
-        headers={"Authorization": f"Bearer {old_token}"},
-    )
-    assert resp.status_code == 200
-
-    # 旧 token 应失效
-    resp = anon_client.get(
-        "/api/users/me",
-        headers={"Authorization": f"Bearer {old_token}"},
-    )
-    assert resp.status_code == 401
-
-    # 用新密码可以登录
-    resp = _login(anon_client, "rotateuser", "second_password_9")
-    assert resp.status_code == 200
-
-
-# ---------------------------------------------------------------------------
-# 5. must_change_password 守卫:首次登录不能调业务接口
-# ---------------------------------------------------------------------------
-def test_must_change_password_blocks_business_calls(anon_client, db):
-    from auth import hash_password
-    from models import AppUser
-    db.add(AppUser(
-        username="freshie",
-        password_hash=hash_password("init_password_8"),
-        role="admin",
-        is_active=True,
-        must_change_password=True,  # 首次登录强制
-    ))
-    db.commit()
-
-    resp = _login(anon_client, "freshie", "init_password_8")
-    assert resp.status_code == 200
-    token = resp.json()["access_token"]
-
-    # 业务接口被拦
-    resp = anon_client.get(
-        "/api/materials",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 403
-    assert "改密" in resp.json()["detail"]
-
-    # /me 仍允许(让用户能查)
-    resp = anon_client.get(
-        "/api/users/me",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 200
+    txn_id = db.execute(text(
+        "SELECT txn_id FROM inventory_txn WHERE batch_id=:bid ORDER BY txn_id LIMIT 1"
+    ), {"bid": batch_id}).scalar_one()
+    n_txn = db.execute(text(
+        "SELECT count(*) FROM audit_log WHERE action='inventory.in' AND entity_id=:eid"
+    ), {"eid": str(txn_id)}).scalar()
+    assert n_txn == 1

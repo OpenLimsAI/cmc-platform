@@ -9,6 +9,7 @@ import {
   stockByBatch, transferBatch, listLocations,
   type StockByBatch, type Location,
 } from "../../../api/inventory";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function TransferPage() {
   const [keyword, setKeyword] = useState("");
@@ -44,8 +45,7 @@ export default function TransferPage() {
     },
     onError: (err: unknown) => {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        "移库失败";
+        getErrorDetail(err, "移库失败");
       message.error(detail);
     },
   });

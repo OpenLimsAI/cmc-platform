@@ -4,6 +4,7 @@ import { Form, Input, Button, Card, Typography, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { login } from "../../../api/auth";
 import { useAuthStore } from "../../../stores/authStore";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -17,15 +18,13 @@ export default function LoginPage() {
       setAuth(data.access_token, data.user);
 
       if (data.user.must_change_password) {
-        message.warning("请先修改初始密码");
-        navigate("/change-password");
-      } else {
-        navigate("/materials");
+        // 改密在 MDM Portal 操作(V1.1 起本系统无改密页)
+        message.warning("MDM 提示需要修改初始密码,请先到 MDM Portal 完成改密", 6);
       }
+      navigate("/materials");
     } catch (err: unknown) {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail ?? "登录失败";
+        getErrorDetail(err, "登录失败");
       message.error(detail);
     } finally {
       setLoading(false);

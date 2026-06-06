@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import {
   listCalibrations, createCalibration, CALIBRATION_RESULT_LABEL,
 } from "../../../api/equipment";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function CalibrationTab({
   equipmentId, canEdit,
@@ -32,7 +33,7 @@ export default function CalibrationTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "添加失败",
+        getErrorDetail(err, "添加失败"),
       ),
   });
 

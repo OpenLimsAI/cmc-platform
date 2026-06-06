@@ -90,9 +90,6 @@ export interface Location {
 export const createBatch = (data: BatchCreate) =>
   client.post<Batch>("/api/batches", data);
 
-export const listBatches = (params?: Record<string, unknown>) =>
-  client.get<Batch[]>("/api/batches", { params });
-
 export const outgoing = (data: TxnOutRequest) =>
   client.post("/api/inventory/out", data);
 
@@ -106,9 +103,6 @@ export const transferBatch = (data: {
   txn_date: string;
   remark?: string;
 }) => client.post("/api/inventory/transfer", data);
-
-export const listTxns = (params?: Record<string, unknown>) =>
-  client.get("/api/inventory/txns", { params });
 
 export const stockByMaterial = (params?: Record<string, unknown>) =>
   client.get<StockByMaterial[]>("/api/stock/by-material", { params });

@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import {
   listRepairs, createRepair, completeRepair, REPAIR_TYPE_LABEL, type Repair,
 } from "../../../api/equipment";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function RepairTab({
   equipmentId, canEdit,
@@ -39,7 +40,7 @@ export default function RepairTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "登记失败",
+        getErrorDetail(err, "登记失败"),
       ),
   });
 
@@ -54,7 +55,7 @@ export default function RepairTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "登记失败",
+        getErrorDetail(err, "登记失败"),
       ),
   });
 

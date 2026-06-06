@@ -230,24 +230,6 @@ def list_categories(db: Session) -> List[str]:
     return [r[0] for r in rows]
 
 
-def upsert_units(db: Session, units: List[str]) -> None:
-    for u in units:
-        if not u:
-            continue
-        if not db.get(UnitDict, u):
-            db.add(UnitDict(unit=u, description=u))
-    db.flush()
-
-
-def upsert_categories(db: Session, categories: List[str]) -> None:
-    for c in categories:
-        if not c:
-            continue
-        if not db.get(CategoryDict, c):
-            db.add(CategoryDict(category=c))
-    db.flush()
-
-
 # ---------------------------------------------------------------------------
 # Location
 # ---------------------------------------------------------------------------

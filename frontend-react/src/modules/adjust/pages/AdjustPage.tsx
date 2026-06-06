@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import {
   stockByBatch, adjustStock, type StockByBatch,
 } from "../../../api/inventory";
+import { getErrorDetail } from "../../../shared/errors";
 
 type Mode = "actual" | "delta";
 
@@ -35,8 +36,7 @@ export default function AdjustPage() {
     },
     onError: (err: unknown) => {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        "调整失败";
+        getErrorDetail(err, "调整失败");
       message.error(detail);
     },
   });

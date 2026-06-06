@@ -10,6 +10,7 @@ import { createFromMdm, mdmLookup, type Material } from "../../../api/materials"
 import { createBatch, listLocations, type BatchCreate } from "../../../api/inventory";
 import { listMaterials } from "../../../api/materials";
 import { mdmPortalUrl } from "../../../shared/mdmPortal";
+import { getErrorDetail } from "../../../shared/errors";
 
 type IntakeType = "reagent" | "consumable" | "standard" | "column";
 
@@ -45,8 +46,7 @@ export default function IntakePage() {
     },
     onError: (err: unknown) => {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        "入库失败";
+        getErrorDetail(err, "入库失败");
       message.error(detail);
     },
   });

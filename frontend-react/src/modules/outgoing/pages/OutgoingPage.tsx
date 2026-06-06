@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import {
   stockByBatch, outgoing, type StockByBatch, type TxnOutRequest,
 } from "../../../api/inventory";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function OutgoingPage() {
   const [keyword, setKeyword] = useState("");
@@ -32,8 +33,7 @@ export default function OutgoingPage() {
     },
     onError: (err: unknown) => {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        "出库失败";
+        getErrorDetail(err, "出库失败");
       message.error(detail);
     },
   });

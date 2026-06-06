@@ -1,11 +1,12 @@
 # =============================================================================
 # 文件: systemd/cmc-frontend.service
-# 用途: 用 systemd 管 Streamlit 前端进程
+# 用途: 用 systemd 管 React 前端进程(vite preview 伺服 dist 构建产物)
 # 安装位置: /etc/systemd/system/cmc-frontend.service
+# 前置: install.sh 已执行 npm ci + npm run build(生成 frontend-react/dist)
 # =============================================================================
 
 [Unit]
-Description=CMC Inventory Frontend (Streamlit)
+Description=CMC LabOps Portal Frontend (React / vite preview)
 Documentation=https://github.com/qingcheng81/cmc-inventory
 After=network-online.target cmc-backend.service
 Wants=network-online.target cmc-backend.service
@@ -14,17 +15,14 @@ Wants=network-online.target cmc-backend.service
 Type=simple
 User=prometheus
 Group=prometheus
-WorkingDirectory=/opt/cmc-inventory/frontend
-# 端口由 .env 中的 FRONTEND_PORT 控制(改 .env 即可,不动 unit)
-# 注意:不要再用 Environment=FRONTEND_PORT=... 兜底 ——
-#       systemd 中 Environment= 会覆盖 EnvironmentFile= 中的同名变量,导致 .env 失效
+WorkingDirectory=/opt/cmc-inventory/frontend-react
+# 端口由 .env 中的 FRONTEND_PORT 控制;BACKEND_PORT 供 vite preview 代理 /api 用
+# 注意:不要再用 Environment= 兜底 —— systemd 中 Environment= 会覆盖
+#       EnvironmentFile= 中的同名变量,导致 .env 失效
 EnvironmentFile=/opt/cmc-inventory/.env
 
-ExecStart=/opt/cmc-inventory/frontend/.venv/bin/streamlit run app.py \
-    --server.port=${FRONTEND_PORT} \
-    --server.address=0.0.0.0 \
-    --server.headless=true \
-    --browser.gatherUsageStats=false
+# vite preview 伺服 dist 并把 /api 代理到后端(见 vite.config.ts 的 preview 段)
+ExecStart=/usr/bin/npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT}
 
 Restart=on-failure
 RestartSec=5

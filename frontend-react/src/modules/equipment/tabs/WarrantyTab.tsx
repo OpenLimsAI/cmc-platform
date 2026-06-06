@@ -6,6 +6,7 @@ import { EditOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import dayjs from "dayjs";
 import { getWarranty, upsertWarranty } from "../../../api/equipment";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function WarrantyTab({
   equipmentId, canEdit,
@@ -29,7 +30,7 @@ export default function WarrantyTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "保存失败",
+        getErrorDetail(err, "保存失败"),
       ),
   });
 

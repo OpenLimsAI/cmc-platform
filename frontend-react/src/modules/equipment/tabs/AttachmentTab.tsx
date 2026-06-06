@@ -8,6 +8,7 @@ import {
   listAttachments, uploadAttachment, downloadAttachment, deleteAttachment,
   ATTACHMENT_TAG_LABEL, type Attachment,
 } from "../../../api/equipment";
+import { getErrorDetail } from "../../../shared/errors";
 
 function fmtSize(bytes: number | null): string {
   if (bytes == null) return "-";
@@ -46,7 +47,7 @@ export default function AttachmentTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "上传失败",
+        getErrorDetail(err, "上传失败"),
       ),
   });
 
@@ -58,7 +59,7 @@ export default function AttachmentTab({
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "删除失败",
+        getErrorDetail(err, "删除失败"),
       ),
   });
 

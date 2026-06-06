@@ -14,6 +14,7 @@ import MaintenanceTab from "../tabs/MaintenanceTab";
 import RepairTab from "../tabs/RepairTab";
 import WarrantyTab from "../tabs/WarrantyTab";
 import AttachmentTab from "../tabs/AttachmentTab";
+import { getErrorDetail } from "../../../shared/errors";
 
 export default function EquipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +43,7 @@ export default function EquipmentDetailPage() {
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "操作失败",
+        getErrorDetail(err, "操作失败"),
       ),
   });
 
@@ -55,7 +56,7 @@ export default function EquipmentDetailPage() {
     },
     onError: (err: unknown) =>
       message.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? "刷新失败",
+        getErrorDetail(err, "刷新失败"),
       ),
   });
 

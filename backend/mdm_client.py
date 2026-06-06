@@ -1,10 +1,11 @@
 """
 文件: backend/mdm_client.py
-用途: MDM Portal 物料查询客户端
+用途: MDM Portal 主数据查询客户端(物料 mm 域 + 设备 eqp 域)
 说明:
-    - 封装对 MDM /api/v1/materials 的 HTTP 调用
-    - 入库时按 material_code 查询物料身份信息
-    - MDM 不可用时优雅降级（不阻塞本地操作）
+    - 封装对 MDM /api/v1/materials 与 /api/v1/equipments 的 HTTP 调用
+    - 入库/建档时按编码查询身份信息
+    - MDM 不可用时优雅降级(不阻塞本地操作)
+    - 两域调用形态完全一致,收拢为 _get_by_code/_search 两个通用函数
 """
 from __future__ import annotations
 
@@ -31,86 +32,68 @@ def _get_client(token: Optional[str] = None) -> httpx.Client:
     )
 
 
-def get_material_by_code(code: str, token: Optional[str] = None) -> Optional[dict]:
-    """按物料编码从 MDM 查询物料身份信息。
-    返回 dict（MDM MaterialDetail 结构）或 None（未找到 / MDM 不可用）。
-    """
+def _get_by_code(endpoint: str, code: str, token: Optional[str] = None) -> Optional[dict]:
+    """按编码从 MDM 查询单条主数据。
+    返回 dict(MDM Detail 结构)或 None(未找到 / MDM 不可用)。"""
     try:
         with _get_client(token) as client:
-            resp = client.get(f"/materials/{code}")
+            resp = client.get(f"/{endpoint}/{code}")
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("data", data)
             if resp.status_code == 404:
                 return None
-            log.warning("MDM 查询 %s 返回 %s: %s", code, resp.status_code, resp.text[:200])
+            log.warning("MDM 查询 %s/%s 返回 %s: %s",
+                        endpoint, code, resp.status_code, resp.text[:200])
             return None
     except httpx.ConnectError:
         log.warning("MDM 服务不可用 (%s)，跳过远程查询", MDM_BASE_URL)
         return None
     except Exception:
-        log.exception("MDM 查询异常 (code=%s)", code)
+        log.exception("MDM 查询异常 (endpoint=%s code=%s)", endpoint, code)
         return None
+
+
+def _search(
+    endpoint: str, keyword: str, page: int = 1, page_size: int = 20,
+    token: Optional[str] = None,
+) -> dict:
+    """搜索 MDM 主数据列表。返回 {data: [...], pagination/meta: {...}} 或空结构。"""
+    try:
+        with _get_client(token) as client:
+            resp = client.get(f"/{endpoint}", params={
+                "q": keyword,
+                "page": page,
+                "page_size": page_size,
+            })
+            if resp.status_code == 200:
+                return resp.json()
+            return {"data": [], "pagination": {"total": 0}}
+    except Exception:
+        log.exception("MDM 搜索异常 (endpoint=%s keyword=%s)", endpoint, keyword)
+        return {"data": [], "pagination": {"total": 0}}
+
+
+# ---- 物料(mm 域) ----
+def get_material_by_code(code: str, token: Optional[str] = None) -> Optional[dict]:
+    return _get_by_code("materials", code, token)
 
 
 def search_materials(
     keyword: str, page: int = 1, page_size: int = 20, token: Optional[str] = None,
 ) -> dict:
-    """搜索 MDM 物料列表。返回 {data: [...], pagination: {...}} 或空结构。"""
-    try:
-        with _get_client(token) as client:
-            resp = client.get("/materials", params={
-                "q": keyword,
-                "page": page,
-                "page_size": page_size,
-            })
-            if resp.status_code == 200:
-                return resp.json()
-            return {"data": [], "pagination": {"total": 0}}
-    except Exception:
-        log.exception("MDM 搜索异常 (keyword=%s)", keyword)
-        return {"data": [], "pagination": {"total": 0}}
+    return _search("materials", keyword, page, page_size, token)
 
 
+# ---- 设备(eqp 域) ----
 def get_equipment_by_code(code: str, token: Optional[str] = None) -> Optional[dict]:
-    """按设备编码从 MDM(eqp 域) 查询设备身份信息。
-    返回 dict（MDM EquipmentDetail 结构）或 None（未找到 / MDM 不可用）。
-    """
-    try:
-        with _get_client(token) as client:
-            resp = client.get(f"/equipments/{code}")
-            if resp.status_code == 200:
-                data = resp.json()
-                return data.get("data", data)
-            if resp.status_code == 404:
-                return None
-            log.warning("MDM 设备查询 %s 返回 %s: %s", code, resp.status_code, resp.text[:200])
-            return None
-    except httpx.ConnectError:
-        log.warning("MDM 服务不可用 (%s)，跳过远程查询", MDM_BASE_URL)
-        return None
-    except Exception:
-        log.exception("MDM 设备查询异常 (code=%s)", code)
-        return None
+    return _get_by_code("equipments", code, token)
 
 
 def search_equipments(
     keyword: str, page: int = 1, page_size: int = 20, token: Optional[str] = None,
 ) -> dict:
-    """搜索 MDM 设备列表。返回 {data: [...], pagination: {...}} 或空结构。"""
-    try:
-        with _get_client(token) as client:
-            resp = client.get("/equipments", params={
-                "q": keyword,
-                "page": page,
-                "page_size": page_size,
-            })
-            if resp.status_code == 200:
-                return resp.json()
-            return {"data": [], "pagination": {"total": 0}}
-    except Exception:
-        log.exception("MDM 设备搜索异常 (keyword=%s)", keyword)
-        return {"data": [], "pagination": {"total": 0}}
+    return _search("equipments", keyword, page, page_size, token)
 
 
 def extract_bearer_token(authorization: Optional[str]) -> Optional[str]:

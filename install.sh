@@ -2,7 +2,7 @@
 # =============================================================================
 # 文件: install.sh
 # 用途: 一键在 Linux 服务器部署 CMC LabOps Portal(原 CMC 物料管理系统)
-#       - 给 backend / frontend 各创建独立 venv 并安装依赖
+#       - backend 创建 venv 安装依赖;frontend-react 执行 npm ci + npm run build
 #       - 把 systemd unit 装到 /etc/systemd/system/
 #       - daemon-reload + enable --now
 # 用法:
@@ -14,6 +14,8 @@
 #   - 项目克隆在 /opt/cmc-inventory(若改路径,sudo 步骤里需要同步改 unit 文件中 WorkingDirectory)
 #   - 当前用户在 sudo 组(install / remove unit 需要 sudo)
 #   - 系统有 python3 (>= 3.10);默认走 python3,可用 PYTHON 环境变量覆盖
+#   - 系统有 Node.js 20+ 与 npm(React 前端构建与 vite preview 伺服)
+#   - 服务器可访问 MDM Portal 后端(登录认证与主数据引用依赖它,地址在 .env 的 MDM_BASE_URL)
 # =============================================================================
 set -euo pipefail
 
@@ -37,10 +39,20 @@ ensure_venv() {
     touch .venv/.deps-stamp
 }
 
+build_frontend() {
+    cd "$ROOT/frontend-react"
+    echo "==> 安装前端依赖(npm ci)"
+    npm ci --silent
+    echo "==> 构建前端(npm run build)"
+    npm run build
+    # 时间戳供 restart.sh 判断是否需要重新构建
+    touch dist/.build-stamp
+}
+
 case "$ACTION" in
     install)
         ensure_venv backend
-        ensure_venv frontend
+        build_frontend
 
         if [ ! -f "$ROOT/.env" ]; then
             echo "==> 复制 .env.example -> .env (请检查并按需修改密码)"
@@ -61,8 +73,8 @@ case "$ACTION" in
         # 从 .env 读出实际端口,避免与硬编码不一致
         FE_PORT="$(grep -E '^FRONTEND_PORT=' "$ROOT/.env" 2>/dev/null | cut -d= -f2)"
         BE_PORT="$(grep -E '^BACKEND_PORT='  "$ROOT/.env" 2>/dev/null | cut -d= -f2)"
-        FE_PORT="${FE_PORT:-8501}"
-        BE_PORT="${BE_PORT:-8000}"
+        FE_PORT="${FE_PORT:-5110}"
+        BE_PORT="${BE_PORT:-8010}"
 
         echo
         echo "==> 完成。访问:"
@@ -74,7 +86,7 @@ case "$ACTION" in
 
     deps)
         ensure_venv backend
-        ensure_venv frontend
+        build_frontend
         echo "==> 依赖已更新。需要重启请: ./restart.sh"
         ;;
 

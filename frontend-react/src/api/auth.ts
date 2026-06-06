@@ -24,8 +24,3 @@ export const login = (data: LoginRequest) =>
   client.post<TokenResponse>("/api/auth/login", data);
 
 export const logout = () => client.post("/api/auth/logout");
-
-export const getMe = () =>
-  client.get<{ user_id: number; username: string; roles: string[] }>(
-    "/api/users/me",
-  );

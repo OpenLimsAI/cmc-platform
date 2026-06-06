@@ -41,23 +41,10 @@ export interface MaterialCreate {
   safety_stock?: number;
 }
 
+// 物料主数据为只读"物料查询"(V1.3):新增/编辑/停用统一在 MDM Portal,
+// 此处不提供本地 CRUD 调用(后端兜底端点仍在,仅 API 直调)
 export const listMaterials = (params?: Record<string, unknown>) =>
   client.get<Material[]>("/api/materials", { params });
-
-export const getMaterial = (id: number) =>
-  client.get<Material>(`/api/materials/${id}`);
-
-export const createMaterial = (data: MaterialCreate) =>
-  client.post<Material>("/api/materials", data);
-
-export const updateMaterial = (id: number, data: Partial<MaterialCreate>) =>
-  client.patch<Material>(`/api/materials/${id}`, data);
-
-export const deactivateMaterial = (id: number, reason?: string) =>
-  client.post<Material>(`/api/materials/${id}/deactivate`, { reason });
-
-export const activateMaterial = (id: number) =>
-  client.post<Material>(`/api/materials/${id}/activate`);
 
 export const createFromMdm = (code: string) =>
   client.post<Material>(`/api/materials/from-mdm/${code}`);
@@ -65,12 +52,5 @@ export const createFromMdm = (code: string) =>
 export const mdmLookup = (code: string) =>
   client.get(`/api/mdm/materials/${code}`);
 
-export const mdmSearch = (q: string, page = 1, pageSize = 20) =>
-  client.get("/api/mdm/materials", { params: { q, page, page_size: pageSize } });
-
-export const listCategories = () => client.get("/api/categories");
-
 export const listCategoryValues = () =>
   client.get<string[]>("/api/categories/values");
-
-export const listUnits = () => client.get("/api/units");

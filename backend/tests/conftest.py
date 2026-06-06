@@ -4,6 +4,8 @@
     - 用一个独立的测试库(默认: 本地 docker postgres16 中的 postgres 库),
       在里面建/清 material_mgmt schema,跑 sql/init.sql 建表
     - 每个测试拿一个 SQLAlchemy session,结束后 TRUNCATE 业务表
+    - 认证走 MDM JWT(v2.0):测试不连真实 MDM,直接用 MDM_SECRET_KEY
+      本地铸 token(claims 结构与 MDM 签发一致),auth.py 校验逻辑全覆盖
 
 环境变量:
     DATABASE_URL_TEST  覆盖默认连接(默认 postgres@127.0.0.1:5432/postgres,无密码)
@@ -18,6 +20,7 @@ from __future__ import annotations
 import os
 import pathlib
 import sys
+from datetime import datetime, timedelta
 
 # 把 backend/ 加到 sys.path,让 `import crud / models / database` 能直接走通
 BACKEND_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -31,15 +34,40 @@ TEST_URL = os.environ.setdefault(
 os.environ["DATABASE_URL"] = TEST_URL
 
 import pytest
+from jose import jwt
 from sqlalchemy import text
 
 from database import engine, SessionLocal  # noqa: E402  (after sys.path tweak)
+from auth import MDM_SECRET_KEY, MDM_JWT_ALGORITHM  # noqa: E402
+
+
+def mint_token(
+    roles: list[str],
+    username: str = "testadmin",
+    user_id: int = 1,
+    token_type: str = "access",
+    expires_minutes: int = 30,
+) -> str:
+    """本地铸一个与 MDM 签发结构一致的 JWT(测试不依赖真实 MDM 服务)。"""
+    payload = {
+        "sub": str(user_id),
+        "username": username,
+        "roles": roles,
+        "type": token_type,
+        "exp": datetime.utcnow() + timedelta(minutes=expires_minutes),
+    }
+    return jwt.encode(payload, MDM_SECRET_KEY, algorithm=MDM_JWT_ALGORITHM)
+
+
+def auth_headers(roles: list[str], username: str = "testadmin", user_id: int = 1) -> dict:
+    return {"Authorization": f"Bearer {mint_token(roles, username, user_id)}"}
 
 
 @pytest.fixture(scope="session")
 def _prepare_schema():
-    """重建 material_mgmt schema 并跑 init.sql,顺手建一个测试 admin。
+    """重建 material_mgmt schema 并跑 init.sql。
     连不上库时跳过依赖该 fixture 的测试,但纯函数测试(如 test_severity)不受影响。
+    v2.0 起认证移交 MDM,不再需要建本地测试用户。
     """
     sql_init = (BACKEND_DIR.parent / "sql" / "init.sql").read_text(encoding="utf-8")
     try:
@@ -62,33 +90,13 @@ def _prepare_schema():
     finally:
         raw.close()
 
-    # 建一个测试 admin(must_change_password=False,免去强制改密路径)
-    from auth import hash_password  # 延迟 import,避免循环
-    from models import AppUser
-    s = SessionLocal()
-    try:
-        if not s.execute(text("SELECT 1 FROM app_user WHERE username='testadmin'")).first():
-            s.add(AppUser(
-                username="testadmin",
-                password_hash=hash_password("test_pwd_123"),
-                role="admin",
-                is_active=True,
-                must_change_password=False,
-            ))
-            s.commit()
-    finally:
-        s.close()
-
     yield
     # 测试完保留 schema,方便用 psql 看现场;需要清理可手动 DROP
 
 
 @pytest.fixture
 def db(_prepare_schema):
-    """每个测试一个 session;结束后 TRUNCATE 业务表保持隔离。
-    app_user / auth_session / audit_log 不清,使 testadmin 与 token 跨测试可复用。
-    若某测试需要清理审计日志,自己在用例里清。
-    """
+    """每个测试一个 session;结束后 TRUNCATE 业务表保持隔离。"""
     session = SessionLocal()
     try:
         yield session
@@ -104,7 +112,7 @@ def db(_prepare_schema):
 @pytest.fixture
 def client(db):
     """FastAPI TestClient,DI 替换 get_db 走测试 session;
-    自动以 testadmin 登录,后续 client.get/post 自带 Bearer token。
+    自带 SYS_ADMIN 角色的 Bearer token(本地铸,与 MDM 签发结构一致)。
     """
     from fastapi.testclient import TestClient
     from main import app
@@ -118,14 +126,7 @@ def client(db):
 
     app.dependency_overrides[get_db] = _override
     with TestClient(app) as c:
-        # 登录拿 token
-        resp = c.post("/api/auth/login", json={
-            "username": "testadmin", "password": "test_pwd_123",
-        })
-        if resp.status_code != 200:
-            raise RuntimeError(f"测试 admin 登录失败: {resp.status_code} {resp.text}")
-        token = resp.json()["access_token"]
-        c.headers.update({"Authorization": f"Bearer {token}"})
+        c.headers.update(auth_headers(["SYS_ADMIN"]))
         yield c
     app.dependency_overrides.clear()
 

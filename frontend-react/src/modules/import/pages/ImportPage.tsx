@@ -9,6 +9,7 @@ import {
   dryRunImport, commitImport, listImportLogs,
   type ImportPreviewResult, type ImportPreviewRow,
 } from "../../../api/importApi";
+import { getErrorDetail } from "../../../shared/errors";
 
 const ACTION_TAG: Record<string, { color: string; text: string }> = {
   INSERT: { color: "green", text: "新增" },
@@ -31,8 +32,7 @@ export default function ImportPage() {
     onSuccess: (resp) => setPreview(resp.data),
     onError: (err: unknown) => {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        "文件解析失败";
+        getErrorDetail(err, "文件解析失败");
       message.error(detail);
     },
   });
@@ -57,8 +57,7 @@ export default function ImportPage() {
     },
     onError: (err: unknown) => {
       const detail =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        "导入失败";
+        getErrorDetail(err, "导入失败");
       message.error(detail);
     },
   });

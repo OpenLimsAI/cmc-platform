@@ -16,16 +16,16 @@ ENV_FILE="$ROOT/.env"
 
 BACKEND_SERVICE="${BACKEND_SERVICE:-cmc-backend}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-cmc-frontend}"
-BACKEND_PORT="${BACKEND_PORT:-8000}"
-FRONTEND_PORT="${FRONTEND_PORT:-8501}"
+BACKEND_PORT="${BACKEND_PORT:-8010}"
+FRONTEND_PORT="${FRONTEND_PORT:-5110}"
 
 if [ -f "$ENV_FILE" ]; then
     # .env 由 systemd EnvironmentFile 使用,格式是 KEY=VALUE。
     # 这里读取端口只是为了打印访问地址,真正启动参数仍由 systemd 读取。
     BACKEND_PORT="$(grep -E '^BACKEND_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
     FRONTEND_PORT="$(grep -E '^FRONTEND_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
-    BACKEND_PORT="${BACKEND_PORT:-8000}"
-    FRONTEND_PORT="${FRONTEND_PORT:-8501}"
+    BACKEND_PORT="${BACKEND_PORT:-8010}"
+    FRONTEND_PORT="${FRONTEND_PORT:-5110}"
 fi
 
 server_ip() {
@@ -54,12 +54,21 @@ needs_deps() {
     return 1
 }
 
-echo "0. 检测依赖变化"
-if needs_deps backend || needs_deps frontend; then
-    echo "   检测到 requirements.txt 有变化或首次运行,先更新依赖..."
+# 前端(React):dist 不存在,或 src/package-lock.json 比上次构建新,就需要重新构建
+needs_frontend_build() {
+    local fr="$ROOT/frontend-react"
+    local stamp="$fr/dist/.build-stamp"
+    [ ! -f "$stamp" ] && return 0
+    [ -n "$(find "$fr/src" "$fr/package-lock.json" "$fr/vite.config.ts" -newer "$stamp" -print -quit 2>/dev/null)" ] && return 0
+    return 1
+}
+
+echo "0. 检测依赖/构建变化"
+if needs_deps backend || needs_frontend_build; then
+    echo "   检测到依赖或前端源码有变化,先更新依赖并重新构建..."
     "$ROOT/install.sh" deps
 else
-    echo "   依赖无变化,跳过"
+    echo "   无变化,跳过"
 fi
 echo
 

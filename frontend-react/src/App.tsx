@@ -24,6 +24,9 @@ const queryClient = new QueryClient({
   },
 });
 
+// 物料写操作页的角色(与后端 require_warehouse 对齐);设备写操作在页面内按钮级控制
+const WAREHOUSE_ROLES = ["SYS_ADMIN", "CMC_WAREHOUSE_ADMIN"];
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -39,16 +42,16 @@ export default function App() {
               }
             >
               <Route path="/materials" element={<MaterialListPage />} />
-              <Route path="/intake" element={<IntakePage />} />
-              <Route path="/outgoing" element={<OutgoingPage />} />
+              <Route path="/intake" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><IntakePage /></ProtectedRoute>} />
+              <Route path="/outgoing" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><OutgoingPage /></ProtectedRoute>} />
               <Route path="/stock" element={<StockPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
-              <Route path="/transfer" element={<TransferPage />} />
-              <Route path="/adjust" element={<AdjustPage />} />
-              <Route path="/import" element={<ImportPage />} />
+              <Route path="/transfer" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><TransferPage /></ProtectedRoute>} />
+              <Route path="/adjust" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><AdjustPage /></ProtectedRoute>} />
+              <Route path="/import" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><ImportPage /></ProtectedRoute>} />
               <Route path="/equipment" element={<EquipmentListPage />} />
               <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
-              <Route path="/admin/audit" element={<AuditLogPage />} />
+              <Route path="/admin/audit" element={<ProtectedRoute roles={["SYS_ADMIN"]}><AuditLogPage /></ProtectedRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/materials" replace />} />
           </Routes>

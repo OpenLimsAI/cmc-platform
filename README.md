@@ -24,7 +24,9 @@
 **明确不做(当前阶段范围外)**:申购审批流、CoA 文件管理、质量状态管理、供应商管理、GMP 合规审计追踪(电子签名)、报表看板、ERP/LIMS 对接。
 
 > ⚠️ 本节为 v1.2 时期的目标描述。v2.x 起新增仪器设备模块,并对接 CMAB MDM Portal,
-> 边界见下节"与 MDM 的关系"及 docs/ 设计文档(V1.1~V1.3 修订记录)。
+> 边界见下节"与 MDM 的关系"及 docs/ 设计文档(V1.1~V1.4 修订记录)。
+> **下文凡提及 Streamlit 前端、本地账号/改密/用户管理的章节均为 v1.2 历史快照**,
+> 现状:React 前端(frontend-react/) + MDM 统一认证,旧 Streamlit 代码已删除。
 
 ---
 
@@ -59,10 +61,10 @@
 |----|------|
 | 数据库 | PostgreSQL 16,复用现有实例,新建 schema `material_mgmt`(Mac 调试时 PG 在 Docker;Linux 生产时 PG 原生装在宿主机) |
 | 后端 | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Pydantic v2 |
-| 前端 | Streamlit + `st.navigation`(显式按角色构建 sidebar);页面文件在 `views/` 而非 `pages/`(避免登录前 Streamlit 自动扫描 `pages/` 泄露功能名) |
+| 前端 | **React 18 + TypeScript + Ant Design 5 + Vite**(frontend-react/,v2.x 起;旧 Streamlit 前端已删除,历史描述见下文各 v1.2 章节) |
 | 文件导入 | pandas + openpyxl(Excel 读取) |
 | 部署 | **不用 Docker 跑应用**。Mac:venv 直接起进程;Linux:venv + systemd unit |
-| 认证 | 本地账号 + 随机 token,bcrypt 存密;**10 分钟无操作滑动过期**;token 通过 `streamlit-local-storage` 写浏览器 localStorage,**刷新页面不丢登录态**;首次启动用 `ADMIN_INITIAL_PASSWORD` 自动建 admin 并强制改密 |
+| 认证 | **对接 CMAB MDM Portal**(v2.0 起):登录代理 MDM /auth/login,后端本地校验 MDM 签发的 JWT;不建本地用户表,账号/角色/改密都在 MDM 操作 |
 | 审计 | 写操作统一落 `audit_log`,记录用户 / 实体 / 前后快照 / 来源 IP |
 
 ---
@@ -82,7 +84,7 @@ cmc-inventory/
 │   └── init.sql                    建表 + 字典初始化
 ├── systemd/
 │   ├── cmc-backend.service         FastAPI 后端 systemd unit(Linux)
-│   └── cmc-frontend.service        Streamlit 前端 systemd unit(Linux)
+│   └── cmc-frontend.service        React 前端 systemd unit(vite preview 伺服 dist,Linux)
 ├── backend/
 │   ├── requirements.txt
 │   ├── main.py                     FastAPI 入口
@@ -100,21 +102,14 @@ cmc-inventory/
 │       ├── stock.py                库存查询 + 预警 API
 │       ├── location.py             储存位置 API
 │       └── import_data.py          Excel 导入 API
-├── frontend/
-│   ├── requirements.txt
-│   ├── app.py                      Streamlit 主入口(导航)
-│   ├── utils.py                    API 调用封装
-│   ├── auth_helper.py              登录态 / localStorage 恢复 / 页面守卫
-│   └── views/
-│       ├── 1_物料导入.py
-│       ├── 2_物料管理.py            查看/新增/编辑/停用/启用
-│       ├── 3_入库登记.py
-│       ├── 4_出库登记.py
-│       ├── 5_库存查询.py
-│       ├── 6_库存预警.py
-│       ├── 7_盘点调整.py
-│       ├── 8_用户管理.py
-│       └── 9_移库.py
+├── frontend-react/                 React 前端(v2.x,旧 Streamlit 前端已删除)
+│   ├── package.json
+│   ├── vite.config.ts              5110 端口;dev/preview 均代理 /api → 后端
+│   └── src/
+│       ├── api/                    axios 封装 + 各模块 API/类型
+│       ├── modules/                materials / equipment / alerts / admin 页面
+│       ├── shared/                 布局、MDM 跳转等共享件
+│       └── stores/                 登录态(zustand)
 └── template/
     ├── generate_template.py        生成 Excel 模板的脚本
     └── 物料导入模板.xlsx            生成产物(.gitignore 排除,本地跑脚本生成)

@@ -177,9 +177,6 @@ export const listEquipment = (params?: Record<string, unknown>) =>
 export const getEquipment = (id: number) =>
   client.get<Equipment>(`/api/equipment/${id}`);
 
-export const createEquipment = (data: EquipmentPayload) =>
-  client.post<Equipment>("/api/equipment", data);
-
 export const updateEquipment = (id: number, data: EquipmentPayload) =>
   client.patch<Equipment>(`/api/equipment/${id}`, data);
 

@@ -13,12 +13,14 @@ from typing import List, Optional
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
 from database import get_db
 from auth import CurrentUser, require_warehouse
+from models import InventoryTxn
 from schemas import BatchCreate, BatchOut
 
 router = APIRouter(prefix="/api/batches", tags=["batch"])
@@ -118,6 +120,18 @@ def create_batch(
         before=None, after=model_snapshot(batch),
         source_ip=get_request_ip(request),
     )
+    # 首笔 IN 流水单独落审计("所有写操作落 audit_log"——流水也是一条写入)
+    initial_txn = db.execute(
+        select(InventoryTxn).where(InventoryTxn.batch_id == batch.batch_id)
+        .order_by(InventoryTxn.txn_id)
+    ).scalars().first()
+    if initial_txn:
+        write_audit(
+            db, current, "inventory.in",
+            entity_type="inventory_txn", entity_id=initial_txn.txn_id,
+            before=None, after=model_snapshot(initial_txn),
+            source_ip=get_request_ip(request),
+        )
     db.commit()
     qty = crud.get_batch_qty(db, batch.batch_id)
     return {
