@@ -81,7 +81,8 @@ cmc-inventory/
 ├── .env.example                    环境变量样例
 ├── .gitignore
 ├── sql/
-│   └── init.sql                    建表 + 字典初始化
+│   ├── init.sql                    物料模块建表 + 字典初始化(末尾含迁移段)
+│   └── equipment_init.sql          设备模块建表(equipment_mgmt schema,末尾含迁移段)
 ├── systemd/
 │   ├── cmc-backend.service         FastAPI 后端 systemd unit(Linux)
 │   └── cmc-frontend.service        React 前端 systemd unit(vite preview 伺服 dist,Linux)
@@ -90,18 +91,24 @@ cmc-inventory/
 │   ├── main.py                     FastAPI 入口
 │   ├── database.py                 PG 连接配置
 │   ├── models.py                   SQLAlchemy ORM
-│   ├── schemas.py                  Pydantic 模型
+│   ├── schemas.py                  Pydantic 模型(物料)
+│   ├── schemas_equipment.py        Pydantic 模型(设备)
+│   ├── models_equipment.py         设备 ORM(equipment_mgmt 7 表)
 │   ├── crud.py                     通用 CRUD
+│   ├── mdm_client.py               MDM 主数据查询客户端(物料/设备透传)
+│   ├── audit.py                    审计落库工具
+│   ├── auth.py                     MDM JWT 校验 + 角色守卫
 │   └── routers/
 │       ├── __init__.py
-│       ├── auth_router.py          登录 / 登出 / 改密 / 当前用户
-│       ├── admin_router.py         用户管理 + 操作日志
-│       ├── material.py             物料 API(查询、新增、编辑、停用/启用)
+│       ├── auth_router.py          登录(代理 MDM)/ 登出 / 当前用户
+│       ├── admin_router.py         操作日志(用户管理已移交 MDM)
+│       ├── material.py             物料 API(查询、from-mdm 引用、运营字段编辑)
 │       ├── batch.py                批次 API
 │       ├── inventory.py            出入库 / 盘点 / 移库 API
 │       ├── stock.py                库存查询 + 预警 API
 │       ├── location.py             储存位置 API
-│       └── import_data.py          Excel 导入 API
+│       ├── import_data.py          Excel 导入 API(历史初始化例外,见 URD FR-MAT-001)
+│       └── equipment.py            设备 API(台账/校验/维护/维修/保修/附件/MDM 同步)
 ├── frontend-react/                 React 前端(v2.x,旧 Streamlit 前端已删除)
 │   ├── package.json
 │   ├── vite.config.ts              5110 端口;dev/preview 均代理 /api → 后端
@@ -345,7 +352,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 
 ---
 
-## 六、前端页面设计(Streamlit)
+## 六、前端页面设计(⚠️ v1.2 Streamlit 历史快照;现行 React UI 见 docs/UI信息架构与线框图 V1.4)
 
 ### 6.1 物料导入页
 - 文件上传组件
@@ -508,11 +515,14 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 ## 九、环境变量(`.env.example`)
 
 ```
-BACKEND_PORT=8000
-FRONTEND_PORT=8501
+BACKEND_PORT=8010
+FRONTEND_PORT=5110
 DATABASE_URL=postgresql://cmc_user:<your-password>@127.0.0.1:5432/cmc_data_platform
-API_BASE_URL=http://localhost:8000
-ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin
+API_BASE_URL=http://localhost:8010
+MDM_BASE_URL=http://127.0.0.1:18000/api/v1
+MDM_TIMEOUT=5
+MDM_SECRET_KEY=<must-match-mdm-backend-secret-key>
+MDM_JWT_ALGORITHM=HS256
 ```
 
 > systemd 用 `EnvironmentFile=` 直接加载本文件,**KEY=VALUE 之间不能有空格,不要加引号**。
@@ -535,11 +545,11 @@ ADMIN_INITIAL_PASSWORD=ChangeMeAtFirstLogin
 
 它会自动:
 
-1. 停掉本项目旧的前端进程(`FRONTEND_PORT`,当前本机常用 8503)
-2. 停掉本项目旧的后端进程(`BACKEND_PORT`,默认 8000)
+1. 停掉本项目旧的前端进程(`FRONTEND_PORT`,固定 5110)
+2. 停掉本项目旧的后端进程(`BACKEND_PORT`,固定 8010)
 3. 重新启动 FastAPI 后端
-4. 重新启动 Streamlit 前端
-5. 打开浏览器到前端页面
+4. 重新启动 React 前端(Vite dev server)
+5. 打开浏览器到前端页面(登录依赖 MDM Portal,请确保其 Docker 已启动)
 
 日志写在:
 
@@ -556,22 +566,22 @@ logs/frontend.log
 
 #### 首次本机初始化
 
-> 当前 mac 环境的 PG 容器:**`postgres16`**(host 端口 5432,`postgres` 超管无需密码)。
+> 当前 mac 环境的 PG 容器:**`rd_pg`**(host 端口 5432,`postgres` 超管无需密码)。
 > 数据库 `cmc_data_platform` 已存在。如果你的环境不一样,把下面的容器名 / 端口 / 库名同步替换。
 
 ```bash
 # 0)(诊断用)确认 docker pg 在跑
-docker ps --filter "name=postgres16" --format "table {{.Names}}\t{{.Ports}}"
+docker ps --filter "name=rd_pg" --format "table {{.Names}}\t{{.Ports}}"
 
 # 1) 在已有 PG 里新建用户 / schema(只做一次,库已存在所以不用 CREATE DATABASE)
-docker exec -i postgres16 psql -U postgres -d cmc_data_platform <<'EOF'
+docker exec -i rd_pg psql -U postgres -d cmc_data_platform <<'EOF'
 CREATE USER cmc_user WITH PASSWORD '<your-password>';
 CREATE SCHEMA material_mgmt AUTHORIZATION cmc_user;
 GRANT CONNECT ON DATABASE cmc_data_platform TO cmc_user;
 EOF
 
 # 2) 用 cmc_user 跑建表脚本(不需要 mac 本机装 psql:仍走 docker exec)
-docker exec -i -e PGPASSWORD='<your-password>' postgres16 \
+docker exec -i -e PGPASSWORD='<your-password>' rd_pg \
     psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform < sql/init.sql
 
 # 3) 配 .env(默认值已对齐 docker pg 暴露在 127.0.0.1:5432 的情况)
@@ -604,8 +614,9 @@ cd template && python3 generate_template.py
 
 - *后端报 `password authentication failed`*:`.env` 里的密码与第 1 步 `CREATE USER` 时设的不一致,改一致后重启 uvicorn。
 - *后端报 `permission denied for schema material_mgmt`*:第 2 步建表是用 postgres 跑的导致表归 postgres 所有,改用 cmc_user 跑(命令同上,带 `-U cmc_user`)。
-- *前端报 `后端不可达`*:确认 uvicorn 在跑(`curl http://127.0.0.1:8000/health`),再确认 `.env` 中 `API_BASE_URL=http://localhost:8000`。
-- *端口被占*:`lsof -iTCP -sTCP:LISTEN -P | grep -E '8000|8501|8503'` 查谁占着,改 `.env` 中 `BACKEND_PORT` / `FRONTEND_PORT` 即可,前端读后端的 `API_BASE_URL` 端口要同步改。
+- *前端报 `后端不可达`*:确认 uvicorn 在跑(`curl http://127.0.0.1:8010/health`);前端 dev/preview 均经 Vite 代理 /api,无需配 API 地址。
+- *登录失败/401*:确认 MDM Portal 后端在跑(`curl http://127.0.0.1:18000/api/v1/health`),`.env` 的 `MDM_SECRET_KEY` 与 MDM 一致。
+- *端口被占*:`lsof -iTCP -sTCP:LISTEN -P | grep -E '8010|5110'` 查谁占着,改 `.env` 中 `BACKEND_PORT` / `FRONTEND_PORT`(本项目端口编号 10,见 ~/code/PORTS.md)。
 
 ### 10.B Linux 生产部署
 
@@ -693,28 +704,25 @@ sudo systemctl status cmc-backend cmc-frontend  # 状态摘要
 
 | 服务 | 地址 | 谁能访问 |
 |---|---|---|
-| 前端 Streamlit | `http://<server-ip>:<FRONTEND_PORT>`(默认 8501) | 任何能到服务器内网的人,直接浏览器打开 |
+| 前端 React(vite preview) | `http://<server-ip>:<FRONTEND_PORT>`(默认 5110) | 任何能到服务器内网的人,直接浏览器打开 |
 | 后端 FastAPI | `http://127.0.0.1:<BACKEND_PORT>` | **只允许服务器本机**;前端同机调用 |
 | 后端 Swagger `/docs` | 走 SSH 隧道,见下 | 临时调试用 |
 
-**后端为什么只绑 127.0.0.1?** 后端虽已有 token 鉴权,但内部 API 不需要直接暴露给所有内网用户;统一由同机 Streamlit 前端调用更简单也更稳。
-Streamlit 前端跑在**同一台机器**上,走 `localhost:<BACKEND_PORT>` 不受限制;
-内网用户访问前端 8501 即可,所有 API 调用都在服务器内完成。
+**后端为什么只绑 127.0.0.1?** 后端虽已有 JWT 鉴权,但内部 API 不需要直接暴露给所有内网用户;统一由同机前端(vite preview 的 /api 代理)调用更简单也更稳。
+内网用户访问前端 5110 即可,所有 API 调用都在服务器内完成。
 
 #### 在自己笔记本上看 Swagger `/docs`(SSH 隧道)
 
 前端首页那行"后端 API 仅限服务器本机访问"提示就是这个意思 — 链接不要点,而是按下面的方式开隧道:
 
 ```bash
-# 在自己笔记本上跑;开着不要关,期间浏览器才能访问 http://localhost:18000/docs
-# 把端口和 ssh 配置改成你的实际值
-ssh -L 18000:127.0.0.1:8000 -p <ssh-port> prometheus@<server-ip>
+# 在自己笔记本上跑;开着不要关,期间浏览器才能访问 http://localhost:28010/docs
+# (本地端口避开 18000:那是 MDM 后端的本机约定端口)
+ssh -L 28010:127.0.0.1:8010 -p <ssh-port> prometheus@<server-ip>
 
 # 然后浏览器打开
-#   http://localhost:18000/docs
+#   http://localhost:28010/docs
 ```
-
-> 笔记本本地端口可以选别的(避免与本机已用端口冲突),例如 `-L 19000:127.0.0.1:8000`,然后浏览器开 `http://localhost:19000/docs`。
 
 ### 10.C 首次使用(两套环境通用)
 
@@ -749,22 +757,21 @@ cd template && python3 generate_template.py
 
 ## 十二、当前实现状态
 
-当前代码已经完成:
+当前代码已经完成(v2.x):
 
-- 物料导入、单条新增/编辑、停用/启用、安全库存维护
-- 批次级入库、出库、盘点调整、移库
-- 按物料/批次/位置查询实时库存
+- 物料:Excel 导入(历史初始化例外)、只读"物料查询"、从 MDM 引用、安全库存维护
+- 批次级入库、出库、盘点调整、移库;按物料/批次/位置查询实时库存
 - 效期预警、低库存预警
-- 本地账号登录、角色控制、强制改密、10 分钟无操作滑动过期
-- token 写入浏览器 localStorage,刷新页面不丢登录态
-- 用户管理和操作日志审计
-- macOS 双击重启脚本和 Linux `restart.sh` 一键重启
+- 设备:台账(从 MDM 引用/批量同步/快照刷新)、校验、维护、维修、保修、附件、到期预警
+- MDM 统一认证(JWT 本地校验)、按角色守卫(前端路由 + 后端接口双层)
+- 主数据写边界:data_source='mdm' 记录身份字段后端只读
+- 操作日志审计(所有写操作含批次首笔流水)
+- macOS 双击重启脚本和 Linux `restart.sh` 一键重启;后端测试 39 例全绿
 
 仍明确不做:
 
 - 申购/审批/CoA/质量状态/GMP 电子签名
-- 复杂前端框架;当前阶段继续用 Streamlit
-- 应用容器化;应用仍按 venv + 进程/systemd 运行
+- 应用容器化;应用仍按 venv/npm + 进程/systemd 运行
 
 ---
 
@@ -775,10 +782,10 @@ cd template && python3 generate_template.py
 | 后续 A | 申购单(PR) + 简单审批流 |
 | 后续 B | CoA 文件上传 + 关联批次 |
 | 后续 C | 供应商主数据 + 质量状态(待检/合格/不合格) |
-| 后续 D | 对接公司 AD / SSO(替换本地账号体系) |
+| ~~后续 D~~ | ~~对接公司 AD / SSO~~ ✅ 已由 MDM Portal 统一认证实现(v2.0) |
 | 后续 E | 与 `rd_budget` 库联动 + 预算占用校验 |
 | 后续 F | GMP 合规模式增强:电子签名、变更控制 |
-| 后续 G | 替换前端为 Vue3,支持移动端扫码出入库 |
+| ~~后续 G~~ | ~~替换前端~~ ✅ 已迁移 React 18 + AntD 5(v2.x);移动端扫码出入库待做 |
 
 ---
 
@@ -791,7 +798,7 @@ cd backend
 .venv/bin/pip install -r requirements-dev.txt        # 装 pytest + httpx
 
 # 用一个独立的 PG database 跑测试(切勿指生产库 cmc_data_platform!)
-# Mac 默认连 docker postgres16 中的 postgres 库:
+# Mac 默认连 docker rd_pg 中的 postgres 库:
 PGPASSWORD='<postgres超管密码>' \
   DATABASE_URL_TEST='postgresql://postgres@127.0.0.1:5432/postgres' \
   .venv/bin/pytest tests/ -v
@@ -823,5 +830,5 @@ PGPASSWORD='<postgres超管密码>' \
 ---
 
 **项目所有者**: 清城 (CMC Head)
-**当前版本**: v1.2
+**当前版本**: v2.x(设备模块 + MDM 对接;v1.2 为物料模块历史基线)
 **联系方式**: 部门内部使用
