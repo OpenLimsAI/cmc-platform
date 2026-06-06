@@ -16,7 +16,8 @@ import httpx
 
 log = logging.getLogger("cmc-inventory.mdm")
 
-MDM_BASE_URL = os.getenv("MDM_BASE_URL", "http://127.0.0.1:8100/api/v1")
+# 开发环境 MDM 后端为 Docker 映射端口 18000(见 ~/code/PORTS.md),与 auth_router 保持一致
+MDM_BASE_URL = os.getenv("MDM_BASE_URL", "http://127.0.0.1:18000/api/v1")
 MDM_TIMEOUT = float(os.getenv("MDM_TIMEOUT", "5"))
 
 

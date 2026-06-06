@@ -31,11 +31,19 @@ class ORMBase(BaseModel):
 # ---------------------------------------------------------------------------
 class EquipmentCreate(BaseModel):
     equipment_code: str = Field(..., min_length=1, max_length=32)
+    equipment_no: Optional[str] = Field(None, max_length=64)
+    fixed_asset_no: Optional[str] = Field(None, max_length=64)
     name: str = Field(..., min_length=1, max_length=200)
+    name_en: Optional[str] = Field(None, max_length=255)
     category: str = Field(..., min_length=1, max_length=50)
     model: Optional[str] = Field(None, max_length=200)
     manufacturer: Optional[str] = Field(None, max_length=100)
     serial_no: Optional[str] = Field(None, max_length=100)
+    rated_power: Optional[str] = Field(None, max_length=64)
+    origin: Optional[str] = Field(None, max_length=100)
+    supplier: Optional[str] = Field(None, max_length=200)
+    has_workstation: bool = False
+    workstation_info: Optional[dict] = None
     location_room: Optional[str] = Field(None, max_length=50)
     location_detail: Optional[str] = Field(None, max_length=200)
     responsible_person: Optional[str] = Field(None, max_length=50)
@@ -98,14 +106,37 @@ class EquipmentFromMdmRequest(BaseModel):
         return v
 
 
+class EquipmentBatchFromMdmRequest(BaseModel):
+    """从 MDM 批量引用建档(初始化台账用,V1.4)。"""
+    categories: Optional[List[str]] = None   # 仅同步这些分类;None/空 = 全部
+    include_retired: bool = False            # 是否包含 MDM 已退役设备
+
+
+class EquipmentBatchFromMdmResult(BaseModel):
+    created: int                 # 新建台账数
+    skipped_existing: int        # 本地已存在,跳过
+    skipped_filtered: int        # 被分类/退役过滤,跳过
+    failed: List[str] = []       # 拉取详情失败的编码
+
+
 class EquipmentOut(ORMBase):
     equipment_id: int
     equipment_code: str
+    equipment_no: Optional[str] = None
+    fixed_asset_no: Optional[str] = None
     name: str
+    name_en: Optional[str] = None
     category: str
     model: Optional[str] = None
     manufacturer: Optional[str] = None
     serial_no: Optional[str] = None
+    rated_power: Optional[str] = None
+    origin: Optional[str] = None
+    supplier: Optional[str] = None
+    has_workstation: bool = False
+    workstation_info: Optional[dict] = None
+    mdm_status: Optional[str] = None
+    mdm_synced_at: Optional[datetime] = None
     location_room: Optional[str] = None
     location_detail: Optional[str] = None
     responsible_person: Optional[str] = None

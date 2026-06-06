@@ -6,11 +6,21 @@ import client from "./client";
 export interface Equipment {
   equipment_id: number;
   equipment_code: string;
+  equipment_no: string | null;
+  fixed_asset_no: string | null;
   name: string;
+  name_en: string | null;
   category: string;
   model: string | null;
   manufacturer: string | null;
   serial_no: string | null;
+  rated_power: string | null;
+  origin: string | null;
+  supplier: string | null;
+  has_workstation: boolean;
+  workstation_info: Record<string, unknown> | null;
+  mdm_status: string | null;
+  mdm_synced_at: string | null;
   location_room: string | null;
   location_detail: string | null;
   responsible_person: string | null;
@@ -98,6 +108,8 @@ export interface Warranty {
   provider_name: string | null;
   provider_contact: string | null;
   remark: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Attachment {
@@ -180,6 +192,8 @@ export const listEquipmentCategories = () =>
 // ---- MDM 设备主数据(权威源) ----
 export interface MdmEquipmentBrief {
   equipment_code: string;
+  equipment_no?: string | null;
+  fixed_asset_no?: string | null;
   equipment_name: string;
   category: string;
   model: string | null;
@@ -187,6 +201,12 @@ export interface MdmEquipmentBrief {
   serial_no: string | null;
   status: string;
 }
+
+// MDM 主数据状态(active/retired)显示映射
+export const MDM_STATUS_LABEL: Record<string, { text: string; color: string }> = {
+  active: { text: "在册", color: "green" },
+  retired: { text: "已退役", color: "orange" },
+};
 
 export const searchMdmEquipments = (q: string, page = 1, pageSize = 20) =>
   client.get<{ data: MdmEquipmentBrief[] }>("/api/mdm/equipments", {
@@ -204,6 +224,27 @@ export const createEquipmentFromMdm = (
     remark?: string | null;
   },
 ) => client.post<Equipment>(`/api/equipment/from-mdm/${encodeURIComponent(code)}`, data);
+
+// 从 MDM 重新拉取主数据,整体覆盖身份字段快照(V1.4)
+export const syncEquipmentFromMdm = (id: number) =>
+  client.post<Equipment>(`/api/equipment/${id}/sync-mdm`);
+
+// 从 MDM 批量引用建档(V1.4,台账初始化;运营字段留空待补)
+export interface BatchFromMdmResult {
+  created: number;
+  skipped_existing: number;
+  skipped_filtered: number;
+  failed: string[];
+}
+
+export const batchCreateFromMdm = (params?: {
+  categories?: string[] | null;
+  include_retired?: boolean;
+}) =>
+  client.post<BatchFromMdmResult>("/api/equipment/batch-from-mdm", {
+    categories: params?.categories ?? null,
+    include_retired: params?.include_retired ?? false,
+  }, { timeout: 300_000 });
 
 export const equipmentAlerts = (days = 30) =>
   client.get<EquipmentAlert[]>("/api/equipment/alerts", { params: { days } });

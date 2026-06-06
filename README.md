@@ -34,13 +34,16 @@
 |---|---|---|
 | 登录认证 / 用户 / 角色 | **MDM Portal** | 本系统代理 MDM 登录,本地校验其 JWT;不建用户表 |
 | 物料主数据(编码/名称/厂家/规格) | **MDM Portal**(mm.material) | 本系统前端无新增入口,"物料查询"页只读 |
-| 设备主数据(编码/名称/型号/序列号) | **MDM Portal**(eqp.equipment,编码 EQP-yyyyXXXXXX) | 设备新增仅"从 MDM 引用",编辑仅运营字段 |
+| 设备主数据(三标识/名称/型号/序列号/分类/工作站等) | **MDM Portal**(eqp.equipment,系统编码 EQP-yyyyXXXXXX + 业务编号 + 固定资产号) | 设备新增仅"从 MDM 引用",编辑仅运营字段;V1.4 起快照含全部主数据字段 |
 | 物料出入库/移库/盘点/库存/预警 | **本系统** | material_mgmt schema |
 | 设备运营(状态/位置/负责人/校验/维护/维修/保修/附件) | **本系统** | equipment_mgmt schema |
 
 集成机制(关键约定):
 - 两系统为**独立 PG 实例**,不跨库外键;本地表存快照 + `mdm_*_id` / `data_source`(mdm/local)标记
-- **用时拉取**:MDM 登记后无后台同步任务,物料在首次入库、设备在建档时按编码实时拉取
+- **用时拉取 + 手动刷新**:MDM 登记后无后台同步任务,物料在首次入库、设备在建档时按编码实时拉取;
+  设备详情页"从 MDM 刷新"(POST /api/equipment/{id}/sync-mdm)可整体覆盖快照并同步 MDM 状态(active/retired)
+- **设备台账批量初始化**:列表页"从 MDM 批量同步"(POST /api/equipment/batch-from-mdm)一次性把 MDM
+  在册设备全部引用建档(已存在跳过),可重复执行做增量;运营字段(房间/负责人)建档后逐台补录
 - 查无主数据时,各入口提供"**去 MDM 登记**"跳转(MDM 新建页 `?code=/?name=` 预填;
   地址由 `frontend-react/.env` 的 `VITE_MDM_PORTAL_URL` 配置)
 - 本地建档端点(POST /api/materials、/api/equipment)仅作后端 API 兜底,前端无入口
@@ -415,6 +418,12 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 ---
 
 ## 七、API 设计(FastAPI)
+
+> ⚠️ 本节为 v1.2 时期的物料 API 清单,未含 v2.x 新增内容,完整现状以代码 `backend/routers/` 为准:
+> - 设备模块全套 API(台账/校验/维护/维修/保修/附件/预警)见 `routers/equipment.py` 头注释
+> - MDM 集成端点:`/api/mdm/materials*`、`/api/mdm/equipments*`(透传)、`POST /api/materials/from-mdm/{code}`、
+>   `POST /api/equipment/from-mdm/{code}`、`POST /api/equipment/{id}/sync-mdm`、`POST /api/equipment/batch-from-mdm`
+> - 用户管理/改密端点已于 v2.0 移交 MDM Portal(本地仅保留 /api/auth/login 代理与 /api/users/me)
 
 默认情况下,查询接口要求已登录;物料、批次、出入库、移库、导入、位置新增等业务写操作要求 `admin` 或 `warehouse_admin`;用户管理和审计日志只允许 `admin`。
 

@@ -9,6 +9,8 @@
     GET    /api/equipment/categories               设备分类去重值
     GET    /api/equipment/{id}                     设备详情
     PATCH  /api/equipment/{id}                     编辑设备
+    POST   /api/equipment/batch-from-mdm           从 MDM 批量引用建档(V1.4,初始化)
+    POST   /api/equipment/{id}/sync-mdm            从 MDM 刷新主数据快照(V1.4)
     POST   /api/equipment/{id}/deactivate          报废设备(软删除)
     GET/POST /api/equipment/{id}/calibrations      校验记录
     GET/POST /api/equipment/{id}/maintenances      维护记录
@@ -18,6 +20,9 @@
     GET/POST /api/equipment/{id}/attachments       附件
     GET    /api/equipment/{id}/attachments/{aid}/download   附件下载/预览
     DELETE /api/equipment/{id}/attachments/{aid}   删除附件
+    GET    /api/mdm/equipments                     MDM 设备搜索(透传,mdm_router)
+    GET    /api/mdm/equipments/{code}              MDM 设备详情(透传,mdm_router)
+    POST   /api/equipment/from-mdm/{code}          从 MDM 引用建档
 鉴权:
     - 查询: 登录即可(只读)
     - 写操作: require_equipment(SYS_ADMIN / CMC_EQUIPMENT_ADMIN)
@@ -51,6 +56,7 @@ from models_equipment import (
 from schemas_equipment import (
     EquipmentCreate, EquipmentUpdate, EquipmentDeactivateRequest,
     EquipmentFromMdmRequest, EquipmentOut,
+    EquipmentBatchFromMdmRequest, EquipmentBatchFromMdmResult,
     CalibrationCreate, CalibrationOut,
     MaintenanceCreate, MaintenanceOut,
     RepairCreate, RepairUpdate, RepairOut,
@@ -79,6 +85,31 @@ def _get_equipment_or_404(db: Session, equipment_id: int) -> Equipment:
     if not obj:
         raise HTTPException(status_code=404, detail=f"设备 {equipment_id} 不存在")
     return obj
+
+
+def _apply_mdm_snapshot(obj: Equipment, mdm_data: dict) -> None:
+    """把 MDM eqp.equipment 的身份字段整体覆盖到本地快照(V1.4,对齐 MDM 迁移 0040~0044)。
+    建档(from-mdm)与刷新(sync-mdm)共用;运营字段不受影响。"""
+    obj.equipment_code = mdm_data.get("equipment_code", obj.equipment_code)
+    obj.equipment_no = mdm_data.get("equipment_no")
+    obj.fixed_asset_no = mdm_data.get("fixed_asset_no")
+    obj.name = mdm_data.get("equipment_name") or obj.name
+    obj.name_en = mdm_data.get("equipment_name_en")
+    obj.category = mdm_data.get("category") or obj.category
+    obj.model = mdm_data.get("model")
+    obj.manufacturer = mdm_data.get("manufacturer")
+    obj.serial_no = mdm_data.get("serial_no")
+    obj.rated_power = mdm_data.get("rated_power")
+    obj.origin = mdm_data.get("origin")
+    obj.supplier = mdm_data.get("supplier")
+    obj.has_workstation = bool(mdm_data.get("has_workstation", False))
+    obj.workstation_info = mdm_data.get("workstation_info")
+    obj.purchase_date = mdm_data.get("purchase_date")
+    obj.asset_value = mdm_data.get("asset_value")
+    obj.mdm_status = mdm_data.get("status")
+    obj.mdm_equipment_id = mdm_data.get("equipment_id")
+    obj.data_source = "mdm"
+    obj.mdm_synced_at = datetime.now()
 
 
 # ---------------------------------------------------------------------------
@@ -233,17 +264,10 @@ def create_from_mdm(
         raise HTTPException(status_code=404, detail=f"MDM 中未找到设备 {code}")
 
     obj = Equipment(
-        # —— 身份字段以 MDM 为准 ——
+        # —— 身份字段以 MDM 为准(快照见 _apply_mdm_snapshot) ——
         equipment_code=mdm_data.get("equipment_code", code),
         name=mdm_data.get("equipment_name", code),
         category=mdm_data.get("category", "其他"),
-        model=mdm_data.get("model"),
-        manufacturer=mdm_data.get("manufacturer"),
-        serial_no=mdm_data.get("serial_no"),
-        purchase_date=mdm_data.get("purchase_date"),
-        asset_value=mdm_data.get("asset_value"),
-        mdm_equipment_id=mdm_data.get("equipment_id"),
-        data_source="mdm",
         # —— 运营字段本地补充 ——
         location_room=payload.location_room,
         location_detail=payload.location_detail,
@@ -254,12 +278,135 @@ def create_from_mdm(
         created_by=current.username,
         updated_by=current.username,
     )
+    _apply_mdm_snapshot(obj, mdm_data)
     db.add(obj)
     db.flush()
     write_audit(
         db, current, "equipment.create_from_mdm",
         entity_type="equipment", entity_id=obj.equipment_id,
         before=None, after=model_snapshot(obj),
+        source_ip=get_request_ip(request),
+    )
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/batch-from-mdm", response_model=EquipmentBatchFromMdmResult)
+def batch_create_from_mdm(
+    payload: EquipmentBatchFromMdmRequest,
+    request: Request,
+    current: CurrentUser = Depends(require_equipment),
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+):
+    """从 MDM 批量引用建档(V1.4,台账初始化用)。
+    遍历 MDM 设备列表,本地不存在的逐台拉详情落快照(data_source='mdm');
+    运营字段留空待后续补录,运营状态默认 in_use。
+    已存在的编码跳过;可按分类过滤;默认不含 MDM 已退役设备。"""
+    token = mdm_client.extract_bearer_token(authorization)
+    existing = set(db.execute(select(Equipment.equipment_code)).scalars().all())
+    created = 0
+    skipped_existing = 0
+    skipped_filtered = 0
+    failed: List[str] = []
+
+    page = 1
+    while page <= 100:  # 防御上限: 100 页 x 100 条
+        resp = mdm_client.search_equipments("", page=page, page_size=100, token=token)
+        items = resp.get("data") or []
+        if not items:
+            break
+        for it in items:
+            code = it.get("equipment_code")
+            if not code:
+                continue
+            if code in existing:
+                skipped_existing += 1
+                continue
+            if payload.categories and it.get("category") not in payload.categories:
+                skipped_filtered += 1
+                continue
+            if not payload.include_retired and it.get("status") == "retired":
+                skipped_filtered += 1
+                continue
+            detail = mdm_client.get_equipment_by_code(code, token=token)
+            if detail is None:
+                failed.append(code)
+                continue
+            obj = Equipment(
+                equipment_code=code,
+                name=detail.get("equipment_name", code),
+                category=detail.get("category", "其他"),
+                status="in_use",
+                created_by=current.username,
+                updated_by=current.username,
+            )
+            _apply_mdm_snapshot(obj, detail)
+            db.add(obj)
+            existing.add(code)
+            created += 1
+        pagination = (resp.get("meta") or {}).get("pagination") or resp.get("pagination") or {}
+        total_pages = pagination.get("total_pages")
+        if total_pages is not None and page >= total_pages:
+            break
+        if total_pages is None and len(items) < 100:
+            break
+        page += 1
+
+    db.flush()
+    write_audit(
+        db, current, "equipment.batch_from_mdm",
+        entity_type="equipment", entity_id=None,
+        before=None,
+        after={
+            "created": created,
+            "skipped_existing": skipped_existing,
+            "skipped_filtered": skipped_filtered,
+            "failed": failed,
+            "categories": payload.categories,
+            "include_retired": payload.include_retired,
+        },
+        source_ip=get_request_ip(request),
+    )
+    db.commit()
+    return EquipmentBatchFromMdmResult(
+        created=created,
+        skipped_existing=skipped_existing,
+        skipped_filtered=skipped_filtered,
+        failed=failed,
+    )
+
+
+@router.post("/{equipment_id}/sync-mdm", response_model=EquipmentOut)
+def sync_equipment_from_mdm(
+    equipment_id: int,
+    request: Request,
+    current: CurrentUser = Depends(require_equipment),
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
+):
+    """从 MDM 重新拉取主数据,整体覆盖身份字段快照(V1.4)。
+    - data_source='mdm': 按编码刷新,同步 mdm_status(active/retired)
+    - data_source='local': MDM 补登后按编码回挂(回填 mdm_equipment_id 并转 'mdm')
+    运营字段(位置/负责人/运营状态等)不受影响。"""
+    obj = _get_equipment_or_404(db, equipment_id)
+    token = mdm_client.extract_bearer_token(authorization)
+    mdm_data = mdm_client.get_equipment_by_code(obj.equipment_code, token=token)
+    if mdm_data is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"MDM 中未找到设备 {obj.equipment_code}(或 MDM 服务不可用)",
+        )
+    before = model_snapshot(obj)
+    _apply_mdm_snapshot(obj, mdm_data)
+    obj.updated_by = current.username
+    obj.updated_at = datetime.now()
+    db.flush()
+    write_audit(
+        db, current, "equipment.sync_mdm",
+        entity_type="equipment", entity_id=obj.equipment_id,
+        before=before, after=model_snapshot(obj),
         source_ip=get_request_ip(request),
     )
     db.commit()
@@ -289,7 +436,10 @@ def list_equipment(
         kw = f"%{keyword.strip()}%"
         stmt = stmt.where(or_(
             Equipment.equipment_code.ilike(kw),
+            Equipment.equipment_no.ilike(kw),
+            Equipment.fixed_asset_no.ilike(kw),
             Equipment.name.ilike(kw),
+            Equipment.name_en.ilike(kw),
             Equipment.model.ilike(kw),
             Equipment.manufacturer.ilike(kw),
             Equipment.serial_no.ilike(kw),

@@ -33,19 +33,31 @@ SET search_path TO equipment_mgmt;
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS equipment (
     equipment_id      SERIAL PRIMARY KEY,
+    -- —— MDM 快照字段(权威源 eqp.equipment,建档/sync-mdm 时整体覆盖) ——
     equipment_code    VARCHAR(32)  NOT NULL,
+    equipment_no      VARCHAR(64),                -- V1.4: 业务编号(如 QC001)
+    fixed_asset_no    VARCHAR(64),                -- V1.4: 固定资产号
     name              VARCHAR(200) NOT NULL,
+    name_en           VARCHAR(255),               -- V1.4: 英文名称
     category          VARCHAR(50)  NOT NULL,
     model             VARCHAR(200),
     manufacturer      VARCHAR(100),
     serial_no         VARCHAR(100),
+    rated_power       VARCHAR(64),                -- V1.4: 额定功率
+    origin            VARCHAR(100),               -- V1.4: 产地
+    supplier          VARCHAR(200),               -- V1.4: 供应商
+    has_workstation   BOOLEAN      NOT NULL DEFAULT FALSE,  -- V1.4: 附带工作站
+    workstation_info  JSONB,                      -- V1.4: 工作站配置
+    purchase_date     DATE,                       -- V1.4: 归属改 MDM 快照
+    asset_value       NUMERIC(12,2),              -- V1.4: 归属改 MDM 快照
+    mdm_status        VARCHAR(32),                -- V1.4: MDM 主数据状态 active/retired
+    mdm_synced_at     TIMESTAMP,                  -- V1.4: 快照同步时间
+    -- —— 本地运营字段(LabOps 维护) ——
     location_room     VARCHAR(50),
     location_detail   VARCHAR(200),
     responsible_person VARCHAR(50),
     status            VARCHAR(20)  NOT NULL DEFAULT 'in_use',
-    purchase_date     DATE,
     commission_date   DATE,
-    asset_value       NUMERIC(12,2),
     remark            TEXT,
     -- MDM 引用: 主数据权威源在 MDM eqp 域
     mdm_equipment_id  BIGINT,
@@ -211,3 +223,15 @@ CREATE INDEX IF NOT EXISTS ix_reminder_equipment ON equipment_reminder(equipment
 -- equipment: MDM 引用列(主数据权威源在 MDM eqp 域)
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS mdm_equipment_id BIGINT;
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS data_source VARCHAR(20) NOT NULL DEFAULT 'local';
+
+-- equipment: V1.4 适配 MDM eqp 域 V1.2(迁移 0040~0044)新增的快照列
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS equipment_no     VARCHAR(64);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS fixed_asset_no   VARCHAR(64);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS name_en          VARCHAR(255);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS rated_power      VARCHAR(64);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS origin           VARCHAR(100);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS supplier         VARCHAR(200);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS has_workstation  BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS workstation_info JSONB;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS mdm_status       VARCHAR(32);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS mdm_synced_at    TIMESTAMP;

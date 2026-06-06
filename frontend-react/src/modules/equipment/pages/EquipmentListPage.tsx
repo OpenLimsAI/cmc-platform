@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Typography, Table, Tag, Input, Select, Space, Button, Modal, Form,
-  DatePicker, message, Switch, Alert, Descriptions, Spin,
+  DatePicker, message, Switch, Alert, Descriptions, Spin, Popconfirm,
 } from "antd";
-import { PlusOutlined, ExportOutlined } from "@ant-design/icons";
+import { PlusOutlined, ExportOutlined, CloudDownloadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
   listEquipment, updateEquipment, listEquipmentCategories,
-  searchMdmEquipments, createEquipmentFromMdm,
+  searchMdmEquipments, createEquipmentFromMdm, batchCreateFromMdm,
   STATUS_LABEL, type Equipment, type EquipmentPayload, type MdmEquipmentBrief,
 } from "../../../api/equipment";
 import { useAuthStore } from "../../../stores/authStore";
@@ -92,6 +92,22 @@ export default function EquipmentListPage() {
       createEquipmentFromMdm(mdmSelected!.equipment_code, data),
     onSuccess: () => onSaved(`已从 MDM 引用建档: ${mdmSelected?.equipment_code}`),
     onError: (err: unknown) => message.error(errDetail(err, "建档失败")),
+  });
+
+  // 批量同步 = 台账初始化:MDM 全量设备一键建档,运营字段留空待补
+  const batchMutation = useMutation({
+    mutationFn: () => batchCreateFromMdm(),
+    onSuccess: (resp) => {
+      const r = resp.data;
+      message.success(
+        `批量同步完成: 新建 ${r.created} 台,已存在跳过 ${r.skipped_existing} 台` +
+        (r.failed.length ? `,失败 ${r.failed.length} 台` : ""),
+        6,
+      );
+      queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      queryClient.invalidateQueries({ queryKey: ["equipmentCategories"] });
+    },
+    onError: (err: unknown) => message.error(errDetail(err, "批量同步失败")),
   });
 
   const handleMdmSearch = async (q: string) => {
@@ -196,6 +212,18 @@ export default function EquipmentListPage() {
             新增设备(从 MDM 引用)
           </Button>
         )}
+        {canEdit && (
+          <Popconfirm
+            title="从 MDM 批量同步设备"
+            description="将 MDM 中所有在册设备一次性引用建档(已存在的跳过),运营信息(房间/负责人)之后再逐台补录。继续?"
+            okText="开始同步"
+            onConfirm={() => batchMutation.mutate()}
+          >
+            <Button icon={<CloudDownloadOutlined />} loading={batchMutation.isPending}>
+              从 MDM 批量同步
+            </Button>
+          </Popconfirm>
+        )}
       </Space>
 
       <Table
@@ -209,7 +237,8 @@ export default function EquipmentListPage() {
           style: { cursor: "pointer" },
         })}
         columns={[
-          { title: "设备编号", dataIndex: "equipment_code", width: 140 },
+          { title: "设备编码", dataIndex: "equipment_code", width: 140 },
+          { title: "设备编号", dataIndex: "equipment_no", width: 100, render: (v: string | null) => v ?? "—" },
           { title: "设备名称", dataIndex: "name", ellipsis: true },
           { title: "分类", dataIndex: "category", width: 100 },
           { title: "型号", dataIndex: "model", width: 140, ellipsis: true },
@@ -219,8 +248,14 @@ export default function EquipmentListPage() {
             title: "来源",
             dataIndex: "data_source",
             width: 80,
-            render: (v: string) =>
-              v === "mdm" ? <Tag color="geekblue">MDM</Tag> : <Tag>本地</Tag>,
+            render: (v: string, record: Equipment) =>
+              v === "mdm" ? (
+                <Tag color={record.mdm_status === "retired" ? "orange" : "geekblue"}>
+                  {record.mdm_status === "retired" ? "MDM·退役" : "MDM"}
+                </Tag>
+              ) : (
+                <Tag>本地</Tag>
+              ),
           },
           {
             title: "状态",
@@ -310,6 +345,8 @@ export default function EquipmentListPage() {
               >
                 <Descriptions.Item label="编码">{mdmSelected.equipment_code}</Descriptions.Item>
                 <Descriptions.Item label="名称">{mdmSelected.equipment_name}</Descriptions.Item>
+                <Descriptions.Item label="设备编号">{mdmSelected.equipment_no ?? "—"}</Descriptions.Item>
+                <Descriptions.Item label="固定资产号">{mdmSelected.fixed_asset_no ?? "—"}</Descriptions.Item>
                 <Descriptions.Item label="分类">{mdmSelected.category}</Descriptions.Item>
                 <Descriptions.Item label="型号">{mdmSelected.model ?? "—"}</Descriptions.Item>
                 <Descriptions.Item label="生产商">{mdmSelected.manufacturer ?? "—"}</Descriptions.Item>

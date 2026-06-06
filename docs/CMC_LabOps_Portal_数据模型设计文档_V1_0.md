@@ -9,11 +9,11 @@
 | | |
 |---|---|
 | **文档编号** | DM-LABOPS-001 |
-| **版本** | V1.0 |
+| **版本** | V1.4（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
-| **上位文档** | ARCH-LABOPS-001 V1.0 |
+| **上位文档** | ARCH-LABOPS-001 V1.4 |
 | **数据库** | PostgreSQL 16 |
 | **分类** | 内部技术文档 |
 
@@ -25,6 +25,7 @@
 | V1.1 | 2026-06-04 | CMC IT | 取消 labops_auth schema（认证对接 MDM Portal，§5 保留作历史参考）；labops_audit 降级为 Phase 4 可选项，当前沿用 material_mgmt.audit_log |
 | V1.2 | 2026-06-04 | CMC IT | 设备主数据移交 MDM eqp 域（eqp.equipment）；equipment_mgmt.equipment 增加 mdm_equipment_id / data_source 列，身份字段从 MDM 按需拉取（§4.2、§7 更新） |
 | V1.3 | 2026-06-04 | CMC IT | 无表结构变更。明确同步语义：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照（"用时拉取"）；data_source='local' 仅产生于后端 API 兜底，前端已无本地新增入口（§7 更新） |
+| V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：equipment 表扩充 MDM 快照列（equipment_no / fixed_asset_no / name_en / rated_power / origin / supplier / has_workstation / workstation_info / mdm_status / mdm_synced_at）；purchase_date、asset_value 归属由"本地运营"改为"MDM 快照"（此前为本地运营字段）；设备分类对齐 MDM 5 值体系；新增快照刷新（sync-mdm）与批量引用建档（batch-from-mdm，台账初始化）机制说明（§4.2、§7 更新） |
 
 ## 适用范围
 
@@ -111,25 +112,37 @@
 
 ### 4.2.1 字段定义
 
-| **字段** | **类型** | **约束** | **UI 中文名** | **说明** |
-|---|---|---|---|---|
-| equipment_id | SERIAL | PK | 设备ID | 内部主键 |
-| equipment_code | VARCHAR(32) | UNIQUE, NOT NULL | 设备编号 | 内部编号，如 EQP-0001，唯一不可修改 |
-| name | VARCHAR(200) | NOT NULL | 设备名称 | 设备名称 |
-| category | VARCHAR(50) | NOT NULL | 设备分类 | 分析仪器 / 实验设备 / 辅助设备 等 |
-| model | VARCHAR(200) | | 型号规格 | 厂家型号 |
-| manufacturer | VARCHAR(100) | | 生产商 | 生产商 |
-| serial_no | VARCHAR(100) | | 序列号 | 厂家序列号 |
-| location_room | VARCHAR(50) | | 所在房间 | 实验室/房间号 |
-| location_detail | VARCHAR(200) | | 安装位置 | 具体安装位置描述 |
-| responsible_person | VARCHAR(50) | | 负责人 | 设备负责人姓名 |
-| status | VARCHAR(20) | NOT NULL DEFAULT 'in_use' | 状态 | in_use / out_of_service / scrapped / in_repair / in_calibration |
-| purchase_date | DATE | | 购入日期 | 购入日期 |
-| commission_date | DATE | | 启用日期 | 首次启用日期 |
-| asset_value | NUMERIC(12,2) | | 资产价值 | 购入金额 |
-| remark | TEXT | | 备注 | 备注 |
-| mdm_equipment_id | BIGINT | | MDM设备ID | V1.2: 引用 MDM eqp.equipment 主键（无跨库外键,API 拉取时回填） |
-| data_source | VARCHAR(20) | NOT NULL DEFAULT 'local' | 主数据来源 | V1.2: mdm=从 MDM 引用建档 / local=本地兜底建(待补登 MDM) |
+> **字段归属约定（V1.4）**：标注「MDM 快照」的字段权威源在 MDM eqp.equipment，建档/刷新时整体覆盖，LabOps 侧只读（data_source='local' 的兜底记录除外）；标注「本地运营」的字段由 LabOps 维护，MDM 不感知。
+
+| **字段** | **类型** | **约束** | **UI 中文名** | **归属** | **说明** |
+|---|---|---|---|---|---|
+| equipment_id | SERIAL | PK | 设备ID | — | 内部主键 |
+| equipment_code | VARCHAR(32) | UNIQUE, NOT NULL | 设备编码 | MDM 快照 | MDM 系统编码 EQP-yyyyXXXXXX，唯一不可修改 |
+| equipment_no | VARCHAR(64) | | 设备编号 | MDM 快照 | V1.4: 业务/历史编号（如 QC001），实验室日常使用的编号，对应 MDM 三标识体系 |
+| fixed_asset_no | VARCHAR(64) | | 固定资产号 | MDM 快照 | V1.4: 财务固定资产编号，对应 MDM 三标识体系 |
+| name | VARCHAR(200) | NOT NULL | 设备名称 | MDM 快照 | 设备中文名称 |
+| name_en | VARCHAR(255) | | 英文名称 | MDM 快照 | V1.4: 设备英文名称 |
+| category | VARCHAR(50) | NOT NULL | 设备分类 | MDM 快照 | MDM 5 值体系：分析仪器 / 工艺、制备设备 / 通用实验室设备 / 公用工程、环境与支持系统 / IT、自动化与数据系统。本地不设 CHECK 约束（信任 MDM 快照，避免 MDM 调整分类时本地写入失败） |
+| model | VARCHAR(200) | | 型号规格 | MDM 快照 | 厂家型号 |
+| manufacturer | VARCHAR(100) | | 生产商 | MDM 快照 | 生产商 |
+| serial_no | VARCHAR(100) | | 序列号 | MDM 快照 | 厂家序列号 |
+| rated_power | VARCHAR(64) | | 额定功率 | MDM 快照 | V1.4: 自由文本（如 1500W），用于实验室用电管理 |
+| origin | VARCHAR(100) | | 产地 | MDM 快照 | V1.4: 产地 |
+| supplier | VARCHAR(200) | | 供应商 | MDM 快照 | V1.4: 采购供应商 |
+| has_workstation | BOOLEAN | NOT NULL DEFAULT FALSE | 附带工作站 | MDM 快照 | V1.4: 是否附带专用工作站/控制电脑 |
+| workstation_info | JSONB | | 工作站配置 | MDM 快照 | V1.4: 工作站硬件配置（brand/model/os/cpu/ram/disk 等），原样存 MDM JSON |
+| purchase_date | DATE | | 购入日期 | MDM 快照 | V1.4: 归属由本地运营改为 MDM 快照（MDM V1.2 已收为主数据） |
+| asset_value | NUMERIC(12,2) | | 资产价值 | MDM 快照 | V1.4: 归属由本地运营改为 MDM 快照（同上） |
+| mdm_status | VARCHAR(32) | | MDM主数据状态 | MDM 快照 | V1.4: active=在册 / retired=已退役。MDM 侧 retire 后 LabOps 刷新时同步，前端黄条提示 |
+| mdm_synced_at | TIMESTAMP | | 快照同步时间 | — | V1.4: 最近一次从 MDM 拉取/刷新快照的时间（上海时间） |
+| location_room | VARCHAR(50) | | 所在房间 | 本地运营 | 实验室/房间号 |
+| location_detail | VARCHAR(200) | | 安装位置 | 本地运营 | 具体安装位置描述 |
+| responsible_person | VARCHAR(50) | | 负责人 | 本地运营 | 设备负责人姓名 |
+| status | VARCHAR(20) | NOT NULL DEFAULT 'in_use' | 运营状态 | 本地运营 | in_use / out_of_service / scrapped / in_repair / in_calibration（与 mdm_status 相互独立） |
+| commission_date | DATE | | 启用日期 | 本地运营 | 首次启用日期 |
+| remark | TEXT | | 备注 | 本地运营 | 备注 |
+| mdm_equipment_id | BIGINT | | MDM设备ID | — | V1.2: 引用 MDM eqp.equipment 主键（无跨库外键,API 拉取时回填） |
+| data_source | VARCHAR(20) | NOT NULL DEFAULT 'local' | 主数据来源 | — | V1.2: mdm=从 MDM 引用建档 / local=本地兜底建(待补登 MDM) |
 | is_active | BOOLEAN | NOT NULL DEFAULT TRUE | 是否有效 | 软删除标记 |
 | deactivated_at | TIMESTAMP | | 报废时间 | 报废/停用时间 |
 | deactivated_by | VARCHAR(50) | | 报废操作人 | 报废操作人 |
@@ -144,20 +157,35 @@
 ```sql
 CREATE TABLE equipment_mgmt.equipment (
     equipment_id      SERIAL PRIMARY KEY,
+    -- —— MDM 快照字段（权威源 eqp.equipment，建档/刷新时整体覆盖）——
     equipment_code    VARCHAR(32)  NOT NULL,
+    equipment_no      VARCHAR(64),                -- V1.4: 业务编号(如 QC001)
+    fixed_asset_no    VARCHAR(64),                -- V1.4: 固定资产号
     name              VARCHAR(200) NOT NULL,
+    name_en           VARCHAR(255),               -- V1.4: 英文名称
     category          VARCHAR(50)  NOT NULL,
     model             VARCHAR(200),
     manufacturer      VARCHAR(100),
     serial_no         VARCHAR(100),
+    rated_power       VARCHAR(64),                -- V1.4: 额定功率
+    origin            VARCHAR(100),               -- V1.4: 产地
+    supplier          VARCHAR(200),               -- V1.4: 供应商
+    has_workstation   BOOLEAN      NOT NULL DEFAULT FALSE,  -- V1.4
+    workstation_info  JSONB,                      -- V1.4: 工作站配置
+    purchase_date     DATE,                       -- V1.4: 归属改为 MDM 快照
+    asset_value       NUMERIC(12,2),              -- V1.4: 归属改为 MDM 快照
+    mdm_status        VARCHAR(32),                -- V1.4: active/retired
+    mdm_synced_at     TIMESTAMP,                  -- V1.4: 快照同步时间
+    -- —— 本地运营字段（LabOps 维护）——
     location_room     VARCHAR(50),
     location_detail   VARCHAR(200),
     responsible_person VARCHAR(50),
     status            VARCHAR(20)  NOT NULL DEFAULT 'in_use',
-    purchase_date     DATE,
     commission_date   DATE,
-    asset_value       NUMERIC(12,2),
     remark            TEXT,
+    -- —— MDM 引用与软删除 ——
+    mdm_equipment_id  BIGINT,                     -- V1.2: MDM 主键快照
+    data_source       VARCHAR(20)  NOT NULL DEFAULT 'local',  -- V1.2: mdm/local
     is_active         BOOLEAN      NOT NULL DEFAULT TRUE,
     deactivated_at    TIMESTAMP,
     deactivated_by    VARCHAR(50),
@@ -180,6 +208,23 @@ CREATE INDEX ix_equipment_responsible ON equipment_mgmt.equipment(responsible_pe
 CREATE TRIGGER equipment_updated_at
     BEFORE UPDATE ON equipment_mgmt.equipment
     FOR EACH ROW EXECUTE FUNCTION material_mgmt.trg_set_updated_at();
+```
+
+### 4.2.3 V1.4 迁移段（对已存在的旧 DB 补列）
+
+> 与 sql/equipment_init.sql 末尾迁移段同模式，全部 `ADD COLUMN IF NOT EXISTS`，可重复执行。
+
+```sql
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS equipment_no     VARCHAR(64);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS fixed_asset_no   VARCHAR(64);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS name_en          VARCHAR(255);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS rated_power      VARCHAR(64);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS origin           VARCHAR(100);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS supplier         VARCHAR(200);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS has_workstation  BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS workstation_info JSONB;
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS mdm_status       VARCHAR(32);
+ALTER TABLE equipment_mgmt.equipment ADD COLUMN IF NOT EXISTS mdm_synced_at    TIMESTAMP;
 ```
 
 ## 4.3 equipment_calibration（计量校验记录）
@@ -339,7 +384,14 @@ CREATE TABLE equipment_mgmt.equipment_warranty (
 );
 
 CREATE INDEX ix_warranty_end ON equipment_mgmt.equipment_warranty(warranty_end);
+
+-- updated_at 自动维护(与 equipment 主表同模式,实际脚本 equipment_init.sql 已含)
+CREATE TRIGGER warranty_updated_at
+    BEFORE UPDATE ON equipment_mgmt.equipment_warranty
+    FOR EACH ROW EXECUTE FUNCTION material_mgmt.trg_set_updated_at();
 ```
+
+> 注意：equipment_mgmt 各触发器跨 schema 复用 `material_mgmt.trg_set_updated_at()`，初始化 equipment_mgmt 前须先执行 init.sql（保证该函数已存在）。
 
 ## 4.7 equipment_attachment（设备附件）
 
@@ -580,7 +632,7 @@ CREATE INDEX ix_audit_entity      ON labops_audit.audit_log(entity_type, entity_
 CREATE INDEX ix_audit_action      ON labops_audit.audit_log(action, created_at DESC);
 ```
 
-# 7. MDM 数据边界说明（V1.2 修订）
+# 7. MDM 数据边界说明（V1.4 修订）
 
 | **数据域** | **权威源** | **LabOps Portal 中的体现** |
 |---|---|---|
@@ -588,18 +640,33 @@ CREATE INDEX ix_audit_action      ON labops_audit.audit_log(action, created_at D
 | 项目（Project） | MDM Portal (prs) | 不涉及 |
 | 药物资产（Asset） | MDM Portal (ars) | 不涉及 |
 | **物料主数据** | **MDM Portal (mm.material)** | material 表为运营快照（data_source 标记），入库时按编码从 MDM 拉取 |
-| **设备主数据** | **MDM Portal (eqp.equipment)** | equipment 表为运营台账（mdm_equipment_id + data_source），建档时从 MDM 拉取身份字段 |
+| **设备主数据** | **MDM Portal (eqp.equipment)** | equipment 表为运营台账（mdm_equipment_id + data_source），建档时从 MDM 拉取身份字段快照，支持手动刷新 |
 | 部门物料库存 | LabOps Portal | 核心能力：批次、出入库、位置、库存 |
 | 设备运营管理 | LabOps Portal | 核心能力：在用状态/位置/负责人、校验、维护、维修、保修、附件、提醒 |
 | 用户认证 | MDM Portal (auth) | LabOps 信任 MDM JWT，不建用户表 |
 
-集成方式（已实现）：
+## 7.1 设备主数据字段分工（V1.4，对齐 MDM eqp 域 V1.2）
+
+| 维度 | MDM Portal（eqp.equipment） | LabOps Portal（equipment_mgmt.equipment） |
+|---|---|---|
+| 三标识体系 | equipment_code（系统编码 EQP-yyyyXXXXXX）/ equipment_no（业务编号）/ fixed_asset_no（固定资产号） | 全部快照，只读 |
+| 身份属性 | 名称（中/英）、分类（5 值）、型号、生产商、序列号、额定功率、产地、供应商、购入日期、资产价值、工作站配置 | 全部快照，只读；修改需回 MDM，再在 LabOps 刷新 |
+| 主数据状态 | status: active / retired | 快照为 mdm_status；MDM retire 不影响本地运营记录，仅前端提示 |
+| 运营属性 | 不管理 | 运营状态、位置、负责人、启用日期、备注、校验/维护/维修/保修/附件/提醒 |
+
+注意两个易混点：
+- **status（本地运营状态）与 mdm_status（MDM 主数据状态）相互独立**：MDM retired 表示主数据层面退役，LabOps 是否报废（scrapped）由实验室自行决定，两者不自动联动，前端在 mdm_status='retired' 时显示提示条引导人工处置。
+- **purchase_date / asset_value 自 V1.4 起为 MDM 快照**：MDM V1.2 已将其收为主数据，LabOps 不再本地编辑（data_source='local' 的兜底记录除外）。
+
+## 7.2 集成方式（已实现）
+
 - 两系统数据库为独立 PG 实例，**不跨库外键**，全部通过 API 按需拉取
 - 物料：GET /api/mdm/materials* + POST /api/materials/from-mdm/{code}
-- 设备：GET /api/mdm/equipments* + POST /api/equipment/from-mdm/{code}
-- 同步机制 = 用时拉取：MDM 登记后无后台同步任务，物料在首次入库、设备在建档时实时拉取落快照
-- data_source='local' 仅产生于后端 API 兜底（V1.3 起前端无本地新增入口），使用后须在 MDM 补登
-- MDM 侧 eqp 域设计详见 DM-MDM-001 V1.2 §10A，API 详见 API-MDM-001 V1.2 §5.1.6A
+- 设备：GET /api/mdm/equipments* + POST /api/equipment/from-mdm/{code} + POST /api/equipment/{id}/sync-mdm（V1.4 新增，手动刷新快照）+ POST /api/equipment/batch-from-mdm（V1.4 新增，台账初始化批量引用建档：遍历 MDM 设备列表，本地不存在的逐台拉详情落快照，支持分类过滤，默认跳过已存在与 MDM 已退役设备，运营字段留空待补录）
+- 同步机制 = 用时拉取 + 手动刷新：MDM 登记后无后台同步任务，物料在首次入库、设备在建档时实时拉取落快照；设备详情页提供"从 MDM 刷新"按钮整体覆盖快照字段并更新 mdm_synced_at
+- MDM 后端地址通过 `MDM_BASE_URL` 环境变量配置，开发环境默认 `http://127.0.0.1:18000/api/v1`（与 MDM Docker 端口约定一致）
+- data_source='local' 仅产生于后端 API 兜底（V1.3 起前端无本地新增入口），使用后须在 MDM 补登；补登后可通过 sync-mdm 按编码回挂（回填 mdm_equipment_id 并转 data_source='mdm'）
+- MDM 侧 eqp 域设计详见 DM-MDM-001 V1.2 §10A（含迁移 0040~0044），API 详见 API-MDM-001 V1.2 §5.1.6A
 
 # 8. 附录：设备 ERD
 

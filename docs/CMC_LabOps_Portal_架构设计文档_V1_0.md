@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **文档编号** | ARCH-LABOPS-001 |
-| **版本** | V1.0 |
+| **版本** | V1.4（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
@@ -25,6 +25,7 @@
 | V1.1 | 2026-06-04 | CMC IT | 认证方案变更：取消自建 labops_auth schema，改为对接 MDM Portal 统一认证（JWT 共享密钥）；用户管理/改密由 MDM Portal 承担 |
 | V1.2 | 2026-06-04 | CMC IT | 主数据边界变更：设备主数据移交 MDM Portal 新建的 eqp 域（eqp.equipment，编码 EQP-yyyyXXXXXX）；LabOps equipment 表保留运营数据 + mdm_equipment_id/data_source 引用快照，照物料 from-mdm 模式按需拉取 |
 | V1.3 | 2026-06-04 | CMC IT | 主数据入口治理（标准化决议）：本系统前端不再提供物料/设备主数据的本地新增与身份编辑入口——"物料管理"更名为只读"物料查询"，设备新增仅"从 MDM 引用 + 补运营字段"、编辑仅运营字段；各入口提供"去 MDM 登记"跳转（MDM 新建页 ?code=/?name= 预填，地址由 VITE_MDM_PORTAL_URL 配置）。同步机制明确为"用时拉取"：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照。本地建档端点（POST /api/materials、POST /api/equipment）仅保留为后端 API 兜底，前端无入口。MDM 侧设计见 DM-MDM-001 V1.2 §10A、API-MDM-001 V1.2 §5.1.6A |
+| V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：设备快照承接三标识体系（equipment_no/fixed_asset_no）、5 值分类、工作站配置、额定功率等新增主数据字段；purchase_date/asset_value 归属改为 MDM 快照；新增手动快照刷新端点 sync-mdm 与 mdm_status/mdm_synced_at 追踪；新增批量引用建档端点 batch-from-mdm（台账初始化/增量同步）；修正 MDM_BASE_URL 开发默认值为 18000（§4.2 更新） |
 
 ## 适用范围
 
@@ -333,7 +334,7 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 ## 4.2 数据流向
 
 ```text
-数据所有权（V1.2 修订）：
+数据所有权（V1.4 修订,对齐 MDM eqp 域 V1.2）：
 
   CMAB MDM Portal              CMC LabOps Portal
   ─────────────                ──────────────────
@@ -341,16 +342,27 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
   Project / Asset 登记           data_source 标记 mdm/local)
   物料主数据 mm.material  ──→   批次、出入库流水、位置、库存计算
   设备主数据 eqp.equipment ──→  设备运营台账(equipment_mgmt.equipment,
-   (EQP-yyyyXXXXXX)              mdm_equipment_id + data_source)
-                               校验、维护、维修、保修、附件、提醒
+   三标识:equipment_code/        mdm_equipment_id + data_source
+   equipment_no/fixed_asset_no   + 身份字段快照 + mdm_status/mdm_synced_at)
+   5 值分类、工作站配置、       校验、维护、维修、保修、附件、提醒
+   购入日期、资产价值、
+   active/retired
 
 数据引用方向（均通过 API 按需拉取,不跨库外键 —— 两套 PG 实例独立）：
   - 物料：入库时按 material_code 查 MDM,本地落快照(已实现)
   - 设备：建台账时按 equipment_code 查 MDM,身份字段以 MDM 为准,
           运营字段(状态/位置/负责人)本地维护(已实现)
+  - 设备快照刷新(V1.4)：详情页"从 MDM 刷新"→ POST /api/equipment/{id}/sync-mdm,
+    整体覆盖快照字段并更新 mdm_synced_at;MDM 侧 retire 仅置 mdm_status,
+    不联动本地运营状态,前端提示人工处置
+  - 设备批量引用建档(V1.4)：列表页"从 MDM 批量同步"→ POST /api/equipment/batch-from-mdm,
+    台账初始化用:遍历 MDM 设备列表,本地不存在的逐台建档(运营字段留空待补),
+    默认跳过已存在与 MDM 已退役,可按分类过滤;后续 MDM 新登记可重复执行增量同步
   - 本地建档(data_source='local')仅保留为后端 API 兜底(V1.3 起前端无入口),
-    使用后须在 MDM 补登
-  - 同步机制 = 用时拉取:MDM 登记后无后台同步任务,首次使用时实时拉取
+    使用后须在 MDM 补登;补登后 sync-mdm 可回挂(回填 mdm_equipment_id
+    并转 data_source='mdm')
+  - 同步机制 = 用时拉取 + 手动刷新:MDM 登记后无后台同步任务
+  - MDM 后端地址由 MDM_BASE_URL 配置,开发环境默认 127.0.0.1:18000/api/v1
 ```
 
 # 5. 统一能力设计

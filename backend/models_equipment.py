@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import (
     String,
     Integer,
+    BigInteger,
     Boolean,
     Date,
     DateTime,
@@ -25,6 +26,7 @@ from sqlalchemy import (
     CheckConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -49,22 +51,35 @@ class Equipment(Base):
     )
 
     equipment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # —— MDM 快照字段(权威源 eqp.equipment,建档/sync-mdm 时整体覆盖) ——
     equipment_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    equipment_no: Mapped[Optional[str]] = mapped_column(String(64))       # V1.4: 业务编号(如 QC001)
+    fixed_asset_no: Mapped[Optional[str]] = mapped_column(String(64))     # V1.4: 固定资产号
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    name_en: Mapped[Optional[str]] = mapped_column(String(255))           # V1.4: 英文名称
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     model: Mapped[Optional[str]] = mapped_column(String(200))
     manufacturer: Mapped[Optional[str]] = mapped_column(String(100))
     serial_no: Mapped[Optional[str]] = mapped_column(String(100))
+    rated_power: Mapped[Optional[str]] = mapped_column(String(64))        # V1.4: 额定功率
+    origin: Mapped[Optional[str]] = mapped_column(String(100))            # V1.4: 产地
+    supplier: Mapped[Optional[str]] = mapped_column(String(200))          # V1.4: 供应商
+    has_workstation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # V1.4
+    workstation_info: Mapped[Optional[dict]] = mapped_column(JSONB)       # V1.4: 工作站配置
+    purchase_date: Mapped[Optional[date]] = mapped_column(Date)           # V1.4: 归属改 MDM 快照
+    asset_value: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))  # V1.4: 归属改 MDM 快照
+    mdm_status: Mapped[Optional[str]] = mapped_column(String(32))         # V1.4: active/retired
+    mdm_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime)   # V1.4: 快照同步时间
+    # —— 本地运营字段(LabOps 维护) ——
     location_room: Mapped[Optional[str]] = mapped_column(String(50))
     location_detail: Mapped[Optional[str]] = mapped_column(String(200))
     responsible_person: Mapped[Optional[str]] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="in_use")
-    purchase_date: Mapped[Optional[date]] = mapped_column(Date)
     commission_date: Mapped[Optional[date]] = mapped_column(Date)
-    asset_value: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
     remark: Mapped[Optional[str]] = mapped_column(Text)
     # MDM 引用: 主数据权威源在 MDM eqp 域;mdm=从 MDM 拉取,local=本地建(待补登 MDM)
-    mdm_equipment_id: Mapped[Optional[int]] = mapped_column(Integer)
+    # DB 列为 BIGINT(对应 MDM eqp.equipment 大整数主键),ORM 对齐 BigInteger
+    mdm_equipment_id: Mapped[Optional[int]] = mapped_column(BigInteger)
     data_source: Mapped[str] = mapped_column(String(20), nullable=False, default="local")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     deactivated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
