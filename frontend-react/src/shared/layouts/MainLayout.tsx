@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout, Menu, Button, Typography, Space, Dropdown } from "antd";
 import {
+  DashboardOutlined,
   AppstoreOutlined,
   ImportOutlined,
   ExportOutlined,
@@ -67,6 +68,7 @@ export default function MainLayout() {
 
   // FR-PLT-002: 导航按模块分组;FR-PLT-003: 无权限的入口自动隐藏
   const items = [
+    { key: "/dashboard", icon: <DashboardOutlined />, label: "仪表盘" },
     {
       key: "grp-material",
       label: "物料库存",

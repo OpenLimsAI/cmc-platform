@@ -30,7 +30,7 @@ export default function LoginPage() {
         // 改密在 MDM Portal 操作(V1.1 起本系统无改密页)
         message.warning("MDM 提示需要修改初始密码,请先到 MDM Portal 完成改密", 6);
       }
-      navigate("/materials");
+      navigate("/dashboard");
     } catch (err: unknown) {
       setErrorMessage(getErrorDetail(err, "登录失败"));
     } finally {

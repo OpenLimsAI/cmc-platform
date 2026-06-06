@@ -6,6 +6,7 @@ import zhCN from "antd/locale/zh_CN";
 import MainLayout from "./shared/layouts/MainLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import LoginPage from "./modules/admin/pages/LoginPage";
+import DashboardPage from "./modules/dashboard/pages/DashboardPage";
 import MaterialListPage from "./modules/materials/pages/MaterialListPage";
 import IntakePage from "./modules/intake/pages/IntakePage";
 import OutgoingPage from "./modules/outgoing/pages/OutgoingPage";
@@ -52,6 +53,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/materials" element={<MaterialListPage />} />
               <Route path="/intake" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><IntakePage /></ProtectedRoute>} />
               <Route path="/outgoing" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><OutgoingPage /></ProtectedRoute>} />
@@ -64,7 +66,7 @@ export default function App() {
               <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
               <Route path="/admin/audit" element={<ProtectedRoute roles={["SYS_ADMIN"]}><AuditLogPage /></ProtectedRoute>} />
             </Route>
-            <Route path="*" element={<Navigate to="/materials" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
       </ConfigProvider>

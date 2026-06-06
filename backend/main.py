@@ -12,8 +12,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from routers import (
-    admin_router, auth_router, batch, equipment, import_data, inventory,
-    location, material, stock,
+    admin_router, auth_router, batch, dashboard, equipment, import_data,
+    inventory, location, material, stock,
 )
 from auth import get_current_user
 
@@ -78,4 +78,5 @@ app.include_router(import_data.router, dependencies=_AUTHED)
 app.include_router(location.router,    dependencies=_AUTHED)
 app.include_router(equipment.router,   dependencies=_AUTHED)
 app.include_router(equipment.mdm_router, dependencies=_AUTHED)
+app.include_router(dashboard.router,   dependencies=_AUTHED)
 app.include_router(admin_router.router, dependencies=_AUTHED)
