@@ -247,14 +247,14 @@ Linux 服务器（生产 = 原生 venv+systemd+nginx，非 Docker）
     ├─ git pull
     ├─ backend/.venv/bin/pip install -r backend/requirements.txt
     ├─ backend/.venv/bin/alembic upgrade head
-    ├─ cd frontend && npm install && npm run build   （nginx 伺服 dist）
+    ├─ cd frontend && pnpm install && pnpm build   （nginx 伺服 dist）
     └─ sudo systemctl restart cmab-backend
 ```
 
 ## 部署
 
 > **Docker 仅用于本地开发**（`deploy/docker-compose.*.yml`、`make up`）。
-> **Linux 生产服务器是原生部署**：后端 venv + systemd，前端 `npm run build` 后由 **nginx** 伺服，
+> **Linux 生产服务器是原生部署**：后端 venv + systemd，前端 `pnpm build` 后由 **nginx** 伺服，
 > PostgreSQL 是宿主机**原生 PG 集群**(本服务器 MDM 用 `:5433` 的 `mdm` 集群、库 `cmab_mdm`)，Redis 原生。
 > 目录 `/opt/cmab-mdm-platform`，运行身份 `prometheus`。
 
@@ -270,7 +270,7 @@ backend/.venv/bin/pip install -q -r backend/requirements.txt
 backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
 
 # 2) 前端重新构建（产物 frontend/dist 由 nginx 伺服，立即生效）
-cd frontend && npm install --silent && npm run build && cd ..
+cd frontend && pnpm install && pnpm build && cd ..
 
 # 3) 重启后端服务
 sudo systemctl restart cmab-backend
