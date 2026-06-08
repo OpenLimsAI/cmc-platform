@@ -1,7 +1,11 @@
 /**
  * Phase 5.A / M5.1：管理员模块字典
- * M5.2 上线后 ROLE_OPTIONS 会改为从 `/api/v1/roles` 拉，目前用 seed 系统角色硬编码。
- * 注意：必须与 backend/app/scripts/seed_data.py 的 ROLES 同步（8 个系统角色）。
+ *
+ * M5.2（已完成）：所有角色**下拉选项**改为动态拉取（见 `useRoleOptions`），
+ * 不再依赖本文件。下方 ROLE_OPTIONS 仅作**标签展示映射**保留 ——
+ * 用户列表角色 Tag 的中文名(ROLE_LABELS)与颜色(ROLE_COLORS)来源；
+ * API 不携带颜色，故颜色须静态维护。未知/自定义角色 Tag 自动降级为
+ * role_name + 默认色，不影响功能。新增系统角色时建议在此补一行配色。
  */
 import type { UserStatus } from '@/api/types';
 

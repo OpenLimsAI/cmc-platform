@@ -3,7 +3,7 @@ import { Modal, Select, Alert, Tag } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import { adminUsersApi } from '@/api/admin';
 import type { UserDetail } from '@/api/types';
-import { ROLE_OPTIONS } from '../constants';
+import { useRoleOptions } from '../useRoleOptions';
 
 interface Props {
   open: boolean;
@@ -14,6 +14,7 @@ interface Props {
 
 export function UserRoleAssignModal({ open, user, onClose, onSaved }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
+  const { options: roleOptions, isLoading: rolesLoading } = useRoleOptions(open);
 
   useEffect(() => {
     if (open && user) {
@@ -64,7 +65,8 @@ export function UserRoleAssignModal({ open, user, onClose, onSaved }: Props) {
         placeholder="选择角色"
         value={selected}
         onChange={setSelected}
-        options={ROLE_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
+        loading={rolesLoading}
+        options={roleOptions}
       />
     </Modal>
   );

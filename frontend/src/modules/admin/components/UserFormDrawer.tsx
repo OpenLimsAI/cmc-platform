@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { adminUsersApi } from '@/api/admin';
 import type { UserDetail } from '@/api/types';
 import { applyFormErrors } from '@/shared/utils/formErrors';
-import { ROLE_OPTIONS } from '../constants';
+import { useRoleOptions } from '../useRoleOptions';
 
 type Mode = 'create' | 'edit';
 
@@ -18,6 +18,11 @@ interface Props {
 
 export function UserFormDrawer({ open, mode, user, onClose, onSaved }: Props) {
   const [form] = Form.useForm();
+
+  // M5.2：角色下拉动态拉取（仅创建态需要）
+  const { options: roleOptions, isLoading: rolesLoading } = useRoleOptions(
+    open && mode === 'create',
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -170,7 +175,8 @@ export function UserFormDrawer({ open, mode, user, onClose, onSaved }: Props) {
             <Select
               mode="multiple"
               placeholder="选择角色"
-              options={ROLE_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
+              loading={rolesLoading}
+              options={roleOptions}
             />
           </Form.Item>
         )}

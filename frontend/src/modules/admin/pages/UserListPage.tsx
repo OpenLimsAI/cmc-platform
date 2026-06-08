@@ -38,11 +38,11 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   ROLE_COLORS,
   ROLE_LABELS,
-  ROLE_OPTIONS,
   USER_STATUS_COLORS,
   USER_STATUS_LABELS,
   USER_STATUS_OPTIONS,
 } from '../constants';
+import { useRoleOptions } from '../useRoleOptions';
 import { AdminTabs } from '../components/AdminTabs';
 import { UserFormDrawer } from '../components/UserFormDrawer';
 import { UserRoleAssignModal } from '../components/UserRoleAssignModal';
@@ -69,6 +69,9 @@ export function UserListPage() {
   const [editingUser, setEditingUser] = useState<UserDetail | null>(null);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
   const [resetResult, setResetResult] = useState<ResetPasswordResult | null>(null);
+
+  // M5.2：角色筛选下拉动态拉取
+  const { options: roleFilterOptions } = useRoleOptions();
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-users', page, pageSize, filters],
@@ -305,7 +308,7 @@ export function UserListPage() {
               setPage(1);
               setFilters((f) => ({ ...f, role_code: v }));
             }}
-            options={ROLE_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
+            options={roleFilterOptions}
           />
           <Select
             placeholder="状态"
