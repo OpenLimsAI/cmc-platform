@@ -242,33 +242,53 @@ pnpm dev    # 默认 5173
     │
 git push
     │
-Linux 服务器
+Linux 服务器（生产 = 原生 venv+systemd+nginx，非 Docker）
     │
     ├─ git pull
-    ├─ docker compose up -d --build
-    ├─ alembic upgrade head
-    └─ 测试运行
+    ├─ backend/.venv/bin/pip install -r backend/requirements.txt
+    ├─ backend/.venv/bin/alembic upgrade head
+    ├─ cd frontend && npm install && npm run build   （nginx 伺服 dist）
+    └─ sudo systemctl restart cmab-backend
 ```
 
 ## 部署
 
-### 生产环境（Linux 虚拟机）
+> **Docker 仅用于本地开发**（`deploy/docker-compose.*.yml`、`make up`）。
+> **Linux 生产服务器是原生部署**：后端 venv + systemd，前端 `npm run build` 后由 **nginx** 伺服，
+> PostgreSQL 是宿主机**原生 PG 集群**(本服务器 MDM 用 `:5433` 的 `mdm` 集群、库 `cmab_mdm`)，Redis 原生。
+> 目录 `/opt/cmab-mdm-platform`，运行身份 `prometheus`。
+
+### 生产环境（Linux 服务器，原生）
 
 ```bash
 # 在生产服务器
 cd /opt/cmab-mdm-platform
 git pull origin main
-cp .env.production .env
 
-docker compose -f deploy/docker-compose.prod.yml down
-docker compose -f deploy/docker-compose.prod.yml up -d --build
+# 1) 后端依赖 + 迁移（DBA 手动执行，不自动）
+backend/.venv/bin/pip install -q -r backend/requirements.txt
+backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
 
-# 应用迁移（DBA 手动执行，不自动）
-docker compose -f deploy/docker-compose.prod.yml exec backend \
-    alembic upgrade head
+# 2) 前端重新构建（产物 frontend/dist 由 nginx 伺服，立即生效）
+cd frontend && npm install --silent && npm run build && cd ..
+
+# 3) 重启后端服务
+sudo systemctl restart cmab-backend
 ```
 
-详见 `docs/DEPLOY-MDM-001`（待编制）。
+**服务拓扑（本服务器实际）：**
+
+| 组件 | 形态 |
+|---|---|
+| 后端 | systemd `cmab-backend.service`(venv `uvicorn app.main:app --port 18000`，依赖 redis + postgresql) |
+| 前端 | nginx `/etc/nginx/conf.d/cmab-mdm.conf`：`listen 15173` → root `/opt/cmab-mdm-platform/frontend/dist`，`/api` 反代 `127.0.0.1:18000` |
+| 数据库 | 宿主机原生 PG16 集群 `mdm` :5433，库 `cmab_mdm`，用户 `cmab_app` |
+| Redis | 宿主机原生 `redis-server` |
+
+> 同机另有 CMC LabOps Portal(`/opt/cmc-labops`，原生 systemd `cmc-backend` :8010 + nginx :5110，PG 集群 :5432)，
+> 通过 MDM 的 `/api/v1/auth/login` 做登录鉴权、按需引用主数据。
+>
+> 备份/恢复见 `docs/RUNBOOK_BACKUP_RESTORE.md`。
 
 ## 原型阶段文档使用约定
 

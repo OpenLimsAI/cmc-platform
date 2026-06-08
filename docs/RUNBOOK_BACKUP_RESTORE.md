@@ -46,7 +46,7 @@ sudo BACKUP_DIR=/var/lib/cmab-mdm/backups bash scripts/backup_db.sh
 ```bash
 # /etc/cron.d/cmab-mdm-backup（root）
 # 每天 UTC 02:00 跑全备
-0 2 * * * root /opt/cmab-mdm/scripts/backup_db.sh >> /var/log/cmab-mdm-backup.log 2>&1
+0 2 * * * root /opt/cmab-mdm-platform/scripts/backup_db.sh >> /var/log/cmab-mdm-backup.log 2>&1
 ```
 
 或 systemd timer（更易管理失败重试）：
@@ -60,7 +60,7 @@ After=docker.service
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/cmab-mdm/.env.prod
-ExecStart=/opt/cmab-mdm/scripts/backup_db.sh
+ExecStart=/opt/cmab-mdm-platform/scripts/backup_db.sh
 
 # /etc/systemd/system/cmab-mdm-backup.timer
 [Unit]
