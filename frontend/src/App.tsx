@@ -1,94 +1,193 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Spin } from 'antd';
+// 首屏/框架级组件保持即时加载（登录页、布局、守卫、404），其余页面懒加载
 import { LoginPage } from './modules/auth/pages/LoginPage';
-import { DashboardPage } from './modules/dashboard/pages/DashboardPage';
-import { SubstanceListPage } from './modules/substances/pages/SubstanceListPage';
-import { SubstanceCreatePage } from './modules/substances/pages/SubstanceCreatePage';
-import { SubstanceDetailPage } from './modules/substances/pages/SubstanceDetailPage';
-import { SubstanceEditPage } from './modules/substances/pages/SubstanceEditPage';
-import { ChangePasswordPage } from './modules/auth/pages/ChangePasswordPage';
-import { ProjectListPage } from './modules/projects/pages/ProjectListPage';
-import { ProjectCreatePage } from './modules/projects/pages/ProjectCreatePage';
-import { ProjectDetailPage } from './modules/projects/pages/ProjectDetailPage';
-import { ProjectEditPage } from './modules/projects/pages/ProjectEditPage';
-import { AssetListPage } from './modules/assets/pages/AssetListPage';
-import { AssetCreatePage } from './modules/assets/pages/AssetCreatePage';
-import { AssetDetailPage } from './modules/assets/pages/AssetDetailPage';
-import { AssetEditPage } from './modules/assets/pages/AssetEditPage';
-import { MaterialListPage } from './modules/materials/pages/MaterialListPage';
-import { EquipmentListPage } from './modules/equipments/pages/EquipmentListPage';
-import { EquipmentCreatePage } from './modules/equipments/pages/EquipmentCreatePage';
-import { EquipmentDetailPage } from './modules/equipments/pages/EquipmentDetailPage';
-import { EquipmentEditPage } from './modules/equipments/pages/EquipmentEditPage';
-import { MaterialCreatePage } from './modules/materials/pages/MaterialCreatePage';
-import { MaterialDetailPage } from './modules/materials/pages/MaterialDetailPage';
-import { MaterialEditPage } from './modules/materials/pages/MaterialEditPage';
-import { UserListPage } from './modules/admin/pages/UserListPage';
-import { RoleListPage } from './modules/admin/pages/RoleListPage';
-import { PermissionListPage } from './modules/admin/pages/PermissionListPage';
-import { AuditLogPage } from './modules/admin/pages/AuditLogPage';
-import { SignatureListPage } from './modules/admin/pages/SignatureListPage';
-import { ProfilePage } from './modules/profile/pages/ProfilePage';
-import { NotFoundPage } from './modules/common/NotFoundPage';
 import { MainLayout } from './shared/layouts/MainLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { NotFoundPage } from './modules/common/NotFoundPage';
+
+// 路由级懒加载：每个页面打成独立 chunk，按需下载（命名导出→default 适配）
+const DashboardPage = lazy(() =>
+  import('./modules/dashboard/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
+const SubstanceListPage = lazy(() =>
+  import('./modules/substances/pages/SubstanceListPage').then((m) => ({
+    default: m.SubstanceListPage,
+  })),
+);
+const SubstanceCreatePage = lazy(() =>
+  import('./modules/substances/pages/SubstanceCreatePage').then((m) => ({
+    default: m.SubstanceCreatePage,
+  })),
+);
+const SubstanceDetailPage = lazy(() =>
+  import('./modules/substances/pages/SubstanceDetailPage').then((m) => ({
+    default: m.SubstanceDetailPage,
+  })),
+);
+const SubstanceEditPage = lazy(() =>
+  import('./modules/substances/pages/SubstanceEditPage').then((m) => ({
+    default: m.SubstanceEditPage,
+  })),
+);
+const ChangePasswordPage = lazy(() =>
+  import('./modules/auth/pages/ChangePasswordPage').then((m) => ({ default: m.ChangePasswordPage })),
+);
+const ProjectListPage = lazy(() =>
+  import('./modules/projects/pages/ProjectListPage').then((m) => ({ default: m.ProjectListPage })),
+);
+const ProjectCreatePage = lazy(() =>
+  import('./modules/projects/pages/ProjectCreatePage').then((m) => ({
+    default: m.ProjectCreatePage,
+  })),
+);
+const ProjectDetailPage = lazy(() =>
+  import('./modules/projects/pages/ProjectDetailPage').then((m) => ({
+    default: m.ProjectDetailPage,
+  })),
+);
+const ProjectEditPage = lazy(() =>
+  import('./modules/projects/pages/ProjectEditPage').then((m) => ({ default: m.ProjectEditPage })),
+);
+const AssetListPage = lazy(() =>
+  import('./modules/assets/pages/AssetListPage').then((m) => ({ default: m.AssetListPage })),
+);
+const AssetCreatePage = lazy(() =>
+  import('./modules/assets/pages/AssetCreatePage').then((m) => ({ default: m.AssetCreatePage })),
+);
+const AssetDetailPage = lazy(() =>
+  import('./modules/assets/pages/AssetDetailPage').then((m) => ({ default: m.AssetDetailPage })),
+);
+const AssetEditPage = lazy(() =>
+  import('./modules/assets/pages/AssetEditPage').then((m) => ({ default: m.AssetEditPage })),
+);
+const MaterialListPage = lazy(() =>
+  import('./modules/materials/pages/MaterialListPage').then((m) => ({
+    default: m.MaterialListPage,
+  })),
+);
+const MaterialCreatePage = lazy(() =>
+  import('./modules/materials/pages/MaterialCreatePage').then((m) => ({
+    default: m.MaterialCreatePage,
+  })),
+);
+const MaterialDetailPage = lazy(() =>
+  import('./modules/materials/pages/MaterialDetailPage').then((m) => ({
+    default: m.MaterialDetailPage,
+  })),
+);
+const MaterialEditPage = lazy(() =>
+  import('./modules/materials/pages/MaterialEditPage').then((m) => ({
+    default: m.MaterialEditPage,
+  })),
+);
+const EquipmentListPage = lazy(() =>
+  import('./modules/equipments/pages/EquipmentListPage').then((m) => ({
+    default: m.EquipmentListPage,
+  })),
+);
+const EquipmentCreatePage = lazy(() =>
+  import('./modules/equipments/pages/EquipmentCreatePage').then((m) => ({
+    default: m.EquipmentCreatePage,
+  })),
+);
+const EquipmentDetailPage = lazy(() =>
+  import('./modules/equipments/pages/EquipmentDetailPage').then((m) => ({
+    default: m.EquipmentDetailPage,
+  })),
+);
+const EquipmentEditPage = lazy(() =>
+  import('./modules/equipments/pages/EquipmentEditPage').then((m) => ({
+    default: m.EquipmentEditPage,
+  })),
+);
+const UserListPage = lazy(() =>
+  import('./modules/admin/pages/UserListPage').then((m) => ({ default: m.UserListPage })),
+);
+const RoleListPage = lazy(() =>
+  import('./modules/admin/pages/RoleListPage').then((m) => ({ default: m.RoleListPage })),
+);
+const PermissionListPage = lazy(() =>
+  import('./modules/admin/pages/PermissionListPage').then((m) => ({
+    default: m.PermissionListPage,
+  })),
+);
+const AuditLogPage = lazy(() =>
+  import('./modules/admin/pages/AuditLogPage').then((m) => ({ default: m.AuditLogPage })),
+);
+const SignatureListPage = lazy(() =>
+  import('./modules/admin/pages/SignatureListPage').then((m) => ({ default: m.SignatureListPage })),
+);
+const ProfilePage = lazy(() =>
+  import('./modules/profile/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+);
+
+const PageFallback = (
+  <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+    <Spin size="large" />
+  </div>
+);
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <Suspense fallback={PageFallback}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      <Route element={<ProtectedRoute />}>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
 
-          {/* SRS */}
-          <Route path="/substances" element={<SubstanceListPage />} />
-          <Route path="/substances/new" element={<SubstanceCreatePage />} />
-          <Route path="/substances/:code" element={<SubstanceDetailPage />} />
-          <Route path="/substances/:code/edit" element={<SubstanceEditPage />} />
+            {/* SRS */}
+            <Route path="/substances" element={<SubstanceListPage />} />
+            <Route path="/substances/new" element={<SubstanceCreatePage />} />
+            <Route path="/substances/:code" element={<SubstanceDetailPage />} />
+            <Route path="/substances/:code/edit" element={<SubstanceEditPage />} />
 
-          {/* PRS */}
-          <Route path="/projects" element={<ProjectListPage />} />
-          <Route path="/projects/new" element={<ProjectCreatePage />} />
-          <Route path="/projects/:code" element={<ProjectDetailPage />} />
-          <Route path="/projects/:code/edit" element={<ProjectEditPage />} />
+            {/* PRS */}
+            <Route path="/projects" element={<ProjectListPage />} />
+            <Route path="/projects/new" element={<ProjectCreatePage />} />
+            <Route path="/projects/:code" element={<ProjectDetailPage />} />
+            <Route path="/projects/:code/edit" element={<ProjectEditPage />} />
 
-          {/* ARS */}
-          <Route path="/assets" element={<AssetListPage />} />
-          <Route path="/assets/new" element={<AssetCreatePage />} />
-          <Route path="/assets/:code" element={<AssetDetailPage />} />
-          <Route path="/assets/:code/edit" element={<AssetEditPage />} />
+            {/* ARS */}
+            <Route path="/assets" element={<AssetListPage />} />
+            <Route path="/assets/new" element={<AssetCreatePage />} />
+            <Route path="/assets/:code" element={<AssetDetailPage />} />
+            <Route path="/assets/:code/edit" element={<AssetEditPage />} />
 
-          {/* MM (Phase 4.A) */}
-          <Route path="/materials" element={<MaterialListPage />} />
-          <Route path="/materials/new" element={<MaterialCreatePage />} />
-          <Route path="/materials/:code" element={<MaterialDetailPage />} />
-          <Route path="/materials/:code/edit" element={<MaterialEditPage />} />
+            {/* MM (Phase 4.A) */}
+            <Route path="/materials" element={<MaterialListPage />} />
+            <Route path="/materials/new" element={<MaterialCreatePage />} />
+            <Route path="/materials/:code" element={<MaterialDetailPage />} />
+            <Route path="/materials/:code/edit" element={<MaterialEditPage />} />
 
-          {/* EQP 设备主数据域 */}
-          <Route path="/equipments" element={<EquipmentListPage />} />
-          <Route path="/equipments/new" element={<EquipmentCreatePage />} />
-          <Route path="/equipments/:code" element={<EquipmentDetailPage />} />
-          <Route path="/equipments/:code/edit" element={<EquipmentEditPage />} />
+            {/* EQP 设备主数据域 */}
+            <Route path="/equipments" element={<EquipmentListPage />} />
+            <Route path="/equipments/new" element={<EquipmentCreatePage />} />
+            <Route path="/equipments/:code" element={<EquipmentDetailPage />} />
+            <Route path="/equipments/:code/edit" element={<EquipmentEditPage />} />
 
-          {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
-          <Route path="/admin/users" element={<UserListPage />} />
-          <Route path="/admin/roles" element={<RoleListPage />} />
-          <Route path="/admin/permissions" element={<PermissionListPage />} />
-          <Route path="/admin/audit-logs" element={<AuditLogPage />} />
-          <Route path="/admin/signatures" element={<SignatureListPage />} />
-          <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
+            {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
+            <Route path="/admin/users" element={<UserListPage />} />
+            <Route path="/admin/roles" element={<RoleListPage />} />
+            <Route path="/admin/permissions" element={<PermissionListPage />} />
+            <Route path="/admin/audit-logs" element={<AuditLogPage />} />
+            <Route path="/admin/signatures" element={<SignatureListPage />} />
+            <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
 
-          {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}
-          <Route path="/audit/*" element={<Navigate to="/admin/audit-logs" replace />} />
-          {/* M5.4 个人中心 */}
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/password" element={<ChangePasswordPage />} />
+            {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}
+            <Route path="/audit/*" element={<Navigate to="/admin/audit-logs" replace />} />
+            {/* M5.4 个人中心 */}
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/password" element={<ChangePasswordPage />} />
 
-          <Route path="*" element={<NotFoundPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
         </Route>
-      </Route>
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
