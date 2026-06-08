@@ -1,6 +1,7 @@
 /**
  * Phase 5.A / M5.1：管理员模块字典
- * M5.2 上线后 ROLE_OPTIONS 会改为从 `/api/v1/roles` 拉，目前用 seed 6 个系统角色硬编码。
+ * M5.2 上线后 ROLE_OPTIONS 会改为从 `/api/v1/roles` 拉，目前用 seed 系统角色硬编码。
+ * 注意：必须与 backend/app/scripts/seed_data.py 的 ROLES 同步（8 个系统角色）。
  */
 import type { UserStatus } from '@/api/types';
 
@@ -10,6 +11,8 @@ export const ROLE_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'PROJECT_MANAGER', label: '项目经理', color: 'blue' },
   { value: 'CMC_RESEARCHER', label: 'CMC 研究员', color: 'cyan' },
   { value: 'QA_REVIEWER', label: 'QA 审核', color: 'green' },
+  { value: 'CMC_WAREHOUSE_ADMIN', label: '库管员', color: 'gold' },
+  { value: 'CMC_EQUIPMENT_ADMIN', label: '设备管理员', color: 'geekblue' },
   { value: 'READ_ONLY_USER', label: '只读用户', color: 'default' },
 ];
 
