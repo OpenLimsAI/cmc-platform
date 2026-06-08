@@ -13,9 +13,16 @@ docx ↔ markdown 一致性校验（CI 门禁）
 from __future__ import annotations
 
 import difflib
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+# 原型期暂停（2026-06-08 项目负责人决策）：md 为唯一工作源，docx 冻结在 V1.1，
+# 不在迭代期同步 docx，故本门禁默认**非阻塞**——仍打印漂移报告但 exit 0。
+# 决策与恢复时机见 docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md §3。
+# 临时跑严格模式（如 GMP 闸口前预览就绪度）：DOCS_CHECK_ENFORCE=1 make docs-check
+ENFORCE = os.environ.get("DOCS_CHECK_ENFORCE", "0") == "1"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCS_DIR = REPO_ROOT / "docs"
@@ -92,7 +99,7 @@ def main() -> int:
 
     if not all_ok:
         print("\n" + "=" * 60)
-        print("❌ 一致性校验失败")
+        print("❌ docx ↔ markdown 不一致" + ("（强制模式）" if ENFORCE else ""))
         print("=" * 60)
         print(
             "\n双轨文档规则：docx 是源，markdown 是 docx 的自动派生副本。\n"
@@ -105,7 +112,18 @@ def main() -> int:
             "     git checkout docs/*.md\n"
             "     make docs-extract\n"
         )
-        return 1
+        if ENFORCE:
+            return 1
+        # 原型期暂停：报告漂移但不阻塞
+        print("=" * 60)
+        print(
+            "⏸  原型期暂停（DOCS_CHECK_ENFORCE!=1）：md 为唯一工作源、docx 冻结 V1.1，\n"
+            "   上述漂移为预期，本门禁不阻塞（exit 0）。GMP 闸口前用\n"
+            "   `DOCS_CHECK_ENFORCE=1 make docs-check` 预览整合就绪度。\n"
+            "   决策记录见偏离说明 V1.3_draft §3。"
+        )
+        print("=" * 60)
+        return 0
 
     print("\n✓ 全部一致")
     return 0

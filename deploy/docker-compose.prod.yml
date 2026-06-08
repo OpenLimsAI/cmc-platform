@@ -75,6 +75,12 @@ services:
       APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
       APP_LOG_FORMAT: json  # ELK/Splunk 直接抓 stderr 转 JSON
       SECRET_KEY: ${SECRET_KEY}
+      # JWT（ARCH2）：生产默认 RS256；密钥由下方 ./jwt 只读挂载到 /app/secrets 提供。
+      # 缺密钥时 backend 启动 fail-fast（jwt_keys.py 校验），不会静默退回 HS256。
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/secrets/jwt_private.pem}
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-/app/secrets/jwt_public.pem}
+      JWT_KEY_ID: ${JWT_KEY_ID:-}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       DATABASE_URL_SYNC: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
@@ -83,6 +89,10 @@ services:
       RATE_LIMIT_ENABLED: "true"
       # 容器内时区
       TZ: UTC
+    volumes:
+      # RS256 密钥只读挂载（host: deploy/jwt → 容器: /app/secrets）。
+      # 路径相对 compose 文件所在的 deploy/ 目录；私钥 600，*.pem 已 gitignore。
+      - ./jwt:/app/secrets:ro
     depends_on:
       postgres:
         condition: service_healthy

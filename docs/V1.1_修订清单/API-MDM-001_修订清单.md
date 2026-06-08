@@ -406,3 +406,14 @@
 | 勘误部分 | ① 文档列有 `PUT /assets/{code}/substances/{substance_code}`，实现**无此端点**（关系变更走 DELETE + POST relink）；② DELETE 实际路径为 `/assets/{code}/substances/{substance_code}/{component_role}` **三段**（PK 含 component_role，同一对 asset/substance 可按不同 component_role 并存，必须三键定位） |
 | 建议吸收文字 | 删去 PUT 行；DELETE 行路径补 `{component_role}` 段并注明三键定位理由 |
 | 来源 | 2026-06-05 文档一致性审查 + `assets.py` 路由实物核对 |
+
+### 勘误 #E13 — §2.6 应用层会话上下文：审计触发器实际仍经 GUC 读取操作者身份（已演进为事务级安全形式）
+
+| 字段 | 内容 |
+|---|---|
+| docx 章节 | §2.6 应用层会话上下文（用于审计）；并关联本清单修订 #20 |
+| V1.1 现状 | §2.6 称「V1.1 已禁用 `SET LOCAL` GUC 方案」「审计触发器**不再依赖** PostgreSQL session GUC 读取操作者身份」「service 层显式 `UPDATE` 审计字段」 |
+| 实施事实 | audit trigger v3（migration `0036_audit_trigger_v3`，2026-05-14）**重新采用 GUC**，但为**事务级安全形式**，与 V1.0 被否的连接级 `SET LOCAL` 本质不同：① 传输层仍是 ContextVar（`app/shared/audit_context.py`：`audit_user_id` 等）；② 每事务经 `get_db()` 调 `set_audit_session_vars()`，用 `SELECT set_config('app.user_id', …, true)` 注入（**`is_local=true` ⇒ 等价 `SET LOCAL`，提交/回滚即失效，连接归还池子不残留**）；③ 触发器经 `current_setting('app.user_id', TRUE)` 读取操作者身份写 `audit_log`。即操作者身份**由触发器从事务级 GUC 取值**，而非全靠 service 层显式 `UPDATE` |
+| 销项说明 | §2.6 当初否决 GUC 的理由是 M2.5.1「连接级会话变量跨事务泄漏」；v3 用 `set_config(is_local=true)` 事务级注入已从根本规避该泄漏，故**实现安全、文档表述过时**，错误方为文档 |
+| 建议吸收文字 | §2.6 改写为：现行方案 = ContextVar（传输）+ 每事务 `set_config(app.*, …, is_local=true)`（事务级注入，非连接级 `SET LOCAL`）+ 触发器 `current_setting('app.*', TRUE)` 读取；明确区分「被否的连接级 `SET LOCAL`」与「采用的事务级 `set_config(is_local)`」，并删去「触发器不再依赖 GUC」一句 |
+| 来源 | 2026-06-08 P0-3 复核 + `audit_context.py` / `core/database.py` / `0036_audit_trigger_v3.py` 实物核对 |

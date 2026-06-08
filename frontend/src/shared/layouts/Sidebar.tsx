@@ -8,14 +8,14 @@ import {
   InboxOutlined,
   AuditOutlined,
   SettingOutlined,
-  ToolOutlined,
 } from '@ant-design/icons';
+import { MicroscopeIcon } from '@/shared/components/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/api/client';
+import { APP_VERSION } from '@/shared/version';
 
 const { Sider } = Layout;
-const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string) || 'V1.2-draft';
 
 interface MenuItem {
   key: string;
@@ -58,7 +58,7 @@ const MENU_ITEMS: MenuItem[] = [
   {
     key: 'equipments',
     label: '设备',
-    icon: <ToolOutlined />,
+    icon: <MicroscopeIcon />,
     path: '/equipments',
     permission: 'equipment:read',
   },
@@ -118,8 +118,12 @@ export function Sidebar() {
     [hasPermission, isAdmin]
   );
 
+  // 按顶层路径段匹配所属模块：菜单 key 是具体页(如 /admin/users)，
+  // 但 /admin/roles、/audit/signatures 等子页也应高亮到对应模块。
+  // 各菜单顶层段唯一(dashboard/substances/.../audit/admin)，故按第一段归属即可。
+  const currentTop = location.pathname.split('/')[1] ?? '';
   const selectedKey =
-    items.find((i) => location.pathname.startsWith(i.key as string))?.key ?? '/dashboard';
+    items.find((i) => (i.key as string).split('/')[1] === currentTop)?.key ?? '/dashboard';
 
   const healthBadge =
     health === 'ok' ? 'success' : health === 'down' ? 'error' : 'processing';

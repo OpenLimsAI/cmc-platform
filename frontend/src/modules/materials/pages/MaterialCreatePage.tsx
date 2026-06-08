@@ -39,9 +39,10 @@ interface FormValues extends MaterialCreatePayload {
 export function MaterialCreatePage() {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
-  // 支持从 LabOps "去 MDM 登记"跳转带入预填编码(?code=)
+  // 支持从 LabOps "去 MDM 登记"跳转带入预填值(?code= / ?name=)
   const [searchParams] = useSearchParams();
   const prefillCode = searchParams.get('code') ?? undefined;
+  const prefillName = searchParams.get('name') ?? undefined;
   const [subQuery, setSubQuery] = useState('');
 
 
@@ -97,7 +98,12 @@ export function MaterialCreatePage() {
           layout="vertical"
           onFinish={onFinish}
           requiredMark
-          initialValues={{ material_type: 'reagent', unit: 'ea', material_code: prefillCode }}
+          initialValues={{
+            material_type: 'reagent',
+            unit: 'ea',
+            material_code: prefillCode,
+            material_name: prefillName,
+          }}
         >
           {/* ── 基本信息 ── */}
           <Divider orientation="left" orientationMargin={0} style={{ marginTop: 0 }}>

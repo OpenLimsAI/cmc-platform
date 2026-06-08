@@ -19,6 +19,8 @@ class Settings(BaseSettings):
 
     # ----------- 应用 -----------
     APP_NAME: str = "CMAB MDM Portal"
+    # 产品版本（单一来源）：OpenAPI / /health / 根路由统一引用，避免多处硬编码漂移
+    APP_VERSION: str = "V1.3-draft"
     APP_ENV: str = "development"
     APP_DEBUG: bool = True
     APP_LOG_LEVEL: str = "INFO"

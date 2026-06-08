@@ -33,19 +33,6 @@ const ASSET_STATUS: Record<string, StatusMapping> = {
   terminated: { text: '已终止', color: 'error' },
 };
 
-// §8.2 asset.current_phase（业务进度）；与 ASSET_PHASE 同表，按需展示
-export const ASSET_PHASE_LABELS: Record<string, string> = {
-  discovery: '发现',
-  preclinical: '临床前',
-  phase_1: 'I 期',
-  phase_2: 'II 期',
-  phase_3: 'III 期',
-  submission: '申报中',
-  approved: '已批准',
-  marketed: '已上市',
-  discontinued: '已终止',
-};
-
 // §10.1 ck_material_status（主表 5 值）
 const MATERIAL_STATUS: Record<string, StatusMapping> = {
   active: { text: '在用', color: 'success' },

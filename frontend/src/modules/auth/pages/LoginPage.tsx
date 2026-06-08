@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
+import { APP_VERSION } from '@/shared/version';
 
 const { Title, Text } = Typography;
 
@@ -98,7 +99,7 @@ export function LoginPage() {
       </Card>
 
       <div style={{ marginTop: 32, color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
-        © 2026 CMAB · 系统版本 v1.0.0 · 内部系统
+        © 2026 CMAB · 系统版本 {APP_VERSION} · 内部系统
       </div>
     </div>
   );

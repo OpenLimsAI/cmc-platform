@@ -12,7 +12,7 @@ const SERIES_META: { key: keyof DashboardSummary['trend_30d']; name: string; col
   { key: 'project', name: '项目', color: '#52C41A' },
   { key: 'asset', name: '资产', color: '#FAAD14' },
   { key: 'material', name: '物料', color: '#722ED1' },
-  { key: 'equipment', name: '设备', color: '#D4380D' },
+  { key: 'equipment', name: '设备', color: '#13C2C2' },
 ];
 
 export function TrendLineCard({ trend }: Props) {

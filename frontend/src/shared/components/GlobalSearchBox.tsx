@@ -27,9 +27,9 @@ const ENTITY_PATH: Record<string, string> = {
 const ENTITY_COLOR: Record<string, string> = {
   substance: 'geekblue',
   project: 'green',
-  asset: 'purple',
-  material: 'cyan',
-  equipment: 'volcano',
+  asset: 'gold',
+  material: 'purple',
+  equipment: 'cyan',
 };
 
 const FIELD_LABEL: Record<string, string> = {

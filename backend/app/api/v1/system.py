@@ -43,7 +43,7 @@ async def get_system_info(request: Request, db: AsyncSession = Depends(get_db)):
     return success(
         data={
             "app": settings.APP_NAME,
-            "version": "1.0.0",
+            "version": settings.APP_VERSION,
             "environment": "development" if settings.APP_DEBUG else "production",
             "database": "ok" if db_ok else "error",
             "config_summary": config_summary,

@@ -57,7 +57,7 @@
 
 ---
 
-## 1A. 过渡期勘误索引（2026-06-05，2026-06-06 扩充 E7-E12）
+## 1A. 过渡期勘误索引（2026-06-05，2026-06-06 扩充 E7-E12，2026-06-08 增 E13）
 
 V1.1 上位文档（docx 签字基准及其派生 md）存在以下**事实性勘误**。按文档控制约定：docx 为受控源文件，不做非正式修改；派生 md 不做手工修正（`make docs-check` 强制 docx↔md 一致）。**过渡期以 `docs/V1.1_修订清单/` 对应清单的勘误条目为准**，V1.3 批次以 Word 修订模式统一吸收。
 
@@ -75,6 +75,7 @@ V1.1 上位文档（docx 签字基准及其派生 md）存在以下**事实性�
 | E10 | ARCH-MDM-001 | §7.2.2 RBAC | 角色名 camelCase 与实现 SNAKE_CASE 不符；角色集 6 个 vs 代码 8 个 | ARCH 修订清单 |
 | E11 | ARCH-MDM-001 | §1.4 关键决策 | 认证方式未注明 JWT HS256（开发）/ RS256（生产）分野（Phase 5.C 已落地） | ARCH 修订清单 |
 | E12 | DM-MDM-001 | §4.3 角色 seed | REGULATORY_USER 仅存在于 DM（ARCH 6 / UI 6 / 代码 8 均无）；✅ **已决策方案 A 删除并落地（2026-06-06）**，详见 DM 修订清单 #E12 | DM 修订清单 |
+| E13 | API-MDM-001 | §2.6 应用层会话上下文 | §2.6 称"已禁用 GUC / 触发器不再依赖 session GUC"，但 audit trigger v3（migration 0036，本文档封版点）**实际重新采用 GUC 的事务级安全形式**：ContextVar 传输 + `set_config(app.*, …, is_local=true)` 每事务注入 + 触发器 `current_setting('app.*', TRUE)` 读取。`is_local=true`（≠ V1.0 被否的连接级 `SET LOCAL`）已规避 M2.5.1 跨事务泄漏，故实现安全、文档表述过时 | API 修订清单 |
 
 > 关联代码侧修复（2026-06-05，不属于文档勘误）：seed SUBSTANCE_STEWARD 补 project:read / asset:read / material:read 对齐 UI §2.2 矩阵（278 测试全过）。
 

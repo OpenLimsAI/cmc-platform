@@ -33,9 +33,9 @@ up:
 	$(COMPOSE) up -d --build
 	@echo ""
 	@echo "✓ 服务已启动"
-	@echo "  前端：       http://localhost:5173"
-	@echo "  后端：       http://localhost:8000"
-	@echo "  API 文档：   http://localhost:8000/api/v1/docs"
+	@echo "  前端：       http://localhost:15173"
+	@echo "  后端：       http://localhost:18000"
+	@echo "  API 文档：   http://localhost:18000/api/v1/docs"
 
 down:
 	$(COMPOSE) down

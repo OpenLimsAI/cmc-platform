@@ -72,22 +72,8 @@ export function Header() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 6,
-            background: token.colorPrimary,
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
-          C
-        </div>
+        {/* 与浏览器标签页 favicon 同源，保持品牌一致 */}
+        <img src="/favicon.svg" alt="CMAB MDM" style={{ width: 32, height: 32, display: 'block' }} />
         <div style={{ fontSize: 18, fontWeight: 600, color: token.colorPrimary }}>
           CMAB MDM Portal
         </div>

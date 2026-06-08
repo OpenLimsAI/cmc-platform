@@ -32,6 +32,19 @@ export const ASSET_PHASE_OPTIONS: { value: AssetPhase; label: string; color: str
   { value: 'discontinued', label: '已终止', color: 'error' },
 ];
 
+// §8.2 asset.current_phase（业务进度）label 映射；与 ASSET_PHASE_OPTIONS 同源，按需展示
+export const ASSET_PHASE_LABELS: Record<string, string> = {
+  discovery: '发现',
+  preclinical: '临床前',
+  phase_1: 'I 期',
+  phase_2: 'II 期',
+  phase_3: 'III 期',
+  submission: '申报中',
+  approved: '已批准',
+  marketed: '已上市',
+  discontinued: '已终止',
+};
+
 // §8.2 ck_asset_status（3 值）
 export const ASSET_STATUS_OPTIONS: { value: AssetStatus; label: string }[] = [
   { value: 'active', label: '活跃' },

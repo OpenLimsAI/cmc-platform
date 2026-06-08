@@ -3,8 +3,7 @@ import { Layout, Typography } from 'antd';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
-
-const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string) || 'V1.2-draft';
+import { APP_VERSION } from '@/shared/version';
 
 export function MainLayout() {
   // UI1（V1.1 §3.1）：Footer 显示版本号 + 服务器时间（前端每秒刷新）

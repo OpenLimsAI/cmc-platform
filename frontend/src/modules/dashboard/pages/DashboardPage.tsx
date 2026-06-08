@@ -4,8 +4,8 @@ import {
   FolderOpenOutlined,
   GoldOutlined,
   InboxOutlined,
-  ToolOutlined,
 } from '@ant-design/icons';
+import { MicroscopeIcon } from '@/shared/components/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useQuery } from '@tanstack/react-query';
@@ -107,7 +107,7 @@ export function DashboardPage() {
     {
       title: '设备',
       value: totals?.equipment ?? 0,
-      icon: <ToolOutlined style={{ fontSize: 28, color: '#D4380D' }} />,
+      icon: <MicroscopeIcon style={{ fontSize: 28, color: '#13C2C2' }} />,
       onClick: () => navigate('/equipments'),
     },
   ];

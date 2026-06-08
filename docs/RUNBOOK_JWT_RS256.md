@@ -46,7 +46,7 @@ make jwt-keys
 services:
   backend:
     volumes:
-      - ./deploy/jwt:/app/secrets:ro   # 只读挂载
+      - ./jwt:/app/secrets:ro   # 只读挂载（路径相对 compose 文件所在的 deploy/ 目录）
 ```
 
 ### 3) 配置环境变量

@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 # ============== 应用实例 ==============
 app = FastAPI(
     title=settings.APP_NAME,
-    version="1.0.0",
+    version=settings.APP_VERSION,
     description="生物制药主数据管理平台 / Master Data Management Portal",
     docs_url="/api/v1/docs" if settings.APP_DEBUG else None,
     redoc_url="/api/v1/redoc" if settings.APP_DEBUG else None,
@@ -185,7 +185,7 @@ async def _health_payload():
     """供负载均衡和监控系统调用，无需认证"""
     return {
         "status": "healthy",
-        "version": "1.0.0",
+        "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
     }
 
@@ -229,6 +229,6 @@ app.include_router(api_router, prefix="/api/v1")
 async def root():
     return {
         "name": settings.APP_NAME,
-        "version": "1.0.0",
+        "version": settings.APP_VERSION,
         "docs": "/api/v1/docs",
     }

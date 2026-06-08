@@ -15,13 +15,16 @@ from app.shared.permissions import get_current_user
 router = APIRouter()
 
 
-@router.get("", summary="全局搜索（substance + project + asset）")
+@router.get("", summary="全局搜索（substance + project + asset + material + equipment）")
 async def global_search(
     request: Request,
     q: str = Query(..., min_length=1, max_length=128, description="搜索关键字"),
     types: str | None = Query(
         None,
-        description='逗号分隔："substance,project,asset"，缺省三者都返回',
+        description=(
+            '逗号分隔，可选值："substance,project,asset,material,equipment"，'
+            "缺省返回全部五类（按当前用户对各域的读权限过滤）"
+        ),
     ),
     limit: int = Query(20, ge=1, le=50),
     user: User = Depends(get_current_user),
