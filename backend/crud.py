@@ -7,11 +7,11 @@
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, List, Tuple, Sequence
 
-from sqlalchemy import select, func, and_, or_, case, exists
+from sqlalchemy import select, func, and_, or_, case, exists, text, delete, insert
 from sqlalchemy.orm import Session
 
 from models import (
@@ -19,6 +19,8 @@ from models import (
     Batch,
     InventoryTxn,
     Location,
+    StorageNode,
+    CellOccupancy,
     UnitDict,
     CategoryDict,
 )
@@ -257,6 +259,434 @@ def create_location(
 
 
 # ---------------------------------------------------------------------------
+# StorageNode (存放位置层级树) - v1.5
+#   覆盖在 location 之上的树。bulk 叶子回链一条 location 行,批次照旧挂 location。
+# ---------------------------------------------------------------------------
+_TEMP_TEXT = {"normal": "常温", "2-8": "2~8℃", "-20": "-20~-40℃", "-80": "-80℃"}
+
+
+def list_child_nodes(
+    db: Session, parent_id: Optional[int] = None, node_type: Optional[str] = None,
+) -> List[StorageNode]:
+    """取某节点的直接下级(parent_id 为空 → 根节点/房间);按 sort_order, code 排序。"""
+    cond = [StorageNode.parent_id.is_(None)] if parent_id is None else [StorageNode.parent_id == parent_id]
+    if node_type:
+        cond.append(StorageNode.node_type == node_type)
+    return list(db.execute(
+        select(StorageNode).where(*cond).order_by(StorageNode.sort_order, StorageNode.code)
+    ).scalars().all())
+
+
+def node_ids_with_children(db: Session, ids: Sequence[int]) -> set:
+    """返回这些 id 中"有子节点"的 id 集合(给前端 has_children 用)。"""
+    if not ids:
+        return set()
+    return set(db.execute(
+        select(StorageNode.parent_id).where(StorageNode.parent_id.in_(list(ids))).distinct()
+    ).scalars().all())
+
+
+def get_node_ancestors(db: Session, node_id: int) -> List[StorageNode]:
+    """从根到该节点的祖先链(含自身);选了柜要回填房间时用。"""
+    chain: List[StorageNode] = []
+    cur = db.get(StorageNode, node_id)
+    while cur is not None:
+        chain.append(cur)
+        cur = db.get(StorageNode, cur.parent_id) if cur.parent_id is not None else None
+    chain.reverse()
+    return chain
+
+
+def get_or_create_room(db: Session, room_no: str) -> StorageNode:
+    room = db.execute(select(StorageNode).where(
+        StorageNode.parent_id.is_(None),
+        StorageNode.node_type == "ROOM",
+        StorageNode.code == room_no,
+    )).scalar_one_or_none()
+    if room is None:
+        room = StorageNode(
+            parent_id=None, node_type="ROOM", code=room_no,
+            label=room_no, path=room_no, depth=0, sort_order=0,
+        )
+        db.add(room)
+        db.flush()
+    return room
+
+
+def create_cabinet(
+    db: Session, room_no: str, cabinet_no: str, layer_count: int,
+    storage_condition: Optional[str], remark: Optional[str],
+) -> StorageNode:
+    """试剂柜模板: 房间(复用/新建) + 1 柜 + N 个 bulk 板层(各建一条 location 并回链)。"""
+    room = get_or_create_room(db, room_no)
+    dup = db.execute(select(StorageNode).where(
+        StorageNode.parent_id == room.node_id,
+        StorageNode.node_type == "CABINET",
+        StorageNode.code == cabinet_no,
+    )).scalar_one_or_none()
+    if dup is not None:
+        raise ValueError(f"房间 {room_no} 下试剂柜 {cabinet_no} 已存在")
+
+    cab = StorageNode(
+        parent_id=room.node_id, node_type="CABINET", code=cabinet_no,
+        label=cabinet_no, path=f"{room_no} / {cabinet_no}", depth=1,
+        sort_order=0, remark=remark,
+    )
+    db.add(cab)
+    db.flush()
+    for i in range(1, layer_count + 1):
+        loc = Location(
+            room_no=room_no, cabinet_no=cabinet_no, layer_no=i,
+            storage_condition=storage_condition, remark=remark,
+        )
+        db.add(loc)
+        db.flush()
+        db.add(StorageNode(
+            parent_id=cab.node_id, node_type="CABINET_LAYER", code=str(i),
+            label=f"L{i}", path=f"{room_no} / {cabinet_no} / L{i}", depth=2,
+            sort_order=i, capacity_kind="bulk", location_id=loc.location_id,
+        ))
+    db.flush()
+    return cab
+
+
+def create_fridge(
+    db: Session, room_no: str, fridge_name: str, temp_category: str,
+    shelf_count: int, storage_condition: Optional[str], remark: Optional[str],
+) -> StorageNode:
+    """普通冰箱模板(2~8/-20): 房间 + 1 冰箱(带温区) + N 个 bulk 隔板(回链 location)。"""
+    room = get_or_create_room(db, room_no)
+    dup = db.execute(select(StorageNode).where(
+        StorageNode.parent_id == room.node_id,
+        StorageNode.node_type == "FRIDGE",
+        StorageNode.code == fridge_name,
+    )).scalar_one_or_none()
+    if dup is not None:
+        raise ValueError(f"房间 {room_no} 下冰箱 {fridge_name} 已存在")
+
+    fridge = StorageNode(
+        parent_id=room.node_id, node_type="FRIDGE", code=fridge_name,
+        label=fridge_name, path=f"{room_no} / {fridge_name}", depth=1, sort_order=0,
+        temp_category=temp_category, temp_text=_TEMP_TEXT.get(temp_category), remark=remark,
+    )
+    db.add(fridge)
+    db.flush()
+    for i in range(1, shelf_count + 1):
+        loc = Location(
+            room_no=room_no, cabinet_no=fridge_name, layer_no=i,
+            storage_condition=storage_condition or _TEMP_TEXT.get(temp_category), remark=remark,
+        )
+        db.add(loc)
+        db.flush()
+        db.add(StorageNode(
+            parent_id=fridge.node_id, node_type="FRIDGE_SHELF", code=str(i),
+            label=f"层{i}", path=f"{room_no} / {fridge_name} / 层{i}", depth=2,
+            sort_order=i, capacity_kind="bulk", location_id=loc.location_id,
+        ))
+    db.flush()
+    return fridge
+
+
+def update_node(
+    db: Session, node_id: int,
+    label: Optional[str], remark: Optional[str], is_active: Optional[bool],
+) -> Optional[StorageNode]:
+    node = db.get(StorageNode, node_id)
+    if node is None:
+        return None
+    if label is not None:
+        node.label = label
+    if remark is not None:
+        node.remark = remark
+    if is_active is not None:
+        node.is_active = is_active
+    db.flush()
+    return node
+
+
+def _subtree_location_ids(db: Session, node_id: int) -> List[int]:
+    """该节点子树(含自身)下所有 bulk 叶子回链的 location_id。"""
+    rows = db.execute(text(
+        """
+        WITH RECURSIVE sub AS (
+            SELECT node_id, location_id FROM material_mgmt.storage_node WHERE node_id = :nid
+            UNION ALL
+            SELECT c.node_id, c.location_id
+            FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+        )
+        SELECT location_id FROM sub WHERE location_id IS NOT NULL
+        """
+    ), {"nid": node_id}).all()
+    return [r[0] for r in rows]
+
+
+def delete_node(db: Session, node_id: int) -> str:
+    """删除节点及其子树。子树下任一位置存在批次则拒绝(改为停用)。
+    返回 'deleted';不存在抛 KeyError,有库存抛 ValueError。"""
+    node = db.get(StorageNode, node_id)
+    if node is None:
+        raise KeyError(node_id)
+    loc_ids = _subtree_location_ids(db, node_id)
+    if loc_ids:
+        used = db.execute(
+            select(func.count()).select_from(Batch).where(Batch.location_id.in_(loc_ids))
+        ).scalar_one()
+        if used:
+            raise ValueError("该位置下存在批次/库存记录,不能删除,请改为停用")
+    db.delete(node)        # storage_node 自引用 ON DELETE CASCADE 清子树
+    db.flush()
+    if loc_ids:            # 清掉回链的孤儿 location 行
+        db.execute(delete(Location).where(Location.location_id.in_(loc_ids)))
+    return "deleted"
+
+
+# ---------------------------------------------------------------------------
+# -80℃ 冰箱模板 + 孔位占用(期2)
+# ---------------------------------------------------------------------------
+def create_freezer(
+    db: Session, room_no: str, fridge_name: str,
+    rack_count: int, layers_per_rack: int, boxes_per_layer: int, cells_per_box: int,
+    remark: Optional[str],
+) -> StorageNode:
+    """-80℃ 冰箱: 房间 + FRIDGE(temp=-80, 锚一条 location) +
+    架(A..) → 层(1..) → 盒区(A..) → 孔(1..) 整棵子树。孔位为 cell 叶子(不进 location)。"""
+    total = rack_count * layers_per_rack * boxes_per_layer * cells_per_box
+    if total > 60000:
+        raise ValueError(f"将生成 {total} 个孔位,超过 60000 上限,请减少规模")
+
+    room = get_or_create_room(db, room_no)
+    dup = db.execute(select(StorageNode).where(
+        StorageNode.parent_id == room.node_id,
+        StorageNode.node_type == "FRIDGE",
+        StorageNode.code == fridge_name,
+    )).scalar_one_or_none()
+    if dup is not None:
+        raise ValueError(f"房间 {room_no} 下冰箱 {fridge_name} 已存在")
+
+    # 冰箱级锚 location(批次挂这里;细位置由 cell_occupancy 表达)
+    loc = Location(room_no=room_no, cabinet_no=fridge_name, layer_no=1,
+                   storage_condition="-80℃", remark=remark)
+    db.add(loc)
+    db.flush()
+    fridge = StorageNode(
+        parent_id=room.node_id, node_type="FRIDGE", code=fridge_name, label=fridge_name,
+        path=f"{room_no} / {fridge_name}", depth=1, sort_order=0,
+        temp_category="-80", temp_text="-80℃", location_id=loc.location_id, remark=remark,
+    )
+    db.add(fridge)
+    db.flush()
+
+    cell_rows: List[dict] = []
+    for ri in range(rack_count):
+        rc = chr(65 + ri)  # A, B, ...
+        rack = StorageNode(
+            parent_id=fridge.node_id, node_type="RACK", code=rc, label=rc,
+            path=f"{room_no} / {fridge_name} / {rc}", depth=2, sort_order=ri,
+        )
+        db.add(rack)
+        db.flush()
+        for li in range(1, layers_per_rack + 1):
+            layer = StorageNode(
+                parent_id=rack.node_id, node_type="RACK_LAYER", code=str(li), label=str(li),
+                path=f"{room_no} / {fridge_name} / {rc} / {li}", depth=3, sort_order=li,
+            )
+            db.add(layer)
+            db.flush()
+            for bi in range(boxes_per_layer):
+                bc = chr(65 + bi)
+                box = StorageNode(
+                    parent_id=layer.node_id, node_type="BOX", code=bc, label=bc,
+                    path=f"{room_no} / {fridge_name} / {rc} / {li} / {bc}", depth=4, sort_order=bi,
+                )
+                db.add(box)
+                db.flush()
+                base = box.path
+                for ci in range(1, cells_per_box + 1):
+                    cell_rows.append({
+                        "parent_id": box.node_id, "node_type": "CELL", "code": str(ci),
+                        "label": str(ci), "path": f"{base} / {ci}", "depth": 5,
+                        "sort_order": ci, "capacity_kind": "cell", "is_active": True,
+                    })
+    if cell_rows:
+        db.execute(insert(StorageNode), cell_rows)  # 批量插孔位(可能上万行)
+    db.flush()
+    return fridge
+
+
+def cell_address(db: Session, cell_node_id: int) -> str:
+    """由祖先链拼短地址,如 'TT3 B3:A,23'(冰箱 架层:盒,孔)。"""
+    chain = get_node_ancestors(db, cell_node_id)  # [room, fridge, rack, layer, box, cell]
+    by = {n.node_type: n for n in chain}
+    fr = by.get("FRIDGE")
+    rk = by.get("RACK")
+    ly = by.get("RACK_LAYER")
+    bx = by.get("BOX")
+    cell = by.get("CELL")
+    if not all([fr, rk, ly, bx, cell]):
+        return cell.path if cell else f"#{cell_node_id}"
+    return f"{fr.label or fr.code} {rk.code}{ly.code}:{bx.code},{cell.code}"
+
+
+def list_box_cells(db: Session, box_id: int) -> List[dict]:
+    """盒内全部孔 + 占用信息(热力图数据源)。"""
+    cells = list(db.execute(
+        select(StorageNode).where(
+            StorageNode.parent_id == box_id, StorageNode.node_type == "CELL"
+        ).order_by(StorageNode.sort_order)
+    ).scalars().all())
+    cell_ids = [c.node_id for c in cells]
+    occ: dict = {}
+    if cell_ids:
+        rows = db.execute(
+            select(
+                CellOccupancy, Material.material_code, Material.name_cn, Batch.batch_no
+            )
+            .join(Batch, Batch.batch_id == CellOccupancy.batch_id)
+            .join(Material, Material.material_id == Batch.material_id)
+            .where(
+                CellOccupancy.cell_node_id.in_(cell_ids),
+                CellOccupancy.status == "stored",
+            )
+        ).all()
+        for o, mcode, mname, bno in rows:
+            occ[o.cell_node_id] = {
+                "occupancy_id": o.occupancy_id, "batch_id": o.batch_id,
+                "material_code": mcode, "material_name": mname,
+                "batch_no": bno, "sample_label": o.sample_label,
+            }
+    out = []
+    for c in cells:
+        info = occ.get(c.node_id)
+        out.append({
+            "cell_node_id": c.node_id, "code": c.code, "occupied": info is not None,
+            "occupancy_id": info["occupancy_id"] if info else None,
+            "batch_id": info["batch_id"] if info else None,
+            "material_code": info["material_code"] if info else None,
+            "material_name": info["material_name"] if info else None,
+            "batch_no": info["batch_no"] if info else None,
+            "sample_label": info["sample_label"] if info else None,
+        })
+    return out
+
+
+def find_free_cells(db: Session, freezer_id: int, count: int) -> List[int]:
+    """冰箱内最多 count 个空孔(盒内连续优先)。"""
+    rows = db.execute(text(
+        """
+        WITH RECURSIVE sub AS (
+            SELECT node_id, node_type, code, parent_id FROM material_mgmt.storage_node WHERE node_id = :fid
+            UNION ALL
+            SELECT c.node_id, c.node_type, c.code, c.parent_id
+            FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+        )
+        SELECT s.node_id
+        FROM sub s
+        JOIN material_mgmt.storage_node p ON p.node_id = s.parent_id
+        LEFT JOIN material_mgmt.cell_occupancy o
+               ON o.cell_node_id = s.node_id AND o.status = 'stored'
+        WHERE s.node_type = 'CELL' AND o.occupancy_id IS NULL
+        ORDER BY p.path, length(s.code), s.code
+        LIMIT :cnt
+        """
+    ), {"fid": freezer_id, "cnt": count}).all()
+    return [r[0] for r in rows]
+
+
+def occupy_cells(
+    db: Session, material_id: int, batch_no: str, expiry_date, received_date,
+    cell_node_ids: Sequence[int], operator: str,
+    sample_labels: Optional[Sequence[Optional[str]]] = None,
+    intake_type: Optional[str] = None, concentration: Optional[str] = None,
+    extinction_coefficient: Optional[Decimal] = None, remark: Optional[str] = None,
+) -> dict:
+    """把若干空孔分配给某物料批次: 校验空孔 → 找/建批次(锚冰箱 location) →
+    写 cell_occupancy + 一条 IN 流水(qty=孔数)。返回 {batch_id, count, addresses}。"""
+    if not cell_node_ids:
+        raise ValueError("未选择任何孔位")
+
+    cells = list(db.execute(
+        select(StorageNode).where(StorageNode.node_id.in_(list(cell_node_ids)))
+    ).scalars().all())
+    if len(cells) != len(set(cell_node_ids)):
+        raise ValueError("存在无效的孔位")
+    if any(c.node_type != "CELL" for c in cells):
+        raise ValueError("选中的节点不是孔位")
+
+    # 同一冰箱?取任一孔的 FRIDGE 祖先作为批次锚
+    fridge = next((n for n in get_node_ancestors(db, cells[0].node_id) if n.node_type == "FRIDGE"), None)
+    if fridge is None or fridge.location_id is None:
+        raise ValueError("孔位未挂在 -80℃ 冰箱下")
+
+    # 占用冲突检查
+    taken = db.execute(
+        select(CellOccupancy.cell_node_id).where(
+            CellOccupancy.cell_node_id.in_(list(cell_node_ids)),
+            CellOccupancy.status == "stored",
+        )
+    ).scalars().all()
+    if taken:
+        addrs = ", ".join(cell_address(db, cid) for cid in taken)
+        raise ValueError(f"以下孔位已被占用: {addrs}")
+
+    # material_type 跟随 intake_type(与散放入库一致)
+    if intake_type:
+        mat = db.get(Material, material_id)
+        if mat and mat.material_type != intake_type:
+            mat.material_type = intake_type
+
+    n = len(cell_node_ids)
+    batch = find_batch_at_location(db, material_id, batch_no, fridge.location_id)
+    if batch is None:
+        batch = Batch(
+            material_id=material_id, batch_no=batch_no, expiry_date=expiry_date,
+            location_id=fridge.location_id, received_date=received_date,
+            initial_qty=Decimal(n), remark=remark, intake_type=intake_type,
+            concentration=concentration, extinction_coefficient=extinction_coefficient,
+        )
+        db.add(batch)
+        db.flush()
+
+    labels = list(sample_labels) if sample_labels else [None] * n
+    for cid, label in zip(cell_node_ids, labels):
+        db.add(CellOccupancy(
+            cell_node_id=cid, batch_id=batch.batch_id,
+            sample_label=(label or None), stored_by=operator,
+        ))
+    db.add(InventoryTxn(
+        batch_id=batch.batch_id, txn_type="IN", qty=Decimal(n),
+        txn_date=received_date, operator=operator, purpose="-80冻存入库",
+    ))
+    db.flush()
+    return {
+        "batch_id": batch.batch_id,
+        "count": n,
+        "addresses": [cell_address(db, cid) for cid in cell_node_ids],
+    }
+
+
+def release_cell(db: Session, cell_node_id: int, operator: str, remark: Optional[str] = None) -> dict:
+    """释放某孔: 占用置 removed + 一条 OUT 流水(qty=-1)。返回 {batch_id, address}。"""
+    occ = db.execute(
+        select(CellOccupancy).where(
+            CellOccupancy.cell_node_id == cell_node_id,
+            CellOccupancy.status == "stored",
+        )
+    ).scalar_one_or_none()
+    if occ is None:
+        raise ValueError("该孔位当前为空")
+    occ.status = "removed"
+    occ.removed_at = datetime.now()  # 裸上海墙钟
+    if remark:
+        occ.remark = remark
+    db.add(InventoryTxn(
+        batch_id=occ.batch_id, txn_type="OUT", qty=Decimal("-1"),
+        txn_date=date.today(), operator=operator, purpose="-80取管",
+    ))
+    db.flush()
+    return {"batch_id": occ.batch_id, "address": cell_address(db, cell_node_id)}
+
+
+# ---------------------------------------------------------------------------
 # Batch
 # ---------------------------------------------------------------------------
 def list_batches(
@@ -390,6 +820,57 @@ def create_batch_with_initial_in(
     db.flush()
     db.refresh(b)
     return b
+
+
+def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Optional[str] = None) -> dict:
+    """散放层多行批量入库。两遍式: 先逐行校验, 全部通过才写入(任一行不合法 → 不写任何数据)。
+    命中同 (material_id, batch_no, location_id) → 追加 IN; 否则建批次 + 首笔 IN。
+    返回 {ok, created, appended, failed, results}。rows 为 BulkIntakeRow 序列。"""
+    results: List[dict] = []
+    has_error = False
+    for i, r in enumerate(rows):
+        msg = None
+        mat = db.get(Material, r.material_id)
+        if mat is None:
+            msg = f"物料 #{r.material_id} 不存在"
+        elif not mat.is_active:
+            msg = f"物料 {mat.material_code} 已停用,不可入库"
+        elif r.qty is None or r.qty <= 0:
+            msg = "数量必须 > 0"
+        elif db.get(Location, r.location_id) is None:
+            msg = "存放位置不存在"
+        if msg:
+            has_error = True
+        results.append({"index": i, "status": "error" if msg else "ok",
+                        "batch_id": None, "message": msg})
+    if has_error:
+        return {"ok": False, "created": 0, "appended": 0,
+                "failed": sum(1 for x in results if x["status"] == "error"),
+                "results": results}
+
+    created = appended = 0
+    for i, r in enumerate(rows):
+        existing = find_batch_at_location(db, r.material_id, r.batch_no, r.location_id)
+        if existing is not None:
+            add_in(db, existing.batch_id, r.qty, received_date, operator, remark="批量入库-追加")
+            if intake_type:
+                mat = db.get(Material, r.material_id)
+                if mat and mat.material_type != intake_type:
+                    mat.material_type = intake_type
+            results[i] = {"index": i, "status": "appended", "batch_id": existing.batch_id, "message": None}
+            appended += 1
+        else:
+            b = create_batch_with_initial_in(
+                db, material_id=r.material_id, batch_no=r.batch_no, expiry_date=r.expiry_date,
+                location_id=r.location_id, received_date=received_date, initial_qty=r.qty,
+                operator=operator, remark=r.remark, intake_type=intake_type,
+                concentration=r.concentration, extinction_coefficient=r.extinction_coefficient,
+                serial_no=r.serial_no, asset_no=r.asset_no, responsible_person=r.responsible_person,
+            )
+            results[i] = {"index": i, "status": "created", "batch_id": b.batch_id, "message": None}
+            created += 1
+    db.flush()
+    return {"ok": True, "created": created, "appended": appended, "failed": 0, "results": results}
 
 
 # ---------------------------------------------------------------------------

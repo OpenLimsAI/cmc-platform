@@ -74,6 +74,75 @@ class Location(Base):
 
 
 # ---------------------------------------------------------------------------
+# 存放位置层级树(覆盖层) - v1.5
+#   bulk 叶子(CABINET_LAYER/FRIDGE_SHELF)通过 location_id 1:1 回链 location;
+#   批次仍挂 location_id,现有库存逻辑零改动。CELL 叶子(期2)location_id 为空。
+# ---------------------------------------------------------------------------
+class StorageNode(Base):
+    __tablename__ = "storage_node"
+    __table_args__ = (
+        CheckConstraint(
+            "node_type IN ('ROOM','CABINET','CABINET_LAYER','FRIDGE','FRIDGE_SHELF',"
+            "'RACK','RACK_LAYER','BOX','CELL')",
+            name="ck_storage_node_type",
+        ),
+        CheckConstraint(
+            "capacity_kind IS NULL OR capacity_kind IN ('bulk','cell')",
+            name="ck_storage_capacity_kind",
+        ),
+        {"schema": "material_mgmt"},
+    )
+
+    node_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    parent_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("material_mgmt.storage_node.node_id", ondelete="CASCADE")
+    )
+    node_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    code: Mapped[str] = mapped_column(String(40), nullable=False)
+    label: Mapped[Optional[str]] = mapped_column(String(80))
+    path: Mapped[Optional[str]] = mapped_column(String(255))
+    depth: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    capacity_kind: Mapped[Optional[str]] = mapped_column(String(10))  # bulk / cell
+    location_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("material_mgmt.location.location_id")
+    )
+    temp_category: Mapped[Optional[str]] = mapped_column(String(20))  # normal/2-8/-20/-80
+    temp_text: Mapped[Optional[str]] = mapped_column(String(50))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    remark: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    location: Mapped[Optional["Location"]] = relationship()
+
+
+# ---------------------------------------------------------------------------
+# 孔位单占用(期2 -80℃ 一孔一管)
+#   空孔 = 没有 status='stored' 的行;部分唯一索引(uq_cell_occupied)保证单占用。
+# ---------------------------------------------------------------------------
+class CellOccupancy(Base):
+    __tablename__ = "cell_occupancy"
+    __table_args__ = (
+        CheckConstraint("status IN ('stored','removed')", name="ck_cell_occ_status"),
+        {"schema": "material_mgmt"},
+    )
+
+    occupancy_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cell_node_id: Mapped[int] = mapped_column(
+        ForeignKey("material_mgmt.storage_node.node_id", ondelete="CASCADE"), nullable=False
+    )
+    batch_id: Mapped[int] = mapped_column(
+        ForeignKey("material_mgmt.batch.batch_id"), nullable=False
+    )
+    sample_label: Mapped[Optional[str]] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="stored")
+    stored_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    stored_by: Mapped[Optional[str]] = mapped_column(String(50))
+    removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    remark: Mapped[Optional[str]] = mapped_column(Text)
+
+
+# ---------------------------------------------------------------------------
 # 导入日志
 # ---------------------------------------------------------------------------
 class ImportLog(Base):

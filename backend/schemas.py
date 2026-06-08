@@ -66,6 +66,141 @@ class LocationOut(LocationBase, ORMBase):
 
 
 # ---------------------------------------------------------------------------
+# StorageNode (存放位置层级树) - v1.5
+# ---------------------------------------------------------------------------
+class StorageNodeOut(ORMBase):
+    node_id: int
+    parent_id: Optional[int] = None
+    node_type: str
+    code: str
+    label: Optional[str] = None
+    path: Optional[str] = None
+    depth: int
+    sort_order: int
+    capacity_kind: Optional[str] = None
+    location_id: Optional[int] = None
+    temp_category: Optional[str] = None
+    temp_text: Optional[str] = None
+    is_active: bool
+    remark: Optional[str] = None
+    has_children: bool = False  # 由路由按需填充
+
+
+class CabinetCreate(BaseModel):
+    """试剂柜模板新增: 房间 + 柜号 + 板层数 → 生成 1 柜 + N 个 bulk 板层(各回链 location)。"""
+    room_no: str = Field(..., min_length=1, max_length=20)
+    cabinet_no: str = Field(..., min_length=1, max_length=20)
+    layer_count: int = Field(..., ge=1, le=60)
+    storage_condition: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class FridgeCreate(BaseModel):
+    """普通冰箱模板新增(2~8/-20): 房间 + 冰箱名 + 温区 + 隔板数 → FRIDGE + N 个 bulk 隔板。"""
+    room_no: str = Field(..., min_length=1, max_length=20)
+    fridge_name: str = Field(..., min_length=1, max_length=20)
+    temp_category: str = Field(..., pattern=r"^(normal|2-8|-20)$")
+    shelf_count: int = Field(..., ge=1, le=60)
+    storage_condition: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class NodeUpdate(BaseModel):
+    """节点改名 / 停用 / 备注。结构性字段(type/code/parent)不可改。"""
+    label: Optional[str] = Field(None, max_length=80)
+    remark: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class FreezerCreate(BaseModel):
+    """-80℃ 冰箱模板(期2): 房间 + 冰箱名 + 架/层/盒/孔参数 → 一次性展开整棵子树。
+    架/盒用字母 A.. 编号(上限 26);层/孔用数字 1.. 编号。"""
+    room_no: str = Field(..., min_length=1, max_length=20)
+    fridge_name: str = Field(..., min_length=1, max_length=20)
+    rack_count: int = Field(..., ge=1, le=26)        # 架 A~(A+n)
+    layers_per_rack: int = Field(..., ge=1, le=20)   # 每架层 1~N
+    boxes_per_layer: int = Field(..., ge=1, le=26)   # 每层盒区 A~(A+n)
+    cells_per_box: int = Field(..., ge=1, le=400)    # 每盒孔 1~M (81/100 常见)
+    remark: Optional[str] = None
+
+
+class CellOut(ORMBase):
+    """孔位 + 占用状态(盒内热力图用)。"""
+    cell_node_id: int
+    code: str                         # 孔号 '23'
+    occupied: bool
+    occupancy_id: Optional[int] = None
+    batch_id: Optional[int] = None
+    material_code: Optional[str] = None
+    material_name: Optional[str] = None
+    batch_no: Optional[str] = None
+    sample_label: Optional[str] = None
+
+
+class OccupyRequest(BaseModel):
+    """-80℃ 孔位入库: 共性批次信息 + 选定的若干空孔 → 占用 + 一条 IN 流水。"""
+    material_id: int
+    batch_no: str = Field(..., min_length=1, max_length=100)
+    expiry_date: Optional[date] = None
+    received_date: date
+    cell_node_ids: List[int] = Field(..., min_length=1)
+    sample_labels: Optional[List[Optional[str]]] = None   # 与 cell_node_ids 等长, 选填
+    intake_type: Optional[str] = None
+    concentration: Optional[str] = None
+    extinction_coefficient: Optional[Decimal] = None
+    remark: Optional[str] = None
+
+
+class ReleaseRequest(BaseModel):
+    cell_node_id: int
+    remark: Optional[str] = None
+
+
+class OccupyResult(BaseModel):
+    batch_id: int
+    count: int
+    addresses: List[str]      # 形如 ['TT3 B3:A,23', ...]
+
+
+# ---------------------------------------------------------------------------
+# 批量入库(期3, 散放层多行)
+# ---------------------------------------------------------------------------
+class BulkIntakeRow(BaseModel):
+    material_id: int
+    batch_no: str = Field(..., min_length=1, max_length=100)
+    expiry_date: Optional[date] = None
+    location_id: int          # 散放 bulk 叶子(级联解析得到)
+    qty: Decimal = Field(..., gt=0)
+    concentration: Optional[str] = None
+    extinction_coefficient: Optional[Decimal] = None
+    serial_no: Optional[str] = None
+    asset_no: Optional[str] = None
+    responsible_person: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class BulkIntakeRequest(BaseModel):
+    received_date: date
+    intake_type: Optional[str] = None      # 全表共用(reagent/consumable/standard/column)
+    rows: List[BulkIntakeRow] = Field(..., min_length=1, max_length=1000)
+
+
+class BulkRowResult(BaseModel):
+    index: int
+    status: str               # created / appended / error
+    batch_id: Optional[int] = None
+    message: Optional[str] = None
+
+
+class BulkIntakeResult(BaseModel):
+    ok: bool                  # True=全部成功并已提交; False=有校验失败, 未写入任何数据
+    created: int
+    appended: int
+    failed: int
+    results: List[BulkRowResult]
+
+
+# ---------------------------------------------------------------------------
 # Material
 # ---------------------------------------------------------------------------
 def _validate_hazard_class(v: Optional[List[str]]) -> Optional[List[str]]:

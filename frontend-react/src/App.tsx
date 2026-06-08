@@ -9,12 +9,14 @@ import LoginPage from "./modules/admin/pages/LoginPage";
 import DashboardPage from "./modules/dashboard/pages/DashboardPage";
 import MaterialListPage from "./modules/materials/pages/MaterialListPage";
 import IntakePage from "./modules/intake/pages/IntakePage";
+import BulkIntakePage from "./modules/intake/pages/BulkIntakePage";
 import OutgoingPage from "./modules/outgoing/pages/OutgoingPage";
 import StockPage from "./modules/stock/pages/StockPage";
 import AlertsPage from "./modules/alerts/pages/AlertsPage";
 import TransferPage from "./modules/transfer/pages/TransferPage";
 import AdjustPage from "./modules/adjust/pages/AdjustPage";
 import ImportPage from "./modules/import/pages/ImportPage";
+import StoragePage from "./modules/storage/pages/StoragePage";
 import AuditLogPage from "./modules/admin/pages/AuditLogPage";
 import EquipmentListPage from "./modules/equipment/pages/EquipmentListPage";
 import EquipmentDetailPage from "./modules/equipment/pages/EquipmentDetailPage";
@@ -56,11 +58,13 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/materials" element={<MaterialListPage />} />
               <Route path="/intake" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><IntakePage /></ProtectedRoute>} />
+              <Route path="/intake-bulk" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><BulkIntakePage /></ProtectedRoute>} />
               <Route path="/outgoing" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><OutgoingPage /></ProtectedRoute>} />
               <Route path="/stock" element={<StockPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/transfer" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><TransferPage /></ProtectedRoute>} />
               <Route path="/adjust" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><AdjustPage /></ProtectedRoute>} />
+              <Route path="/storage" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><StoragePage /></ProtectedRoute>} />
               <Route path="/import" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><ImportPage /></ProtectedRoute>} />
               <Route path="/equipment" element={<EquipmentListPage />} />
               <Route path="/equipment/:id" element={<EquipmentDetailPage />} />

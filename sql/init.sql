@@ -337,5 +337,101 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS responsible_person      VARCHAR(50);
 ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_user_id_fkey;
 
 -- -----------------------------------------------------------------------------
+-- storage_node: v1.5 存放位置层级树(覆盖层)
+--   - 试剂柜:   ROOM → CABINET → CABINET_LAYER(bulk)
+--   - 普通冰箱: ROOM → FRIDGE(2-8/-20) → FRIDGE_SHELF(bulk)
+--   - -80冰箱:  ROOM → FRIDGE(-80) → RACK → RACK_LAYER → BOX → CELL(cell)  [期2]
+--   bulk 叶子(CABINET_LAYER/FRIDGE_SHELF)通过 location_id 1:1 回链到 location,
+--   批次仍挂 location_id,现有库存/出入库/移库逻辑零改动;CELL 叶子 location_id 为空。
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS storage_node (
+    node_id        SERIAL PRIMARY KEY,
+    parent_id      INT REFERENCES storage_node(node_id) ON DELETE CASCADE,
+    node_type      VARCHAR(20) NOT NULL,                 -- ROOM/CABINET/CABINET_LAYER/FRIDGE/FRIDGE_SHELF/RACK/RACK_LAYER/BOX/CELL
+    code           VARCHAR(40) NOT NULL,                 -- 该级编号: '2251'/'A01'/'B'/'3'/'A'/'23'
+    label          VARCHAR(80),                          -- 展示名(缺省=code), 冰箱可填别名如 'TT3'
+    path           VARCHAR(255),                         -- 维护的全路径 '2251 / TT3 / B / 3 / A / 23'
+    depth          SMALLINT NOT NULL DEFAULT 0,          -- 根=0
+    sort_order     INT NOT NULL DEFAULT 0,               -- 同级稳定排序(字母 A=1,B=2…)
+    capacity_kind  VARCHAR(10),                          -- 叶子: 'bulk'/'cell'; 非叶 NULL
+    location_id    INT REFERENCES location(location_id), -- bulk 叶子回链 location; 否则 NULL
+    temp_category  VARCHAR(20),                          -- 仅 FRIDGE: normal/2-8/-20/-80
+    temp_text      VARCHAR(50),                          -- 温区可读文本 '-20~-40℃'
+    is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+    remark         TEXT,
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_storage_node_type CHECK (node_type IN
+        ('ROOM','CABINET','CABINET_LAYER','FRIDGE','FRIDGE_SHELF','RACK','RACK_LAYER','BOX','CELL')),
+    CONSTRAINT ck_storage_capacity_kind CHECK (capacity_kind IS NULL OR capacity_kind IN ('bulk','cell'))
+);
+-- 同父下编号唯一(根节点 parent NULL 用 COALESCE 折叠成 0)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_storage_sibling
+    ON storage_node (COALESCE(parent_id, 0), code);
+CREATE INDEX IF NOT EXISTS ix_storage_parent ON storage_node (parent_id);
+CREATE INDEX IF NOT EXISTS ix_storage_type   ON storage_node (node_type);
+CREATE INDEX IF NOT EXISTS ix_storage_loc    ON storage_node (location_id);
+
+-- 回填: 从现有 location 三元组生成 ROOM/CABINET/CABINET_LAYER 树(幂等: 已有数据则跳过)
+DO $$
+DECLARE
+    loc   RECORD;
+    v_room INT;
+    v_cab  INT;
+BEGIN
+    IF EXISTS (SELECT 1 FROM storage_node) THEN
+        RETURN;  -- 已迁移过, 不重复
+    END IF;
+    FOR loc IN SELECT * FROM location ORDER BY room_no, cabinet_no, layer_no LOOP
+        -- 房间
+        SELECT node_id INTO v_room FROM storage_node
+            WHERE parent_id IS NULL AND node_type = 'ROOM' AND code = loc.room_no;
+        IF v_room IS NULL THEN
+            INSERT INTO storage_node (parent_id, node_type, code, label, path, depth, sort_order)
+            VALUES (NULL, 'ROOM', loc.room_no, loc.room_no, loc.room_no, 0, 0)
+            RETURNING node_id INTO v_room;
+        END IF;
+        -- 试剂柜
+        SELECT node_id INTO v_cab FROM storage_node
+            WHERE parent_id = v_room AND node_type = 'CABINET' AND code = loc.cabinet_no;
+        IF v_cab IS NULL THEN
+            INSERT INTO storage_node (parent_id, node_type, code, label, path, depth, sort_order)
+            VALUES (v_room, 'CABINET', loc.cabinet_no, loc.cabinet_no,
+                    loc.room_no || ' / ' || loc.cabinet_no, 1, 0)
+            RETURNING node_id INTO v_cab;
+        END IF;
+        -- 板层(bulk 叶子, 回链 location)
+        INSERT INTO storage_node
+            (parent_id, node_type, code, label, path, depth, sort_order, capacity_kind, location_id)
+        VALUES (v_cab, 'CABINET_LAYER', loc.layer_no::text, 'L' || loc.layer_no,
+                loc.room_no || ' / ' || loc.cabinet_no || ' / L' || loc.layer_no,
+                2, loc.layer_no, 'bulk', loc.location_id);
+    END LOOP;
+END$$;
+
+-- -----------------------------------------------------------------------------
+-- cell_occupancy: v1.5 期2 -80℃ 孔位单占用("一孔一管")
+--   空孔 = 没有 status='stored' 的行;部分唯一索引保证一孔最多一管。
+--   batch_id 复用现有批次(锚在 -80 冰箱的 location 上);占用数与 inventory_txn 对账:
+--     SUM(inventory_txn.qty for batch) = 该批次当前占用孔数 = stored 行数。
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cell_occupancy (
+    occupancy_id  SERIAL PRIMARY KEY,
+    cell_node_id  INT NOT NULL REFERENCES storage_node(node_id) ON DELETE CASCADE,
+    batch_id      INT NOT NULL REFERENCES batch(batch_id),
+    sample_label  VARCHAR(100),                          -- 管标签/样品号, 选填
+    status        VARCHAR(10) NOT NULL DEFAULT 'stored', -- stored / removed(留痕软删)
+    stored_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    stored_by     VARCHAR(50),
+    removed_at    TIMESTAMP,
+    remark        TEXT,
+    CONSTRAINT ck_cell_occ_status CHECK (status IN ('stored','removed'))
+);
+-- 一个孔最多一条在存记录
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cell_occupied
+    ON cell_occupancy (cell_node_id) WHERE status = 'stored';
+CREATE INDEX IF NOT EXISTS ix_cell_occ_batch ON cell_occupancy (batch_id);
+CREATE INDEX IF NOT EXISTS ix_cell_occ_label ON cell_occupancy (sample_label);
+
+-- -----------------------------------------------------------------------------
 -- 完成
 -- -----------------------------------------------------------------------------

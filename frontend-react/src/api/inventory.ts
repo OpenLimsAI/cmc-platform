@@ -117,3 +117,37 @@ export const lowStockAlerts = () =>
   client.get("/api/stock/alerts/low-stock");
 
 export const listLocations = () => client.get<Location[]>("/api/locations");
+
+// 批量入库(期3, 散放层多行)
+export interface BulkIntakeRow {
+  material_id: number;
+  batch_no: string;
+  expiry_date?: string | null;
+  location_id: number;
+  qty: number;
+  remark?: string | null;
+}
+
+export interface BulkIntakeRequest {
+  received_date: string;
+  intake_type?: string | null;
+  rows: BulkIntakeRow[];
+}
+
+export interface BulkRowResult {
+  index: number;
+  status: "created" | "appended" | "error";
+  batch_id: number | null;
+  message: string | null;
+}
+
+export interface BulkIntakeResult {
+  ok: boolean;
+  created: number;
+  appended: number;
+  failed: number;
+  results: BulkRowResult[];
+}
+
+export const bulkIntake = (data: BulkIntakeRequest) =>
+  client.post<BulkIntakeResult>("/api/intake/bulk", data);

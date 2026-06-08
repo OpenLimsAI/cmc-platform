@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
-  Card, Tabs, Form, Input, InputNumber, DatePicker, Select,
+  Card, Tabs, Form, Input, InputNumber, DatePicker,
   Button, Descriptions, Tag, message, Space, Alert, Typography,
 } from "antd";
 import { SearchOutlined, ExportOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { createFromMdm, mdmLookup, type Material } from "../../../api/materials";
-import { createBatch, listLocations, type BatchCreate } from "../../../api/inventory";
+import { createBatch, type BatchCreate } from "../../../api/inventory";
 import { listMaterials } from "../../../api/materials";
+import { occupyCells, type OccupyRequest, type StorageNode } from "../../../api/storage";
+import LocationPicker from "../components/LocationPicker";
+import FreezerCellPicker from "../components/FreezerCellPicker";
 import { mdmPortalUrl } from "../../../shared/mdmPortal";
 import { getErrorDetail } from "../../../shared/errors";
 
@@ -29,25 +32,38 @@ export default function IntakePage() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   // 本地和 MDM 都没有的编码 → 提供"去 MDM 登记"跳转
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
+  // 选到 -80℃ 冰箱 → 切到冻存选孔模式
+  const [freezer, setFreezer] = useState<StorageNode | null>(null);
+  const [cellIds, setCellIds] = useState<number[]>([]);
   const [form] = Form.useForm();
 
-  const { data: locations = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => listLocations().then((r) => r.data),
-  });
+  const resetAfterSuccess = () => {
+    form.resetFields();
+    setResolvedMaterial(null);
+    setMaterialCode("");
+    setFreezer(null);
+    setCellIds([]);
+  };
 
   const batchMutation = useMutation({
     mutationFn: (data: BatchCreate) => createBatch(data),
     onSuccess: () => {
       message.success("入库成功");
-      form.resetFields();
-      setResolvedMaterial(null);
-      setMaterialCode("");
+      resetAfterSuccess();
     },
     onError: (err: unknown) => {
-      const detail =
-        getErrorDetail(err, "入库失败");
-      message.error(detail);
+      message.error(getErrorDetail(err, "入库失败"));
+    },
+  });
+
+  const occupyMutation = useMutation({
+    mutationFn: (data: OccupyRequest) => occupyCells(data),
+    onSuccess: (res) => {
+      message.success(`已入库 ${res.data.count} 管到 -80℃ 冰箱`);
+      resetAfterSuccess();
+    },
+    onError: (err: unknown) => {
+      message.error(getErrorDetail(err, "冻存入库失败"));
     },
   });
 
@@ -93,6 +109,26 @@ export default function IntakePage() {
     }
     try {
       const values = await form.validateFields();
+      // -80℃ 冻存入库: 走孔位占用
+      if (freezer) {
+        if (cellIds.length === 0) {
+          message.warning("请在 -80℃ 冰箱中选择孔位");
+          return;
+        }
+        occupyMutation.mutate({
+          material_id: resolvedMaterial.material_id,
+          batch_no: values.batch_no,
+          expiry_date: values.expiry_date?.format("YYYY-MM-DD") ?? null,
+          received_date: values.received_date.format("YYYY-MM-DD"),
+          cell_node_ids: cellIds,
+          intake_type: activeTab,
+          concentration: values.concentration,
+          extinction_coefficient: values.extinction_coefficient,
+          remark: values.remark,
+        });
+        return;
+      }
+      // 散放入库(柜 / 普通冰箱)
       const payload: BatchCreate = {
         material_id: resolvedMaterial.material_id,
         batch_no: values.batch_no,
@@ -218,22 +254,28 @@ export default function IntakePage() {
             <Form.Item name="expiry_date" label="有效期">
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="location_id" label="存放位置" rules={[{ required: true }]}>
-              <Select
-                showSearch
-                optionFilterProp="label"
-                options={locations.map((l) => ({
-                  label: l.name,
-                  value: l.location_id,
-                }))}
-              />
+            <Form.Item
+              name="location_id"
+              label="存放位置"
+              rules={[{ required: !freezer, message: "请选择房间 / 柜或冰箱 / 板层" }]}
+            >
+              <LocationPicker onFreezerSelect={(f) => { setFreezer(f); setCellIds([]); }} />
             </Form.Item>
+
+            {freezer && (
+              <Form.Item label="冻存孔位">
+                <FreezerCellPicker freezer={freezer} value={cellIds} onChange={setCellIds} />
+              </Form.Item>
+            )}
+
             <Form.Item name="received_date" label="入库日期" rules={[{ required: true }]}>
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="initial_qty" label="入库数量" rules={[{ required: true }]}>
-              <InputNumber min={0.01} style={{ width: "100%" }} />
-            </Form.Item>
+            {!freezer && (
+              <Form.Item name="initial_qty" label="入库数量" rules={[{ required: true }]}>
+                <InputNumber min={0.01} style={{ width: "100%" }} />
+              </Form.Item>
+            )}
 
             {activeTab === "standard" && (
               <>
@@ -267,10 +309,10 @@ export default function IntakePage() {
             <Button
               type="primary"
               size="large"
-              loading={batchMutation.isPending}
+              loading={batchMutation.isPending || occupyMutation.isPending}
               onClick={handleSubmit}
             >
-              确认入库
+              {freezer ? `确认冻存入库${cellIds.length ? `(${cellIds.length} 管)` : ""}` : "确认入库"}
             </Button>
           </Form>
         </Card>
