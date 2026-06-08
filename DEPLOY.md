@@ -1,9 +1,13 @@
 # Linux 服务器部署指南(无 Docker 版)
 
-> **架构选择**:不用 Docker 跑应用,后端 Python venv + systemd,前端 React 构建后 vite preview 伺服。
-> 原因:数据库已在宿主机、镜像源被墙、调试更直接。
+> **架构选择**:Linux 生产**不用 Docker 跑应用**(Mac 本地开发才用 Docker;MDM 同理——Mac 用 docker-compose,
+> Linux 生产是原生)。后端 Python venv + systemd;前端 React 构建出 `frontend-react/dist`,
+> **生产由 nginx 伺服 dist 并反代 `/api` 到后端**(见 §4b),不是 vite preview。
+> 原因:数据库已是宿主机原生 PG、镜像源被墙、调试更直接。
 >
-> 整体目录:`/opt/cmc-labops`,运行身份 `prometheus`,数据库 `cmc_data_platform`。
+> 整体目录:`/opt/cmc-labops`,运行身份 `prometheus`,数据库 `cmc_data_platform`(本机**原生 PG 集群 :5432**)。
+> 同机另有 MDM Portal(`/opt/cmab-mdm-platform`,原生 venv+systemd,后端 :18000,**独立原生 PG 集群 :5433** `cmab_mdm`);
+> LabOps 的登录与主数据引用都依赖它。
 >
 > **v2.x 重要变化**(本文已按 v2.x 更新):
 > - 前端为 React(frontend-react/),旧 Streamlit 前端已删除
@@ -112,23 +116,52 @@ cd /opt/cmc-labops
 
 成功后:
 
-- 前端: `http://<服务器IP>:5110`(vite preview 伺服 dist 并把 /api 代理到后端)
 - 后端:只监听服务器本机 `127.0.0.1:8010`;看 Swagger `/docs` 需要 SSH 隧道,见第 6 节
+- 前端:见下面 §4b——**本服务器由 nginx 伺服 `frontend-react/dist`**,不靠 `install.sh` 装的 vite preview 单元
+
+> ⚠️ `install.sh` 会 `enable --now cmc-frontend`(vite preview 监听 5110)。**本服务器前端已由 nginx 占用 5110**,
+> 两者会撞端口。本机的正确形态是:**用 nginx 伺服前端,`cmc-frontend.service` 保持 `disable`**;
+> 只有不装 nginx 的主机才用 vite preview 那条路。
+
+---
+
+## 4b. 前端伺服:nginx(本服务器的生产实际)
+
+LabOps 前端是构建产物 `frontend-react/dist`(静态文件),由 **nginx** 伺服并把 `/api` 反代到后端。
+配置在服务器 `/etc/nginx/conf.d/cmc-labops.conf`(不在仓库,属服务器 infra),内容形如:
+
+```nginx
+server {
+    listen 5110;
+    server_name _;
+    root /opt/cmc-labops/frontend-react/dist;
+
+    location /api/   { proxy_pass http://127.0.0.1:8010; }
+    location = /health { proxy_pass http://127.0.0.1:8010/health; }
+    location /       { try_files $uri $uri/ /index.html; }
+}
+```
+
+> MDM 前端同理:`/etc/nginx/conf.d/cmab-mdm.conf`,`listen 15173` → root `/opt/cmab-mdm-platform/frontend/dist`,
+> `/api` 反代 `127.0.0.1:18000`。
+>
+> 改路径/端口后:`sudo nginx -t && sudo systemctl reload nginx`。前端是静态文件,`npm run build` 后立即生效,无需重启 nginx(只在改 conf 时 reload)。
 
 ---
 
 ## 5. 日常运维
 
+> 本服务器前端走 nginx(见 §4b),没有 `cmc-frontend` 服务;下表前端相关操作用 nginx + 重新构建。
+
 | 操作 | 命令 |
 |---|---|
 | 看后端日志(实时) | `sudo journalctl -u cmc-backend -f` |
-| 看前端日志 | `sudo journalctl -u cmc-frontend -f` |
+| 看前端访问日志 | `sudo tail -f /var/log/nginx/access.log` |
 | 重启后端 | `sudo systemctl restart cmc-backend` |
-| 重启前后端(推荐) | `./restart.sh` |
-| 重启前后端(旧方式) | `./install.sh restart` |
-| 查状态 | `sudo systemctl status cmc-backend cmc-frontend` |
-| 改代码后重启 | `cd /opt/cmc-labops && git pull && ./restart.sh`(自动检测前端是否需重新构建) |
-| 改了 requirements.txt / 前端依赖 | `./install.sh deps && ./restart.sh` |
+| 重新构建前端(代码变更后) | `cd /opt/cmc-labops/frontend-react && npm run build`(产物立即生效,无需重启 nginx) |
+| reload nginx(只在改 conf 后) | `sudo nginx -t && sudo systemctl reload nginx` |
+| 查后端状态 | `sudo systemctl status cmc-backend` |
+| 改代码后一键更新 | `cd /opt/cmc-labops && git pull && backend/.venv/bin/pip install -q -r backend/requirements.txt && (cd frontend-react && npm install --silent && npm run build) && sudo systemctl restart cmc-backend` |
 | 卸载(只删 unit/进程,不删数据) | `./install.sh uninstall` |
 
 ---
@@ -139,7 +172,7 @@ cd /opt/cmc-labops
 
 ```bash
 sudo ufw allow 5110/tcp comment 'cmc-labops frontend'
-# 不放通 8010:后端只允许同机 localhost 访问(前端经 vite preview 代理到它)
+# 不放通 8010:后端只允许同机 localhost 访问(nginx 在同机把 /api 反代到它)
 ```
 
 需要从办公网看 Swagger `/docs` 时,用 SSH 隧道把后端临时映射出来:
@@ -224,8 +257,8 @@ PGPASSWORD='...' psql -h 127.0.0.1 -U cmc_user -d cmc_data_platform -f sql/init.
 ```
 
 **Q: 前端打开但调用接口报错**
-A: 检查 backend 是否在跑:`curl http://127.0.0.1:8010/health`。前端经 vite preview 同源代理 /api,
-无需配置 API 地址;若改过 `BACKEND_PORT`,重启前端服务让代理拿到新端口。
+A: 检查 backend 是否在跑:`curl http://127.0.0.1:8010/health`。前端经 nginx 同源反代 /api,
+无需配置 API 地址;若改过 `BACKEND_PORT`,同步改 nginx conf 里的 `proxy_pass` 端口并 `sudo systemctl reload nginx`。
 
 **Q: 登录报错 / 一直 401**
 A: 检查服务器能否访问 MDM Portal 后端:`curl <MDM_BASE_URL>/health`;

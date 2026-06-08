@@ -6,7 +6,7 @@
 # =============================================================================
 
 [Unit]
-Description=CMC Inventory Backend (FastAPI)
+Description=CMC LabOps Portal Backend (FastAPI)
 Documentation=https://github.com/qingcheng81/cmc-labops
 After=network-online.target postgresql.service
 Wants=network-online.target
