@@ -9,3 +9,6 @@ coverage/
 .env.*
 !.env.example
 .pnpm-store/
+# tsc -b 从 vite.config.ts 编译出的产物，不应入库
+vite.config.js
+vite.config.d.ts
