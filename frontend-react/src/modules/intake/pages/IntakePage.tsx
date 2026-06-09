@@ -1,15 +1,14 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
-  Button, Tag, message, Space, Alert, Typography, AutoComplete, Segmented, Descriptions,
-  Row, Col,
+  Card, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
+  Button, Tag, message, Space, Alert, Typography, AutoComplete, Descriptions, Tooltip,
 } from "antd";
 import {
   SearchOutlined, ExportOutlined, PlusOutlined, DeleteOutlined,
   ExperimentOutlined, InboxOutlined, MedicineBoxOutlined, FilterOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   createFromMdm, mdmLookup, listMaterials, listUnits, createMaterial,
   TT_INTERNAL_CODE, type Material,
@@ -20,7 +19,6 @@ import {
 } from "../../../api/storage";
 import LocationPicker from "../components/LocationPicker";
 import FreezerCellPicker, { type FreezerSelection } from "../components/FreezerCellPicker";
-import BulkIntakePage from "./BulkIntakePage";
 import { mdmPortalUrl } from "../../../shared/mdmPortal";
 import { getErrorDetail } from "../../../shared/errors";
 
@@ -35,22 +33,43 @@ const TYPE_META: Record<IntakeType, {
   column:     { label: "色谱柱", color: "#fa8c16", icon: <FilterOutlined />,      hint: "色谱柱入库",              extra: "序列号、资产编号、负责人" },
 };
 
-const TAB_ITEMS = (Object.keys(TYPE_META) as IntakeType[]).map((k) => ({
-  key: k,
-  label: <Space size={6}>{TYPE_META[k].icon}{TYPE_META[k].label}</Space>,
-}));
+const TYPES = Object.keys(TYPE_META) as IntakeType[];
 
-interface BulkPos { key: number; locationId?: number; qty?: number }
+// 批次组 / 位置行的唯一 key 计数器(仅用于 React key,跨挂载递增无妨)
+let idCounter = 1;
+const nextId = () => idCounter++;
 
 // 字段名在输入框上方
-const Labeled = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const Labeled = ({ label, children }: { label: React.ReactNode; children: React.ReactNode }) => (
   <div>
     <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{label}</div>
     {children}
   </div>
 );
 
-function SingleIntake() {
+// 一个存放位置 + 数量(散放),或一个 -80℃ 冰箱孔位选择
+interface Pos {
+  key: number;
+  locationId?: number;
+  qty?: number;
+  freezer: StorageNode | null;
+  freezerSel: FreezerSelection | null;
+}
+// 一组批次信息:一个批号/有效期/入库日期 + 1..N 个存放位置
+interface BatchGroup {
+  key: number;
+  batchNo: string;
+  expiry: Dayjs | null;
+  received: Dayjs;
+  positions: Pos[];
+}
+
+function IntakeForm() {
+  const newPos = (): Pos => ({ key: nextId(), freezer: null, freezerSel: null });
+  const newGroup = (): BatchGroup => ({
+    key: nextId(), batchNo: "", expiry: null, received: dayjs(), positions: [newPos()],
+  });
+
   const [activeTab, setActiveTab] = useState<IntakeType>("reagent");
   const [noCode, setNoCode] = useState(false);
   const [materialCode, setMaterialCode] = useState("");
@@ -58,24 +77,19 @@ function SingleIntake() {
   const [resolving, setResolving] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [nameQuery, setNameQuery] = useState("");
-  // 存放与分配
-  const [primaryLoc, setPrimaryLoc] = useState<number>();
-  const [primaryQty, setPrimaryQty] = useState<number>();
+  // 物料级:单位 / 规格 —— 主数据有则只读取自 resolved;无编码新建时用下面两个本地态
   const [unitVal, setUnitVal] = useState("");
   const [specVal, setSpecVal] = useState("");
-  const [extra, setExtra] = useState<BulkPos[]>([]);
-  const [freezer, setFreezer] = useState<StorageNode | null>(null);
-  const [freezerSel, setFreezerSel] = useState<FreezerSelection | null>(null);
+  // 实际展示/提交的单位、规格:已解析物料用主数据,否则用用户输入
+  const unitShown = resolved ? (resolved.unit ?? "") : unitVal;
+  const specShown = resolved ? (resolved.spec_model ?? "") : specVal;
+  // 批次组(可多组,每组可多位置)
+  const [groups, setGroups] = useState<BatchGroup[]>(() => [newGroup()]);
   const [resetKey, setResetKey] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [noCodeForm] = Form.useForm();
   const meta = TYPE_META[activeTab];
-
-  // 单位/规格:主数据有则自动填(只读);无编码新建时由用户填
-  useEffect(() => {
-    setUnitVal(resolved?.unit ?? "");
-    setSpecVal(resolved?.spec_model ?? "");
-  }, [resolved]);
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"], queryFn: () => listUnits().then((r) => r.data),
@@ -129,33 +143,27 @@ function SingleIntake() {
     if (m) { setResolved(m); setMaterialCode(`${m.material_code === TT_INTERNAL_CODE ? "无编码" : m.material_code} ${m.name_cn}`); }
   };
 
+  // ---- 批次组 / 位置 的不可变更新 ----
+  const patchGroup = (gk: number, patch: Partial<BatchGroup>) =>
+    setGroups((gs) => gs.map((g) => (g.key === gk ? { ...g, ...patch } : g)));
+  const patchPos = (gk: number, pk: number, patch: Partial<Pos>) =>
+    setGroups((gs) => gs.map((g) =>
+      g.key === gk ? { ...g, positions: g.positions.map((p) => (p.key === pk ? { ...p, ...patch } : p)) } : g));
+  const addPos = (gk: number) =>
+    setGroups((gs) => gs.map((g) => (g.key === gk ? { ...g, positions: [...g.positions, newPos()] } : g)));
+  const removePos = (gk: number, pk: number) =>
+    setGroups((gs) => gs.map((g) =>
+      g.key === gk ? { ...g, positions: g.positions.filter((p) => p.key !== pk) } : g));
+  const addGroup = () => setGroups((gs) => [...gs, newGroup()]);
+  const removeGroup = (gk: number) => setGroups((gs) => gs.filter((g) => g.key !== gk));
+
   const reset = () => {
     form.resetFields(); noCodeForm.resetFields();
     setResolved(null); setMaterialCode(""); setNameQuery("");
-    setPrimaryLoc(undefined); setPrimaryQty(undefined); setExtra([]);
-    setUnitVal(""); setSpecVal("");
-    setFreezer(null); setFreezerSel(null); setResetKey((k) => k + 1);
-    setNotFoundCode(null);
+    setUnitVal(""); setSpecVal(""); setNotFoundCode(null);
+    setGroups([newGroup()]);
+    setResetKey((k) => k + 1);
   };
-
-  const onDone = (msg: string) => { message.success(msg); reset(); };
-  const bulkMut = useMutation({
-    mutationFn: bulkIntake,
-    onSuccess: (res) => res.data.ok
-      ? onDone(`入库成功:新建 ${res.data.created} 条、追加 ${res.data.appended} 条`)
-      : message.error(res.data.results.find((r) => r.status === "error")?.message ?? "入库失败"),
-    onError: (e) => message.error(getErrorDetail(e, "入库失败")),
-  });
-  const occMut = useMutation({
-    mutationFn: occupyCells,
-    onSuccess: (res) => onDone(`已入库 ${res.data.count} 管到 -80℃ 冰箱`),
-    onError: (e) => message.error(getErrorDetail(e, "冻存入库失败")),
-  });
-  const occFromMut = useMutation({
-    mutationFn: occupyFrom,
-    onSuccess: (res) => onDone(`已从起始位置连续填充 ${res.data.count} 管`),
-    onError: (e) => message.error(getErrorDetail(e, "连续填充失败")),
-  });
 
   // 解析/取得 material_id;无编码时按需新建本地物料
   const ensureMaterialId = async (): Promise<number | null> => {
@@ -175,65 +183,132 @@ function SingleIntake() {
     return data.material_id;
   };
 
+  type TaskResult =
+    | { kind: "bulk"; ok: boolean; created: number; appended: number; error?: string }
+    | { kind: "cells"; count: number };
+
   const submit = async () => {
     let v;
     try { v = await form.validateFields(); } catch { return; }
     const materialId = await ensureMaterialId();
     if (materialId == null) return;
-    const received = v.received_date.format("YYYY-MM-DD");
-    const expiry = v.expiry_date?.format("YYYY-MM-DD") ?? null;
+
     const typeFields = {
       concentration: v.concentration, extinction_coefficient: v.extinction_coefficient,
       serial_no: v.serial_no, asset_no: v.asset_no, responsible_person: v.responsible_person,
     };
+    const remark = v.remark;
 
-    if (freezer) {
-      if (!freezerSel) { message.warning("请在 -80℃ 冰箱中选孔"); return; }
-      if (freezerSel.mode === "from") {
-        if (!freezerSel.startCellId) { message.warning("请点选起始孔"); return; }
-        occFromMut.mutate({
-          material_id: materialId, batch_no: v.batch_no, expiry_date: expiry, received_date: received,
-          start_cell_node_id: freezerSel.startCellId, count: freezerSel.count,
-          intake_type: activeTab, concentration: v.concentration, extinction_coefficient: v.extinction_coefficient, remark: v.remark,
-        });
-      } else {
-        if (!freezerSel.cellIds.length) { message.warning("请选择孔位"); return; }
-        occMut.mutate({
-          material_id: materialId, batch_no: v.batch_no, expiry_date: expiry, received_date: received,
-          cell_node_ids: freezerSel.cellIds,
-          intake_type: activeTab, concentration: v.concentration, extinction_coefficient: v.extinction_coefficient, remark: v.remark,
-        });
+    const tasks: Promise<TaskResult>[] = [];
+    let anyPos = false;
+
+    for (const g of groups) {
+      if (!g.batchNo.trim()) { message.warning("请填写批号"); return; }
+      if (!g.received) { message.warning("请填写入库日期"); return; }
+      const received = g.received.format("YYYY-MM-DD");
+      const expiry = g.expiry?.format("YYYY-MM-DD") ?? null;
+
+      const bulkRows: BulkIntakeRow[] = [];
+      for (const p of g.positions) {
+        if (p.freezer) {
+          if (!p.freezerSel) { message.warning(`批次「${g.batchNo}」的 -80℃ 冰箱尚未选孔`); return; }
+          anyPos = true;
+          const base = {
+            material_id: materialId, batch_no: g.batchNo, expiry_date: expiry, received_date: received,
+            intake_type: activeTab, concentration: v.concentration,
+            extinction_coefficient: v.extinction_coefficient, remark,
+          };
+          if (p.freezerSel.mode === "from") {
+            if (!p.freezerSel.startCellId) { message.warning("请点选起始孔"); return; }
+            tasks.push(occupyFrom({
+              ...base, start_cell_node_id: p.freezerSel.startCellId, count: p.freezerSel.count,
+            }).then((r) => ({ kind: "cells", count: r.data.count })));
+          } else {
+            if (!p.freezerSel.cellIds.length) { message.warning("请选择孔位"); return; }
+            tasks.push(occupyCells({
+              ...base, cell_node_ids: p.freezerSel.cellIds,
+            }).then((r) => ({ kind: "cells", count: r.data.count })));
+          }
+        } else if (p.locationId && (p.qty ?? 0) > 0) {
+          anyPos = true;
+          bulkRows.push({
+            material_id: materialId, batch_no: g.batchNo, expiry_date: expiry,
+            location_id: p.locationId, qty: p.qty!, remark, ...typeFields,
+          });
+        }
       }
-      return;
+      if (bulkRows.length) {
+        tasks.push(bulkIntake({ received_date: received, intake_type: activeTab, rows: bulkRows })
+          .then((r) => ({
+            kind: "bulk", ok: r.data.ok, created: r.data.created, appended: r.data.appended,
+            error: r.data.ok ? undefined : (r.data.results.find((x) => x.status === "error")?.message ?? "入库失败"),
+          })));
+      }
     }
 
-    // 散放:主位置 + 额外位置
-    const all: BulkPos[] = [{ key: -1, locationId: primaryLoc, qty: primaryQty }, ...extra];
-    const rows: BulkIntakeRow[] = all
-      .filter((p) => p.locationId && (p.qty ?? 0) > 0)
-      .map((p) => ({
-        material_id: materialId, batch_no: v.batch_no, expiry_date: expiry,
-        location_id: p.locationId!, qty: p.qty!, remark: v.remark, ...typeFields,
-      }));
-    if (!rows.length) { message.warning("请选择存放位置并填写数量"); return; }
-    bulkMut.mutate({ received_date: received, intake_type: activeTab, rows });
+    if (!anyPos) { message.warning("请至少填写一个存放位置与数量(或 -80℃ 孔位)"); return; }
+
+    setSubmitting(true);
+    const settled = await Promise.allSettled(tasks);
+    setSubmitting(false);
+
+    let created = 0, appended = 0, cells = 0;
+    const errors: string[] = [];
+    for (const s of settled) {
+      if (s.status === "rejected") { errors.push(getErrorDetail(s.reason, "入库失败")); continue; }
+      const d = s.value;
+      if (d.kind === "bulk") {
+        if (!d.ok) errors.push(d.error ?? "入库失败");
+        created += d.created; appended += d.appended;
+      } else {
+        cells += d.count;
+      }
+    }
+
+    if (errors.length) {
+      message.error(errors.join("；"));
+      return;
+    }
+    const parts = [`新建 ${created} 条`, `追加 ${appended} 条`];
+    if (cells) parts.push(`冻存 ${cells} 管`);
+    message.success(`入库成功:${parts.join("、")}`);
+    reset();
   };
 
-  const pending = bulkMut.isPending || occMut.isPending || occFromMut.isPending;
-
   return (
-    <>
-      <Tabs type="card" activeKey={activeTab} onChange={(k) => setActiveTab(k as IntakeType)} items={TAB_ITEMS} />
-      <div style={{ borderLeft: `4px solid ${meta.color}`, background: `${meta.color}14`, padding: "10px 16px", borderRadius: 4, marginBottom: 16 }}>
-        <Space>
-          <span style={{ color: meta.color, fontSize: 18, lineHeight: 1 }}>{meta.icon}</span>
-          <b style={{ color: meta.color }}>当前登记类型：{meta.label}</b>
-          <Typography.Text type="secondary">{meta.hint} · 专属字段：{meta.extra}</Typography.Text>
-        </Space>
+    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+      {/* 四个彩色标签(与下方表格等宽) */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        {TYPES.map((k) => {
+          const m = TYPE_META[k];
+          const active = k === activeTab;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setActiveTab(k)}
+              style={{
+                flex: 1, cursor: "pointer", border: `2px solid ${m.color}`, borderRadius: 8,
+                padding: "12px 16px", fontSize: 16, fontWeight: 600,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: active ? m.color : `${m.color}12`,
+                color: active ? "#fff" : m.color,
+                boxShadow: active ? `0 2px 10px ${m.color}59` : "none",
+                transition: "all .15s",
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{m.icon}</span>
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ marginBottom: 16, color: "#888", fontSize: 13 }}>
+        当前登记类型：<b style={{ color: meta.color }}>{meta.label}</b> · {meta.hint} · 专属字段：{meta.extra}
       </div>
 
-      <Card style={{ maxWidth: 1600, margin: "0 auto" }}>
-        <Form form={form} layout="vertical" initialValues={{ received_date: dayjs() }}>
+      <Card>
+        <Form form={form} layout="vertical">
           {/* 物料识别 */}
           <Form.Item label="物料">
             <Space align="start" wrap>
@@ -242,7 +317,7 @@ function SingleIntake() {
                   <AutoComplete
                     style={{ width: 380 }}
                     value={materialCode}
-                    onChange={(v) => { setMaterialCode(v); setResolved(null); setNotFoundCode(null); }}
+                    onChange={(val) => { setMaterialCode(val); setResolved(null); setNotFoundCode(null); }}
                     options={codeOptions}
                     onSelect={onCodePick}
                     filterOption={false}
@@ -257,7 +332,7 @@ function SingleIntake() {
                 <AutoComplete
                   style={{ width: 280 }}
                   value={nameQuery}
-                  onChange={(v) => { setNameQuery(v); setResolved(null); }}
+                  onChange={(val) => { setNameQuery(val); setResolved(null); }}
                   placeholder="物料名称(已建过会提示可选用)"
                   options={nameMatches.map((m: Material) => ({
                     value: String(m.material_id),
@@ -295,7 +370,7 @@ function SingleIntake() {
                 <Space wrap>
                   <Form.Item name="manufacturer" label="来源/厂家"><Input style={{ width: 160 }} /></Form.Item>
                   <Form.Item name="grade" label="级别"><Input style={{ width: 120 }} /></Form.Item>
-                  <Typography.Text type="secondary">单位/规格在下方"存放位置与数量"处填写</Typography.Text>
+                  <Typography.Text type="secondary">单位/规格在下方"批次信息"的存放位置处填写</Typography.Text>
                 </Space>
               </Form>
             </div>
@@ -304,7 +379,7 @@ function SingleIntake() {
           {/* 物料基本信息(只读;常驻显示,解析后填充) */}
           <Descriptions bordered size="small" column={{ xs: 1, sm: 2, lg: 3, xxl: 4 }} style={{ marginBottom: 16 }}>
             <Descriptions.Item label="物料ID">
-              {resolved ? <Typography.Text type="secondary">{resolved.material_id}</Typography.Text> : "—"}
+              {resolved ? <span style={{ color: "#8c8c8c" }}>{resolved.material_id}</span> : "—"}
             </Descriptions.Item>
             <Descriptions.Item label="物料编码">
               {resolved
@@ -322,17 +397,102 @@ function SingleIntake() {
             <Descriptions.Item label="分类">{resolved?.category ?? "—"}</Descriptions.Item>
           </Descriptions>
 
-          {/* 宽屏左右两栏;窄屏自动堆叠 */}
-          <Row gutter={[32, 8]}>
-            {/* 左栏:批次信息 + 类型专属 */}
-            <Col xs={24} lg={12}>
-              <Divider titlePlacement="left">批次信息</Divider>
-              <Space wrap size="large" align="start">
-                <Form.Item name="batch_no" label="批号" rules={[{ required: true }]}><Input style={{ width: 200 }} /></Form.Item>
-                <Form.Item name="expiry_date" label="有效期"><DatePicker style={{ width: 160 }} /></Form.Item>
-                <Form.Item name="received_date" label="入库日期" rules={[{ required: true }]}><DatePicker style={{ width: 160 }} /></Form.Item>
+          <Divider titlePlacement="left">批次信息</Divider>
+
+          {groups.map((g, gi) => (
+            <Card
+              key={g.key}
+              size="small"
+              style={{ marginBottom: 12, borderLeft: `3px solid ${meta.color}` }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <Tag color={meta.color}>批次 {gi + 1}</Tag>
+                {groups.length > 1 && (
+                  <Tooltip title="删除此批次">
+                    <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeGroup(g.key)} />
+                  </Tooltip>
+                )}
+              </div>
+
+              {/* 第一行:批号 / 有效期 / 入库日期 + 加批次 */}
+              <Space align="end" wrap size="middle" style={{ marginBottom: 4 }}>
+                <Labeled label={<span>批号 <span style={{ color: "#ff4d4f" }}>*</span></span>}>
+                  <Input
+                    style={{ width: 200 }} value={g.batchNo}
+                    onChange={(e) => patchGroup(g.key, { batchNo: e.target.value })}
+                  />
+                </Labeled>
+                <Labeled label="有效期">
+                  <DatePicker style={{ width: 160 }} value={g.expiry}
+                    onChange={(d) => patchGroup(g.key, { expiry: d })} />
+                </Labeled>
+                <Labeled label={<span>入库日期 <span style={{ color: "#ff4d4f" }}>*</span></span>}>
+                  <DatePicker style={{ width: 160 }} value={g.received}
+                    onChange={(d) => patchGroup(g.key, { received: d ?? dayjs() })} />
+                </Labeled>
+                <Tooltip title="再加一组批次(同一物料的不同批号)">
+                  <Button type="primary" icon={<PlusOutlined />} onClick={addGroup}>加批次</Button>
+                </Tooltip>
               </Space>
 
+              {/* 存放位置与数量(可多行) */}
+              {g.positions.map((p, pi) => (
+                <div key={p.key} style={{ marginTop: 8 }}>
+                  <Space align="end" wrap size="middle">
+                    <LocationPicker
+                      labeled
+                      value={p.locationId}
+                      onChange={(loc) => patchPos(g.key, p.key, { locationId: loc })}
+                      onFreezerSelect={(f) => patchPos(g.key, p.key, { freezer: f, freezerSel: null, locationId: undefined })}
+                    />
+                    {!p.freezer && (
+                      <>
+                        <Labeled label="数量">
+                          <InputNumber placeholder="数量" min={0.01} value={p.qty} style={{ width: 110 }}
+                            onChange={(q) => patchPos(g.key, p.key, { qty: q ?? undefined })} />
+                        </Labeled>
+                        {/* 单位/规格为物料级,各行展示一致;主数据已解析则只读 */}
+                        <Labeled label="单位">
+                          <Select
+                            showSearch placeholder="单位" optionFilterProp="label" style={{ width: 100 }}
+                            value={unitShown || undefined} disabled={!!resolved}
+                            onChange={(val) => setUnitVal(val)}
+                            options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                          />
+                        </Labeled>
+                        <Labeled label="规格">
+                          <Input placeholder="规格" style={{ width: 150 }}
+                            value={specShown} disabled={!!resolved}
+                            onChange={(e) => setSpecVal(e.target.value)} />
+                        </Labeled>
+                      </>
+                    )}
+                    {pi === 0 ? (
+                      <Tooltip title="再加一个存放位置(同一批号分散存放)">
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => addPos(g.key)}>加位置</Button>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="删除此存放位置">
+                        <Button danger icon={<DeleteOutlined />} onClick={() => removePos(g.key, p.key)} />
+                      </Tooltip>
+                    )}
+                  </Space>
+                  {p.freezer && (
+                    <div style={{ marginTop: 12 }}>
+                      <FreezerCellPicker
+                        freezer={p.freezer} resetKey={resetKey}
+                        onChange={(sel) => patchPos(g.key, p.key, { freezerSel: sel })}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </Card>
+          ))}
+
+          {/* 类型专属信息 */}
+          {(activeTab === "standard" || activeTab === "column") && (
+            <>
               <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
                 <Space size={6}><Tag color={meta.color}>{meta.label}</Tag><span>类型专属信息</span></Space>
               </Divider>
@@ -349,92 +509,26 @@ function SingleIntake() {
                   <Form.Item name="responsible_person" label="负责人"><Input style={{ width: 120 }} /></Form.Item>
                 </Space>
               )}
-              {(activeTab === "reagent" || activeTab === "consumable") && (
-                <Typography.Text type="secondary">{meta.label}无额外专属字段。</Typography.Text>
-              )}
-            </Col>
+            </>
+          )}
 
-            {/* 右栏:存放位置与数量 + 备注 */}
-            <Col xs={24} lg={12}>
-              <Divider titlePlacement="left">存放位置与数量</Divider>
-              <Space align="end" wrap size="middle">
-                <LocationPicker
-                  labeled
-                  value={primaryLoc}
-                  onChange={setPrimaryLoc}
-                  onFreezerSelect={(f) => { setFreezer(f); if (f) setFreezerSel(null); }}
-                />
-                {!freezer && (
-                  <>
-                    <Labeled label="数量">
-                      <InputNumber placeholder="数量" min={0.01} value={primaryQty} onChange={(q) => setPrimaryQty(q ?? undefined)} style={{ width: 110 }} />
-                    </Labeled>
-                    <Labeled label="单位">
-                      <Select
-                        showSearch placeholder="单位" optionFilterProp="label" style={{ width: 100 }}
-                        value={unitVal || undefined} disabled={!!resolved}
-                        onChange={(v) => setUnitVal(v)}
-                        options={units.map((u) => ({ label: u.unit, value: u.unit }))}
-                      />
-                    </Labeled>
-                    <Labeled label="规格">
-                      <Input placeholder="规格" style={{ width: 150 }}
-                        value={specVal} disabled={!!resolved}
-                        onChange={(e) => setSpecVal(e.target.value)} />
-                    </Labeled>
-                  </>
-                )}
-              </Space>
+          {/* 备注 */}
+          <Form.Item name="remark" label="备注" style={{ marginTop: 8 }}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
 
-              {freezer && (
-                <div style={{ marginTop: 12 }}>
-                  <FreezerCellPicker freezer={freezer} resetKey={resetKey} onChange={setFreezerSel} />
-                </div>
-              )}
-
-              {!freezer && (
-                <div style={{ marginTop: 8 }}>
-                  {extra.map((p) => (
-                    <Space key={p.key} align="end" wrap style={{ display: "flex", marginBottom: 8 }}>
-                      <LocationPicker value={p.locationId} onChange={(loc) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, locationId: loc } : x))} />
-                      <InputNumber placeholder="数量" min={0.01} value={p.qty} onChange={(q) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, qty: q ?? undefined } : x))} style={{ width: 110 }} />
-                      <Button danger icon={<DeleteOutlined />} onClick={() => setExtra((xs) => xs.filter((x) => x.key !== p.key))} />
-                    </Space>
-                  ))}
-                  <Button type="dashed" icon={<PlusOutlined />} onClick={() => setExtra((xs) => [...xs, { key: Date.now() }])}>
-                    加位置(同一批放不下时分散到其他柜/板层)
-                  </Button>
-                </div>
-              )}
-
-              <Form.Item name="remark" label="备注" style={{ marginTop: 16 }}><Input.TextArea rows={2} /></Form.Item>
-            </Col>
-          </Row>
-
-          <div style={{ marginTop: 8 }}>
-            <Button type="primary" size="large" loading={pending} onClick={submit}>确认入库</Button>
-          </div>
+          <Button type="primary" size="large" loading={submitting} onClick={submit}>确认入库</Button>
         </Form>
       </Card>
-    </>
+    </div>
   );
 }
 
 export default function IntakePage() {
-  const [mode, setMode] = useState<"single" | "multi">("single");
   return (
     <>
       <Typography.Title level={4}>入库登记</Typography.Title>
-      <Segmented
-        value={mode}
-        onChange={(v) => setMode(v as "single" | "multi")}
-        options={[
-          { label: "单物料登记", value: "single" },
-          { label: "多物料批量", value: "multi" },
-        ]}
-        style={{ marginBottom: 16 }}
-      />
-      {mode === "single" ? <SingleIntake /> : <BulkIntakePage embedded />}
+      <IntakeForm />
     </>
   );
 }

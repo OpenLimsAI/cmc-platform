@@ -47,8 +47,8 @@ export default function MaterialListPage() {
       dataIndex: "material_id",
       width: 90,
       fixed: "left",
-      // 灰色表示系统生成、不可修改;字体沿用默认(与物料编码一致)
-      render: (v: number) => <Typography.Text type="secondary">{v}</Typography.Text>,
+      // 灰色表示系统生成、不可修改;用纯 span(非 Typography)使数字字体与物料编码等纯文本完全一致
+      render: (v: number) => <span style={{ color: "#8c8c8c" }}>{v}</span>,
     },
     { title: "物料编码", dataIndex: "material_code", width: 120 },
     { title: "物料名称", dataIndex: "name_cn", ellipsis: true },

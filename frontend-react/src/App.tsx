@@ -39,8 +39,9 @@ export default function App() {
             // 与 CMAB MDM Portal 视觉规范一致(UI-LABOPS-001 §1.2 色彩系统)
             colorPrimary: "#1F4E79",
             borderRadius: 4,
+            // 与 global.css body 的字体栈保持完全一致,避免同一数字在不同组件里字形不一
             fontFamily:
-              "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+              "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif",
           },
         }}
       >
