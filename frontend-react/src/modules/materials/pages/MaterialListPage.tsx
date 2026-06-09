@@ -42,13 +42,7 @@ export default function MaterialListPage() {
   });
 
   const columns: ColumnsType<Material> = [
-    {
-      title: "物料ID",
-      dataIndex: "material_id",
-      width: 90,
-      fixed: "left",
-      render: (v: number) => <Typography.Text type="secondary" style={{ fontFamily: "monospace" }}>{v}</Typography.Text>,
-    },
+    { title: "物料ID", dataIndex: "material_id", width: 90, fixed: "left" },
     { title: "物料编码", dataIndex: "material_code", width: 120 },
     { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
     {
