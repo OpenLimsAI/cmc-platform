@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
@@ -41,6 +41,14 @@ const TAB_ITEMS = (Object.keys(TYPE_META) as IntakeType[]).map((k) => ({
 
 interface BulkPos { key: number; locationId?: number; qty?: number }
 
+// 字段名在输入框上方
+const Labeled = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{label}</div>
+    {children}
+  </div>
+);
+
 function SingleIntake() {
   const [activeTab, setActiveTab] = useState<IntakeType>("reagent");
   const [noCode, setNoCode] = useState(false);
@@ -52,6 +60,8 @@ function SingleIntake() {
   // 存放与分配
   const [primaryLoc, setPrimaryLoc] = useState<number>();
   const [primaryQty, setPrimaryQty] = useState<number>();
+  const [unitVal, setUnitVal] = useState("");
+  const [specVal, setSpecVal] = useState("");
   const [extra, setExtra] = useState<BulkPos[]>([]);
   const [freezer, setFreezer] = useState<StorageNode | null>(null);
   const [freezerSel, setFreezerSel] = useState<FreezerSelection | null>(null);
@@ -59,6 +69,12 @@ function SingleIntake() {
   const [form] = Form.useForm();
   const [noCodeForm] = Form.useForm();
   const meta = TYPE_META[activeTab];
+
+  // 单位/规格:主数据有则自动填(只读);无编码新建时由用户填
+  useEffect(() => {
+    setUnitVal(resolved?.unit ?? "");
+    setSpecVal(resolved?.spec_model ?? "");
+  }, [resolved]);
 
   const { data: units = [] } = useQuery({
     queryKey: ["units"], queryFn: () => listUnits().then((r) => r.data),
@@ -116,6 +132,7 @@ function SingleIntake() {
     form.resetFields(); noCodeForm.resetFields();
     setResolved(null); setMaterialCode(""); setNameQuery("");
     setPrimaryLoc(undefined); setPrimaryQty(undefined); setExtra([]);
+    setUnitVal(""); setSpecVal("");
     setFreezer(null); setFreezerSel(null); setResetKey((k) => k + 1);
     setNotFoundCode(null);
   };
@@ -148,10 +165,11 @@ function SingleIntake() {
     if (resolved) return resolved.material_id;        // 自动补全选了已有
     const name = nameQuery.trim();
     if (!name) { message.warning("请填写物料名称"); return null; }
+    if (!unitVal.trim()) { message.warning("请填写单位"); return null; }
     const v = await noCodeForm.validateFields();
     const { data } = await createMaterial({
-      material_code: TT_INTERNAL_CODE, name_cn: name, unit: v.unit,
-      spec_model: v.spec_model, manufacturer: v.manufacturer, grade: v.grade,
+      material_code: TT_INTERNAL_CODE, name_cn: name, unit: unitVal.trim(),
+      spec_model: specVal.trim() || undefined, manufacturer: v.manufacturer, grade: v.grade,
     });
     return data.material_id;
   };
@@ -274,13 +292,9 @@ function SingleIntake() {
             <div style={{ marginBottom: 16 }}>
               <Form form={noCodeForm} layout="inline" component={false}>
                 <Space wrap>
-                  <Form.Item name="unit" label="单位" rules={[{ required: true, message: "选单位" }]}>
-                    <Select showSearch style={{ width: 120 }} placeholder="单位" optionFilterProp="label"
-                      options={units.map((u) => ({ label: u.unit, value: u.unit }))} />
-                  </Form.Item>
-                  <Form.Item name="spec_model" label="规格"><Input style={{ width: 140 }} placeholder="如 1 mg/支" /></Form.Item>
-                  <Form.Item name="manufacturer" label="来源/厂家"><Input style={{ width: 140 }} /></Form.Item>
-                  <Form.Item name="grade" label="级别"><Input style={{ width: 100 }} /></Form.Item>
+                  <Form.Item name="manufacturer" label="来源/厂家"><Input style={{ width: 160 }} /></Form.Item>
+                  <Form.Item name="grade" label="级别"><Input style={{ width: 120 }} /></Form.Item>
+                  <Typography.Text type="secondary">单位/规格在下方"存放位置与数量"处填写</Typography.Text>
                 </Space>
               </Form>
             </div>
@@ -337,14 +351,32 @@ function SingleIntake() {
 
           {/* 存放与数量分配 */}
           <Divider titlePlacement="left">存放位置与数量</Divider>
-          <Space align="start" wrap>
+          <Space align="end" wrap size="middle">
             <LocationPicker
+              labeled
               value={primaryLoc}
               onChange={setPrimaryLoc}
               onFreezerSelect={(f) => { setFreezer(f); if (f) setFreezerSel(null); }}
             />
             {!freezer && (
-              <InputNumber placeholder="数量" min={0.01} value={primaryQty} onChange={(q) => setPrimaryQty(q ?? undefined)} style={{ width: 120 }} />
+              <>
+                <Labeled label="数量">
+                  <InputNumber placeholder="数量" min={0.01} value={primaryQty} onChange={(q) => setPrimaryQty(q ?? undefined)} style={{ width: 110 }} />
+                </Labeled>
+                <Labeled label="单位">
+                  <Select
+                    showSearch placeholder="单位" optionFilterProp="label" style={{ width: 100 }}
+                    value={unitVal || undefined} disabled={!!resolved}
+                    onChange={(v) => setUnitVal(v)}
+                    options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                  />
+                </Labeled>
+                <Labeled label="规格">
+                  <Input placeholder="规格" style={{ width: 150 }}
+                    value={specVal} disabled={!!resolved}
+                    onChange={(e) => setSpecVal(e.target.value)} />
+                </Labeled>
+              </>
             )}
           </Space>
 

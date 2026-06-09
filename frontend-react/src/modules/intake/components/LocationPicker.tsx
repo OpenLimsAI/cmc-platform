@@ -15,6 +15,7 @@ interface Props {
   onChange?: (locationId?: number) => void;
   // 选到 -80℃ 冰箱时上抛该冰箱节点(否则 null), 父级据此切换到冻存选孔
   onFreezerSelect?: (freezer: StorageNode | null) => void;
+  labeled?: boolean;   // 每个下拉上方显示字段名
 }
 
 const FRIDGE_COLOR: Record<string, string> = {
@@ -24,7 +25,7 @@ const FRIDGE_COLOR: Record<string, string> = {
   normal: "default",
 };
 
-export default function LocationPicker({ value, onChange, onFreezerSelect }: Props) {
+export default function LocationPicker({ value, onChange, onFreezerSelect, labeled }: Props) {
   const [roomId, setRoomId] = useState<number>();
   const [midId, setMidId] = useState<number>();   // 柜 / 冰箱
   const [leafId, setLeafId] = useState<number>(); // 板层 / 隔板 节点 id
@@ -59,10 +60,17 @@ export default function LocationPicker({ value, onChange, onFreezerSelect }: Pro
   const bulkLeaves = leaves.filter((l) => l.capacity_kind === "bulk" && l.location_id != null);
 
   const label = (n: StorageNode) => n.label || n.code;
+  const fld = (text: string, node: React.ReactNode) =>
+    labeled ? (
+      <div>
+        <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{text}</div>
+        {node}
+      </div>
+    ) : node;
 
   return (
-    <Space wrap>
-      <Select
+    <Space wrap align={labeled ? "end" : "center"}>
+      {fld("房间号", <Select
         placeholder="房间"
         style={{ width: 130 }}
         value={roomId}
@@ -76,8 +84,8 @@ export default function LocationPicker({ value, onChange, onFreezerSelect }: Pro
           onChange?.(undefined);
           onFreezerSelect?.(null);
         }}
-      />
-      <Select
+      />)}
+      {fld("试剂柜 / 冰箱编号", <Select
         placeholder="柜 / 冰箱"
         style={{ width: 180 }}
         value={midId}
@@ -110,8 +118,8 @@ export default function LocationPicker({ value, onChange, onFreezerSelect }: Pro
           const picked80 = node?.node_type === "FRIDGE" && node?.temp_category === "-80";
           onFreezerSelect?.(picked80 ? node! : null);
         }}
-      />
-      <Select
+      />)}
+      {fld("板层 / 隔板", <Select
         placeholder={is80 ? "↓ 在下方选孔" : "板层 / 隔板"}
         style={{ width: 150 }}
         value={leafId}
@@ -124,7 +132,7 @@ export default function LocationPicker({ value, onChange, onFreezerSelect }: Pro
           const locId = (opt as { locId?: number })?.locId;
           onChange?.(locId ?? undefined);
         }}
-      />
+      />)}
     </Space>
   );
 }
