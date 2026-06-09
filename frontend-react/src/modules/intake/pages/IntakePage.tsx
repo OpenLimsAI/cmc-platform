@@ -1,14 +1,19 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  Card, Tabs, Form, Input, InputNumber, DatePicker,
-  Button, Descriptions, Tag, message, Space, Alert, Typography,
+  Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider,
+  Button, Descriptions, Tag, message, Space, Alert, Typography, AutoComplete,
 } from "antd";
-import { SearchOutlined, ExportOutlined } from "@ant-design/icons";
+import {
+  SearchOutlined, ExportOutlined, ExperimentOutlined, InboxOutlined,
+  MedicineBoxOutlined, FilterOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
-import { createFromMdm, mdmLookup, type Material } from "../../../api/materials";
+import {
+  createFromMdm, mdmLookup, listMaterials, listUnits, createMaterial,
+  TT_INTERNAL_CODE, type Material,
+} from "../../../api/materials";
 import { createBatch, type BatchCreate } from "../../../api/inventory";
-import { listMaterials } from "../../../api/materials";
 import { occupyCells, type OccupyRequest, type StorageNode } from "../../../api/storage";
 import LocationPicker from "../components/LocationPicker";
 import FreezerCellPicker from "../components/FreezerCellPicker";
@@ -17,12 +22,20 @@ import { getErrorDetail } from "../../../shared/errors";
 
 type IntakeType = "reagent" | "consumable" | "standard" | "column";
 
-const TAB_ITEMS = [
-  { key: "reagent" as const, label: "试剂" },
-  { key: "consumable" as const, label: "耗材" },
-  { key: "standard" as const, label: "标准品" },
-  { key: "column" as const, label: "色谱柱" },
-];
+// 每种类型独立颜色/图标/说明 + 专属字段提示,让"当前在哪个标签"一眼可见
+const TYPE_META: Record<IntakeType, {
+  label: string; color: string; icon: React.ReactNode; hint: string; extra: string;
+}> = {
+  reagent:    { label: "试剂",   color: "#1677ff", icon: <ExperimentOutlined />,  hint: "常规试剂入库",            extra: "无额外专属字段" },
+  consumable: { label: "耗材",   color: "#52c41a", icon: <InboxOutlined />,       hint: "耗材入库",                extra: "无额外专属字段" },
+  standard:   { label: "标准品", color: "#722ed1", icon: <MedicineBoxOutlined />, hint: "标准品 / 对照品 / 参比品", extra: "浓度、消光系数" },
+  column:     { label: "色谱柱", color: "#fa8c16", icon: <FilterOutlined />,      hint: "色谱柱入库",              extra: "序列号、资产编号、负责人" },
+};
+
+const TAB_ITEMS = (Object.keys(TYPE_META) as IntakeType[]).map((k) => ({
+  key: k,
+  label: <Space size={6}>{TYPE_META[k].icon}{TYPE_META[k].label}</Space>,
+}));
 
 export default function IntakePage() {
   const [activeTab, setActiveTab] = useState<IntakeType>("reagent");
@@ -35,14 +48,59 @@ export default function IntakePage() {
   // 选到 -80℃ 冰箱 → 切到冻存选孔模式
   const [freezer, setFreezer] = useState<StorageNode | null>(null);
   const [cellIds, setCellIds] = useState<number[]>([]);
+  // 无编码物料就地登记
+  const [noCodeOpen, setNoCodeOpen] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
   const [form] = Form.useForm();
+  const [noCodeForm] = Form.useForm();
+
+  const { data: units = [] } = useQuery({
+    queryKey: ["units"],
+    queryFn: () => listUnits().then((r) => r.data),
+  });
+  // 无编码登记时按名称搜已有物料, 便于复用而非重复新建
+  const { data: nameMatches = [] } = useQuery({
+    queryKey: ["materials", "name", nameQuery],
+    queryFn: () => listMaterials({ keyword: nameQuery.trim() }).then((r) => r.data),
+    enabled: noCodeOpen && nameQuery.trim().length > 0,
+  });
 
   const resetAfterSuccess = () => {
     form.resetFields();
+    noCodeForm.resetFields();
     setResolvedMaterial(null);
     setMaterialCode("");
     setFreezer(null);
     setCellIds([]);
+    setNoCodeOpen(false);
+    setNameQuery("");
+  };
+
+  const createLocalMutation = useMutation({
+    mutationFn: createMaterial,
+    onSuccess: (res) => {
+      setResolvedMaterial(res.data);
+      setNoCodeOpen(false);
+      message.success("已登记无编码物料,继续填写批次信息");
+    },
+    onError: (e) => message.error(getErrorDetail(e, "登记失败")),
+  });
+
+  const handleCreateLocal = async () => {
+    const name = nameQuery.trim();
+    if (!name) {
+      message.warning("请填写物料名称");
+      return;
+    }
+    const v = await noCodeForm.validateFields();
+    createLocalMutation.mutate({
+      material_code: TT_INTERNAL_CODE,
+      name_cn: name,
+      unit: v.unit,
+      spec_model: v.spec_model,
+      manufacturer: v.manufacturer,
+      grade: v.grade,
+    });
   };
 
   const batchMutation = useMutation({
@@ -150,14 +208,36 @@ export default function IntakePage() {
     }
   };
 
+  const meta = TYPE_META[activeTab];
+
   return (
     <>
       <Typography.Title level={4}>入库登记</Typography.Title>
       <Tabs
+        type="card"
         activeKey={activeTab}
         onChange={(k) => setActiveTab(k as IntakeType)}
         items={TAB_ITEMS}
       />
+
+      {/* 常驻横幅:不管下方有没有填,都能一眼看出当前登记类型 */}
+      <div
+        style={{
+          borderLeft: `4px solid ${meta.color}`,
+          background: `${meta.color}14`,
+          padding: "10px 16px",
+          borderRadius: 4,
+          marginBottom: 16,
+        }}
+      >
+        <Space>
+          <span style={{ color: meta.color, fontSize: 18, lineHeight: 1 }}>{meta.icon}</span>
+          <b style={{ color: meta.color }}>当前登记类型：{meta.label}</b>
+          <Typography.Text type="secondary">
+            {meta.hint} · 专属字段：{meta.extra}
+          </Typography.Text>
+        </Space>
+      </div>
 
       <Card style={{ marginBottom: 16 }}>
         <Space>
@@ -168,11 +248,76 @@ export default function IntakePage() {
             onChange={(e) => setMaterialCode(e.target.value)}
             onPressEnter={handleLookup}
             style={{ width: 300 }}
+            disabled={noCodeOpen}
           />
-          <Button type="primary" loading={lookupLoading} onClick={handleLookup}>
+          <Button type="primary" loading={lookupLoading} onClick={handleLookup} disabled={noCodeOpen}>
             查询
           </Button>
+          {!resolvedMaterial && (
+            <Button type="link" onClick={() => setNoCodeOpen((v) => !v)}>
+              {noCodeOpen ? "返回按编码查询" : "没有物料编码?"}
+            </Button>
+          )}
         </Space>
+
+        {noCodeOpen && !resolvedMaterial && (
+          <Card size="small" style={{ marginTop: 12, background: "#fafafa" }} title="登记无编码物料(本地)">
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="适用于没有 MDM 编码的物料,如分装原研药作标准品。系统按本地物料记录(编码 TT内部物料),无需去 MDM 编码。"
+            />
+            <Form layout="vertical" form={noCodeForm} style={{ maxWidth: 560 }}>
+              <Form.Item label="物料名称" required>
+                <AutoComplete
+                  value={nameQuery}
+                  onChange={(v) => setNameQuery(v)}
+                  placeholder="输入名称;若已登记过会在下方提示可直接选用"
+                  options={nameMatches.map((m: Material) => ({
+                    value: String(m.material_id),
+                    label: `${m.name_cn}${m.material_code === TT_INTERNAL_CODE ? " · 无编码" : ` · ${m.material_code}`}`,
+                    material: m,
+                  }))}
+                  onSelect={(_v, opt) => {
+                    const m = (opt as { material: Material }).material;
+                    setResolvedMaterial(m);
+                    setNoCodeOpen(false);
+                    message.success("已选用已有物料");
+                  }}
+                  filterOption={false}
+                />
+              </Form.Item>
+              <Space wrap align="start">
+                <Form.Item name="unit" label="单位" rules={[{ required: true, message: "选单位" }]}>
+                  <Select
+                    showSearch
+                    style={{ width: 140 }}
+                    placeholder="单位"
+                    optionFilterProp="label"
+                    options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                  />
+                </Form.Item>
+                <Form.Item name="spec_model" label="规格">
+                  <Input style={{ width: 160 }} placeholder="如 1 mg/支" />
+                </Form.Item>
+                <Form.Item name="manufacturer" label="生产商/来源">
+                  <Input style={{ width: 160 }} />
+                </Form.Item>
+                <Form.Item name="grade" label="级别">
+                  <Input style={{ width: 120 }} />
+                </Form.Item>
+              </Space>
+              <Button
+                type="primary"
+                loading={createLocalMutation.isPending}
+                onClick={handleCreateLocal}
+              >
+                登记并继续入库
+              </Button>
+            </Form>
+          </Card>
+        )}
 
         {lookupError && (
           <Alert type="warning" message={lookupError} style={{ marginTop: 12 }} showIcon />
@@ -199,14 +344,28 @@ export default function IntakePage() {
         )}
 
         {resolvedMaterial && (
+          <>
+          <div style={{ marginTop: 16, marginBottom: 8, textAlign: "right" }}>
+            <Button size="small" onClick={() => { setResolvedMaterial(null); setMaterialCode(""); setNameQuery(""); }}>
+              重新选择物料
+            </Button>
+          </div>
           <Descriptions
             bordered
             size="small"
             column={3}
-            style={{ marginTop: 16 }}
           >
+            <Descriptions.Item label="物料ID">
+              <Typography.Text type="secondary" style={{ fontFamily: "monospace" }}>
+                {resolvedMaterial.material_id}
+              </Typography.Text>
+            </Descriptions.Item>
             <Descriptions.Item label="物料编码">
-              {resolvedMaterial.material_code}
+              {resolvedMaterial.material_code === TT_INTERNAL_CODE ? (
+                <Tag color="orange">无编码</Tag>
+              ) : (
+                resolvedMaterial.material_code
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="物料名称">
               {resolvedMaterial.name_cn}
@@ -237,6 +396,7 @@ export default function IntakePage() {
               {resolvedMaterial.category}
             </Descriptions.Item>
           </Descriptions>
+          </>
         )}
       </Card>
 
@@ -277,6 +437,14 @@ export default function IntakePage() {
               </Form.Item>
             )}
 
+            {/* 类型专属信息分区:常驻显示, 每种类型都有, 强化"当前标签"存在感 */}
+            <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
+              <Space size={6}>
+                <Tag color={meta.color}>{meta.label}</Tag>
+                <span>类型专属信息</span>
+              </Space>
+            </Divider>
+
             {activeTab === "standard" && (
               <>
                 <Form.Item name="concentration" label="浓度">
@@ -302,7 +470,13 @@ export default function IntakePage() {
               </>
             )}
 
-            <Form.Item name="remark" label="备注">
+            {(activeTab === "reagent" || activeTab === "consumable") && (
+              <Typography.Text type="secondary">
+                {meta.label}无额外专属字段,按上方通用信息入库即可。
+              </Typography.Text>
+            )}
+
+            <Form.Item name="remark" label="备注" style={{ marginTop: 16 }}>
               <Input.TextArea rows={2} />
             </Form.Item>
 

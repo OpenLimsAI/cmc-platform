@@ -104,13 +104,14 @@ export default function MainLayout() {
   ];
 
   return (
-    <Layout style={{ minHeight: "1000px" }}>
+    // 整屏定高:侧边栏固定不动,仅右侧内容区随滚轮滚动
+    <Layout style={{ height: "100vh", overflow: "hidden" }}>
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme          ='light'
-        style={{ borderRight: "1px solid #f0f0f0" }}
+        style={{ borderRight: "1px solid #f0f0f0", height: "100vh" }}
       >
         <div style={{ height: 48, margin: 16, textAlign: "center" }}>
           <Typography.Title level={5} style={{ margin: 0, lineHeight: "48px" }}>
@@ -119,6 +120,8 @@ export default function MainLayout() {
         </div>
         <Menu
           mode="inline"
+          // 菜单过长时在侧栏内部滚动,不影响右侧内容区
+          style={{ height: "calc(100vh - 128px)", overflowY: "auto", borderInlineEnd: 0 }}
           selectedKeys={[
             // 详情页(如 /equipment/3)高亮对应列表菜单
             location.pathname.startsWith("/equipment")
@@ -154,7 +157,8 @@ export default function MainLayout() {
             </Dropdown>
           </Space>
         </Header>
-        <Content style={{ margin: 24 }}>
+        {/* 仅此区域随滚轮滚动;Header 与侧边栏保持固定 */}
+        <Content style={{ margin: 24, overflow: "auto" }}>
           <Outlet />
         </Content>
       </Layout>

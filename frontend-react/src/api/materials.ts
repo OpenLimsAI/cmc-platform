@@ -41,10 +41,24 @@ export interface MaterialCreate {
   safety_stock?: number;
 }
 
-// 物料主数据为只读"物料查询"(V1.3):新增/编辑/停用统一在 MDM Portal,
-// 此处不提供本地 CRUD 调用(后端兜底端点仍在,仅 API 直调)
+// 保留编码:部门内无 MDM 编码的临时/本地物料(允许多条共存, 按 material_id 区分)
+export const TT_INTERNAL_CODE = "TT内部物料";
+
+export interface Unit {
+  unit: string;
+  description: string | null;
+}
+
+// 物料主数据为只读"物料查询"(V1.3):MDM 物料的新增/编辑/停用统一在 MDM Portal。
+// 例外:无编码本地物料(分装原研药等)在入库页就地登记, 走 createMaterial。
 export const listMaterials = (params?: Record<string, unknown>) =>
   client.get<Material[]>("/api/materials", { params });
+
+export const listUnits = () => client.get<Unit[]>("/api/units");
+
+// 就地登记本地物料(无 MDM 编码), material_code 传 TT_INTERNAL_CODE
+export const createMaterial = (data: MaterialCreate) =>
+  client.post<Material>("/api/materials", data);
 
 export const createFromMdm = (code: string) =>
   client.post<Material>(`/api/materials/from-mdm/${code}`);
