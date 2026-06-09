@@ -581,7 +581,7 @@ def list_batch_cells(db: Session, batch_id: int) -> List[dict]:
     if batch is None:
         return []
     rows = db.execute(
-        select(CellOccupancy, StorageNode.code)
+        select(CellOccupancy, StorageNode.code, StorageNode.parent_id)
         .join(StorageNode, StorageNode.node_id == CellOccupancy.cell_node_id)
         .where(
             CellOccupancy.batch_id == batch_id,
@@ -594,12 +594,13 @@ def list_batch_cells(db: Session, batch_id: int) -> List[dict]:
         {
             "cell_node_id": o.cell_node_id,
             "code": code,
+            "box_node_id": box_id,            # CELL 的父节点即所在盒区
             "address": cell_address(db, o.cell_node_id),
             "sample_label": o.sample_label,
             "expiry_date": batch.expiry_date,
             "days_to_expiry": days,
         }
-        for o, code in rows
+        for o, code, box_id in rows
     ]
     out.sort(key=lambda x: x["address"])
     return out

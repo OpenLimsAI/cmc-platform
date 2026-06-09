@@ -155,6 +155,7 @@ class BatchCellOut(ORMBase):
     """某批次占用的单个孔(出库勾选 / 物料详情弹窗用)。"""
     cell_node_id: int
     code: str                         # 孔号
+    box_node_id: Optional[int] = None  # 所在盒区节点(供出库盒可视化按盒分组)
     address: str                      # 完整地址,如 'TT1 B3:A,23'
     sample_label: Optional[str] = None
     expiry_date: Optional[date] = None

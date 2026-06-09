@@ -73,6 +73,7 @@ export interface Cell {
 export interface BatchCell {
   cell_node_id: number;
   code: string;
+  box_node_id: number | null;
   address: string;
   sample_label: string | null;
   expiry_date: string | null;

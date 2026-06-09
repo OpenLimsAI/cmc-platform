@@ -1,20 +1,102 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Typography, Card, Form, InputNumber, DatePicker, Input,
-  Button, message, Table, Tag, Alert, Descriptions,
+  Button, message, Table, Tag, Alert, Descriptions, Segmented, Empty, Spin,
 } from "antd";
 import dayjs from "dayjs";
 import {
   stockByBatch, outgoing, type StockByBatch, type TxnOutRequest,
 } from "../../../api/inventory";
-import { listBatchCells, releaseCells, type BatchCell } from "../../../api/storage";
+import {
+  listBatchCells, releaseCells, listCells, listAncestors, type BatchCell,
+} from "../../../api/storage";
+import CellGrid from "../../storage/components/CellGrid";
 import { getErrorDetail } from "../../../shared/errors";
 
 function expiryTag(v: string | null, days: number | null) {
   if (!v) return <span style={{ color: "#8c8c8c" }}>—</span>;
   const d = days ?? 999;
   return <Tag color={d < 0 ? "red" : d <= 30 ? "orange" : "default"}>{v}</Tag>;
+}
+
+const NODE_LABEL: Record<string, string> = {
+  FRIDGE: "冰箱", RACK: "冻存架", RACK_LAYER: "层", BOX: "盒",
+};
+
+/** 出库右栏:本批次的冻存盒可视化。按盒切换(只限本批次的盒),点本批次的孔即选中/取消(与左侧勾选同步)。 */
+function BatchBoxView({
+  batchId, batchCells, selectedIds, toggle,
+}: {
+  batchId: number;
+  batchCells: BatchCell[];
+  selectedIds: number[];
+  toggle: (cellId: number) => void;
+}) {
+  // 本批次占用的盒(去重),标签取该盒任一孔地址的"盒"部分(逗号前)
+  const boxes = useMemo(() => {
+    const m = new Map<number, { boxId: number; label: string; count: number }>();
+    batchCells.forEach((c) => {
+      if (c.box_node_id == null) return;
+      const e = m.get(c.box_node_id);
+      if (e) e.count += 1;
+      else m.set(c.box_node_id, { boxId: c.box_node_id, label: c.address.split(",")[0], count: 1 });
+    });
+    return [...m.values()];
+  }, [batchCells]);
+
+  const [boxId, setBoxId] = useState<number | undefined>(boxes[0]?.boxId);
+  const activeBox = boxId ?? boxes[0]?.boxId;
+
+  const { data: ancestors = [] } = useQuery({
+    queryKey: ["ancestors", activeBox],
+    queryFn: () => listAncestors(activeBox!).then((r) => r.data),
+    enabled: activeBox != null,
+  });
+  const { data: cells = [], isLoading } = useQuery({
+    queryKey: ["box-cells", activeBox],
+    queryFn: () => listCells(activeBox!).then((r) => r.data),
+    enabled: activeBox != null,
+  });
+
+  if (!boxes.length) return <Empty description="无孔位" />;
+
+  const crumb = ["FRIDGE", "RACK", "RACK_LAYER", "BOX"]
+    .map((t) => ancestors.find((n) => n.node_type === t))
+    .filter(Boolean)
+    .map((n) => `${NODE_LABEL[n!.node_type]} ${n!.label || n!.code}`)
+    .join(" › ");
+
+  return (
+    <>
+      {crumb && <div style={{ marginBottom: 10, color: "#555" }}>{crumb}</div>}
+      {boxes.length > 1 && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ color: "#888", marginRight: 8 }}>本批次分布在 {boxes.length} 个盒,选择:</span>
+          <Segmented
+            value={activeBox}
+            onChange={(v) => setBoxId(v as number)}
+            options={boxes.map((b) => ({ label: `${b.label}(${b.count})`, value: b.boxId }))}
+          />
+        </div>
+      )}
+      {isLoading ? (
+        <Spin />
+      ) : (
+        <>
+          <CellGrid
+            cells={cells}
+            ownBatchId={batchId}
+            selectedIds={new Set(selectedIds)}
+            onCellClick={(c) => toggle(c.cell_node_id)}
+          />
+          <div style={{ marginTop: 10, color: "#888", fontSize: 12 }}>
+            绿=本批次(可点选取走) · 蓝=已选 · 暗灰=其它物料 · 浅灰=空孔
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 export default function OutgoingPage() {
@@ -43,6 +125,8 @@ export default function OutgoingPage() {
     setSelectedCellIds([]);
     form.resetFields();
   };
+  const toggleCell = (cellId: number) =>
+    setSelectedCellIds((ids) => (ids.includes(cellId) ? ids.filter((x) => x !== cellId) : [...ids, cellId]));
 
   const finishOk = () => {
     setSelectedBatch(null);
@@ -70,7 +154,7 @@ export default function OutgoingPage() {
     const values = await form.validateFields();
     const txn_date = values.txn_date.format("YYYY-MM-DD");
     if (isCellBatch) {
-      if (selectedCellIds.length === 0) { message.warning("请勾选要取走的孔位"); return; }
+      if (selectedCellIds.length === 0) { message.warning("请勾选/点选要取走的孔位"); return; }
       releaseMut.mutate({
         cell_node_ids: selectedCellIds, txn_date,
         purpose: values.purpose, remark: values.remark,
@@ -132,70 +216,84 @@ export default function OutgoingPage() {
       />
 
       {selectedBatch && (
-        <Card
-          title={`出库: ${selectedBatch.material_code} / 批号 ${selectedBatch.batch_no}`}
-          style={{ marginTop: 16, maxWidth: isCellBatch ? 760 : 520 }}
-        >
-          <Descriptions size="small" column={2} style={{ marginBottom: 12 }}>
-            <Descriptions.Item label="位置">{selectedBatch.location_name}</Descriptions.Item>
-            <Descriptions.Item label="当前库存">{selectedBatch.current_qty} {selectedBatch.unit}</Descriptions.Item>
-          </Descriptions>
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: 16 }}>
+          <Card
+            title={`出库: ${selectedBatch.material_code} / 批号 ${selectedBatch.batch_no}`}
+            style={{ flex: isCellBatch ? "1 1 520px" : "0 1 520px", minWidth: 420 }}
+          >
+            <Descriptions size="small" column={2} style={{ marginBottom: 12 }}>
+              <Descriptions.Item label="位置">{selectedBatch.location_name}</Descriptions.Item>
+              <Descriptions.Item label="当前库存">{selectedBatch.current_qty} {selectedBatch.unit}</Descriptions.Item>
+            </Descriptions>
+
+            {isCellBatch && (
+              <Alert
+                type="info" showIcon style={{ marginBottom: 12 }}
+                message="该批次按 -80℃ 孔位存放,可在右侧盒图点选,或在下表勾选要取走的孔位(两者同步)。"
+              />
+            )}
+
+            <Form form={form} layout="vertical" initialValues={{ txn_date: dayjs() }}>
+              {isCellBatch ? (
+                <Form.Item label={`选择取走的孔位(已选 ${selectedCellIds.length} / 共 ${batchCells.length} 管)`} required>
+                  <Table<BatchCell>
+                    rowKey="cell_node_id"
+                    size="small"
+                    dataSource={batchCells}
+                    pagination={false}
+                    scroll={{ y: 280 }}
+                    rowSelection={{
+                      selectedRowKeys: selectedCellIds,
+                      onChange: (keys) => setSelectedCellIds(keys as number[]),
+                    }}
+                    columns={[
+                      { title: "孔位地址", dataIndex: "address" },
+                      { title: "样品", dataIndex: "sample_label", width: 120, render: (v: string | null) => v || "—" },
+                      {
+                        title: "有效期",
+                        dataIndex: "expiry_date",
+                        width: 120,
+                        render: (v: string | null, r) => expiryTag(v, r.days_to_expiry),
+                      },
+                    ]}
+                  />
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  name="qty"
+                  label={`出库数量(当前库存: ${selectedBatch.current_qty} ${selectedBatch.unit})`}
+                  rules={[{ required: true }]}
+                >
+                  <InputNumber min={0.01} max={selectedBatch.current_qty} style={{ width: "100%" }} />
+                </Form.Item>
+              )}
+              <Form.Item name="txn_date" label="出库日期" rules={[{ required: true }]}>
+                <DatePicker style={{ width: "100%" }} />
+              </Form.Item>
+              <Form.Item name="purpose" label="用途">
+                <Input />
+              </Form.Item>
+              <Form.Item name="remark" label="备注">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+              <Button type="primary" loading={pending} onClick={handleSubmit}>
+                确认出库
+              </Button>
+            </Form>
+          </Card>
 
           {isCellBatch && (
-            <Alert
-              type="info" showIcon style={{ marginBottom: 12 }}
-              message="该批次按 -80℃ 孔位存放,请勾选要取走的具体孔位(精确定位)。"
-            />
+            <Card title="冻存盒可视化" style={{ flex: "1 1 480px", minWidth: 360 }}>
+              <BatchBoxView
+                key={selectedBatch.batch_id}
+                batchId={selectedBatch.batch_id}
+                batchCells={batchCells}
+                selectedIds={selectedCellIds}
+                toggle={toggleCell}
+              />
+            </Card>
           )}
-
-          <Form form={form} layout="vertical" initialValues={{ txn_date: dayjs() }}>
-            {isCellBatch ? (
-              <Form.Item label={`选择取走的孔位(已选 ${selectedCellIds.length} / 共 ${batchCells.length} 管)`} required>
-                <Table<BatchCell>
-                  rowKey="cell_node_id"
-                  size="small"
-                  dataSource={batchCells}
-                  pagination={false}
-                  scroll={{ y: 280 }}
-                  rowSelection={{
-                    selectedRowKeys: selectedCellIds,
-                    onChange: (keys) => setSelectedCellIds(keys as number[]),
-                  }}
-                  columns={[
-                    { title: "孔位地址", dataIndex: "address" },
-                    { title: "样品", dataIndex: "sample_label", width: 140, render: (v: string | null) => v || "—" },
-                    {
-                      title: "有效期",
-                      dataIndex: "expiry_date",
-                      width: 120,
-                      render: (v: string | null, r) => expiryTag(v, r.days_to_expiry),
-                    },
-                  ]}
-                />
-              </Form.Item>
-            ) : (
-              <Form.Item
-                name="qty"
-                label={`出库数量(当前库存: ${selectedBatch.current_qty} ${selectedBatch.unit})`}
-                rules={[{ required: true }]}
-              >
-                <InputNumber min={0.01} max={selectedBatch.current_qty} style={{ width: "100%" }} />
-              </Form.Item>
-            )}
-            <Form.Item name="txn_date" label="出库日期" rules={[{ required: true }]}>
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="purpose" label="用途">
-              <Input />
-            </Form.Item>
-            <Form.Item name="remark" label="备注">
-              <Input.TextArea rows={2} />
-            </Form.Item>
-            <Button type="primary" loading={pending} onClick={handleSubmit}>
-              确认出库
-            </Button>
-          </Form>
-        </Card>
+        </div>
       )}
     </>
   );
