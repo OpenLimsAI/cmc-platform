@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
-  Button, Tag, message, Space, Alert, Typography, AutoComplete, Segmented,
+  Button, Tag, message, Space, Alert, Typography, AutoComplete, Segmented, Descriptions,
 } from "antd";
 import {
   SearchOutlined, ExportOutlined, PlusOutlined, DeleteOutlined,
@@ -259,6 +259,27 @@ function SingleIntake() {
               </Form>
             </div>
           )}
+
+          {/* 物料基本信息(只读;常驻显示,解析后填充) */}
+          <Descriptions bordered size="small" column={3} style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="物料ID">
+              {resolved ? <Typography.Text type="secondary">{resolved.material_id}</Typography.Text> : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="物料编码">
+              {resolved
+                ? (resolved.material_code === TT_INTERNAL_CODE ? <Tag color="orange">无编码</Tag> : resolved.material_code)
+                : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="物料名称">{resolved?.name_cn ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="来源">
+              {resolved ? (resolved.data_source === "mdm" ? <Tag color="geekblue">MDM</Tag> : <Tag>本地</Tag>) : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="生产商">{resolved?.manufacturer ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="规格">{resolved?.spec_model ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="货号">{resolved?.catalog_no ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="单位">{resolved?.unit ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="分类">{resolved?.category ?? "—"}</Descriptions.Item>
+          </Descriptions>
 
           {/* 通用批次字段 */}
           <Space wrap size="large" align="start">
