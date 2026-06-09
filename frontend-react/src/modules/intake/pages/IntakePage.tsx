@@ -80,13 +80,20 @@ interface Pos {
   freezer: StorageNode | null;
   freezerSel: FreezerSelection | null;
 }
-// 一组批次信息:一个批号/有效期/入库日期 + 1..N 个存放位置
+// 一组批次信息:批号/有效期/入库日期 + 类型专属字段 + 1..N 个存放位置
 interface BatchGroup {
   key: number;
   batchNo: string;
   expiry: Dayjs | null;
   received: Dayjs;
   positions: Pos[];
+  // 色谱柱专属(每根色谱柱一组)
+  serialNo?: string;
+  assetNo?: string;
+  responsiblePerson?: string;
+  // 标准品专属:浓度/活性(数值) + 单位
+  concValue?: number;
+  concUnit?: string;
 }
 
 function IntakeForm() {
@@ -218,10 +225,6 @@ function IntakeForm() {
     const materialId = await ensureMaterialId();
     if (materialId == null) return;
 
-    const typeFields = {
-      concentration: v.concentration, extinction_coefficient: v.extinction_coefficient,
-      serial_no: v.serial_no, asset_no: v.asset_no, responsible_person: v.responsible_person,
-    };
     const remark = v.remark;
 
     const tasks: Promise<TaskResult>[] = [];
@@ -233,6 +236,15 @@ function IntakeForm() {
       const received = g.received.format("YYYY-MM-DD");
       const expiry = g.expiry?.format("YYYY-MM-DD") ?? null;
 
+      // 类型专属字段(每组各自):标准品=浓度/活性(数值+单位合成字符串);色谱柱=序列号/编号/负责人
+      const conc = activeTab === "standard" && g.concValue != null
+        ? `${g.concValue}${g.concUnit ? ` ${g.concUnit}` : ""}` : undefined;
+      const tf = activeTab === "column"
+        ? { serial_no: g.serialNo || undefined, asset_no: g.assetNo || undefined, responsible_person: g.responsiblePerson || undefined }
+        : activeTab === "standard"
+          ? { concentration: conc }
+          : {};
+
       const bulkRows: BulkIntakeRow[] = [];
       for (const p of g.positions) {
         if (p.freezer) {
@@ -240,8 +252,7 @@ function IntakeForm() {
           anyPos = true;
           const base = {
             material_id: materialId, batch_no: g.batchNo, expiry_date: expiry, received_date: received,
-            intake_type: activeTab, concentration: v.concentration,
-            extinction_coefficient: v.extinction_coefficient, remark,
+            intake_type: activeTab, concentration: conc, remark,
           };
           if (p.freezerSel.mode === "from") {
             if (!p.freezerSel.startCellId) { message.warning("请点选起始孔"); return; }
@@ -258,7 +269,7 @@ function IntakeForm() {
           anyPos = true;
           bulkRows.push({
             material_id: materialId, batch_no: g.batchNo, expiry_date: expiry,
-            location_id: p.locationId, qty: p.qty!, remark, ...typeFields,
+            location_id: p.locationId, qty: p.qty!, remark, ...tf,
           });
         }
       }
@@ -439,22 +450,59 @@ function IntakeForm() {
                 )}
               </div>
 
-              {/* 第一行:批号 / 有效期 / 入库日期 + 加批次 */}
+              {/* 第一行:批号 / 有效期 / 入库日期 + 类型专属字段 + 加批次 */}
               <Space align="end" wrap size="middle" style={{ marginBottom: 4 }}>
-                <Labeled label={<span>批号 <span style={{ color: "#ff4d4f" }}>*</span></span>}>
+                <Labeled label={<span>{activeTab === "column" ? "色谱柱批号" : "批号"} <span style={{ color: "#ff4d4f" }}>*</span></span>}>
                   <Input
-                    style={{ width: 200 }} value={g.batchNo}
+                    style={{ width: 180 }} value={g.batchNo}
                     onChange={(e) => patchGroup(g.key, { batchNo: e.target.value })}
                   />
                 </Labeled>
                 <Labeled label="有效期">
-                  <DatePicker style={{ width: 160 }} value={g.expiry}
+                  <DatePicker style={{ width: 150 }} value={g.expiry}
                     onChange={(d) => patchGroup(g.key, { expiry: d })} />
                 </Labeled>
                 <Labeled label={<span>入库日期 <span style={{ color: "#ff4d4f" }}>*</span></span>}>
-                  <DatePicker style={{ width: 160 }} value={g.received}
+                  <DatePicker style={{ width: 150 }} value={g.received}
                     onChange={(d) => patchGroup(g.key, { received: d ?? dayjs() })} />
                 </Labeled>
+
+                {/* 色谱柱专属:序列号 / 编号 / 负责人 */}
+                {activeTab === "column" && (
+                  <>
+                    <Labeled label="色谱柱序列号">
+                      <Input style={{ width: 160 }} value={g.serialNo}
+                        onChange={(e) => patchGroup(g.key, { serialNo: e.target.value })} />
+                    </Labeled>
+                    <Labeled label="色谱柱编号">
+                      <Input style={{ width: 160 }} value={g.assetNo}
+                        onChange={(e) => patchGroup(g.key, { assetNo: e.target.value })} />
+                    </Labeled>
+                    <Labeled label="负责人">
+                      <Input style={{ width: 120 }} value={g.responsiblePerson}
+                        onChange={(e) => patchGroup(g.key, { responsiblePerson: e.target.value })} />
+                    </Labeled>
+                  </>
+                )}
+
+                {/* 标准品专属:浓度/活性(数值) + 单位 */}
+                {activeTab === "standard" && (
+                  <>
+                    <Labeled label="浓度/活性">
+                      <InputNumber style={{ width: 140 }} placeholder="数值" value={g.concValue}
+                        onChange={(val) => patchGroup(g.key, { concValue: val ?? undefined })} />
+                    </Labeled>
+                    <Labeled label="单位">
+                      <Select
+                        showSearch placeholder="单位" optionFilterProp="label" style={{ width: 120 }}
+                        value={g.concUnit || undefined} allowClear
+                        onChange={(val) => patchGroup(g.key, { concUnit: val })}
+                        options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                      />
+                    </Labeled>
+                  </>
+                )}
+
                 <Tooltip title="再加一组批次(同一物料的不同批号)">
                   <Button type="primary" icon={<PlusOutlined />} onClick={addGroup}>加批次</Button>
                 </Tooltip>
@@ -514,28 +562,6 @@ function IntakeForm() {
               ))}
             </Card>
           ))}
-
-          {/* 类型专属信息 */}
-          {(activeTab === "standard" || activeTab === "column") && (
-            <>
-              <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
-                <Space size={6}><Tag color={meta.color}>{meta.label}</Tag><span>类型专属信息</span></Space>
-              </Divider>
-              {activeTab === "standard" && (
-                <Space wrap size="large">
-                  <Form.Item name="concentration" label="浓度"><Input placeholder="如 10 mg/mL" style={{ width: 200 }} /></Form.Item>
-                  <Form.Item name="extinction_coefficient" label="消光系数"><InputNumber style={{ width: 200 }} /></Form.Item>
-                </Space>
-              )}
-              {activeTab === "column" && (
-                <Space wrap size="large">
-                  <Form.Item name="serial_no" label="序列号"><Input style={{ width: 160 }} /></Form.Item>
-                  <Form.Item name="asset_no" label="资产编号"><Input style={{ width: 160 }} /></Form.Item>
-                  <Form.Item name="responsible_person" label="负责人"><Input style={{ width: 120 }} /></Form.Item>
-                </Space>
-              )}
-            </>
-          )}
 
           {/* 备注 */}
           <Form.Item name="remark" label="备注" style={{ marginTop: 8 }}>
