@@ -136,7 +136,7 @@ QRY="SELECT c.table_schema||'.'||c.table_name||'|'||c.column_name||'|'||c.data_t
 
 ## 4. 新机器 / 新库 bootstrap
 
-**新机器**（见 README「bootstrap」）：`git clone` → `uv venv` + 装依赖 → `cp .env.example .env` 填密码 → `./dbmig list`。
+**新机器**（见 README「bootstrap」）：`git clone` → `uv venv` + 装依赖 → `cp .env.example .env` 填密码 → `chmod 600 .env`（明文库密码，仅本人可读写）→ `./dbmig list`。
 
 **全新空库从 0 建到最新：**
 ```bash

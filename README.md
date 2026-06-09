@@ -71,12 +71,15 @@ uv pip install -r requirements.txt --python .venv/bin/python
 # 2) 配 .env（含 DB 密码，不入库）
 cp .env.example .env
 #   填 PG_USER / PG_PASSWORD / 端口
+chmod 600 .env                 # 含库密码，收紧为仅本人可读写
 
 # 3) 看状态
 ./dbmig list
 ```
 
 `.env` 用**共享凭据**（一套 `PG_USER`/`PG_PASSWORD` + 端口按库），且 **Mac(docker) 与 Linux(原生) 端口相同**，所以同一份 `.env` 两端通用。
+
+> ⚠️ `.env` 是明文数据库密码，务必 `chmod 600`（仅本人可读写），别留成全用户可读的 `644`。Mac、Linux 两端都要。
 
 > **从空库重建**：每个库都有一个能从空库一把建出全部结构的 baseline。
 > 新库：`createdb <库>` 后 `./dbmig <库> upgrade head` 即可。
