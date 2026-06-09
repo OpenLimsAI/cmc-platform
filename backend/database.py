@@ -27,11 +27,14 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
-# 每个连接建立时,把 search_path 指到 material_mgmt
+# 每个连接建立时,设 search_path + 会话时区
+#   时区设为 Asia/Shanghai,使 func.now()/CURRENT_TIMESTAMP 落库即"裸上海墙钟",
+#   与项目时间约定一致。否则在 DB 时区为 UTC 的服务器上,审计等 created_at 会慢 8 小时。
 @event.listens_for(engine, "connect")
-def _set_search_path(dbapi_conn, _connection_record):  # noqa: D401
+def _set_session_defaults(dbapi_conn, _connection_record):  # noqa: D401
     cur = dbapi_conn.cursor()
     cur.execute("SET search_path TO material_mgmt, public")
+    cur.execute("SET TIME ZONE 'Asia/Shanghai'")
     cur.close()
 
 
