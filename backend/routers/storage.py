@@ -20,10 +20,10 @@ from sqlalchemy.orm import Session
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
 from database import get_db
-from auth import CurrentUser, require_warehouse
+from auth import CurrentUser, require_warehouse, require_admin
 from schemas import (
     CabinetCreate, FridgeCreate, FreezerCreate, NodeUpdate, StorageNodeOut,
-    CellOut, OccupyRequest, OccupyResult, ReleaseRequest,
+    CellOut, OccupyRequest, OccupyResult, ReleaseRequest, AddChildrenRequest,
 )
 
 router = APIRouter(prefix="/api/storage", tags=["storage"])
@@ -286,14 +286,51 @@ def update_node(
     return _to_out(node, node.node_id in child_set)
 
 
-@router.delete("/nodes/{node_id}")
-def delete_node(
+@router.post("/nodes/{node_id}/children")
+def add_children(
     node_id: int,
+    payload: AddChildrenRequest,
     request: Request,
     current: CurrentUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
 ):
-    """删除节点及其子树;子树下存在批次/库存则拒绝(改为停用)。"""
+    """往已有节点追加下级(支持异构:某架单独加层、某层加不同规格的盒、分批加架)。"""
+    try:
+        res = crud.add_children(
+            db, node_id,
+            child_type=payload.child_type, count=payload.count,
+            layers_per_rack=payload.layers_per_rack,
+            boxes_per_layer=payload.boxes_per_layer,
+            cells_per_box=payload.cells_per_box,
+            storage_condition=payload.storage_condition,
+            remark=payload.remark,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"节点 {node_id} 不存在")
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="存在重复的位置编号")
+    write_audit(
+        db, current, "storage.node.add_children",
+        entity_type="storage_node", entity_id=node_id,
+        before=None, after=res,
+        source_ip=get_request_ip(request),
+    )
+    db.commit()
+    return res
+
+
+@router.delete("/nodes/{node_id}")
+def delete_node(
+    node_id: int,
+    request: Request,
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """删除节点及其子树(仅管理员);子树下存在批次/库存则拒绝(改为停用)。"""
     before = db.get(crud.StorageNode, node_id)
     before_snap = model_snapshot(before) if before else None
     try:

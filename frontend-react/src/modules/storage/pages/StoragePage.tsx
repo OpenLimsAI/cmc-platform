@@ -1,22 +1,41 @@
 import { useEffect, useState } from "react";
 import {
   Card, Tree, Button, Space, Modal, Form, Input, InputNumber, Select,
-  Tag, message, Typography, Popconfirm, Descriptions, Empty, Alert,
+  Tag, message, Typography, Descriptions, Empty, Alert,
 } from "antd";
 import {
   PlusOutlined, InboxOutlined, EditOutlined, DeleteOutlined, ExperimentOutlined,
+  ApartmentOutlined,
 } from "@ant-design/icons";
 import type { DataNode } from "antd/es/tree";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listNodes, createCabinet, createFridge, createFreezer, updateNode, deleteNode,
-  listCells, releaseCell,
-  type StorageNode, type CabinetCreate, type FridgeCreate, type FreezerCreate, type Cell,
+  listCells, releaseCell, addChildren,
+  type StorageNode, type CabinetCreate, type FridgeCreate, type FreezerCreate,
+  type Cell, type AddChildrenRequest,
 } from "../../../api/storage";
 import CellGrid from "../components/CellGrid";
+import { useAuthStore } from "../../../stores/authStore";
 import { getErrorDetail } from "../../../shared/errors";
 
 type TNode = DataNode & { raw: StorageNode };
+type ChildField = "count" | "storage_condition" | "layers_per_rack" | "boxes_per_layer" | "cells_per_box";
+
+// 选中节点可追加的下级类型 + 该表单需要的字段(支持异构/分批)
+function getAddSpec(n: StorageNode):
+  { childType: AddChildrenRequest["child_type"]; childLabel: string; fields: ChildField[] } | null {
+  switch (n.node_type) {
+    case "CABINET": return { childType: "CABINET_LAYER", childLabel: "板层", fields: ["count", "storage_condition"] };
+    case "FRIDGE": return n.temp_category === "-80"
+      ? { childType: "RACK", childLabel: "冻存架", fields: ["count", "layers_per_rack", "boxes_per_layer", "cells_per_box"] }
+      : { childType: "FRIDGE_SHELF", childLabel: "隔板", fields: ["count"] };
+    case "RACK": return { childType: "RACK_LAYER", childLabel: "层", fields: ["count", "boxes_per_layer", "cells_per_box"] };
+    case "RACK_LAYER": return { childType: "BOX", childLabel: "盒区", fields: ["count", "cells_per_box"] };
+    case "BOX": return { childType: "CELL", childLabel: "孔", fields: ["count"] };
+    default: return null;
+  }
+}
 
 const TYPE_LABEL: Record<string, string> = {
   ROOM: "房间", CABINET: "试剂柜", CABINET_LAYER: "板层",
@@ -73,11 +92,18 @@ export default function StoragePage() {
   const [fridgeOpen, setFridgeOpen] = useState(false);
   const [freezerOpen, setFreezerOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delText, setDelText] = useState("");
   const [cabForm] = Form.useForm();
   const [fridgeForm] = Form.useForm();
   const [freezerForm] = Form.useForm();
   const [renameForm] = Form.useForm();
+  const [addForm] = Form.useForm();
   const qc = useQueryClient();
+  // 删除仅管理员;编辑/新增下级给库管员(页面本身已 warehouse 限入)
+  const isAdmin = useAuthStore((s) => s.hasRole("SYS_ADMIN"));
+  const addSpec = selected ? getAddSpec(selected) : null;
   // -80 模板规模实时预览
   const fzWatch = Form.useWatch([], freezerForm);
   const fzTotal =
@@ -95,6 +121,13 @@ export default function StoragePage() {
   const onLoadData = async (node: { key: React.Key }) => {
     const kids = await listNodes(Number(node.key)).then((r) => r.data);
     setTreeData((cur) => setChildren(cur, Number(node.key), kids.map(toTNode)));
+  };
+
+  // 追加下级后局部刷新该节点子树并展开,不丢失其他展开状态
+  const refreshChildren = async (parentId: number) => {
+    const kids = await listNodes(parentId).then((r) => r.data);
+    setTreeData((cur) => setChildren(cur, parentId, kids.map(toTNode)));
+    setExpanded((e) => (e.includes(parentId) ? e : [...e, parentId]));
   };
 
   const cabMutation = useMutation({
@@ -132,6 +165,8 @@ export default function StoragePage() {
     onSuccess: (_res, id) => {
       setTreeData((cur) => removeNode(cur, id));
       setSelected(null);
+      setDelOpen(false);
+      setDelText("");
       message.success("已删除");
     },
     onError: (e) => message.error(getErrorDetail(e, "删除失败,可能该位置下仍有库存")),
@@ -144,6 +179,16 @@ export default function StoragePage() {
       await reloadRoot();
     },
     onError: (e) => message.error(getErrorDetail(e, "创建失败")),
+  });
+  const addMutation = useMutation({
+    mutationFn: ({ parentId, data }: { parentId: number; data: AddChildrenRequest }) =>
+      addChildren(parentId, data),
+    onSuccess: async (res, vars) => {
+      message.success(`已新增 ${res.data.created} 个(${res.data.codes.join("、")})`);
+      setAddOpen(false); addForm.resetFields();
+      await refreshChildren(vars.parentId);
+    },
+    onError: (e) => message.error(getErrorDetail(e, "新增失败")),
   });
 
   // 选中盒区 → 加载孔位热力图
@@ -242,15 +287,21 @@ export default function StoragePage() {
                 >
                   {selected.is_active ? "停用" : "启用"}
                 </Button>
-                <Popconfirm
-                  title="删除该节点及其子树?"
-                  description="若其下存在批次/库存将被拒绝。"
-                  onConfirm={() => deleteMutation.mutate(selected.node_id)}
-                >
-                  <Button danger icon={<DeleteOutlined />} loading={deleteMutation.isPending}>
+                {addSpec && (
+                  <Button
+                    icon={<ApartmentOutlined />}
+                    onClick={() => { addForm.resetFields(); setAddOpen(true); }}
+                  >
+                    新增{addSpec.childLabel}
+                  </Button>
+                )}
+                {isAdmin ? (
+                  <Button danger icon={<DeleteOutlined />} onClick={() => { setDelText(""); setDelOpen(true); }}>
                     删除
                   </Button>
-                </Popconfirm>
+                ) : (
+                  <Typography.Text type="secondary">删除需管理员</Typography.Text>
+                )}
               </Space>
 
               {isBox && (
@@ -399,6 +450,95 @@ export default function StoragePage() {
             <Input />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 新增下级(按节点类型动态字段;支持异构/分批) */}
+      <Modal
+        title={addSpec && selected ? `在「${selected.label || selected.code}」下新增${addSpec.childLabel}` : "新增下级"}
+        open={addOpen}
+        onCancel={() => setAddOpen(false)}
+        onOk={() => addForm.submit()}
+        confirmLoading={addMutation.isPending}
+        okText="新增"
+      >
+        {addSpec && selected && (
+          <Form
+            form={addForm}
+            layout="vertical"
+            initialValues={{ count: 1, layers_per_rack: 5, boxes_per_layer: 4, cells_per_box: 100 }}
+            onFinish={(v) => addMutation.mutate({
+              parentId: selected.node_id,
+              data: { child_type: addSpec.childType, ...v },
+            })}
+          >
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message={`编号在现有 ${addSpec.childLabel} 之后自动续接;可对不同${TYPE_LABEL[selected.node_type] ?? "节点"}设置不同规格,实现异构。`}
+            />
+            <Form.Item name="count" label={`新增${addSpec.childLabel}数量`} rules={[{ required: true }]}>
+              <InputNumber min={1} max={1000} style={{ width: "100%" }} />
+            </Form.Item>
+            {addSpec.fields.includes("layers_per_rack") && (
+              <Form.Item name="layers_per_rack" label="每架层数" rules={[{ required: true }]}>
+                <InputNumber min={1} max={20} style={{ width: "100%" }} />
+              </Form.Item>
+            )}
+            {addSpec.fields.includes("boxes_per_layer") && (
+              <Form.Item name="boxes_per_layer" label="每层盒区数(A~)" rules={[{ required: true }]}>
+                <InputNumber min={1} max={26} style={{ width: "100%" }} />
+              </Form.Item>
+            )}
+            {addSpec.fields.includes("cells_per_box") && (
+              <Form.Item name="cells_per_box" label="每盒孔数" rules={[{ required: true }]} extra="常见:81(9×9) / 100(10×10)">
+                <InputNumber min={1} max={400} style={{ width: "100%" }} />
+              </Form.Item>
+            )}
+            {addSpec.fields.includes("storage_condition") && (
+              <Form.Item name="storage_condition" label="存储条件">
+                <Input placeholder="如 常温 / 避光" />
+              </Form.Item>
+            )}
+          </Form>
+        )}
+      </Modal>
+
+      {/* 删除二次确认:仅管理员,需输入节点名 */}
+      <Modal
+        title="删除节点(不可恢复)"
+        open={delOpen}
+        onCancel={() => setDelOpen(false)}
+        onOk={() => selected && deleteMutation.mutate(selected.node_id)}
+        okText="确认删除"
+        okButtonProps={{
+          danger: true,
+          disabled: !selected || delText.trim() !== (selected.label || selected.code),
+          loading: deleteMutation.isPending,
+        }}
+      >
+        {selected && (
+          <>
+            <Alert
+              type="error"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="将删除该节点及其全部下级"
+              description={<>路径:{selected.path}<br />若其下存在批次 / 库存(含 -80 占用)将被拒绝。</>}
+            />
+            <Typography.Paragraph style={{ marginBottom: 8 }}>
+              请输入该节点名称 <b>{selected.label || selected.code}</b> 以确认:
+            </Typography.Paragraph>
+            <Input
+              value={delText}
+              onChange={(e) => setDelText(e.target.value)}
+              placeholder={selected.label || selected.code}
+              onPressEnter={() => {
+                if (delText.trim() === (selected.label || selected.code)) deleteMutation.mutate(selected.node_id);
+              }}
+            />
+          </>
+        )}
       </Modal>
     </>
   );

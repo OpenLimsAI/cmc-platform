@@ -687,6 +687,144 @@ def release_cell(db: Session, cell_node_id: int, operator: str, remark: Optional
 
 
 # ---------------------------------------------------------------------------
+# 往已有节点追加下级(结构性编辑;支持异构与分批)
+# ---------------------------------------------------------------------------
+# 合法的 父类型 → 可追加的子类型
+_ADD_ALLOWED = {
+    "CABINET": {"CABINET_LAYER"},
+    "FRIDGE": {"FRIDGE_SHELF", "RACK"},
+    "RACK": {"RACK_LAYER"},
+    "RACK_LAYER": {"BOX"},
+    "BOX": {"CELL"},
+}
+
+
+def _gen_box_cells(box: StorageNode, cells: int, cell_rows: list, start: int = 1) -> None:
+    for ci in range(start, start + cells):
+        cell_rows.append({
+            "parent_id": box.node_id, "node_type": "CELL", "code": str(ci), "label": str(ci),
+            "path": f"{box.path} / {ci}", "depth": box.depth + 1, "sort_order": ci,
+            "capacity_kind": "cell", "is_active": True,
+        })
+
+
+def _gen_layer_subtree(db: Session, layer: StorageNode, boxes: int, cells: int, cell_rows: list) -> None:
+    for bi in range(boxes):
+        bc = chr(65 + bi)
+        box = StorageNode(
+            parent_id=layer.node_id, node_type="BOX", code=bc, label=bc,
+            path=f"{layer.path} / {bc}", depth=layer.depth + 1, sort_order=bi,
+        )
+        db.add(box)
+        db.flush()
+        _gen_box_cells(box, cells, cell_rows)
+
+
+def _gen_rack_subtree(db: Session, rack: StorageNode, layers: int, boxes: int, cells: int, cell_rows: list) -> None:
+    for li in range(1, layers + 1):
+        layer = StorageNode(
+            parent_id=rack.node_id, node_type="RACK_LAYER", code=str(li), label=str(li),
+            path=f"{rack.path} / {li}", depth=rack.depth + 1, sort_order=li,
+        )
+        db.add(layer)
+        db.flush()
+        _gen_layer_subtree(db, layer, boxes, cells, cell_rows)
+
+
+def add_children(
+    db: Session, parent_id: int, child_type: str, count: int,
+    layers_per_rack: Optional[int] = None, boxes_per_layer: Optional[int] = None,
+    cells_per_box: Optional[int] = None, storage_condition: Optional[str] = None,
+    remark: Optional[str] = None,
+) -> dict:
+    """在 parent 下追加 count 个 child_type 节点,编号续接现有兄弟。
+    异构由此达成:对某个架单独加层、对某层加不同孔数的盒、对冰箱分批加架。"""
+    parent = db.get(StorageNode, parent_id)
+    if parent is None:
+        raise KeyError(parent_id)
+    if child_type not in _ADD_ALLOWED.get(parent.node_type, set()):
+        raise ValueError(f"{parent.node_type} 节点下不支持追加 {child_type}")
+    if parent.node_type == "FRIDGE":
+        is_80 = parent.temp_category == "-80"
+        if is_80 and child_type != "RACK":
+            raise ValueError("-80℃ 冰箱只能追加冻存架")
+        if not is_80 and child_type != "FRIDGE_SHELF":
+            raise ValueError("普通冰箱只能追加隔板")
+
+    # 必填参数与规模守卫
+    per_cells = {
+        "RACK": (layers_per_rack or 0) * (boxes_per_layer or 0) * (cells_per_box or 0),
+        "RACK_LAYER": (boxes_per_layer or 0) * (cells_per_box or 0),
+        "BOX": (cells_per_box or 0),
+        "CELL": 1,
+    }.get(child_type, 0)
+    if child_type == "RACK" and not (layers_per_rack and boxes_per_layer and cells_per_box):
+        raise ValueError("追加冻存架需填:每架层数 / 每层盒数 / 每盒孔数")
+    if child_type == "RACK_LAYER" and not (boxes_per_layer and cells_per_box):
+        raise ValueError("追加层需填:每层盒数 / 每盒孔数")
+    if child_type == "BOX" and not cells_per_box:
+        raise ValueError("追加盒需填:每盒孔数")
+    if per_cells * count > 60000:
+        raise ValueError(f"将生成 {per_cells * count} 个孔位,超过 60000 上限")
+
+    room_no = next((n.code for n in get_node_ancestors(db, parent_id) if n.node_type == "ROOM"), "")
+
+    # 续接编号:RACK/BOX 用字母,其余用数字
+    existing = list(db.execute(
+        select(StorageNode.code).where(
+            StorageNode.parent_id == parent_id, StorageNode.node_type == child_type
+        )
+    ).scalars().all())
+    if child_type in ("RACK", "BOX"):
+        used = set(existing)
+        codes, i = [], 0
+        while len(codes) < count and i < 26:
+            c = chr(65 + i); i += 1
+            if c not in used:
+                codes.append(c)
+        if len(codes) < count:
+            raise ValueError("字母编号(A~Z)已用尽,无法继续追加")
+    else:
+        nums = [int(c) for c in existing if c.isdigit()]
+        start = (max(nums) + 1) if nums else 1
+        codes = [str(start + k) for k in range(count)]
+
+    cell_rows: list = []
+    for code in codes:
+        sort_order = (ord(code) - 65) if child_type in ("RACK", "BOX") else int(code)
+        node = StorageNode(
+            parent_id=parent.node_id, node_type=child_type, code=code, label=code,
+            path=f"{parent.path} / {code}", depth=parent.depth + 1, sort_order=sort_order,
+            remark=remark,
+        )
+        if child_type == "CABINET_LAYER":
+            loc = Location(room_no=room_no, cabinet_no=parent.code, layer_no=int(code),
+                           storage_condition=storage_condition, remark=remark)
+            db.add(loc); db.flush()
+            node.label = f"L{code}"; node.capacity_kind = "bulk"; node.location_id = loc.location_id
+        elif child_type == "FRIDGE_SHELF":
+            loc = Location(room_no=room_no, cabinet_no=parent.code, layer_no=int(code),
+                           storage_condition=storage_condition or parent.temp_text, remark=remark)
+            db.add(loc); db.flush()
+            node.label = f"层{code}"; node.capacity_kind = "bulk"; node.location_id = loc.location_id
+        elif child_type == "CELL":
+            node.capacity_kind = "cell"
+        db.add(node)
+        db.flush()
+        if child_type == "RACK":
+            _gen_rack_subtree(db, node, layers_per_rack, boxes_per_layer, cells_per_box, cell_rows)
+        elif child_type == "RACK_LAYER":
+            _gen_layer_subtree(db, node, boxes_per_layer, cells_per_box, cell_rows)
+        elif child_type == "BOX":
+            _gen_box_cells(node, cells_per_box, cell_rows)
+
+    if cell_rows:
+        db.execute(insert(StorageNode), cell_rows)
+    db.flush()
+    return {"created": len(codes), "child_type": child_type, "codes": codes}
+
+
+# ---------------------------------------------------------------------------
 # Batch
 # ---------------------------------------------------------------------------
 def list_batches(

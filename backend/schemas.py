@@ -112,6 +112,18 @@ class NodeUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class AddChildrenRequest(BaseModel):
+    """往已有节点追加下级(支持异构: 某架单独加层、某层加不同规格的盒等)。
+    child_type 须与父节点类型匹配; 编号自动续接现有兄弟。"""
+    child_type: str = Field(..., pattern=r"^(CABINET_LAYER|FRIDGE_SHELF|RACK|RACK_LAYER|BOX|CELL)$")
+    count: int = Field(..., ge=1, le=1000)
+    layers_per_rack: Optional[int] = Field(None, ge=1, le=20)   # 加 RACK 时
+    boxes_per_layer: Optional[int] = Field(None, ge=1, le=26)   # 加 RACK / RACK_LAYER 时
+    cells_per_box: Optional[int] = Field(None, ge=1, le=400)    # 加 RACK / RACK_LAYER / BOX 时
+    storage_condition: Optional[str] = None                     # 加 CABINET_LAYER 时
+    remark: Optional[str] = None
+
+
 class FreezerCreate(BaseModel):
     """-80℃ 冰箱模板(期2): 房间 + 冰箱名 + 架/层/盒/孔参数 → 一次性展开整棵子树。
     架/盒用字母 A.. 编号(上限 26);层/孔用数字 1.. 编号。"""

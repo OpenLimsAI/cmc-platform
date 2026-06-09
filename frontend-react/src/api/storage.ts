@@ -102,6 +102,22 @@ export const updateNode = (nodeId: number, data: NodeUpdate) =>
 export const deleteNode = (nodeId: number) =>
   client.delete(`/api/storage/nodes/${nodeId}`);
 
+// 往已有节点追加下级(结构性编辑;支持异构/分批)
+export interface AddChildrenRequest {
+  child_type: "CABINET_LAYER" | "FRIDGE_SHELF" | "RACK" | "RACK_LAYER" | "BOX" | "CELL";
+  count: number;
+  layers_per_rack?: number;
+  boxes_per_layer?: number;
+  cells_per_box?: number;
+  storage_condition?: string | null;
+  remark?: string | null;
+}
+
+export const addChildren = (parentId: number, data: AddChildrenRequest) =>
+  client.post<{ created: number; child_type: string; codes: string[] }>(
+    `/api/storage/nodes/${parentId}/children`, data,
+  );
+
 // -80℃ 期2
 export const createFreezer = (data: FreezerCreate) =>
   client.post<StorageNode>("/api/storage/freezers", data);
