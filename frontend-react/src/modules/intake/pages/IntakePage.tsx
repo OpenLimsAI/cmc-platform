@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
   Button, Tag, message, Space, Alert, Typography, AutoComplete, Segmented, Descriptions,
+  Row, Col,
 } from "antd";
 import {
   SearchOutlined, ExportOutlined, PlusOutlined, DeleteOutlined,
@@ -231,8 +232,8 @@ function SingleIntake() {
         </Space>
       </div>
 
-      <Card>
-        <Form form={form} layout="vertical" initialValues={{ received_date: dayjs() }} style={{ maxWidth: 860 }}>
+      <Card style={{ maxWidth: 1600, margin: "0 auto" }}>
+        <Form form={form} layout="vertical" initialValues={{ received_date: dayjs() }}>
           {/* 物料识别 */}
           <Form.Item label="物料">
             <Space align="start" wrap>
@@ -301,7 +302,7 @@ function SingleIntake() {
           )}
 
           {/* 物料基本信息(只读;常驻显示,解析后填充) */}
-          <Descriptions bordered size="small" column={3} style={{ marginBottom: 16 }}>
+          <Descriptions bordered size="small" column={{ xs: 1, sm: 2, lg: 3, xxl: 4 }} style={{ marginBottom: 16 }}>
             <Descriptions.Item label="物料ID">
               {resolved ? <Typography.Text type="secondary">{resolved.material_id}</Typography.Text> : "—"}
             </Descriptions.Item>
@@ -321,88 +322,96 @@ function SingleIntake() {
             <Descriptions.Item label="分类">{resolved?.category ?? "—"}</Descriptions.Item>
           </Descriptions>
 
-          {/* 通用批次字段 */}
-          <Space wrap size="large" align="start">
-            <Form.Item name="batch_no" label="批号" rules={[{ required: true }]}><Input style={{ width: 200 }} /></Form.Item>
-            <Form.Item name="expiry_date" label="有效期"><DatePicker style={{ width: 160 }} /></Form.Item>
-            <Form.Item name="received_date" label="入库日期" rules={[{ required: true }]}><DatePicker style={{ width: 160 }} /></Form.Item>
-          </Space>
+          {/* 宽屏左右两栏;窄屏自动堆叠 */}
+          <Row gutter={[32, 8]}>
+            {/* 左栏:批次信息 + 类型专属 */}
+            <Col xs={24} lg={12}>
+              <Divider titlePlacement="left">批次信息</Divider>
+              <Space wrap size="large" align="start">
+                <Form.Item name="batch_no" label="批号" rules={[{ required: true }]}><Input style={{ width: 200 }} /></Form.Item>
+                <Form.Item name="expiry_date" label="有效期"><DatePicker style={{ width: 160 }} /></Form.Item>
+                <Form.Item name="received_date" label="入库日期" rules={[{ required: true }]}><DatePicker style={{ width: 160 }} /></Form.Item>
+              </Space>
 
-          {/* 类型专属字段(常驻) */}
-          <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
-            <Space size={6}><Tag color={meta.color}>{meta.label}</Tag><span>类型专属信息</span></Space>
-          </Divider>
-          {activeTab === "standard" && (
-            <Space wrap size="large">
-              <Form.Item name="concentration" label="浓度"><Input placeholder="如 10 mg/mL" style={{ width: 200 }} /></Form.Item>
-              <Form.Item name="extinction_coefficient" label="消光系数"><InputNumber style={{ width: 200 }} /></Form.Item>
-            </Space>
-          )}
-          {activeTab === "column" && (
-            <Space wrap size="large">
-              <Form.Item name="serial_no" label="序列号"><Input style={{ width: 160 }} /></Form.Item>
-              <Form.Item name="asset_no" label="资产编号"><Input style={{ width: 160 }} /></Form.Item>
-              <Form.Item name="responsible_person" label="负责人"><Input style={{ width: 120 }} /></Form.Item>
-            </Space>
-          )}
-          {(activeTab === "reagent" || activeTab === "consumable") && (
-            <Typography.Text type="secondary">{meta.label}无额外专属字段。</Typography.Text>
-          )}
-
-          {/* 存放与数量分配 */}
-          <Divider titlePlacement="left">存放位置与数量</Divider>
-          <Space align="end" wrap size="middle">
-            <LocationPicker
-              labeled
-              value={primaryLoc}
-              onChange={setPrimaryLoc}
-              onFreezerSelect={(f) => { setFreezer(f); if (f) setFreezerSel(null); }}
-            />
-            {!freezer && (
-              <>
-                <Labeled label="数量">
-                  <InputNumber placeholder="数量" min={0.01} value={primaryQty} onChange={(q) => setPrimaryQty(q ?? undefined)} style={{ width: 110 }} />
-                </Labeled>
-                <Labeled label="单位">
-                  <Select
-                    showSearch placeholder="单位" optionFilterProp="label" style={{ width: 100 }}
-                    value={unitVal || undefined} disabled={!!resolved}
-                    onChange={(v) => setUnitVal(v)}
-                    options={units.map((u) => ({ label: u.unit, value: u.unit }))}
-                  />
-                </Labeled>
-                <Labeled label="规格">
-                  <Input placeholder="规格" style={{ width: 150 }}
-                    value={specVal} disabled={!!resolved}
-                    onChange={(e) => setSpecVal(e.target.value)} />
-                </Labeled>
-              </>
-            )}
-          </Space>
-
-          {freezer && (
-            <div style={{ marginTop: 12 }}>
-              <FreezerCellPicker freezer={freezer} resetKey={resetKey} onChange={setFreezerSel} />
-            </div>
-          )}
-
-          {!freezer && (
-            <div style={{ marginTop: 8 }}>
-              {extra.map((p) => (
-                <Space key={p.key} align="start" wrap style={{ display: "flex", marginBottom: 8 }}>
-                  <LocationPicker value={p.locationId} onChange={(loc) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, locationId: loc } : x))} />
-                  <InputNumber placeholder="数量" min={0.01} value={p.qty} onChange={(q) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, qty: q ?? undefined } : x))} style={{ width: 120 }} />
-                  <Button danger icon={<DeleteOutlined />} onClick={() => setExtra((xs) => xs.filter((x) => x.key !== p.key))} />
+              <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
+                <Space size={6}><Tag color={meta.color}>{meta.label}</Tag><span>类型专属信息</span></Space>
+              </Divider>
+              {activeTab === "standard" && (
+                <Space wrap size="large">
+                  <Form.Item name="concentration" label="浓度"><Input placeholder="如 10 mg/mL" style={{ width: 200 }} /></Form.Item>
+                  <Form.Item name="extinction_coefficient" label="消光系数"><InputNumber style={{ width: 200 }} /></Form.Item>
                 </Space>
-              ))}
-              <Button type="dashed" icon={<PlusOutlined />} onClick={() => setExtra((xs) => [...xs, { key: Date.now() }])}>
-                加位置(同一批放不下时分散到其他柜/板层)
-              </Button>
-            </div>
-          )}
+              )}
+              {activeTab === "column" && (
+                <Space wrap size="large">
+                  <Form.Item name="serial_no" label="序列号"><Input style={{ width: 160 }} /></Form.Item>
+                  <Form.Item name="asset_no" label="资产编号"><Input style={{ width: 160 }} /></Form.Item>
+                  <Form.Item name="responsible_person" label="负责人"><Input style={{ width: 120 }} /></Form.Item>
+                </Space>
+              )}
+              {(activeTab === "reagent" || activeTab === "consumable") && (
+                <Typography.Text type="secondary">{meta.label}无额外专属字段。</Typography.Text>
+              )}
+            </Col>
 
-          <div style={{ marginTop: 20 }}>
-            <Form.Item name="remark" label="备注" style={{ maxWidth: 600 }}><Input.TextArea rows={2} /></Form.Item>
+            {/* 右栏:存放位置与数量 + 备注 */}
+            <Col xs={24} lg={12}>
+              <Divider titlePlacement="left">存放位置与数量</Divider>
+              <Space align="end" wrap size="middle">
+                <LocationPicker
+                  labeled
+                  value={primaryLoc}
+                  onChange={setPrimaryLoc}
+                  onFreezerSelect={(f) => { setFreezer(f); if (f) setFreezerSel(null); }}
+                />
+                {!freezer && (
+                  <>
+                    <Labeled label="数量">
+                      <InputNumber placeholder="数量" min={0.01} value={primaryQty} onChange={(q) => setPrimaryQty(q ?? undefined)} style={{ width: 110 }} />
+                    </Labeled>
+                    <Labeled label="单位">
+                      <Select
+                        showSearch placeholder="单位" optionFilterProp="label" style={{ width: 100 }}
+                        value={unitVal || undefined} disabled={!!resolved}
+                        onChange={(v) => setUnitVal(v)}
+                        options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                      />
+                    </Labeled>
+                    <Labeled label="规格">
+                      <Input placeholder="规格" style={{ width: 150 }}
+                        value={specVal} disabled={!!resolved}
+                        onChange={(e) => setSpecVal(e.target.value)} />
+                    </Labeled>
+                  </>
+                )}
+              </Space>
+
+              {freezer && (
+                <div style={{ marginTop: 12 }}>
+                  <FreezerCellPicker freezer={freezer} resetKey={resetKey} onChange={setFreezerSel} />
+                </div>
+              )}
+
+              {!freezer && (
+                <div style={{ marginTop: 8 }}>
+                  {extra.map((p) => (
+                    <Space key={p.key} align="end" wrap style={{ display: "flex", marginBottom: 8 }}>
+                      <LocationPicker value={p.locationId} onChange={(loc) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, locationId: loc } : x))} />
+                      <InputNumber placeholder="数量" min={0.01} value={p.qty} onChange={(q) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, qty: q ?? undefined } : x))} style={{ width: 110 }} />
+                      <Button danger icon={<DeleteOutlined />} onClick={() => setExtra((xs) => xs.filter((x) => x.key !== p.key))} />
+                    </Space>
+                  ))}
+                  <Button type="dashed" icon={<PlusOutlined />} onClick={() => setExtra((xs) => [...xs, { key: Date.now() }])}>
+                    加位置(同一批放不下时分散到其他柜/板层)
+                  </Button>
+                </div>
+              )}
+
+              <Form.Item name="remark" label="备注" style={{ marginTop: 16 }}><Input.TextArea rows={2} /></Form.Item>
+            </Col>
+          </Row>
+
+          <div style={{ marginTop: 8 }}>
             <Button type="primary" size="large" loading={pending} onClick={submit}>确认入库</Button>
           </div>
         </Form>
