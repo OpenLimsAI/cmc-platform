@@ -137,3 +137,23 @@ export const occupyCells = (data: OccupyRequest) =>
 
 export const releaseCell = (cellNodeId: number, remark?: string) =>
   client.post("/api/storage/release", { cell_node_id: cellNodeId, remark });
+
+export interface OccupyFromRequest {
+  material_id: number;
+  batch_no: string;
+  expiry_date?: string | null;
+  received_date: string;
+  start_cell_node_id: number;
+  count: number;
+  sample_labels?: (string | null)[] | null;
+  intake_type?: string | null;
+  concentration?: string | null;
+  extinction_coefficient?: number | null;
+  remark?: string | null;
+}
+
+// -80℃ 起始连续填充:从起始孔起连续 count 个孔(须全空)
+export const occupyFrom = (data: OccupyFromRequest) =>
+  client.post<{ batch_id: number; count: number; addresses: string[] }>(
+    "/api/storage/occupy-from", data,
+  );

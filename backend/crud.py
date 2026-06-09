@@ -664,6 +664,64 @@ def occupy_cells(
     }
 
 
+def occupy_from_start(
+    db: Session, start_cell_node_id: int, count: int,
+    material_id: int, batch_no: str, expiry_date, received_date, operator: str,
+    sample_labels: Optional[Sequence[Optional[str]]] = None,
+    intake_type: Optional[str] = None, concentration: Optional[str] = None,
+    extinction_coefficient: Optional[Decimal] = None, remark: Optional[str] = None,
+) -> dict:
+    """从起始孔起,沿地址顺序取连续 count 个孔(须全部为空,中间有占用即报错),
+    占用入库。复用 occupy_cells 落库。返回 {batch_id, count, addresses}。"""
+    start = db.get(StorageNode, start_cell_node_id)
+    if start is None or start.node_type != "CELL":
+        raise ValueError("起始位置不是有效孔位")
+    fridge = next((n for n in get_node_ancestors(db, start_cell_node_id) if n.node_type == "FRIDGE"), None)
+    if fridge is None or fridge.location_id is None:
+        raise ValueError("起始孔未挂在 -80℃ 冰箱下")
+
+    # 冰箱内全部孔位,按地址顺序(盒 path → 孔号),带占用标记
+    rows = db.execute(text(
+        """
+        WITH RECURSIVE sub AS (
+            SELECT node_id, node_type, code, parent_id FROM material_mgmt.storage_node WHERE node_id = :fid
+            UNION ALL
+            SELECT c.node_id, c.node_type, c.code, c.parent_id
+            FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+        )
+        SELECT s.node_id, (o.occupancy_id IS NOT NULL) AS occupied
+        FROM sub s
+        JOIN material_mgmt.storage_node p ON p.node_id = s.parent_id
+        LEFT JOIN material_mgmt.cell_occupancy o
+               ON o.cell_node_id = s.node_id AND o.status = 'stored'
+        WHERE s.node_type = 'CELL'
+        ORDER BY p.path, length(s.code), s.code
+        """
+    ), {"fid": fridge.node_id}).all()
+    ids = [r[0] for r in rows]
+    occupied = {r[0]: r[1] for r in rows}
+    try:
+        idx = ids.index(start_cell_node_id)
+    except ValueError:
+        raise ValueError("起始孔不在该冰箱内")
+
+    window = ids[idx: idx + count]
+    if len(window) < count:
+        raise ValueError(f"从起始位置往后不足 {count} 个孔(仅剩 {len(window)} 个)")
+    conflicts = [cid for cid in window if occupied.get(cid)]
+    if conflicts:
+        addrs = ", ".join(cell_address(db, cid) for cid in conflicts[:10])
+        raise ValueError(f"起始位置起的 {count} 个连续孔中有已占用,无法连续填充: {addrs}")
+
+    return occupy_cells(
+        db, material_id=material_id, batch_no=batch_no, expiry_date=expiry_date,
+        received_date=received_date, cell_node_ids=window, operator=operator,
+        sample_labels=sample_labels, intake_type=intake_type,
+        concentration=concentration, extinction_coefficient=extinction_coefficient,
+        remark=remark,
+    )
+
+
 def release_cell(db: Session, cell_node_id: int, operator: str, remark: Optional[str] = None) -> dict:
     """释放某孔: 占用置 removed + 一条 OUT 流水(qty=-1)。返回 {batch_id, address}。"""
     occ = db.execute(

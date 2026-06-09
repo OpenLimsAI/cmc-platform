@@ -18,7 +18,7 @@ const TYPE_OPTIONS = [
   { label: "色谱柱", value: "column" },
 ];
 
-export default function BulkIntakePage() {
+export default function BulkIntakePage({ embedded = false }: { embedded?: boolean }) {
   const [form] = Form.useForm();
   const [result, setResult] = useState<BulkIntakeResult | null>(null);
 
@@ -66,12 +66,12 @@ export default function BulkIntakePage() {
 
   return (
     <>
-      <Typography.Title level={4}>批量入库</Typography.Title>
+      {!embedded && <Typography.Title level={4}>批量入库</Typography.Title>}
       <Alert
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="散放层(试剂柜 / 普通冰箱)批量入库;一次提交多行,全部合法才写入(全有或全无)。-80℃ 冻存请用「入库登记」按孔位入库。"
+        message="多物料批量:一次录入多个不同物料(散放层),全部合法才写入(全有或全无)。-80℃ 冻存请用「单物料登记」按孔位入库。"
       />
 
       <Form

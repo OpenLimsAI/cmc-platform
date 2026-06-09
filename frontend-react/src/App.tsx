@@ -9,7 +9,6 @@ import LoginPage from "./modules/admin/pages/LoginPage";
 import DashboardPage from "./modules/dashboard/pages/DashboardPage";
 import MaterialListPage from "./modules/materials/pages/MaterialListPage";
 import IntakePage from "./modules/intake/pages/IntakePage";
-import BulkIntakePage from "./modules/intake/pages/BulkIntakePage";
 import OutgoingPage from "./modules/outgoing/pages/OutgoingPage";
 import StockPage from "./modules/stock/pages/StockPage";
 import AlertsPage from "./modules/alerts/pages/AlertsPage";
@@ -58,7 +57,6 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/materials" element={<MaterialListPage />} />
               <Route path="/intake" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><IntakePage /></ProtectedRoute>} />
-              <Route path="/intake-bulk" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><BulkIntakePage /></ProtectedRoute>} />
               <Route path="/outgoing" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><OutgoingPage /></ProtectedRoute>} />
               <Route path="/stock" element={<StockPage />} />
               <Route path="/alerts" element={<AlertsPage />} />

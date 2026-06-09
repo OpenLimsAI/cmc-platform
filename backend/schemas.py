@@ -168,6 +168,21 @@ class ReleaseRequest(BaseModel):
     remark: Optional[str] = None
 
 
+class OccupyFromRequest(BaseModel):
+    """-80℃ 起始连续填充:从起始孔起取连续 count 个孔(须全空),占用入库。"""
+    material_id: int
+    batch_no: str = Field(..., min_length=1, max_length=100)
+    expiry_date: Optional[date] = None
+    received_date: date
+    start_cell_node_id: int
+    count: int = Field(..., ge=1, le=5000)
+    sample_labels: Optional[List[Optional[str]]] = None
+    intake_type: Optional[str] = None
+    concentration: Optional[str] = None
+    extinction_coefficient: Optional[Decimal] = None
+    remark: Optional[str] = None
+
+
 class OccupyResult(BaseModel):
     batch_id: int
     count: int

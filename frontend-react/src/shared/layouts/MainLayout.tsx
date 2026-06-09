@@ -32,7 +32,6 @@ const materialReadItems = [
 const materialWriteItems = [
   { key: "/import", icon: <FileExcelOutlined />, label: "物料导入" },
   { key: "/intake", icon: <ImportOutlined />, label: "入库登记" },
-  { key: "/intake-bulk", icon: <ImportOutlined />, label: "批量入库" },
   { key: "/outgoing", icon: <ExportOutlined />, label: "出库登记" },
   { key: "/transfer", icon: <SwapOutlined />, label: "移库" },
   { key: "/adjust", icon: <ToolOutlined />, label: "盘点调整" },

@@ -24,6 +24,7 @@ from auth import CurrentUser, require_warehouse, require_admin
 from schemas import (
     CabinetCreate, FridgeCreate, FreezerCreate, NodeUpdate, StorageNodeOut,
     CellOut, OccupyRequest, OccupyResult, ReleaseRequest, AddChildrenRequest,
+    OccupyFromRequest,
 )
 
 router = APIRouter(prefix="/api/storage", tags=["storage"])
@@ -227,6 +228,53 @@ def occupy(
         raise HTTPException(status_code=409, detail="孔位占用冲突,请刷新后重试")
     write_audit(
         db, current, "storage.occupy",
+        entity_type="batch", entity_id=res["batch_id"],
+        before=None, after={"count": res["count"], "addresses": res["addresses"]},
+        source_ip=get_request_ip(request),
+    )
+    db.commit()
+    return res
+
+
+@router.post("/occupy-from", response_model=OccupyResult)
+def occupy_from(
+    payload: OccupyFromRequest,
+    request: Request,
+    current: CurrentUser = Depends(require_warehouse),
+    db: Session = Depends(get_db),
+):
+    """-80℃ 起始连续填充:从起始孔起取连续 count 个孔(须全空)占用入库。"""
+    mat = crud.get_material(db, payload.material_id)
+    if not mat:
+        raise HTTPException(status_code=404, detail=f"物料 #{payload.material_id} 不存在")
+    if not mat.is_active:
+        raise HTTPException(status_code=400, detail=f"物料 {mat.material_code} 已停用,不可入库")
+    if payload.sample_labels is not None and len(payload.sample_labels) != payload.count:
+        raise HTTPException(status_code=400, detail="样品号数量与孔位数量不一致")
+    try:
+        res = crud.occupy_from_start(
+            db,
+            start_cell_node_id=payload.start_cell_node_id,
+            count=payload.count,
+            material_id=payload.material_id,
+            batch_no=payload.batch_no.strip(),
+            expiry_date=payload.expiry_date,
+            received_date=payload.received_date,
+            operator=current.username,
+            sample_labels=payload.sample_labels,
+            intake_type=payload.intake_type,
+            concentration=payload.concentration,
+            extinction_coefficient=payload.extinction_coefficient,
+            remark=payload.remark,
+        )
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="孔位占用冲突,请刷新后重试")
+    write_audit(
+        db, current, "storage.occupy_from",
         entity_type="batch", entity_id=res["batch_id"],
         before=None, after={"count": res["count"], "addresses": res["addresses"]},
         source_ip=get_request_ip(request),

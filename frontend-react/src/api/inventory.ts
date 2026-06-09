@@ -125,6 +125,11 @@ export interface BulkIntakeRow {
   expiry_date?: string | null;
   location_id: number;
   qty: number;
+  concentration?: string | null;
+  extinction_coefficient?: number | null;
+  serial_no?: string | null;
+  asset_no?: string | null;
+  responsible_person?: string | null;
   remark?: string | null;
 }
 

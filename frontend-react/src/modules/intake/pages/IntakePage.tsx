@@ -1,28 +1,30 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider,
-  Button, Descriptions, Tag, message, Space, Alert, Typography, AutoComplete,
+  Card, Tabs, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
+  Button, Tag, message, Space, Alert, Typography, AutoComplete, Segmented,
 } from "antd";
 import {
-  SearchOutlined, ExportOutlined, ExperimentOutlined, InboxOutlined,
-  MedicineBoxOutlined, FilterOutlined,
+  SearchOutlined, ExportOutlined, PlusOutlined, DeleteOutlined,
+  ExperimentOutlined, InboxOutlined, MedicineBoxOutlined, FilterOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
   createFromMdm, mdmLookup, listMaterials, listUnits, createMaterial,
   TT_INTERNAL_CODE, type Material,
 } from "../../../api/materials";
-import { createBatch, type BatchCreate } from "../../../api/inventory";
-import { occupyCells, type OccupyRequest, type StorageNode } from "../../../api/storage";
+import { bulkIntake, type BulkIntakeRow } from "../../../api/inventory";
+import {
+  occupyCells, occupyFrom, type StorageNode,
+} from "../../../api/storage";
 import LocationPicker from "../components/LocationPicker";
-import FreezerCellPicker from "../components/FreezerCellPicker";
+import FreezerCellPicker, { type FreezerSelection } from "../components/FreezerCellPicker";
+import BulkIntakePage from "./BulkIntakePage";
 import { mdmPortalUrl } from "../../../shared/mdmPortal";
 import { getErrorDetail } from "../../../shared/errors";
 
 type IntakeType = "reagent" | "consumable" | "standard" | "column";
 
-// 每种类型独立颜色/图标/说明 + 专属字段提示,让"当前在哪个标签"一眼可见
 const TYPE_META: Record<IntakeType, {
   label: string; color: string; icon: React.ReactNode; hint: string; extra: string;
 }> = {
@@ -37,243 +39,180 @@ const TAB_ITEMS = (Object.keys(TYPE_META) as IntakeType[]).map((k) => ({
   label: <Space size={6}>{TYPE_META[k].icon}{TYPE_META[k].label}</Space>,
 }));
 
-export default function IntakePage() {
+interface BulkPos { key: number; locationId?: number; qty?: number }
+
+function SingleIntake() {
   const [activeTab, setActiveTab] = useState<IntakeType>("reagent");
+  const [noCode, setNoCode] = useState(false);
   const [materialCode, setMaterialCode] = useState("");
-  const [resolvedMaterial, setResolvedMaterial] = useState<Material | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
+  const [resolved, setResolved] = useState<Material | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  // 本地和 MDM 都没有的编码 → 提供"去 MDM 登记"跳转
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
-  // 选到 -80℃ 冰箱 → 切到冻存选孔模式
-  const [freezer, setFreezer] = useState<StorageNode | null>(null);
-  const [cellIds, setCellIds] = useState<number[]>([]);
-  // 无编码物料就地登记
-  const [noCodeOpen, setNoCodeOpen] = useState(false);
   const [nameQuery, setNameQuery] = useState("");
+  // 存放与分配
+  const [primaryLoc, setPrimaryLoc] = useState<number>();
+  const [primaryQty, setPrimaryQty] = useState<number>();
+  const [extra, setExtra] = useState<BulkPos[]>([]);
+  const [freezer, setFreezer] = useState<StorageNode | null>(null);
+  const [freezerSel, setFreezerSel] = useState<FreezerSelection | null>(null);
+  const [resetKey, setResetKey] = useState(0);
   const [form] = Form.useForm();
   const [noCodeForm] = Form.useForm();
+  const meta = TYPE_META[activeTab];
 
   const { data: units = [] } = useQuery({
-    queryKey: ["units"],
-    queryFn: () => listUnits().then((r) => r.data),
+    queryKey: ["units"], queryFn: () => listUnits().then((r) => r.data),
   });
-  // 无编码登记时按名称搜已有物料, 便于复用而非重复新建
   const { data: nameMatches = [] } = useQuery({
     queryKey: ["materials", "name", nameQuery],
     queryFn: () => listMaterials({ keyword: nameQuery.trim() }).then((r) => r.data),
-    enabled: noCodeOpen && nameQuery.trim().length > 0,
+    enabled: noCode && nameQuery.trim().length > 0,
   });
 
-  const resetAfterSuccess = () => {
-    form.resetFields();
-    noCodeForm.resetFields();
-    setResolvedMaterial(null);
-    setMaterialCode("");
-    setFreezer(null);
-    setCellIds([]);
-    setNoCodeOpen(false);
-    setNameQuery("");
+  const reset = () => {
+    form.resetFields(); noCodeForm.resetFields();
+    setResolved(null); setMaterialCode(""); setNameQuery("");
+    setPrimaryLoc(undefined); setPrimaryQty(undefined); setExtra([]);
+    setFreezer(null); setFreezerSel(null); setResetKey((k) => k + 1);
+    setLookupError(null); setNotFoundCode(null);
   };
 
-  const createLocalMutation = useMutation({
-    mutationFn: createMaterial,
-    onSuccess: (res) => {
-      setResolvedMaterial(res.data);
-      setNoCodeOpen(false);
-      message.success("已登记无编码物料,继续填写批次信息");
-    },
-    onError: (e) => message.error(getErrorDetail(e, "登记失败")),
+  const onDone = (msg: string) => { message.success(msg); reset(); };
+  const bulkMut = useMutation({
+    mutationFn: bulkIntake,
+    onSuccess: (res) => res.data.ok
+      ? onDone(`入库成功:新建 ${res.data.created} 条、追加 ${res.data.appended} 条`)
+      : message.error(res.data.results.find((r) => r.status === "error")?.message ?? "入库失败"),
+    onError: (e) => message.error(getErrorDetail(e, "入库失败")),
+  });
+  const occMut = useMutation({
+    mutationFn: occupyCells,
+    onSuccess: (res) => onDone(`已入库 ${res.data.count} 管到 -80℃ 冰箱`),
+    onError: (e) => message.error(getErrorDetail(e, "冻存入库失败")),
+  });
+  const occFromMut = useMutation({
+    mutationFn: occupyFrom,
+    onSuccess: (res) => onDone(`已从起始位置连续填充 ${res.data.count} 管`),
+    onError: (e) => message.error(getErrorDetail(e, "连续填充失败")),
   });
 
-  const handleCreateLocal = async () => {
-    const name = nameQuery.trim();
-    if (!name) {
-      message.warning("请填写物料名称");
-      return;
-    }
-    const v = await noCodeForm.validateFields();
-    createLocalMutation.mutate({
-      material_code: TT_INTERNAL_CODE,
-      name_cn: name,
-      unit: v.unit,
-      spec_model: v.spec_model,
-      manufacturer: v.manufacturer,
-      grade: v.grade,
-    });
-  };
-
-  const batchMutation = useMutation({
-    mutationFn: (data: BatchCreate) => createBatch(data),
-    onSuccess: () => {
-      message.success("入库成功");
-      resetAfterSuccess();
-    },
-    onError: (err: unknown) => {
-      message.error(getErrorDetail(err, "入库失败"));
-    },
-  });
-
-  const occupyMutation = useMutation({
-    mutationFn: (data: OccupyRequest) => occupyCells(data),
-    onSuccess: (res) => {
-      message.success(`已入库 ${res.data.count} 管到 -80℃ 冰箱`);
-      resetAfterSuccess();
-    },
-    onError: (err: unknown) => {
-      message.error(getErrorDetail(err, "冻存入库失败"));
-    },
-  });
-
-  const handleLookup = async () => {
+  const resolveCode = async () => {
     const code = materialCode.trim();
     if (!code) return;
-
-    setLookupLoading(true);
-    setLookupError(null);
-    setNotFoundCode(null);
-    setResolvedMaterial(null);
-
+    setResolving(true); setLookupError(null); setNotFoundCode(null); setResolved(null);
     try {
-      const localRes = await listMaterials({ keyword: code });
-      const localMatch = localRes.data.find(
-        (m: Material) => m.material_code === code,
-      );
-
-      if (localMatch) {
-        setResolvedMaterial(localMatch);
-        return;
-      }
-
+      const local = await listMaterials({ keyword: code });
+      const m = local.data.find((x: Material) => x.material_code === code);
+      if (m) { setResolved(m); return; }
       try {
         await mdmLookup(code);
         const { data: created } = await createFromMdm(code);
-        setResolvedMaterial(created);
-        message.info("已从 MDM 获取物料信息");
-      } catch {
-        setNotFoundCode(code);
-      }
-    } catch {
-      setLookupError("查询失败，请检查网络");
-    } finally {
-      setLookupLoading(false);
-    }
+        setResolved(created); message.info("已从 MDM 获取物料信息");
+      } catch { setNotFoundCode(code); }
+    } catch { setLookupError("查询失败,请检查网络"); }
+    finally { setResolving(false); }
   };
 
-  const handleSubmit = async () => {
-    if (!resolvedMaterial) {
-      message.warning("请先查询物料");
+  // 解析/取得 material_id;无编码时按需新建本地物料
+  const ensureMaterialId = async (): Promise<number | null> => {
+    if (!noCode) {
+      if (!resolved) { message.warning("请输入物料编码并解析"); return null; }
+      return resolved.material_id;
+    }
+    if (resolved) return resolved.material_id;        // 自动补全选了已有
+    const name = nameQuery.trim();
+    if (!name) { message.warning("请填写物料名称"); return null; }
+    const v = await noCodeForm.validateFields();
+    const { data } = await createMaterial({
+      material_code: TT_INTERNAL_CODE, name_cn: name, unit: v.unit,
+      spec_model: v.spec_model, manufacturer: v.manufacturer, grade: v.grade,
+    });
+    return data.material_id;
+  };
+
+  const submit = async () => {
+    let v;
+    try { v = await form.validateFields(); } catch { return; }
+    const materialId = await ensureMaterialId();
+    if (materialId == null) return;
+    const received = v.received_date.format("YYYY-MM-DD");
+    const expiry = v.expiry_date?.format("YYYY-MM-DD") ?? null;
+    const typeFields = {
+      concentration: v.concentration, extinction_coefficient: v.extinction_coefficient,
+      serial_no: v.serial_no, asset_no: v.asset_no, responsible_person: v.responsible_person,
+    };
+
+    if (freezer) {
+      if (!freezerSel) { message.warning("请在 -80℃ 冰箱中选孔"); return; }
+      if (freezerSel.mode === "from") {
+        if (!freezerSel.startCellId) { message.warning("请点选起始孔"); return; }
+        occFromMut.mutate({
+          material_id: materialId, batch_no: v.batch_no, expiry_date: expiry, received_date: received,
+          start_cell_node_id: freezerSel.startCellId, count: freezerSel.count,
+          intake_type: activeTab, concentration: v.concentration, extinction_coefficient: v.extinction_coefficient, remark: v.remark,
+        });
+      } else {
+        if (!freezerSel.cellIds.length) { message.warning("请选择孔位"); return; }
+        occMut.mutate({
+          material_id: materialId, batch_no: v.batch_no, expiry_date: expiry, received_date: received,
+          cell_node_ids: freezerSel.cellIds,
+          intake_type: activeTab, concentration: v.concentration, extinction_coefficient: v.extinction_coefficient, remark: v.remark,
+        });
+      }
       return;
     }
-    try {
-      const values = await form.validateFields();
-      // -80℃ 冻存入库: 走孔位占用
-      if (freezer) {
-        if (cellIds.length === 0) {
-          message.warning("请在 -80℃ 冰箱中选择孔位");
-          return;
-        }
-        occupyMutation.mutate({
-          material_id: resolvedMaterial.material_id,
-          batch_no: values.batch_no,
-          expiry_date: values.expiry_date?.format("YYYY-MM-DD") ?? null,
-          received_date: values.received_date.format("YYYY-MM-DD"),
-          cell_node_ids: cellIds,
-          intake_type: activeTab,
-          concentration: values.concentration,
-          extinction_coefficient: values.extinction_coefficient,
-          remark: values.remark,
-        });
-        return;
-      }
-      // 散放入库(柜 / 普通冰箱)
-      const payload: BatchCreate = {
-        material_id: resolvedMaterial.material_id,
-        batch_no: values.batch_no,
-        expiry_date: values.expiry_date?.format("YYYY-MM-DD") ?? null,
-        location_id: values.location_id,
-        received_date: values.received_date.format("YYYY-MM-DD"),
-        initial_qty: values.initial_qty,
-        remark: values.remark,
-        intake_type: activeTab,
-        concentration: values.concentration,
-        extinction_coefficient: values.extinction_coefficient,
-        serial_no: values.serial_no,
-        asset_no: values.asset_no,
-        responsible_person: values.responsible_person,
-      };
-      batchMutation.mutate(payload);
-    } catch {
-      // form validation error
-    }
+
+    // 散放:主位置 + 额外位置
+    const all: BulkPos[] = [{ key: -1, locationId: primaryLoc, qty: primaryQty }, ...extra];
+    const rows: BulkIntakeRow[] = all
+      .filter((p) => p.locationId && (p.qty ?? 0) > 0)
+      .map((p) => ({
+        material_id: materialId, batch_no: v.batch_no, expiry_date: expiry,
+        location_id: p.locationId!, qty: p.qty!, remark: v.remark, ...typeFields,
+      }));
+    if (!rows.length) { message.warning("请选择存放位置并填写数量"); return; }
+    bulkMut.mutate({ received_date: received, intake_type: activeTab, rows });
   };
 
-  const meta = TYPE_META[activeTab];
+  const pending = bulkMut.isPending || occMut.isPending || occFromMut.isPending;
 
   return (
     <>
-      <Typography.Title level={4}>入库登记</Typography.Title>
-      <Tabs
-        type="card"
-        activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as IntakeType)}
-        items={TAB_ITEMS}
-      />
-
-      {/* 常驻横幅:不管下方有没有填,都能一眼看出当前登记类型 */}
-      <div
-        style={{
-          borderLeft: `4px solid ${meta.color}`,
-          background: `${meta.color}14`,
-          padding: "10px 16px",
-          borderRadius: 4,
-          marginBottom: 16,
-        }}
-      >
+      <Tabs type="card" activeKey={activeTab} onChange={(k) => setActiveTab(k as IntakeType)} items={TAB_ITEMS} />
+      <div style={{ borderLeft: `4px solid ${meta.color}`, background: `${meta.color}14`, padding: "10px 16px", borderRadius: 4, marginBottom: 16 }}>
         <Space>
           <span style={{ color: meta.color, fontSize: 18, lineHeight: 1 }}>{meta.icon}</span>
           <b style={{ color: meta.color }}>当前登记类型：{meta.label}</b>
-          <Typography.Text type="secondary">
-            {meta.hint} · 专属字段：{meta.extra}
-          </Typography.Text>
+          <Typography.Text type="secondary">{meta.hint} · 专属字段：{meta.extra}</Typography.Text>
         </Space>
       </div>
 
-      <Card style={{ marginBottom: 16 }}>
-        <Space>
-          <Input
-            placeholder="输入物料编码"
-            prefix={<SearchOutlined />}
-            value={materialCode}
-            onChange={(e) => setMaterialCode(e.target.value)}
-            onPressEnter={handleLookup}
-            style={{ width: 300 }}
-            disabled={noCodeOpen}
-          />
-          <Button type="primary" loading={lookupLoading} onClick={handleLookup} disabled={noCodeOpen}>
-            查询
-          </Button>
-          {!resolvedMaterial && (
-            <Button type="link" onClick={() => setNoCodeOpen((v) => !v)}>
-              {noCodeOpen ? "返回按编码查询" : "没有物料编码?"}
-            </Button>
-          )}
-        </Space>
-
-        {noCodeOpen && !resolvedMaterial && (
-          <Card size="small" style={{ marginTop: 12, background: "#fafafa" }} title="登记无编码物料(本地)">
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 12 }}
-              message="适用于没有 MDM 编码的物料,如分装原研药作标准品。系统按本地物料记录(编码 TT内部物料),无需去 MDM 编码。"
-            />
-            <Form layout="vertical" form={noCodeForm} style={{ maxWidth: 560 }}>
-              <Form.Item label="物料名称" required>
+      <Card>
+        <Form form={form} layout="vertical" initialValues={{ received_date: dayjs() }} style={{ maxWidth: 860 }}>
+          {/* 物料识别 */}
+          <Form.Item label="物料">
+            <Space align="start" wrap>
+              {!noCode ? (
+                <>
+                  <Input
+                    placeholder="输入物料编码后回车/失焦解析"
+                    prefix={<SearchOutlined />}
+                    value={materialCode}
+                    onChange={(e) => setMaterialCode(e.target.value)}
+                    onPressEnter={resolveCode}
+                    onBlur={resolveCode}
+                    style={{ width: 280 }}
+                  />
+                  {resolving && <Tag>解析中…</Tag>}
+                  {resolved && <Tag color="green">{resolved.name_cn}</Tag>}
+                </>
+              ) : (
                 <AutoComplete
+                  style={{ width: 280 }}
                   value={nameQuery}
-                  onChange={(v) => setNameQuery(v)}
-                  placeholder="输入名称;若已登记过会在下方提示可直接选用"
+                  onChange={(v) => { setNameQuery(v); setResolved(null); }}
+                  placeholder="物料名称(已建过会提示可选用)"
                   options={nameMatches.map((m: Material) => ({
                     value: String(m.material_id),
                     label: `${m.name_cn}${m.material_code === TT_INTERNAL_CODE ? " · 无编码" : ` · ${m.material_code}`}`,
@@ -281,216 +220,133 @@ export default function IntakePage() {
                   }))}
                   onSelect={(_v, opt) => {
                     const m = (opt as { material: Material }).material;
-                    setResolvedMaterial(m);
-                    setNoCodeOpen(false);
-                    message.success("已选用已有物料");
+                    setResolved(m); setNameQuery(m.name_cn); message.success("已选用已有物料");
                   }}
                   filterOption={false}
                 />
-              </Form.Item>
-              <Space wrap align="start">
-                <Form.Item name="unit" label="单位" rules={[{ required: true, message: "选单位" }]}>
-                  <Select
-                    showSearch
-                    style={{ width: 140 }}
-                    placeholder="单位"
-                    optionFilterProp="label"
-                    options={units.map((u) => ({ label: u.unit, value: u.unit }))}
-                  />
-                </Form.Item>
-                <Form.Item name="spec_model" label="规格">
-                  <Input style={{ width: 160 }} placeholder="如 1 mg/支" />
-                </Form.Item>
-                <Form.Item name="manufacturer" label="生产商/来源">
-                  <Input style={{ width: 160 }} />
-                </Form.Item>
-                <Form.Item name="grade" label="级别">
-                  <Input style={{ width: 120 }} />
-                </Form.Item>
-              </Space>
-              <Button
-                type="primary"
-                loading={createLocalMutation.isPending}
-                onClick={handleCreateLocal}
-              >
-                登记并继续入库
-              </Button>
-            </Form>
-          </Card>
-        )}
-
-        {lookupError && (
-          <Alert type="warning" message={lookupError} style={{ marginTop: 12 }} showIcon />
-        )}
-
-        {notFoundCode && (
-          <Alert
-            type="warning"
-            showIcon
-            style={{ marginTop: 12 }}
-            message={`本地和 MDM 都没有编码为 ${notFoundCode} 的物料`}
-            description="新物料需要先在 MDM 登记身份信息（编码/名称/厂家等），登记完成后回到本页重新查询即可继续入库。"
-            action={
-              <Button
-                type="primary"
-                icon={<ExportOutlined />}
-                href={mdmPortalUrl("/materials/new", { code: notFoundCode })}
-                target="_blank"
-              >
-                去 MDM 登记此物料
-              </Button>
-            }
-          />
-        )}
-
-        {resolvedMaterial && (
-          <>
-          <div style={{ marginTop: 16, marginBottom: 8, textAlign: "right" }}>
-            <Button size="small" onClick={() => { setResolvedMaterial(null); setMaterialCode(""); setNameQuery(""); }}>
-              重新选择物料
-            </Button>
-          </div>
-          <Descriptions
-            bordered
-            size="small"
-            column={3}
-          >
-            <Descriptions.Item label="物料ID">
-              <Typography.Text type="secondary" style={{ fontFamily: "monospace" }}>
-                {resolvedMaterial.material_id}
-              </Typography.Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="物料编码">
-              {resolvedMaterial.material_code === TT_INTERNAL_CODE ? (
-                <Tag color="orange">无编码</Tag>
-              ) : (
-                resolvedMaterial.material_code
               )}
-            </Descriptions.Item>
-            <Descriptions.Item label="物料名称">
-              {resolvedMaterial.name_cn}
-            </Descriptions.Item>
-            <Descriptions.Item label="来源">
-              {resolvedMaterial.data_source === "mdm" ? (
-                <Tag color="geekblue">MDM</Tag>
-              ) : (
-                <Tag>本地</Tag>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="生产商">
-              {resolvedMaterial.manufacturer}
-            </Descriptions.Item>
-            <Descriptions.Item label="规格">
-              {resolvedMaterial.spec_model}
-            </Descriptions.Item>
-            <Descriptions.Item label="货号">
-              {resolvedMaterial.catalog_no}
-            </Descriptions.Item>
-            <Descriptions.Item label="单位">
-              {resolvedMaterial.unit}
-            </Descriptions.Item>
-            <Descriptions.Item label="类型">
-              {resolvedMaterial.material_type}
-            </Descriptions.Item>
-            <Descriptions.Item label="分类">
-              {resolvedMaterial.category}
-            </Descriptions.Item>
-          </Descriptions>
-          </>
-        )}
-      </Card>
+              <Checkbox
+                checked={noCode}
+                onChange={(e) => { setNoCode(e.target.checked); setResolved(null); setMaterialCode(""); setNameQuery(""); setNotFoundCode(null); }}
+              >
+                无编码
+              </Checkbox>
+            </Space>
+          </Form.Item>
 
-      {resolvedMaterial && (
-        <Card title="批次信息">
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{ received_date: dayjs() }}
-            style={{ maxWidth: 800 }}
-          >
-            <Form.Item name="batch_no" label="批号" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="expiry_date" label="有效期">
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item
-              name="location_id"
-              label="存放位置"
-              rules={[{ required: !freezer, message: "请选择房间 / 柜或冰箱 / 板层" }]}
-            >
-              <LocationPicker onFreezerSelect={(f) => { setFreezer(f); setCellIds([]); }} />
-            </Form.Item>
+          {notFoundCode && (
+            <Alert
+              type="warning" showIcon style={{ marginBottom: 16 }}
+              message={`本地和 MDM 都没有编码 ${notFoundCode} 的物料`}
+              description="可去 MDM 登记后回来重查;或勾选「无编码」直接登记本地物料。"
+              action={<Button type="primary" icon={<ExportOutlined />} href={mdmPortalUrl("/materials/new", { code: notFoundCode })} target="_blank">去 MDM 登记</Button>}
+            />
+          )}
+          {lookupError && <Alert type="warning" showIcon message={lookupError} style={{ marginBottom: 16 }} />}
 
-            {freezer && (
-              <Form.Item label="冻存孔位">
-                <FreezerCellPicker freezer={freezer} value={cellIds} onChange={setCellIds} />
-              </Form.Item>
-            )}
+          {noCode && !resolved && (
+            <div style={{ marginBottom: 16 }}>
+              <Form form={noCodeForm} layout="inline" component={false}>
+                <Space wrap>
+                  <Form.Item name="unit" label="单位" rules={[{ required: true, message: "选单位" }]}>
+                    <Select showSearch style={{ width: 120 }} placeholder="单位" optionFilterProp="label"
+                      options={units.map((u) => ({ label: u.unit, value: u.unit }))} />
+                  </Form.Item>
+                  <Form.Item name="spec_model" label="规格"><Input style={{ width: 140 }} placeholder="如 1 mg/支" /></Form.Item>
+                  <Form.Item name="manufacturer" label="来源/厂家"><Input style={{ width: 140 }} /></Form.Item>
+                  <Form.Item name="grade" label="级别"><Input style={{ width: 100 }} /></Form.Item>
+                </Space>
+              </Form>
+            </div>
+          )}
 
-            <Form.Item name="received_date" label="入库日期" rules={[{ required: true }]}>
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
+          {/* 通用批次字段 */}
+          <Space wrap size="large" align="start">
+            <Form.Item name="batch_no" label="批号" rules={[{ required: true }]}><Input style={{ width: 200 }} /></Form.Item>
+            <Form.Item name="expiry_date" label="有效期"><DatePicker style={{ width: 160 }} /></Form.Item>
+            <Form.Item name="received_date" label="入库日期" rules={[{ required: true }]}><DatePicker style={{ width: 160 }} /></Form.Item>
+          </Space>
+
+          {/* 类型专属字段(常驻) */}
+          <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
+            <Space size={6}><Tag color={meta.color}>{meta.label}</Tag><span>类型专属信息</span></Space>
+          </Divider>
+          {activeTab === "standard" && (
+            <Space wrap size="large">
+              <Form.Item name="concentration" label="浓度"><Input placeholder="如 10 mg/mL" style={{ width: 200 }} /></Form.Item>
+              <Form.Item name="extinction_coefficient" label="消光系数"><InputNumber style={{ width: 200 }} /></Form.Item>
+            </Space>
+          )}
+          {activeTab === "column" && (
+            <Space wrap size="large">
+              <Form.Item name="serial_no" label="序列号"><Input style={{ width: 160 }} /></Form.Item>
+              <Form.Item name="asset_no" label="资产编号"><Input style={{ width: 160 }} /></Form.Item>
+              <Form.Item name="responsible_person" label="负责人"><Input style={{ width: 120 }} /></Form.Item>
+            </Space>
+          )}
+          {(activeTab === "reagent" || activeTab === "consumable") && (
+            <Typography.Text type="secondary">{meta.label}无额外专属字段。</Typography.Text>
+          )}
+
+          {/* 存放与数量分配 */}
+          <Divider titlePlacement="left">存放位置与数量</Divider>
+          <Space align="start" wrap>
+            <LocationPicker
+              value={primaryLoc}
+              onChange={setPrimaryLoc}
+              onFreezerSelect={(f) => { setFreezer(f); if (f) setFreezerSel(null); }}
+            />
             {!freezer && (
-              <Form.Item name="initial_qty" label="入库数量" rules={[{ required: true }]}>
-                <InputNumber min={0.01} style={{ width: "100%" }} />
-              </Form.Item>
+              <InputNumber placeholder="数量" min={0.01} value={primaryQty} onChange={(q) => setPrimaryQty(q ?? undefined)} style={{ width: 120 }} />
             )}
+          </Space>
 
-            {/* 类型专属信息分区:常驻显示, 每种类型都有, 强化"当前标签"存在感 */}
-            <Divider titlePlacement="left" style={{ borderColor: meta.color }}>
-              <Space size={6}>
-                <Tag color={meta.color}>{meta.label}</Tag>
-                <span>类型专属信息</span>
-              </Space>
-            </Divider>
+          {freezer && (
+            <div style={{ marginTop: 12 }}>
+              <FreezerCellPicker freezer={freezer} resetKey={resetKey} onChange={setFreezerSel} />
+            </div>
+          )}
 
-            {activeTab === "standard" && (
-              <>
-                <Form.Item name="concentration" label="浓度">
-                  <Input placeholder="如 10 mg/mL" />
-                </Form.Item>
-                <Form.Item name="extinction_coefficient" label="消光系数">
-                  <InputNumber style={{ width: "100%" }} />
-                </Form.Item>
-              </>
-            )}
+          {!freezer && (
+            <div style={{ marginTop: 8 }}>
+              {extra.map((p) => (
+                <Space key={p.key} align="start" wrap style={{ display: "flex", marginBottom: 8 }}>
+                  <LocationPicker value={p.locationId} onChange={(loc) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, locationId: loc } : x))} />
+                  <InputNumber placeholder="数量" min={0.01} value={p.qty} onChange={(q) => setExtra((xs) => xs.map((x) => x.key === p.key ? { ...x, qty: q ?? undefined } : x))} style={{ width: 120 }} />
+                  <Button danger icon={<DeleteOutlined />} onClick={() => setExtra((xs) => xs.filter((x) => x.key !== p.key))} />
+                </Space>
+              ))}
+              <Button type="dashed" icon={<PlusOutlined />} onClick={() => setExtra((xs) => [...xs, { key: Date.now() }])}>
+                加位置(同一批放不下时分散到其他柜/板层)
+              </Button>
+            </div>
+          )}
 
-            {activeTab === "column" && (
-              <>
-                <Form.Item name="serial_no" label="序列号">
-                  <Input />
-                </Form.Item>
-                <Form.Item name="asset_no" label="资产编号">
-                  <Input />
-                </Form.Item>
-                <Form.Item name="responsible_person" label="负责人">
-                  <Input />
-                </Form.Item>
-              </>
-            )}
+          <div style={{ marginTop: 20 }}>
+            <Form.Item name="remark" label="备注" style={{ maxWidth: 600 }}><Input.TextArea rows={2} /></Form.Item>
+            <Button type="primary" size="large" loading={pending} onClick={submit}>确认入库</Button>
+          </div>
+        </Form>
+      </Card>
+    </>
+  );
+}
 
-            {(activeTab === "reagent" || activeTab === "consumable") && (
-              <Typography.Text type="secondary">
-                {meta.label}无额外专属字段,按上方通用信息入库即可。
-              </Typography.Text>
-            )}
-
-            <Form.Item name="remark" label="备注" style={{ marginTop: 16 }}>
-              <Input.TextArea rows={2} />
-            </Form.Item>
-
-            <Button
-              type="primary"
-              size="large"
-              loading={batchMutation.isPending || occupyMutation.isPending}
-              onClick={handleSubmit}
-            >
-              {freezer ? `确认冻存入库${cellIds.length ? `(${cellIds.length} 管)` : ""}` : "确认入库"}
-            </Button>
-          </Form>
-        </Card>
-      )}
+export default function IntakePage() {
+  const [mode, setMode] = useState<"single" | "multi">("single");
+  return (
+    <>
+      <Typography.Title level={4}>入库登记</Typography.Title>
+      <Segmented
+        value={mode}
+        onChange={(v) => setMode(v as "single" | "multi")}
+        options={[
+          { label: "单物料登记", value: "single" },
+          { label: "多物料批量", value: "multi" },
+        ]}
+        style={{ marginBottom: 16 }}
+      />
+      {mode === "single" ? <SingleIntake /> : <BulkIntakePage embedded />}
     </>
   );
 }
