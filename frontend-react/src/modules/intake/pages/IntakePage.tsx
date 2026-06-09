@@ -212,7 +212,7 @@ function IntakeForm() {
     if (resolved) return resolved.material_id;        // 自动补全选了已有
     const name = nameQuery.trim();
     if (!name) { message.warning("请填写物料名称"); return null; }
-    if (!unitVal.trim()) { message.warning("请填写物料单位(存放位置行的「单位」栏)"); return null; }
+    if (!unitVal.trim()) { message.warning("请填写物料单位(顶部「无编码物料」区的「单位」)"); return null; }
     const v = await noCodeForm.validateFields();
     const { data } = await createMaterial({
       material_code: TT_INTERNAL_CODE, name_cn: name, unit: unitVal.trim(),
@@ -407,15 +407,24 @@ function IntakeForm() {
           )}
 
           {noCode && !resolved && (
-            <div style={{ marginBottom: 16 }}>
-              <Form form={noCodeForm} layout="inline" component={false}>
-                <Space wrap>
-                  <Form.Item name="manufacturer" label="来源/厂家"><Input style={{ width: 160 }} /></Form.Item>
-                  <Form.Item name="grade" label="级别"><Input style={{ width: 120 }} /></Form.Item>
-                  <Typography.Text type="secondary">单位/规格在下方"批次信息"的存放位置处填写</Typography.Text>
-                </Space>
-              </Form>
-            </div>
+            <Form form={noCodeForm} layout="vertical" component={false}>
+              <Space wrap align="end" size="middle" style={{ marginBottom: 16 }}>
+                <Form.Item name="manufacturer" label="来源/厂家" style={{ marginBottom: 0 }}><Input style={{ width: 160 }} /></Form.Item>
+                <Form.Item name="grade" label="级别" style={{ marginBottom: 0 }}><Input style={{ width: 120 }} /></Form.Item>
+                {/* 单位/规格是物料级属性,无编码新建在此填(不受散放/冻存影响),位置行里只读回显 */}
+                <Labeled label={<span>单位 <span style={{ color: "#ff4d4f" }}>*</span></span>}>
+                  <Select
+                    showSearch placeholder="单位" optionFilterProp="label" style={{ width: 120 }}
+                    value={unitVal || undefined} onChange={(val) => setUnitVal(val)}
+                    options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                  />
+                </Labeled>
+                <Labeled label="规格">
+                  <Input placeholder="规格" style={{ width: 150 }}
+                    value={specVal} onChange={(e) => setSpecVal(e.target.value)} />
+                </Labeled>
+              </Space>
+            </Form>
           )}
 
           {/* 物料基本信息(只读;常驻显示,解析后填充) */}
@@ -531,19 +540,12 @@ function IntakeForm() {
                           <InputNumber placeholder="数量" min={0.01} value={p.qty} style={{ width: 110 }}
                             onChange={(q) => patchPos(g.key, p.key, { qty: q ?? undefined })} />
                         </Labeled>
-                        {/* 单位/规格为物料级,各行展示一致;主数据已解析则只读 */}
+                        {/* 单位/规格为物料级,此处只读回显;编辑入口:有编码看物料信息表,无编码在顶部"无编码物料"区 */}
                         <Labeled label="单位">
-                          <Select
-                            showSearch placeholder="单位" optionFilterProp="label" style={{ width: 100 }}
-                            value={unitShown || undefined} disabled={!!resolved}
-                            onChange={(val) => setUnitVal(val)}
-                            options={units.map((u) => ({ label: u.unit, value: u.unit }))}
-                          />
+                          <Input disabled placeholder="单位" style={{ width: 100 }} value={unitShown} />
                         </Labeled>
                         <Labeled label="规格">
-                          <Input placeholder="规格" style={{ width: 150 }}
-                            value={specShown} disabled={!!resolved}
-                            onChange={(e) => setSpecVal(e.target.value)} />
+                          <Input disabled placeholder="规格" style={{ width: 150 }} value={specShown} />
                         </Labeled>
                       </>
                     )}
