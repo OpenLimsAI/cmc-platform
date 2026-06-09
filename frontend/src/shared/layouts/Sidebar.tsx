@@ -138,6 +138,7 @@ export function Sidebar() {
         borderRight: `1px solid ${token.colorBorderSecondary}`,
         display: 'flex',
         flexDirection: 'column',
+        height: '100%', // 填满行高，固定不随内容区滚动
       }}
       breakpoint="lg"
       collapsedWidth={64}
@@ -146,7 +147,7 @@ export function Sidebar() {
         mode="inline"
         selectedKeys={[selectedKey as string]}
         items={items}
-        style={{ borderRight: 0, paddingTop: 8, flex: 1 }}
+        style={{ borderRight: 0, paddingTop: 8, flex: 1, overflowY: 'auto' }}
         onClick={({ key }) => navigate(key as string)}
       />
       <div

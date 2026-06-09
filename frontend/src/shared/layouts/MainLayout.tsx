@@ -14,16 +14,18 @@ export function MainLayout() {
   }, []);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    // 外壳钉死在视口高度并禁滚，使 Header / 左侧 Sidebar 固定；只让右侧内容区滚动
+    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
       <Header />
-      <Layout>
+      <Layout style={{ overflow: 'hidden' }}>
         <Sidebar />
-        <Layout>
+        <Layout style={{ overflow: 'hidden' }}>
           <Layout.Content
             style={{
               padding: 24,
               background: '#f5f5f5',
-              minHeight: 'calc(100vh - 56px - 32px)', // 减 header 高 + footer 高
+              flex: 1,
+              overflowY: 'auto', // 仅内容区随滚轮滚动
             }}
           >
             <Outlet />
