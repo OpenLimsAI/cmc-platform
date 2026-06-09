@@ -104,7 +104,7 @@ def db(_prepare_schema):
         session.close()
         with engine.begin() as conn:
             conn.execute(text(
-                "TRUNCATE inventory_txn, batch, material, import_log, category_dict, audit_log "
+                "TRUNCATE inventory_txn, batch, material, category_dict, audit_log "
                 "RESTART IDENTITY CASCADE"
             ))
 

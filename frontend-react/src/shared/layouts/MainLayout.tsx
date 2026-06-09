@@ -13,7 +13,6 @@ import {
   SwapOutlined,
   ToolOutlined,
   GoldOutlined,
-  FileExcelOutlined,
   AuditOutlined,
   ExperimentOutlined,
 } from "@ant-design/icons";
@@ -30,7 +29,6 @@ const materialReadItems = [
 
 // 物料库存 — 仅库管员/管理员可见(写操作,后端 require_warehouse)
 const materialWriteItems = [
-  { key: "/import", icon: <FileExcelOutlined />, label: "物料导入" },
   { key: "/intake", icon: <ImportOutlined />, label: "入库登记" },
   { key: "/outgoing", icon: <ExportOutlined />, label: "出库登记" },
   { key: "/transfer", icon: <SwapOutlined />, label: "移库" },

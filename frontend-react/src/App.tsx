@@ -14,7 +14,6 @@ import StockPage from "./modules/stock/pages/StockPage";
 import AlertsPage from "./modules/alerts/pages/AlertsPage";
 import TransferPage from "./modules/transfer/pages/TransferPage";
 import AdjustPage from "./modules/adjust/pages/AdjustPage";
-import ImportPage from "./modules/import/pages/ImportPage";
 import StoragePage from "./modules/storage/pages/StoragePage";
 import AuditLogPage from "./modules/admin/pages/AuditLogPage";
 import EquipmentListPage from "./modules/equipment/pages/EquipmentListPage";
@@ -64,7 +63,6 @@ export default function App() {
               <Route path="/transfer" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><TransferPage /></ProtectedRoute>} />
               <Route path="/adjust" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><AdjustPage /></ProtectedRoute>} />
               <Route path="/storage" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><StoragePage /></ProtectedRoute>} />
-              <Route path="/import" element={<ProtectedRoute roles={WAREHOUSE_ROLES}><ImportPage /></ProtectedRoute>} />
               <Route path="/equipment" element={<EquipmentListPage />} />
               <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
               <Route path="/admin/audit" element={<ProtectedRoute roles={["SYS_ADMIN"]}><AuditLogPage /></ProtectedRoute>} />

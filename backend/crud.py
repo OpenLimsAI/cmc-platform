@@ -162,7 +162,6 @@ def create_material(db: Session, data: dict) -> Material:
         safety_stock=data.get("safety_stock") or Decimal("0"),
         is_active=True,
         data_source=data.get("data_source", "local"),
-        import_batch_id=None,
     )
     db.add(obj)
     db.flush()

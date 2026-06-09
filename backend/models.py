@@ -145,21 +145,6 @@ class CellOccupancy(Base):
 # ---------------------------------------------------------------------------
 # 导入日志
 # ---------------------------------------------------------------------------
-class ImportLog(Base):
-    __tablename__ = "import_log"
-    __table_args__ = {"schema": "material_mgmt"}
-
-    import_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    file_name: Mapped[Optional[str]] = mapped_column(String(200))
-    imported_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    operator: Mapped[Optional[str]] = mapped_column(String(50))
-    total_rows: Mapped[int] = mapped_column(Integer, default=0)
-    inserted_rows: Mapped[int] = mapped_column(Integer, default=0)
-    updated_rows: Mapped[int] = mapped_column(Integer, default=0)
-    failed_rows: Mapped[int] = mapped_column(Integer, default=0)
-    error_detail: Mapped[Optional[dict]] = mapped_column(JSONB)
-
-
 # ---------------------------------------------------------------------------
 # 物料主数据
 # ---------------------------------------------------------------------------
@@ -191,9 +176,6 @@ class Material(Base):
     deactivated_by: Mapped[Optional[str]] = mapped_column(String(50))
     deactivate_reason: Mapped[Optional[str]] = mapped_column(String(200))
     data_source: Mapped[Optional[str]] = mapped_column(String(10), default="local")
-    import_batch_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("material_mgmt.import_log.import_id")
-    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

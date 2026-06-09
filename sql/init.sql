@@ -1,9 +1,9 @@
 -- =============================================================================
 -- 文件: sql/init.sql
 -- 用途: CMC 物料管理系统数据库初始化脚本
---   1) 在 material_mgmt schema 中创建当前版本所需的 10 张表
+--   1) 在 material_mgmt schema 中创建当前版本所需的 9 张表
 --      (material / batch / inventory_txn / location / unit_dict /
---       category_dict / import_log / app_user / auth_session / audit_log)
+--       category_dict / app_user / auth_session / audit_log)
 --   2) 预置单位字典初始值
 --   3) 创建必要索引
 --
@@ -102,21 +102,6 @@ CROSS JOIN generate_series(1, 5) AS layer
 ON CONFLICT (room_no, cabinet_no, layer_no) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
--- 4. 导入日志(import_log)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS import_log (
-    import_id     SERIAL PRIMARY KEY,
-    file_name     VARCHAR(200),
-    imported_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    operator      VARCHAR(50),
-    total_rows    INT DEFAULT 0,
-    inserted_rows INT DEFAULT 0,
-    updated_rows  INT DEFAULT 0,
-    failed_rows   INT DEFAULT 0,
-    error_detail  JSONB
-);
-
--- -----------------------------------------------------------------------------
 -- 5. 物料主数据(material)
 --    material_id 是 SERIAL PK;material_code 是业务编码,允许保留值
 --    'TT内部物料' 重复出现,其余编码保持唯一(部分唯一索引实现)。
@@ -144,7 +129,6 @@ CREATE TABLE IF NOT EXISTS material (
     deactivated_at     TIMESTAMP,
     deactivated_by     VARCHAR(50),
     deactivate_reason  VARCHAR(200),
-    import_batch_id    INT REFERENCES import_log(import_id) ON DELETE SET NULL,
     created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_material_unit
