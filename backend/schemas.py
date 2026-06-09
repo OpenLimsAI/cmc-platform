@@ -147,6 +147,26 @@ class CellOut(ORMBase):
     material_name: Optional[str] = None
     batch_no: Optional[str] = None
     sample_label: Optional[str] = None
+    expiry_date: Optional[date] = None       # 占用孔的批次有效期(供热力图三色:绿/红)
+    days_to_expiry: Optional[int] = None      # <0 已过期
+
+
+class BatchCellOut(ORMBase):
+    """某批次占用的单个孔(出库勾选 / 物料详情弹窗用)。"""
+    cell_node_id: int
+    code: str                         # 孔号
+    address: str                      # 完整地址,如 'TT1 B3:A,23'
+    sample_label: Optional[str] = None
+    expiry_date: Optional[date] = None
+    days_to_expiry: Optional[int] = None
+
+
+class ReleaseCellsRequest(BaseModel):
+    """出库:批量释放(取走)若干孔。"""
+    cell_node_ids: List[int] = Field(..., min_length=1)
+    txn_date: Optional[date] = None
+    purpose: Optional[str] = None
+    remark: Optional[str] = None
 
 
 class OccupyRequest(BaseModel):

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Typography, Table, Input, Select, Tabs, Tag, Space } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { stockByMaterial, stockByBatch } from "../../../api/inventory";
+import MaterialDetailModal from "../components/MaterialDetailModal";
 
 const TYPE_OPTIONS = [
   { label: "全部", value: "" },
@@ -16,6 +17,7 @@ export default function StockPage() {
   const [tab, setTab] = useState("material");
   const [keyword, setKeyword] = useState("");
   const [materialType, setMaterialType] = useState("");
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const { data: materialStock = [], isLoading: matLoading } = useQuery({
     queryKey: ["stockByMaterial", keyword, materialType],
@@ -40,6 +42,9 @@ export default function StockPage() {
   return (
     <>
       <Typography.Title level={4}>库存查询</Typography.Title>
+      <Typography.Text type="secondary" style={{ display: "block", marginTop: -8, marginBottom: 12 }}>
+        双击任一行查看物料详情与存放位置
+      </Typography.Text>
       <Space style={{ marginBottom: 16 }} wrap>
         <Input
           placeholder="搜索编码/名称/批号"
@@ -69,6 +74,10 @@ export default function StockPage() {
               dataSource={materialStock}
               pagination={{ pageSize: 50 }}
               scroll={{ x: 1000 }}
+              onRow={(r) => ({
+                onDoubleClick: () => setDetailId(r.material_id),
+                style: { cursor: "pointer" },
+              })}
               columns={[
                 { title: "物料编码", dataIndex: "material_code", width: 120 },
                 { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
@@ -111,6 +120,10 @@ export default function StockPage() {
               dataSource={batchStock}
               pagination={{ pageSize: 50 }}
               scroll={{ x: 1200 }}
+              onRow={(r) => ({
+                onDoubleClick: () => setDetailId(r.material_id),
+                style: { cursor: "pointer" },
+              })}
               columns={[
                 { title: "物料编码", dataIndex: "material_code", width: 120 },
                 { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
@@ -141,6 +154,12 @@ export default function StockPage() {
           ),
         },
       ]} />
+
+      <MaterialDetailModal
+        materialId={detailId}
+        open={detailId != null}
+        onClose={() => setDetailId(null)}
+      />
     </>
   );
 }

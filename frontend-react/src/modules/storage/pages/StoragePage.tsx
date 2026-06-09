@@ -308,7 +308,7 @@ export default function StoragePage() {
                 <div style={{ marginTop: 20 }}>
                   <Typography.Text strong>孔位占用</Typography.Text>
                   <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-                    红=已占用(点击可释放) · 灰=空闲
+                    灰=空闲 · 绿=已占用(在效期) · 红=已过期 · 点击占用孔可释放
                   </Typography.Text>
                   <div style={{ marginTop: 10 }}>
                     {boxCells.length === 0 ? (

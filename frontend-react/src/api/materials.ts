@@ -54,6 +54,9 @@ export interface Unit {
 export const listMaterials = (params?: Record<string, unknown>) =>
   client.get<Material[]>("/api/materials", { params });
 
+export const getMaterial = (materialId: number) =>
+  client.get<Material>(`/api/materials/${materialId}`);
+
 export const listUnits = () => client.get<Unit[]>("/api/units");
 
 // 就地登记本地物料(无 MDM 编码), material_code 传 TT_INTERNAL_CODE

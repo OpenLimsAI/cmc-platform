@@ -539,7 +539,8 @@ def list_box_cells(db: Session, box_id: int) -> List[dict]:
     if cell_ids:
         rows = db.execute(
             select(
-                CellOccupancy, Material.material_code, Material.name_cn, Batch.batch_no
+                CellOccupancy, Material.material_code, Material.name_cn,
+                Batch.batch_no, Batch.expiry_date,
             )
             .join(Batch, Batch.batch_id == CellOccupancy.batch_id)
             .join(Material, Material.material_id == Batch.material_id)
@@ -548,11 +549,14 @@ def list_box_cells(db: Session, box_id: int) -> List[dict]:
                 CellOccupancy.status == "stored",
             )
         ).all()
-        for o, mcode, mname, bno in rows:
+        today = date.today()
+        for o, mcode, mname, bno, exp in rows:
             occ[o.cell_node_id] = {
                 "occupancy_id": o.occupancy_id, "batch_id": o.batch_id,
                 "material_code": mcode, "material_name": mname,
                 "batch_no": bno, "sample_label": o.sample_label,
+                "expiry_date": exp,
+                "days_to_expiry": (exp - today).days if exp else None,
             }
     out = []
     for c in cells:
@@ -565,8 +569,81 @@ def list_box_cells(db: Session, box_id: int) -> List[dict]:
             "material_name": info["material_name"] if info else None,
             "batch_no": info["batch_no"] if info else None,
             "sample_label": info["sample_label"] if info else None,
+            "expiry_date": info["expiry_date"] if info else None,
+            "days_to_expiry": info["days_to_expiry"] if info else None,
         })
     return out
+
+
+def list_batch_cells(db: Session, batch_id: int) -> List[dict]:
+    """某批次当前占用的全部孔(出库勾选 / 物料详情弹窗用)。空列表表示该批次非孔位存储(散放)。"""
+    batch = db.get(Batch, batch_id)
+    if batch is None:
+        return []
+    rows = db.execute(
+        select(CellOccupancy, StorageNode.code)
+        .join(StorageNode, StorageNode.node_id == CellOccupancy.cell_node_id)
+        .where(
+            CellOccupancy.batch_id == batch_id,
+            CellOccupancy.status == "stored",
+        )
+    ).all()
+    today = date.today()
+    days = (batch.expiry_date - today).days if batch.expiry_date else None
+    out = [
+        {
+            "cell_node_id": o.cell_node_id,
+            "code": code,
+            "address": cell_address(db, o.cell_node_id),
+            "sample_label": o.sample_label,
+            "expiry_date": batch.expiry_date,
+            "days_to_expiry": days,
+        }
+        for o, code in rows
+    ]
+    out.sort(key=lambda x: x["address"])
+    return out
+
+
+def release_cells(
+    db: Session, cell_node_ids: Sequence[int], operator: str,
+    txn_date=None, purpose: Optional[str] = None, remark: Optional[str] = None,
+) -> dict:
+    """出库:批量释放若干孔。每孔置 removed + 一条 OUT 流水(qty=-1)。
+    任一孔为空即整体报错(ValueError)。返回 {count, batch_ids, addresses}。"""
+    if not cell_node_ids:
+        raise ValueError("未选择任何孔位")
+    txn_date = txn_date or date.today()
+    occ_rows = list(db.execute(
+        select(CellOccupancy).where(
+            CellOccupancy.cell_node_id.in_(list(cell_node_ids)),
+            CellOccupancy.status == "stored",
+        )
+    ).scalars().all())
+    found = {o.cell_node_id for o in occ_rows}
+    missing = [cid for cid in cell_node_ids if cid not in found]
+    if missing:
+        addrs = ", ".join(cell_address(db, cid) for cid in missing)
+        raise ValueError(f"以下孔位当前为空,无法出库: {addrs}")
+
+    now = datetime.now()  # 裸上海墙钟
+    batch_ids = set()
+    for o in occ_rows:
+        o.status = "removed"
+        o.removed_at = now
+        if remark:
+            o.remark = remark
+        batch_ids.add(o.batch_id)
+        db.add(InventoryTxn(
+            batch_id=o.batch_id, txn_type="OUT", qty=Decimal("-1"),
+            txn_date=txn_date, operator=operator, purpose=purpose or "出库", remark=remark,
+        ))
+    db.flush()
+    return {
+        "count": len(occ_rows),
+        "batch_ids": sorted(batch_ids),
+        "addresses": [cell_address(db, cid) for cid in cell_node_ids],
+    }
 
 
 def find_free_cells(db: Session, freezer_id: int, count: int) -> List[int]:

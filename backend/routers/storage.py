@@ -24,7 +24,7 @@ from auth import CurrentUser, require_warehouse, require_admin
 from schemas import (
     CabinetCreate, FridgeCreate, FreezerCreate, NodeUpdate, StorageNodeOut,
     CellOut, OccupyRequest, OccupyResult, ReleaseRequest, AddChildrenRequest,
-    OccupyFromRequest,
+    OccupyFromRequest, BatchCellOut, ReleaseCellsRequest,
 )
 
 router = APIRouter(prefix="/api/storage", tags=["storage"])
@@ -177,6 +177,38 @@ def create_freezer(
 def list_cells(box_id: int, db: Session = Depends(get_db)):
     """盒内全部孔位 + 占用信息(热力图)。"""
     return crud.list_box_cells(db, box_id)
+
+
+@router.get("/batch-cells", response_model=List[BatchCellOut])
+def batch_cells(batch_id: int, db: Session = Depends(get_db)):
+    """某批次当前占用的孔位(地址+样品+有效期)。空列表 = 该批次为散放(非孔位)。"""
+    return crud.list_batch_cells(db, batch_id)
+
+
+@router.post("/release-cells")
+def release_cells(
+    payload: ReleaseCellsRequest,
+    request: Request,
+    current: CurrentUser = Depends(require_warehouse),
+    db: Session = Depends(get_db),
+):
+    """出库:批量释放(取走)若干孔。每孔置 removed + 一条 OUT 流水。"""
+    try:
+        res = crud.release_cells(
+            db, payload.cell_node_ids, current.username,
+            txn_date=payload.txn_date, purpose=payload.purpose, remark=payload.remark,
+        )
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(e))
+    write_audit(
+        db, current, "storage.release_cells",
+        entity_type="batch", entity_id=(res["batch_ids"][0] if res["batch_ids"] else None),
+        before={"addresses": res["addresses"], "count": res["count"]}, after=None,
+        source_ip=get_request_ip(request),
+    )
+    db.commit()
+    return {"ok": True, **res}
 
 
 @router.get("/free-cells")

@@ -65,6 +65,18 @@ export interface Cell {
   material_name: string | null;
   batch_no: string | null;
   sample_label: string | null;
+  expiry_date: string | null;
+  days_to_expiry: number | null;
+}
+
+// 某批次占用的单个孔(出库勾选 / 物料详情)
+export interface BatchCell {
+  cell_node_id: number;
+  code: string;
+  address: string;
+  sample_label: string | null;
+  expiry_date: string | null;
+  days_to_expiry: number | null;
 }
 
 export interface OccupyRequest {
@@ -124,6 +136,18 @@ export const createFreezer = (data: FreezerCreate) =>
 
 export const listCells = (boxId: number) =>
   client.get<Cell[]>("/api/storage/cells", { params: { box_id: boxId } });
+
+// 某批次当前占用的孔(空数组 = 散放批次,非孔位存储)
+export const listBatchCells = (batchId: number) =>
+  client.get<BatchCell[]>("/api/storage/batch-cells", { params: { batch_id: batchId } });
+
+// 出库:批量释放若干孔
+export const releaseCells = (data: {
+  cell_node_ids: number[]; txn_date?: string; purpose?: string | null; remark?: string | null;
+}) =>
+  client.post<{ ok: boolean; count: number; batch_ids: number[]; addresses: string[] }>(
+    "/api/storage/release-cells", data,
+  );
 
 export const findFreeCells = (freezerId: number, count: number) =>
   client.get<{ count: number; cell_node_ids: number[]; addresses: string[] }>(
