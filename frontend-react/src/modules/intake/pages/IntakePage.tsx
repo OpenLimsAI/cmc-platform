@@ -97,9 +97,11 @@ interface BatchGroup {
   serialNo?: string;
   assetNo?: string;
   responsiblePerson?: string;
-  // 标准品专属:浓度/活性(数值) + 单位
+  // 标准品专属:浓度/活性(数值) + 单位 + 原研药批号 + 分装日期
   concValue?: number;
   concUnit?: string;
+  originatorBatchNo?: string;
+  aliquotDate?: Dayjs | null;
 }
 
 function IntakeForm() {
@@ -118,6 +120,8 @@ function IntakeForm() {
   // 物料级:单位 / 规格 —— 主数据有则只读取自 resolved;无编码新建时用下面两个本地态
   const [unitVal, setUnitVal] = useState("");
   const [specVal, setSpecVal] = useState("");
+  // 标准品:项目编号(表单级,所有批次共用)
+  const [projectNo, setProjectNo] = useState("");
   // 实际展示/提交的单位、规格:已解析物料用主数据,否则用用户输入
   const unitShown = resolved ? (resolved.unit ?? "") : unitVal;
   const specShown = resolved ? (resolved.spec_model ?? "") : specVal;
@@ -199,6 +203,7 @@ function IntakeForm() {
     form.resetFields(); noCodeForm.resetFields();
     setResolved(null); setMaterialCode(""); setNameQuery("");
     setUnitVal(""); setSpecVal(""); setNotFoundCode(null);
+    setProjectNo("");
     setGroups([newGroup()]);
     setResetKey((k) => k + 1);
   };
@@ -245,10 +250,18 @@ function IntakeForm() {
       // 类型专属字段(每组各自):标准品=浓度/活性(数值+单位合成字符串);色谱柱=序列号/编号/负责人
       const conc = activeTab === "standard" && g.concValue != null
         ? `${g.concValue}${g.concUnit ? ` ${g.concUnit}` : ""}` : undefined;
+      // 标准品专属(项目编号为表单级,所有批次共用;原研药批号/分装日期为每批次)
+      const std = activeTab === "standard"
+        ? {
+            project_no: projectNo.trim() || undefined,
+            originator_batch_no: g.originatorBatchNo?.trim() || undefined,
+            aliquot_date: g.aliquotDate?.format("YYYY-MM-DD") ?? undefined,
+          }
+        : {};
       const tf = activeTab === "column"
         ? { serial_no: g.serialNo || undefined, asset_no: g.assetNo || undefined, responsible_person: g.responsiblePerson || undefined }
         : activeTab === "standard"
-          ? { concentration: conc }
+          ? { concentration: conc, ...std }
           : {};
 
       const bulkRows: BulkIntakeRow[] = [];
@@ -258,7 +271,7 @@ function IntakeForm() {
           anyPos = true;
           const base = {
             material_id: materialId, batch_no: g.batchNo, expiry_date: expiry, received_date: received,
-            intake_type: activeTab, concentration: conc, remark,
+            intake_type: activeTab, concentration: conc, ...std, remark,
           };
           if (p.freezerSel.mode === "from") {
             if (!p.freezerSel.startCellId) { message.warning("请点选起始孔"); return; }
@@ -353,48 +366,59 @@ function IntakeForm() {
         <Form form={form} layout="vertical">
           {/* 物料识别 */}
           <Form.Item label="物料">
-            <Space align="start" wrap>
-              {!noCode ? (
-                <>
+            <div style={{ display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                {!noCode ? (
+                  <>
+                    <AutoComplete
+                      style={{ width: 460 }}
+                      value={materialCode}
+                      onChange={(val) => { setMaterialCode(val); setResolved(null); setNotFoundCode(null); }}
+                      options={codeOptions}
+                      onSelect={onCodePick}
+                      filterOption={false}
+                      notFoundContent={codeSearching ? "搜索中…" : (materialCode.trim() ? "无匹配" : null)}
+                    >
+                      <Input placeholder="编码/名称/厂家/货号 模糊搜索(空格分隔多词)" prefix={<SearchOutlined />} />
+                    </AutoComplete>
+                    {resolving && <Tag>解析中…</Tag>}
+                    {resolved && <Tag color="green">已选</Tag>}
+                  </>
+                ) : (
                   <AutoComplete
-                    style={{ width: 380 }}
-                    value={materialCode}
-                    onChange={(val) => { setMaterialCode(val); setResolved(null); setNotFoundCode(null); }}
-                    options={codeOptions}
-                    onSelect={onCodePick}
+                    style={{ width: 460 }}
+                    value={nameQuery}
+                    onChange={(val) => { setNameQuery(val); setResolved(null); }}
+                    placeholder="物料名称(已建过会提示可选用)"
+                    options={nameMatches.map((m: Material) => ({
+                      value: String(m.material_id),
+                      label: `${m.name_cn}${m.material_code === TT_INTERNAL_CODE ? " · 无编码" : ` · ${m.material_code}`}`,
+                      material: m,
+                    }))}
+                    onSelect={(_v, opt) => {
+                      const m = (opt as { material: Material }).material;
+                      setResolved(m); setNameQuery(m.name_cn); message.success("已选用已有物料");
+                    }}
                     filterOption={false}
-                    notFoundContent={codeSearching ? "搜索中…" : (materialCode.trim() ? "无匹配" : null)}
-                  >
-                    <Input placeholder="编码/名称/厂家/货号 模糊搜索(空格分隔多词)" prefix={<SearchOutlined />} />
-                  </AutoComplete>
-                  {resolving && <Tag>解析中…</Tag>}
-                  {resolved && <Tag color="green">已选</Tag>}
-                </>
-              ) : (
-                <AutoComplete
-                  style={{ width: 280 }}
-                  value={nameQuery}
-                  onChange={(val) => { setNameQuery(val); setResolved(null); }}
-                  placeholder="物料名称(已建过会提示可选用)"
-                  options={nameMatches.map((m: Material) => ({
-                    value: String(m.material_id),
-                    label: `${m.name_cn}${m.material_code === TT_INTERNAL_CODE ? " · 无编码" : ` · ${m.material_code}`}`,
-                    material: m,
-                  }))}
-                  onSelect={(_v, opt) => {
-                    const m = (opt as { material: Material }).material;
-                    setResolved(m); setNameQuery(m.name_cn); message.success("已选用已有物料");
-                  }}
-                  filterOption={false}
-                />
+                  />
+                )}
+              </div>
+              {activeTab === "standard" && (
+                <Labeled label="项目编号">
+                  <Input
+                    style={{ width: 220 }} placeholder="项目编号" value={projectNo}
+                    onChange={(e) => setProjectNo(e.target.value)}
+                  />
+                </Labeled>
               )}
               <Checkbox
+                style={{ paddingBottom: 6, fontSize: 16, fontWeight: 600 }}
                 checked={noCode}
                 onChange={(e) => { setNoCode(e.target.checked); setResolved(null); setMaterialCode(""); setNameQuery(""); setNotFoundCode(null); }}
               >
                 无编码
               </Checkbox>
-            </Space>
+            </div>
           </Form.Item>
 
           {notFoundCode && (
@@ -465,8 +489,21 @@ function IntakeForm() {
                 )}
               </div>
 
-              {/* 第一行:批号 / 有效期 / 入库日期 + 类型专属字段 + 加批次 */}
+              {/* 第一行:[标准品 原研药批号/分装日期] 批号 / 有效期 / 入库日期 + 类型专属字段 + 加批次 */}
               <Space align="end" wrap size="middle" style={{ marginBottom: 4 }}>
+                {/* 标准品:原研药批号 + 分装日期 排在批号之前 */}
+                {activeTab === "standard" && (
+                  <>
+                    <Labeled label="原研药批号">
+                      <Input style={{ width: 180 }} value={g.originatorBatchNo}
+                        onChange={(e) => patchGroup(g.key, { originatorBatchNo: e.target.value })} />
+                    </Labeled>
+                    <Labeled label="分装日期">
+                      <DatePicker style={{ width: 150 }} value={g.aliquotDate ?? null}
+                        onChange={(d) => patchGroup(g.key, { aliquotDate: d })} />
+                    </Labeled>
+                  </>
+                )}
                 <Labeled label={<span>{activeTab === "column" ? "色谱柱批号" : "批号"} <span style={{ color: "#ff4d4f" }}>*</span></span>}>
                   <Input
                     style={{ width: 180 }} value={g.batchNo}

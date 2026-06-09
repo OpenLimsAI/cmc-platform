@@ -90,6 +90,9 @@ export interface OccupyRequest {
   intake_type?: string | null;
   concentration?: string | null;
   extinction_coefficient?: number | null;
+  project_no?: string | null;
+  originator_batch_no?: string | null;
+  aliquot_date?: string | null;
   remark?: string | null;
 }
 
@@ -174,6 +177,9 @@ export interface OccupyFromRequest {
   intake_type?: string | null;
   concentration?: string | null;
   extinction_coefficient?: number | null;
+  project_no?: string | null;
+  originator_batch_no?: string | null;
+  aliquot_date?: string | null;
   remark?: string | null;
 }
 

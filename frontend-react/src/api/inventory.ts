@@ -14,6 +14,9 @@ export interface BatchCreate {
   serial_no?: string | null;
   asset_no?: string | null;
   responsible_person?: string | null;
+  project_no?: string | null;
+  originator_batch_no?: string | null;
+  aliquot_date?: string | null;
 }
 
 export interface Batch {
@@ -35,6 +38,9 @@ export interface Batch {
   serial_no: string | null;
   asset_no: string | null;
   responsible_person: string | null;
+  project_no: string | null;
+  originator_batch_no: string | null;
+  aliquot_date: string | null;
   created_at: string;
 }
 
@@ -130,6 +136,9 @@ export interface BulkIntakeRow {
   serial_no?: string | null;
   asset_no?: string | null;
   responsible_person?: string | null;
+  project_no?: string | null;
+  originator_batch_no?: string | null;
+  aliquot_date?: string | null;
   remark?: string | null;
 }
 

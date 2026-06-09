@@ -250,6 +250,9 @@ def occupy(
             intake_type=payload.intake_type,
             concentration=payload.concentration,
             extinction_coefficient=payload.extinction_coefficient,
+            project_no=payload.project_no,
+            originator_batch_no=payload.originator_batch_no,
+            aliquot_date=payload.aliquot_date,
             remark=payload.remark,
         )
     except ValueError as e:
@@ -297,6 +300,9 @@ def occupy_from(
             intake_type=payload.intake_type,
             concentration=payload.concentration,
             extinction_coefficient=payload.extinction_coefficient,
+            project_no=payload.project_no,
+            originator_batch_no=payload.originator_batch_no,
+            aliquot_date=payload.aliquot_date,
             remark=payload.remark,
         )
     except ValueError as e:

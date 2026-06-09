@@ -181,6 +181,9 @@ class OccupyRequest(BaseModel):
     intake_type: Optional[str] = None
     concentration: Optional[str] = None
     extinction_coefficient: Optional[Decimal] = None
+    project_no: Optional[str] = None
+    originator_batch_no: Optional[str] = None
+    aliquot_date: Optional[date] = None
     remark: Optional[str] = None
 
 
@@ -201,6 +204,9 @@ class OccupyFromRequest(BaseModel):
     intake_type: Optional[str] = None
     concentration: Optional[str] = None
     extinction_coefficient: Optional[Decimal] = None
+    project_no: Optional[str] = None
+    originator_batch_no: Optional[str] = None
+    aliquot_date: Optional[date] = None
     remark: Optional[str] = None
 
 
@@ -224,6 +230,9 @@ class BulkIntakeRow(BaseModel):
     serial_no: Optional[str] = None
     asset_no: Optional[str] = None
     responsible_person: Optional[str] = None
+    project_no: Optional[str] = None
+    originator_batch_no: Optional[str] = None
+    aliquot_date: Optional[date] = None
     remark: Optional[str] = None
 
 
@@ -373,6 +382,9 @@ class BatchBase(BaseModel):
     serial_no: Optional[str] = None                  # 色谱柱
     asset_no: Optional[str] = None                   # 色谱柱 编号
     responsible_person: Optional[str] = None         # 色谱柱
+    project_no: Optional[str] = None                 # 标准品 项目编号
+    originator_batch_no: Optional[str] = None        # 标准品 原研药批号
+    aliquot_date: Optional[date] = None              # 标准品 分装日期
 
 
 class BatchCreate(BatchBase):
@@ -456,6 +468,9 @@ class TxnOut(ORMBase):
     serial_no: Optional[str] = None
     asset_no: Optional[str] = None
     responsible_person: Optional[str] = None
+    project_no: Optional[str] = None
+    originator_batch_no: Optional[str] = None
+    aliquot_date: Optional[date] = None
 
 
 # ---------------------------------------------------------------------------

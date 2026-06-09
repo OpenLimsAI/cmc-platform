@@ -171,6 +171,7 @@ def list_txns(
     out = []
     for (txn, batch_no, intake_type, concentration, extinction_coefficient,
          serial_no, asset_no, responsible_person,
+         project_no, originator_batch_no, aliquot_date,
          mat_id, mat_code, mat_name, loc_name) in rows:
         out.append({
             "txn_id": txn.txn_id,
@@ -193,6 +194,9 @@ def list_txns(
             "serial_no": serial_no,
             "asset_no": asset_no,
             "responsible_person": responsible_person,
+            "project_no": project_no,
+            "originator_batch_no": originator_batch_no,
+            "aliquot_date": aliquot_date,
         })
     return out
 

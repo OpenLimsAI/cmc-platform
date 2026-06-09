@@ -233,6 +233,9 @@ class Batch(Base):
     serial_no: Mapped[Optional[str]] = mapped_column(String(100))                      # 色谱柱
     asset_no: Mapped[Optional[str]] = mapped_column(String(100))                       # 色谱柱 编号
     responsible_person: Mapped[Optional[str]] = mapped_column(String(50))              # 色谱柱
+    project_no: Mapped[Optional[str]] = mapped_column(String(100))                     # 标准品 项目编号
+    originator_batch_no: Mapped[Optional[str]] = mapped_column(String(100))            # 标准品 原研药批号
+    aliquot_date: Mapped[Optional[date]] = mapped_column(Date)                         # 标准品 分装日期
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     material: Mapped["Material"] = relationship(back_populates="batches")

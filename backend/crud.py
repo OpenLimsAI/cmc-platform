@@ -685,7 +685,9 @@ def occupy_cells(
     cell_node_ids: Sequence[int], operator: str,
     sample_labels: Optional[Sequence[Optional[str]]] = None,
     intake_type: Optional[str] = None, concentration: Optional[str] = None,
-    extinction_coefficient: Optional[Decimal] = None, remark: Optional[str] = None,
+    extinction_coefficient: Optional[Decimal] = None,
+    project_no: Optional[str] = None, originator_batch_no: Optional[str] = None,
+    aliquot_date=None, remark: Optional[str] = None,
 ) -> dict:
     """把若干空孔分配给某物料批次: 校验空孔 → 找/建批次(锚冰箱 location) →
     写 cell_occupancy + 一条 IN 流水(qty=孔数)。返回 {batch_id, count, addresses}。"""
@@ -730,6 +732,8 @@ def occupy_cells(
             location_id=fridge.location_id, received_date=received_date,
             initial_qty=Decimal(n), remark=remark, intake_type=intake_type,
             concentration=concentration, extinction_coefficient=extinction_coefficient,
+            project_no=project_no, originator_batch_no=originator_batch_no,
+            aliquot_date=aliquot_date,
         )
         db.add(batch)
         db.flush()
@@ -757,7 +761,9 @@ def occupy_from_start(
     material_id: int, batch_no: str, expiry_date, received_date, operator: str,
     sample_labels: Optional[Sequence[Optional[str]]] = None,
     intake_type: Optional[str] = None, concentration: Optional[str] = None,
-    extinction_coefficient: Optional[Decimal] = None, remark: Optional[str] = None,
+    extinction_coefficient: Optional[Decimal] = None,
+    project_no: Optional[str] = None, originator_batch_no: Optional[str] = None,
+    aliquot_date=None, remark: Optional[str] = None,
 ) -> dict:
     """从起始孔起,沿地址顺序取连续 count 个孔(须全部为空,中间有占用即报错),
     占用入库。复用 occupy_cells 落库。返回 {batch_id, count, addresses}。"""
@@ -806,7 +812,8 @@ def occupy_from_start(
         received_date=received_date, cell_node_ids=window, operator=operator,
         sample_labels=sample_labels, intake_type=intake_type,
         concentration=concentration, extinction_coefficient=extinction_coefficient,
-        remark=remark,
+        project_no=project_no, originator_batch_no=originator_batch_no,
+        aliquot_date=aliquot_date, remark=remark,
     )
 
 
@@ -1061,6 +1068,9 @@ def create_batch_with_initial_in(
     serial_no: Optional[str] = None,
     asset_no: Optional[str] = None,
     responsible_person: Optional[str] = None,
+    project_no: Optional[str] = None,
+    originator_batch_no: Optional[str] = None,
+    aliquot_date=None,
 ) -> Batch:
     """新建批次并同步写入首笔入库 txn(IN)。
     若 intake_type 提供, 与物料当前 material_type 不一致, 用 intake_type 覆盖。
@@ -1087,6 +1097,9 @@ def create_batch_with_initial_in(
         serial_no=serial_no,
         asset_no=asset_no,
         responsible_person=responsible_person,
+        project_no=project_no,
+        originator_batch_no=originator_batch_no,
+        aliquot_date=aliquot_date,
     )
     db.add(b)
     db.flush()  # 获得 batch_id
@@ -1150,6 +1163,8 @@ def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Op
                 operator=operator, remark=r.remark, intake_type=intake_type,
                 concentration=r.concentration, extinction_coefficient=r.extinction_coefficient,
                 serial_no=r.serial_no, asset_no=r.asset_no, responsible_person=r.responsible_person,
+                project_no=r.project_no, originator_batch_no=r.originator_batch_no,
+                aliquot_date=r.aliquot_date,
             )
             results[i] = {"index": i, "status": "created", "batch_id": b.batch_id, "message": None}
             created += 1
@@ -1273,6 +1288,9 @@ def list_txns(
             Batch.serial_no,
             Batch.asset_no,
             Batch.responsible_person,
+            Batch.project_no,
+            Batch.originator_batch_no,
+            Batch.aliquot_date,
             Material.material_id,
             Material.material_code,
             Material.name_cn,
