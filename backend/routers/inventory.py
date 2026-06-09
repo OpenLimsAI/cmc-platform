@@ -64,6 +64,12 @@ def issue_out(
     b = crud.get_batch(db, payload.batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {payload.batch_id} 不存在")
+    # -80℃ 孔位批次必须按孔出库(否则只减数量不释放孔,会造成 孔数≠库存 的偏差)
+    if crud.batch_stored_cell_count(db, payload.batch_id) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="该批次为 -80℃ 孔位存放,请在「出库登记」选中后按孔位出库,不能按数量出库",
+        )
     current_qty = crud.get_batch_qty(db, payload.batch_id)
     if payload.qty > current_qty:
         raise HTTPException(

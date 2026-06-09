@@ -605,6 +605,16 @@ def list_batch_cells(db: Session, batch_id: int) -> List[dict]:
     return out
 
 
+def batch_stored_cell_count(db: Session, batch_id: int) -> int:
+    """该批次当前占用(stored)的孔数;>0 表示是 -80 孔位存放批次。"""
+    return db.execute(
+        select(func.count()).select_from(CellOccupancy).where(
+            CellOccupancy.batch_id == batch_id,
+            CellOccupancy.status == "stored",
+        )
+    ).scalar_one()
+
+
 def release_cells(
     db: Session, cell_node_ids: Sequence[int], operator: str,
     txn_date=None, purpose: Optional[str] = None, remark: Optional[str] = None,
