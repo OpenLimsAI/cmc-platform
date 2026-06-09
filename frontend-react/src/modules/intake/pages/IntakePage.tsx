@@ -60,6 +60,12 @@ const TYPE_META: Record<IntakeType, {
 
 const TYPES = Object.keys(TYPE_META) as IntakeType[];
 
+// 标准品浓度/活性单位:常见预设(可自行输入其他),与包装/数量单位表(listUnits)是两回事
+const CONC_UNITS = [
+  "mg/mL", "µg/mL", "ng/mL", "g/L", "mg/L", "µg/L",
+  "mol/L", "mmol/L", "µmol/L", "U/mL", "IU/mL", "U/mg", "%",
+];
+
 // 批次组 / 位置行的唯一 key 计数器(仅用于 React key,跨挂载递增无妨)
 let idCounter = 1;
 const nextId = () => idCounter++;
@@ -206,7 +212,7 @@ function IntakeForm() {
     if (resolved) return resolved.material_id;        // 自动补全选了已有
     const name = nameQuery.trim();
     if (!name) { message.warning("请填写物料名称"); return null; }
-    if (!unitVal.trim()) { message.warning("请填写单位"); return null; }
+    if (!unitVal.trim()) { message.warning("请填写物料单位(存放位置行的「单位」栏)"); return null; }
     const v = await noCodeForm.validateFields();
     const { data } = await createMaterial({
       material_code: TT_INTERNAL_CODE, name_cn: name, unit: unitVal.trim(),
@@ -493,11 +499,12 @@ function IntakeForm() {
                         onChange={(val) => patchGroup(g.key, { concValue: val ?? undefined })} />
                     </Labeled>
                     <Labeled label="单位">
-                      <Select
-                        showSearch placeholder="单位" optionFilterProp="label" style={{ width: 120 }}
-                        value={g.concUnit || undefined} allowClear
-                        onChange={(val) => patchGroup(g.key, { concUnit: val })}
-                        options={units.map((u) => ({ label: u.unit, value: u.unit }))}
+                      <AutoComplete
+                        style={{ width: 130 }} placeholder="如 mg/mL" allowClear
+                        value={g.concUnit}
+                        onChange={(val) => patchGroup(g.key, { concUnit: val || undefined })}
+                        options={CONC_UNITS.map((u) => ({ value: u }))}
+                        filterOption={(input, opt) => (opt?.value ?? "").toLowerCase().includes(input.toLowerCase())}
                       />
                     </Labeled>
                   </>
