@@ -4,9 +4,9 @@ import {
   Card, Form, Input, InputNumber, DatePicker, Select, Divider, Checkbox,
   Button, Tag, message, Space, Alert, Typography, AutoComplete, Descriptions, Tooltip,
 } from "antd";
-import {
+import Icon, {
   SearchOutlined, ExportOutlined, PlusOutlined, DeleteOutlined,
-  ExperimentOutlined, InboxOutlined, MedicineBoxOutlined, FilterOutlined,
+  ExperimentOutlined, InboxOutlined,
 } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import {
@@ -22,6 +22,31 @@ import FreezerCellPicker, { type FreezerSelection } from "../components/FreezerC
 import { mdmPortalUrl } from "../../../shared/mdmPortal";
 import { getErrorDetail } from "../../../shared/errors";
 
+// 天平(标准品)与色谱柱在 antd 图标库无对应,用自定义线性 SVG,随字号(1em)与主题色(currentColor)
+const BalanceSvg = () => (
+  <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
+    strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 4v16" />
+    <path d="M8 21h8" />
+    <path d="M4.5 6.5h15" />
+    <circle cx="12" cy="4" r="1.2" />
+    <path d="M4.5 6.5 2 12M4.5 6.5 7 12" />
+    <path d="M2 12a2.5 2.5 0 0 0 5 0" />
+    <path d="M19.5 6.5 17 12M19.5 6.5 22 12" />
+    <path d="M17 12a2.5 2.5 0 0 0 5 0" />
+  </svg>
+);
+const ColumnSvg = () => (
+  <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
+    strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2v2" />
+    <rect x="8" y="4" width="8" height="15" rx="2.5" />
+    <path d="M8 8.5h8" />
+    <path d="M8 14.5h8" />
+    <path d="M12 19v3" />
+  </svg>
+);
+
 type IntakeType = "reagent" | "consumable" | "standard" | "column";
 
 const TYPE_META: Record<IntakeType, {
@@ -29,8 +54,8 @@ const TYPE_META: Record<IntakeType, {
 }> = {
   reagent:    { label: "试剂",   color: "#1677ff", icon: <ExperimentOutlined />,  hint: "常规试剂入库",            extra: "无额外专属字段" },
   consumable: { label: "耗材",   color: "#52c41a", icon: <InboxOutlined />,       hint: "耗材入库",                extra: "无额外专属字段" },
-  standard:   { label: "标准品", color: "#722ed1", icon: <MedicineBoxOutlined />, hint: "标准品 / 对照品 / 参比品", extra: "浓度、消光系数" },
-  column:     { label: "色谱柱", color: "#fa8c16", icon: <FilterOutlined />,      hint: "色谱柱入库",              extra: "序列号、资产编号、负责人" },
+  standard:   { label: "标准品", color: "#722ed1", icon: <Icon component={BalanceSvg} />, hint: "标准品 / 对照品 / 参比品", extra: "浓度、消光系数" },
+  column:     { label: "色谱柱", color: "#fa8c16", icon: <Icon component={ColumnSvg} />,  hint: "色谱柱入库",              extra: "序列号、资产编号、负责人" },
 };
 
 const TYPES = Object.keys(TYPE_META) as IntakeType[];
@@ -276,7 +301,7 @@ function IntakeForm() {
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ maxWidth: 1600, margin: "0 auto" }}>
       {/* 四个彩色标签(与下方表格等宽) */}
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         {TYPES.map((k) => {
