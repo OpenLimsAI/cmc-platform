@@ -4,8 +4,8 @@ import {
   Typography, Card, Row, Col, Statistic, Button, List, Tag, Space, Spin,
 } from "antd";
 import {
-  ImportOutlined, ExportOutlined, PlusOutlined, SafetyCertificateOutlined,
   RightOutlined, AlertOutlined,
+  AppstoreOutlined, ExperimentOutlined, DatabaseOutlined,
 } from "@ant-design/icons";
 import { getDashboardStats } from "../../../api/dashboard";
 import { expiryAlerts, lowStockAlerts } from "../../../api/inventory";
@@ -54,8 +54,7 @@ function greeting(): string {
  */
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { user, canWrite, hasRole } = useAuthStore();
-  const canEquip = hasRole("SYS_ADMIN") || hasRole("CMC_EQUIPMENT_ADMIN");
+  const { user } = useAuthStore();
 
   const { data: stats } = useQuery({
     queryKey: ["dashboardStats"],
@@ -109,30 +108,63 @@ export default function DashboardPage() {
 
   const alertsLoading = expiryLoading || lowLoading || eqpLoading;
 
+  // 关键统计:彩色卡片(样式对齐 MDM Portal 仪表盘),点击跳转对应模块
+  const statCards = [
+    {
+      title: "物料",
+      value: stats?.material_count ?? "—",
+      color: "#722ED1",
+      icon: <AppstoreOutlined style={{ fontSize: 28, color: "#722ED1" }} />,
+      onClick: () => navigate("/materials"),
+    },
+    {
+      title: "设备",
+      value: stats?.equipment_count ?? "—",
+      color: "#13C2C2",
+      icon: <ExperimentOutlined style={{ fontSize: 28, color: "#13C2C2" }} />,
+      onClick: () => navigate("/equipment"),
+    },
+    {
+      title: "活跃批次",
+      value: stats?.active_batch_count ?? "—",
+      color: "#FAAD14",
+      icon: <DatabaseOutlined style={{ fontSize: 28, color: "#FAAD14" }} />,
+      onClick: () => navigate("/stock"),
+    },
+  ];
+
   return (
     <>
       <Typography.Title level={4} style={{ marginBottom: 16 }}>
         {greeting()}，{user?.full_name || user?.username}
       </Typography.Title>
 
-      <Row gutter={[16, 16]}>
-        {/* 关键统计 */}
-        <Col xs={24} md={8}>
-          <Card title="关键统计" size="small" style={{ height: "100%" }}>
-            <Row gutter={16}>
-              <Col span={8}>
-                <Statistic title="物料" value={stats?.material_count ?? "—"} />
-              </Col>
-              <Col span={8}>
-                <Statistic title="设备" value={stats?.equipment_count ?? "—"} />
-              </Col>
-              <Col span={8}>
-                <Statistic title="活跃批次" value={stats?.active_batch_count ?? "—"} />
-              </Col>
-            </Row>
-          </Card>
-        </Col>
+      {/* 关键统计:彩色卡片(对齐 MDM Portal 样式),可点击进入对应模块 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        {statCards.map((c) => (
+          <Col xs={24} sm={8} key={c.title}>
+            <Card
+              hoverable
+              onClick={c.onClick}
+              style={{
+                background: `${c.color}12`,
+                borderColor: `${c.color}40`,
+                borderLeft: `4px solid ${c.color}`,
+              }}
+            >
+              <Space
+                size="middle"
+                style={{ width: "100%", justifyContent: "space-between" }}
+              >
+                <Statistic title={c.title} value={c.value} />
+                {c.icon}
+              </Space>
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
+      <Row gutter={[16, 16]}>
         {/* 待处理告警汇总 */}
         <Col xs={24} md={8}>
           <Card
@@ -159,34 +191,8 @@ export default function DashboardPage() {
           </Card>
         </Col>
 
-        {/* 快捷入口 */}
-        <Col xs={24} md={8}>
-          <Card title="快捷入口" size="small" style={{ height: "100%" }}>
-            <Space direction="vertical" style={{ width: "100%" }}>
-              {canWrite() && (
-                <>
-                  <Button block icon={<ImportOutlined />} onClick={() => navigate("/intake")}>
-                    入库登记
-                  </Button>
-                  <Button block icon={<ExportOutlined />} onClick={() => navigate("/outgoing")}>
-                    出库登记
-                  </Button>
-                </>
-              )}
-              {canEquip && (
-                <Button block icon={<PlusOutlined />} onClick={() => navigate("/equipment")}>
-                  新增设备 / 记录校验
-                </Button>
-              )}
-              <Button block icon={<SafetyCertificateOutlined />} onClick={() => navigate("/stock")}>
-                库存查询
-              </Button>
-            </Space>
-          </Card>
-        </Col>
-
         {/* 物料预警概览 */}
-        <Col xs={24} md={12}>
+        <Col xs={24} md={8}>
           <Card
             title={<><AlertOutlined /> 物料预警概览</>}
             size="small"
@@ -212,7 +218,7 @@ export default function DashboardPage() {
         </Col>
 
         {/* 设备预警概览 */}
-        <Col xs={24} md={12}>
+        <Col xs={24} md={8}>
           <Card
             title={<><AlertOutlined /> 设备预警概览</>}
             size="small"
