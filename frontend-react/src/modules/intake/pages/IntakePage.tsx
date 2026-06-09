@@ -47,7 +47,6 @@ function SingleIntake() {
   const [materialCode, setMaterialCode] = useState("");
   const [resolved, setResolved] = useState<Material | null>(null);
   const [resolving, setResolving] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [nameQuery, setNameQuery] = useState("");
   // 存放与分配
@@ -69,13 +68,56 @@ function SingleIntake() {
     queryFn: () => listMaterials({ keyword: nameQuery.trim() }).then((r) => r.data),
     enabled: noCode && nameQuery.trim().length > 0,
   });
+  // 编码模式:多字段(编码/名称/厂家/规格/货号)、多词、忽略大小写的实时搜索
+  const { data: codeMatches = [], isFetching: codeSearching } = useQuery({
+    queryKey: ["materials", "search", materialCode],
+    queryFn: () => listMaterials({ keyword: materialCode.trim() }).then((r) => r.data),
+    enabled: !noCode && materialCode.trim().length > 0 && !resolved,
+  });
+  const codeOptions = (() => {
+    const opts: { value: string; label: React.ReactNode; material?: Material }[] = codeMatches
+      .slice(0, 20)
+      .map((m: Material) => ({
+        value: `id:${m.material_id}`,
+        label: (
+          <Space size={6} wrap>
+            <span>{m.material_code === TT_INTERNAL_CODE ? "无编码" : m.material_code}</span>
+            <b>{m.name_cn}</b>
+            {m.manufacturer && <Typography.Text type="secondary">{m.manufacturer}</Typography.Text>}
+            {m.catalog_no && <Typography.Text type="secondary">货号 {m.catalog_no}</Typography.Text>}
+          </Space>
+        ),
+        material: m,
+      }));
+    const q = materialCode.trim();
+    const exact = codeMatches.some((m: Material) => m.material_code === q);
+    if (q && !exact) opts.push({ value: "__mdm__", label: `🔍 本地无匹配 → 从 MDM 按编码获取「${q}」` });
+    return opts;
+  })();
+
+  const onCodePick = async (value: string, opt: { material?: Material }) => {
+    if (value === "__mdm__") {
+      const code = materialCode.trim();
+      setResolving(true); setNotFoundCode(null);
+      try {
+        await mdmLookup(code);
+        const { data } = await createFromMdm(code);
+        setResolved(data); setMaterialCode(`${data.material_code} ${data.name_cn}`);
+        message.info("已从 MDM 获取物料信息");
+      } catch { setNotFoundCode(code); }
+      finally { setResolving(false); }
+      return;
+    }
+    const m = opt.material;
+    if (m) { setResolved(m); setMaterialCode(`${m.material_code === TT_INTERNAL_CODE ? "无编码" : m.material_code} ${m.name_cn}`); }
+  };
 
   const reset = () => {
     form.resetFields(); noCodeForm.resetFields();
     setResolved(null); setMaterialCode(""); setNameQuery("");
     setPrimaryLoc(undefined); setPrimaryQty(undefined); setExtra([]);
     setFreezer(null); setFreezerSel(null); setResetKey((k) => k + 1);
-    setLookupError(null); setNotFoundCode(null);
+    setNotFoundCode(null);
   };
 
   const onDone = (msg: string) => { message.success(msg); reset(); };
@@ -96,23 +138,6 @@ function SingleIntake() {
     onSuccess: (res) => onDone(`已从起始位置连续填充 ${res.data.count} 管`),
     onError: (e) => message.error(getErrorDetail(e, "连续填充失败")),
   });
-
-  const resolveCode = async () => {
-    const code = materialCode.trim();
-    if (!code) return;
-    setResolving(true); setLookupError(null); setNotFoundCode(null); setResolved(null);
-    try {
-      const local = await listMaterials({ keyword: code });
-      const m = local.data.find((x: Material) => x.material_code === code);
-      if (m) { setResolved(m); return; }
-      try {
-        await mdmLookup(code);
-        const { data: created } = await createFromMdm(code);
-        setResolved(created); message.info("已从 MDM 获取物料信息");
-      } catch { setNotFoundCode(code); }
-    } catch { setLookupError("查询失败,请检查网络"); }
-    finally { setResolving(false); }
-  };
 
   // 解析/取得 material_id;无编码时按需新建本地物料
   const ensureMaterialId = async (): Promise<number | null> => {
@@ -195,17 +220,19 @@ function SingleIntake() {
             <Space align="start" wrap>
               {!noCode ? (
                 <>
-                  <Input
-                    placeholder="输入物料编码后回车/失焦解析"
-                    prefix={<SearchOutlined />}
+                  <AutoComplete
+                    style={{ width: 380 }}
                     value={materialCode}
-                    onChange={(e) => setMaterialCode(e.target.value)}
-                    onPressEnter={resolveCode}
-                    onBlur={resolveCode}
-                    style={{ width: 280 }}
-                  />
+                    onChange={(v) => { setMaterialCode(v); setResolved(null); setNotFoundCode(null); }}
+                    options={codeOptions}
+                    onSelect={onCodePick}
+                    filterOption={false}
+                    notFoundContent={codeSearching ? "搜索中…" : (materialCode.trim() ? "无匹配" : null)}
+                  >
+                    <Input placeholder="编码/名称/厂家/货号 模糊搜索(空格分隔多词)" prefix={<SearchOutlined />} />
+                  </AutoComplete>
                   {resolving && <Tag>解析中…</Tag>}
-                  {resolved && <Tag color="green">{resolved.name_cn}</Tag>}
+                  {resolved && <Tag color="green">已选</Tag>}
                 </>
               ) : (
                 <AutoComplete
@@ -242,7 +269,6 @@ function SingleIntake() {
               action={<Button type="primary" icon={<ExportOutlined />} href={mdmPortalUrl("/materials/new", { code: notFoundCode })} target="_blank">去 MDM 登记</Button>}
             />
           )}
-          {lookupError && <Alert type="warning" showIcon message={lookupError} style={{ marginBottom: 16 }} />}
 
           {noCode && !resolved && (
             <div style={{ marginBottom: 16 }}>
