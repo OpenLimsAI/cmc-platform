@@ -110,6 +110,7 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 | Project Registration   | PRS      | 完整建设           | 全部研发项目类型         |
 | Asset Registration     | ARS      | 完整建设           | 已商业化产品 + 在研管线  |
 | Material Master        | MM       | 全公司物料身份注册 | 试剂、耗材、标准品、色谱柱 |
+| Equipment Master       | EQP      | 全公司仪器设备身份注册（V1.2 新增） | 仪器设备                 |
 | Cross-Reference Layer  | REF      | 完整建设           | 跨域引用关系管理         |
 | Audit & Compliance     | AUDIT    | 完整建设           | Part 11 / Annex 11 合规  |
 
@@ -117,7 +118,7 @@ CMAB MDM Portal 项目旨在建设一套企业级主数据管理平台，实现�
 
 - GMP 物料主数据（保留在现有商业系统，未来由 SAP / 商业 ERP 接管）
 
-- 设备主数据（未来纳入 CMMS 或独立 Equipment Master）
+- 设备主数据：V1.1 原列范围外（拟纳入 CMMS 或独立 Equipment Master）；V1.2 起已纳入本系统作为第五业务域 EQP，见修订记录与 §1.3.1
 
 - 供应商主数据（未来纳入 ERP / SRM）
 

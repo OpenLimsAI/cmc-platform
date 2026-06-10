@@ -98,6 +98,37 @@ async def test_milestone_planned_date_required(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_milestone_type_required(admin_client, unique_suffix):
+    """H-15：§9.3 milestone_type NOT NULL——缺省应 400 而非 500"""
+    code = await _create_project(admin_client, unique_suffix)
+    resp = await admin_client.post(
+        f"/api/v1/projects/{code}/milestones",
+        json={"milestone_name": "X", "planned_date": "2026-12-31"},
+    )
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed
+
+
+@pytest.mark.asyncio
+async def test_milestone_type_update_explicit_null_rejected(admin_client, unique_suffix):
+    """H-15：update 显式 milestone_type=null 应被 schema 拒绝，不得透传 DB"""
+    code = await _create_project(admin_client, unique_suffix)
+    add = await admin_client.post(
+        f"/api/v1/projects/{code}/milestones",
+        json={
+            "milestone_name": "M",
+            "milestone_type": "gate",
+            "planned_date": "2026-06-30",
+        },
+    )
+    mid = add.json()["data"]["milestone_id"]
+    resp = await admin_client.put(
+        f"/api/v1/projects/{code}/milestones/{mid}",
+        json={"milestone_type": None, "change_reason": "pytest 显式置空"},
+    )
+    assert resp.status_code == 400  # V1.1 §4.1 validation_failed
+
+
+@pytest.mark.asyncio
 async def test_milestone_delete_requires_reason(admin_client, unique_suffix):
     code = await _create_project(admin_client, unique_suffix)
     add = await admin_client.post(

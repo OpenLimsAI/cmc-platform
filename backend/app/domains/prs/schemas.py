@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domains.audit.schemas import SignatureBlock
 
@@ -184,7 +184,7 @@ class ProjectMilestoneBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     milestone_name: str = Field(..., max_length=128)
-    milestone_type: MilestoneType | None = None
+    milestone_type: MilestoneType  # §9.3 NOT NULL，三值 gate/deliverable/decision
     planned_date: date  # §9.3 NOT NULL
     actual_date: date | None = None
     status: MilestoneStatus = "planned"
@@ -204,6 +204,14 @@ class ProjectMilestoneUpdate(BaseModel):
     actual_date: date | None = None
     status: MilestoneStatus | None = None
     description: str | None = None
+
+    @field_validator("milestone_type")
+    @classmethod
+    def _milestone_type_not_null(cls, v: str | None) -> str | None:
+        # DB 列 NOT NULL：Optional 仅表示"不修改该字段"，显式置空拒绝（防 500）
+        if v is None:
+            raise ValueError("milestone_type 不可置空")
+        return v
 
 
 class ProjectMilestoneDelete(BaseModel):

@@ -141,7 +141,7 @@ class ProjectMilestone(Base):
         nullable=False,
     )
     milestone_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    milestone_type: Mapped[str | None] = mapped_column(String(32))
+    milestone_type: Mapped[str] = mapped_column(String(32), nullable=False)
     planned_date: Mapped[date] = mapped_column(Date, nullable=False)
     actual_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="planned")

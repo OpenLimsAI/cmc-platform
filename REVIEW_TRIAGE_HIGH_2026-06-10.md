@@ -305,13 +305,20 @@
 - 涉及文件：`backend/app/domains/prs/models.py:144 ; backend/alembic/versions/2026_05_11_1700_0006_prs_init.py:117 ; 2026_05_11_2310_0014_prs_milestone_v2.py`
 - 问题摘要：迁移 0006 建 milestone_type 为 NOT NULL，0014 未改其可空性；但 ORM(models.py:144) 与 Pydantic(schemas.py:187 `milestone_type: MilestoneType|None=None`) 均可空，service:395 直接透传 None。创建里程碑省略 type 时 DB 抛 NOT NULL 违例。
 - 原报告建议：迁移将该列改可空，或 schema 设为必填
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**
+  - 证据 1（DB NOT NULL）：0006 migration:117 `milestone_type String(32) nullable=False`；0014 的 alter_column 仅动 planned_date（改 NOT NULL）与 status server_default，未触碰 milestone_type 可空性——DB 至今 NOT NULL；
+  - 证据 2（应用层三处全可空）：prs/models.py:144 `Mapped[str | None]`；schemas.py:187 Create `milestone_type: MilestoneType | None = None`、:202 Update 同；services.py add_milestone（:388-405）将 payload.milestone_type 直接透传；
+  - 证据 3（触发路径）：POST /projects/{code}/milestones 省略 milestone_type → INSERT NULL → NOT NULL 违例 IntegrityError 500（service 不 catch，项目约定）；Update 路径显式传 milestone_type=null 同样可触发（exclude_unset 只挡"未传"，挡不住"传 null"）；
+  - 证据 4（设计口径）：0014 docstring 明确"milestone_type 收敛到 §9.3 三值（gate/deliverable/decision）"且同次把 planned_date 收紧为 NOT NULL——设计基准意图是必填三值，可空是应用层笔误而非设计；现有 CHECK 约束（models.py:127）也按三值写。
+- 根因：0014 按 §9.3 重构时收紧了 DB 与 CHECK，但 Pydantic/ORM 的 Optional 标注未同步收紧。
+- 推荐修复策略：**方案 A（收紧应用层为必填）**。依据：设计基准 §9.3 + DB 现状 + 既有 demo 数据（26 条里程碑均有 type）一致指向必填；方案 B（放宽 DB）违背 0014 的明确收敛意图。最小改动：schemas.py:187 Create 改 `milestone_type: MilestoneType`（必填，缺省 422）；models.py:144 改 `Mapped[str]`（对齐 DB，无需 migration）；Update 保持 Optional 但需防显式 null（validator 拒绝或 service 忽略 None）。
+- 修复状态：已修复（2026-06-11，方案 A，与 H-16 同批）
+- 是否需要代码修复：是（已完成：schemas.py Create 的 milestone_type 改必填并注明三值；Update 加 field_validator 拒绝显式 null；models.py:144 改 `Mapped[str]` nullable=False 对齐 DB；services.py 未动——validator 已挡住 null 透传）
+- 是否需要 migration：否（DB 现状即目标状态）
+- 是否需要测试：是（已补 test_milestone_type_required——缺省 type → 400 validation_failed（本项目 422 统一映射 400，V1.1 §4.1）；test_milestone_type_update_explicit_null_rejected——显式 null → 400；定向 21 项 + 全量 283 项全绿）
+- 风险说明：现状是 500 而非数据风险（DB 约束兜住了）；修复后 API 契约收紧（缺省 type 从 500 变 400）。
+- 人工决策备注：前端已只读确认无需改——MilestoneTable.tsx 创建表单 milestone_type 本就 required + openCreate 预填 'gate'（:144、:243），编辑回填 `?? undefined` 经 axios 序列化丢弃不会发显式 null。
 
 ## H-16：[DOC-架构设计+数据模型(内部-01] EQP 范围自相矛盾
 
@@ -322,13 +329,20 @@
 - 涉及文件：`docs/CMAB_MDM_Portal_架构设计文档_V1_1.md:120 与 41/73`
 - 问题摘要：§1.3.2 范围外明确写'设备主数据（未来纳入 CMMS 或独立 Equipment Master）'，但适用范围(§41)、§1.2.1/§1.2.2 已将 Equipment(EQP) 列为 V1.2 新增的第五业务域。
 - 原报告建议：§1.3.2 删除或改写设备主数据条目，§1.3.1 In-Scope 表补 EQP 行。
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**
+  - 证据 1（已纳入的三处）：ARCH V1_1.md:35 修订记录 V1.2 条目明确"新增 EQP 设备主数据域（第五个业务域）"；:41 适用范围与 :73 业务目标均列五域含 Equipment Master（EQP，V1.2 新增）；
+  - 证据 2（仍排除的两处）：:120 §1.3.2 Out-of-Scope 仍列"设备主数据（未来纳入 CMMS 或独立 Equipment Master）"；§1.3.1 In-Scope 表（:108-114）只有 SRS/PRS/ARS/MM/REF/AUDIT 六行，无 EQP 行——同一文档内自相矛盾；
+  - 证据 3（事实口径）：EQP 已实装（migration 0040-0044、横切全局搜索/仪表盘、批量导入、测试全过），项目真实口径=EQP 已进入当前范围；
+  - 证据 4（已被自家勘误登记）：V1.3 偏离说明 draft:71 已记录"§1.3.2 仍把设备主数据列范围外（与自身修订记录矛盾）、§3.2 无 EQP 子节、§6.1 无 eqp 行 → 勘误 E7/E8/E9（ARCH 修订清单）"——本条与勘误体系是同一问题，修复时应对齐 E7/E8/E9 编号销项。
+- 根因：V1.2 增补 EQP 时只更新了修订记录和范围综述段，§1.3.1/1.3.2 范围明细表漏改（md 单轨期文档维护遗漏，docx 停 V1.1 的双轨现状放大了漏检）。
+- 推荐修复策略：最小文档修复两处——① §1.3.2 该条**改写而非删除**（保留历史语境）："设备主数据：V1.1 原列范围外（拟纳入 CMMS），V1.2 起已纳入本系统为第五业务域 EQP，见修订记录与 §1.3.1"；② §1.3.1 In-Scope 表补一行：Equipment Master | EQP | 全公司仪器设备身份注册（V1.2 新增） | 仪器设备。同时在 V1.1_修订清单勘误段把 E7 对应项标记落实（E8 §3.2 子节、E9 §6.1 eqp 行属更大篇幅增补，可与 V1.3 批次一起做，不必本条捆绑）。
+- 修复状态：已修复（2026-06-11，与 H-15 同批）
+- 是否需要代码修复：否（纯文档）
+- 是否需要 migration：否
+- 是否需要测试：否（grep 验证：ARCH md 中 EQP 四处提及已一致——修订记录:35、适用范围:41、§1.3.1 表:113 新增行、§1.3.2:121 改写条目，无矛盾语境残留）
+- 风险说明：纯文档矛盾，无运行时影响；但范围表是对外沟通/审计的第一入口，矛盾会误导评审与 CSV 验证范围界定。修复仅改 md（docx 停 V1.1 为已知双轨现状，不动 docx）。
+- 人工决策备注：ARCH md §1.3.1 补 EQP 行（Equipment Master | EQP | 全公司仪器设备身份注册（V1.2 新增）| 仪器设备）；§1.3.2 改写为"V1.1 原列范围外；V1.2 起已纳入第五业务域 EQP"（保留历史语境）。勘误 E7 已在 ARCH-MDM-001_修订清单.md 标记**已落实**（注明负责人决策直接改 md、未采用"设备运营数据"备选措辞——该语义留给 E8）；E8/E9 未动，随 V1.3 批次处理。
 
 ## H-17：[DOC-README+QUICK-01] 引用不存在的 requirements.txt
 
