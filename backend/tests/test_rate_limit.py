@@ -11,7 +11,7 @@
 import pytest
 from httpx import AsyncClient
 
-BASE_URL = "http://localhost:8000"
+from tests.conftest import BASE_URL
 
 
 @pytest.mark.asyncio

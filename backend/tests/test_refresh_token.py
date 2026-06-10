@@ -10,7 +10,7 @@ Refresh Token 旋转 + 撤销测试（P4.B-1）
 import pytest
 from httpx import AsyncClient
 
-BASE_URL = "http://localhost:8000"
+from tests.conftest import BASE_URL
 
 
 @pytest.mark.asyncio
