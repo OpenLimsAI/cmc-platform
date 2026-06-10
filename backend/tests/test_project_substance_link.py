@@ -227,3 +227,30 @@ async def test_link_audit_inherits_project_code(admin_client, unique_suffix):
     assert all(it["entity_code"] == pcode for it in link_creates), (
         f"audit entity_code 应回填为 project_code={pcode}"
     )
+
+
+@pytest.mark.asyncio
+async def test_unlink_after_substance_soft_deleted(admin_client, unique_suffix):
+    """H-09：substance 软删后其活动链接仍可解除（unlink 走 include_deleted 解析）"""
+    pcode = await _new_project(admin_client, unique_suffix)
+    scode = await _new_substance(admin_client, unique_suffix)
+    link = await admin_client.post(
+        f"/api/v1/projects/{pcode}/substances",
+        json={"substance_code": scode, "relation_type": "primary"},
+    )
+    assert link.status_code == 201, link.text
+
+    del_resp = await admin_client.delete(
+        f"/api/v1/substances/{scode}",
+        json={"change_reason": "pytest H-09 软删主实体"},
+    )
+    assert del_resp.status_code == 204
+
+    unlink = await admin_client.delete(
+        f"/api/v1/projects/{pcode}/substances/{scode}/primary",
+        json={"change_reason": "pytest H-09 清理孤儿引用"},
+    )
+    assert unlink.status_code == 204, unlink.text
+
+    lst = await admin_client.get(f"/api/v1/projects/{pcode}/substances")
+    assert all(it["substance_code"] != scode for it in lst.json()["data"])

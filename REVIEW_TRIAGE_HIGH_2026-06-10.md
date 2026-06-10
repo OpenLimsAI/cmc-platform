@@ -186,13 +186,22 @@
 - 涉及文件：`backend/app/domains/ref/services.py:64-73,136-169（三个 service 的 _get_* 与 unlink 同模式）`
 - 问题摘要：srs/prs/ars 的 soft_delete 不预检 ref 活动链接；物质/项目/资产软删后链接仍 deleted_at IS NULL。而 unlink 内 _get_substance/_get_project/_get_asset 均过滤 deleted_at，对已删实体直接 404，链接永远无法通过 API 取消。
 - 原报告建议：主实体软删前预检活动链接并阻止或级联软删；或 unlink 的 _get_* 放宽 deleted_at 过滤
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**
+  - 证据 1（三 service 同模式）：ref/services.py 的 ProjectSubstanceLinkService（_get_project/_get_substance :53-73）、AssetSubstanceLinkService（_get_asset/_get_substance :238-257）、ProjectAssetLinkService（_get_project/_get_asset :422-441）全部按 `deleted_at IS NULL` 解析实体，未命中即 404（XxxNotFoundError）；
+  - 证据 2（unlink 必经 _get_*）：三个 unlink（:136-169 / :319+ / :505+）第一步均先解析两端实体再查 link——任一端已软删即 404，永远走不到 link 软删逻辑；
+  - 证据 3（无替代入口）：unlink 路由全部按 code 三元组寻址（如 projects.py:436-452 `DELETE /{code}/substances/{substance_code}/{relation_type}`），不存在按 link_id 解除的端点——"无法定位"与"无法解除"在当前 API 形态下等价；
+  - 证据 4（无级联）：ref 三 service 内无任何来自主域软删的级联/预检逻辑；主实体软删后其活动 link 保持 deleted_at IS NULL，成为不可清理的孤儿活动引用（与原报告"srs/prs/ars soft_delete 不预检"的描述自洽——若有预检或级联，该孤儿态不可能形成）；
+  - 证据 5（测试空白）：三个 link 测试文件均无"软删主实体后 unlink"用例。
+- 问题定性：本质是"无法通过任何常规接口解除"——link 行本身健在且可软删，卡点仅在 unlink 入口的实体解析；不是数据损坏。
+- 根因：_get_* 作为通用实体解析复用了 active-only 口径，未区分"业务引用创建"（应限活动实体）与"引用清理"（软删实体的链接恰恰是最需要清理的对象）两类语义。
+- 推荐修复策略（最小）：**仅放宽 unlink 路径的实体解析**——三个 service 的 _get_* 增加 `include_deleted: bool = False` 形参（unlink 调用处传 True，link/list 维持现状），不新增 link_id 端点、不恢复软删主实体、不动 srs/prs/ars 的 soft_delete。中期治理（另立条目、非本条范围）：主实体 soft_delete 时级联软删其活动链接（需统一 change_reason/审计语义，触及三个域），即便做了级联，放宽后的 unlink 仍是历史孤儿链接的兜底清理通道。list/query 默认隐藏软删实体关联属 BE-be-ref-02（Medium，双向列表过滤不对称）范围，不并入本条。
+- 修复状态：已修复（2026-06-11）
+- 是否需要代码修复：是（ref/services.py 最小修复，已完成：六个 _get_* 增加 `include_deleted: bool = False` 形参；三个 unlink 调用处传 True——grep 确认 include_deleted=True 全文件仅 6 处、全部位于 unlink 方法内，link/list 路径零改动）
+- 是否需要 migration：否（无 schema/约束变更）
+- 是否需要测试：是（已补三组用例：test_project_substance_link.py::test_unlink_after_substance_soft_deleted（软删 substance 端）、test_asset_substance_link.py::test_unlink_after_asset_soft_deleted（软删 asset 端）、test_project_asset_link.py::test_unlink_after_project_soft_deleted（软删 project 端）——建链→软删一端→unlink 204→active 列表消失；REF 定向 28 项 + 全量 286 项全绿）
+- 风险说明：修复仅放宽 unlink 单一路径的实体解析，link 创建仍限活动实体，无引用完整性放松风险；两端均软删的链接同样可清理（两个 _get_* 均放宽）。
+- 人工决策备注：include_deleted 仅用于 unlink 清理路径（设计注释已写入 _get_*），创建/list 默认口径不变；主实体软删级联软删链接的中期治理与 BE-be-ref-02 列表过滤问题均未触碰，留待各自条目处理。
 
 ## H-10：[BE-be-ars-01] market_id 软删后重建撞唯一约束
 

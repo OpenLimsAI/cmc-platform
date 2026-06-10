@@ -50,23 +50,23 @@ class ProjectSubstanceLinkService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def _get_project(self, code: str) -> Project:
-        result = await self.db.execute(
-            select(Project).where(
-                Project.project_code == code, Project.deleted_at.is_(None)
-            )
-        )
+    async def _get_project(self, code: str, include_deleted: bool = False) -> Project:
+        # include_deleted 仅供 unlink 清理路径：已软删实体的活动链接也要可解除（H-09）
+        stmt = select(Project).where(Project.project_code == code)
+        if not include_deleted:
+            stmt = stmt.where(Project.deleted_at.is_(None))
+        result = await self.db.execute(stmt)
         proj = result.scalar_one_or_none()
         if not proj:
             raise ProjectNotFoundError(f"未找到 project: {code}")
         return proj
 
-    async def _get_substance(self, code: str) -> Substance:
-        result = await self.db.execute(
-            select(Substance).where(
-                Substance.substance_code == code, Substance.deleted_at.is_(None)
-            )
-        )
+    async def _get_substance(self, code: str, include_deleted: bool = False) -> Substance:
+        # include_deleted 仅供 unlink 清理路径（H-09）
+        stmt = select(Substance).where(Substance.substance_code == code)
+        if not include_deleted:
+            stmt = stmt.where(Substance.deleted_at.is_(None))
+        result = await self.db.execute(stmt)
         sub = result.scalar_one_or_none()
         if not sub:
             raise SubstanceNotFoundError(f"未找到 substance: {code}")
@@ -146,8 +146,8 @@ class ProjectSubstanceLinkService:
                 text("SELECT set_config('app.change_reason', :r, true)"),
                 {"r": reason},
             )
-        proj = await self._get_project(project_code)
-        sub = await self._get_substance(substance_code)
+        proj = await self._get_project(project_code, include_deleted=True)
+        sub = await self._get_substance(substance_code, include_deleted=True)
         result = await self.db.execute(
             select(ProjectSubstanceLink).where(
                 ProjectSubstanceLink.project_id == proj.project_id,
@@ -235,21 +235,23 @@ class AssetSubstanceLinkService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def _get_asset(self, code: str) -> Asset:
-        result = await self.db.execute(
-            select(Asset).where(Asset.asset_code == code, Asset.deleted_at.is_(None))
-        )
+    async def _get_asset(self, code: str, include_deleted: bool = False) -> Asset:
+        # include_deleted 仅供 unlink 清理路径（H-09）
+        stmt = select(Asset).where(Asset.asset_code == code)
+        if not include_deleted:
+            stmt = stmt.where(Asset.deleted_at.is_(None))
+        result = await self.db.execute(stmt)
         asset = result.scalar_one_or_none()
         if not asset:
             raise AssetNotFoundError(f"未找到 asset: {code}")
         return asset
 
-    async def _get_substance(self, code: str) -> Substance:
-        result = await self.db.execute(
-            select(Substance).where(
-                Substance.substance_code == code, Substance.deleted_at.is_(None)
-            )
-        )
+    async def _get_substance(self, code: str, include_deleted: bool = False) -> Substance:
+        # include_deleted 仅供 unlink 清理路径（H-09）
+        stmt = select(Substance).where(Substance.substance_code == code)
+        if not include_deleted:
+            stmt = stmt.where(Substance.deleted_at.is_(None))
+        result = await self.db.execute(stmt)
         sub = result.scalar_one_or_none()
         if not sub:
             raise SubstanceNotFoundError(f"未找到 substance: {code}")
@@ -329,8 +331,8 @@ class AssetSubstanceLinkService:
                 text("SELECT set_config('app.change_reason', :r, true)"),
                 {"r": reason},
             )
-        asset = await self._get_asset(asset_code)
-        sub = await self._get_substance(substance_code)
+        asset = await self._get_asset(asset_code, include_deleted=True)
+        sub = await self._get_substance(substance_code, include_deleted=True)
         result = await self.db.execute(
             select(AssetSubstanceLink).where(
                 AssetSubstanceLink.asset_id == asset.asset_id,
@@ -419,21 +421,23 @@ class ProjectAssetLinkService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def _get_project(self, code: str) -> Project:
-        result = await self.db.execute(
-            select(Project).where(
-                Project.project_code == code, Project.deleted_at.is_(None)
-            )
-        )
+    async def _get_project(self, code: str, include_deleted: bool = False) -> Project:
+        # include_deleted 仅供 unlink 清理路径：已软删实体的活动链接也要可解除（H-09）
+        stmt = select(Project).where(Project.project_code == code)
+        if not include_deleted:
+            stmt = stmt.where(Project.deleted_at.is_(None))
+        result = await self.db.execute(stmt)
         proj = result.scalar_one_or_none()
         if not proj:
             raise ProjectNotFoundError(f"未找到 project: {code}")
         return proj
 
-    async def _get_asset(self, code: str) -> Asset:
-        result = await self.db.execute(
-            select(Asset).where(Asset.asset_code == code, Asset.deleted_at.is_(None))
-        )
+    async def _get_asset(self, code: str, include_deleted: bool = False) -> Asset:
+        # include_deleted 仅供 unlink 清理路径（H-09）
+        stmt = select(Asset).where(Asset.asset_code == code)
+        if not include_deleted:
+            stmt = stmt.where(Asset.deleted_at.is_(None))
+        result = await self.db.execute(stmt)
         asset = result.scalar_one_or_none()
         if not asset:
             raise AssetNotFoundError(f"未找到 asset: {code}")
@@ -514,8 +518,8 @@ class ProjectAssetLinkService:
                 text("SELECT set_config('app.change_reason', :r, true)"),
                 {"r": reason},
             )
-        proj = await self._get_project(project_code)
-        asset = await self._get_asset(asset_code)
+        proj = await self._get_project(project_code, include_deleted=True)
+        asset = await self._get_asset(asset_code, include_deleted=True)
         result = await self.db.execute(
             select(ProjectAssetLink).where(
                 ProjectAssetLink.project_id == proj.project_id,

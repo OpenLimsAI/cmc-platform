@@ -248,3 +248,27 @@ async def test_link_audit_inherits_project_code(admin_client, unique_suffix):
     ]
     assert link_creates, "应至少一条 project_asset CREATE 审计"
     assert all(it["entity_code"] == pcode for it in link_creates)
+
+
+@pytest.mark.asyncio
+async def test_unlink_after_project_soft_deleted(admin_client, unique_suffix):
+    """H-09：project 软删后其资产链接仍可解除（unlink 走 include_deleted 解析）"""
+    pcode = await _new_project(admin_client, unique_suffix)
+    acode = await _new_asset(admin_client, unique_suffix)
+    r = await admin_client.post(
+        f"/api/v1/projects/{pcode}/assets",
+        json={"asset_code": acode, "relation_type": "primary"},
+    )
+    assert r.status_code == 201, r.text
+
+    del_resp = await admin_client.delete(
+        f"/api/v1/projects/{pcode}",
+        json={"change_reason": "pytest H-09 软删主实体"},
+    )
+    assert del_resp.status_code == 204
+
+    rm = await admin_client.delete(
+        f"/api/v1/projects/{pcode}/assets/{acode}",
+        json={"change_reason": "pytest H-09 清理孤儿引用"},
+    )
+    assert rm.status_code == 204, rm.text
