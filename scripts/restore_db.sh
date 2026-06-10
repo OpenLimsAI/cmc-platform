@@ -72,6 +72,7 @@ docker exec "$PG_CONTAINER" pg_restore \
 
 echo ""
 echo "✓ 恢复完成。请立即跑下列验证："
-echo "  1. docker exec ${PG_CONTAINER} alembic current   # 版本应 = 备份时 head"
-echo "  2. make test-be                                 # 全量回归测试"
-echo "  3. 业务侧抽检：物质 / 项目 / 资产 / 物料各域记录数与备份时间点比对"
+echo "  1. docker compose -f deploy/docker-compose.prod.yml run --rm backend alembic current   # 版本应 = 备份时 head"
+echo "  2. 只读 SQL 抽检：各域记录数（substance/project/asset/material/audit_log）与备份时间点比对"
+echo "  3. 业务侧抽检：随机 5 条物质 / 项目 / 资产 / 物料详情逐字段比对"
+echo "  （代码回归测试仅在 UAT / 隔离 test DB 中另行 make test-be，禁止对恢复后的生产库直接跑 pytest）"

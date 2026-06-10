@@ -98,8 +98,10 @@ sudo BACKUP_DIR=/var/lib/cmab-mdm/backups \
   bash scripts/restore_db.sh cmab_mdm_<hostname>_YYYYMMDD_HHMM.dump
 
 # 3. 校验
-docker exec cmab-mdm-postgres alembic current   # = 备份时 head
-docker exec cmab-mdm-backend pytest tests/ -q   # 全量回归
+#    alembic 校验用一次性 backend 容器（此时 backend 已 stop，不能 docker exec）
+docker compose -f deploy/docker-compose.prod.yml run --rm backend alembic current   # = 备份时 head
+#    ⚠️ 禁止对恢复后的生产库执行 pytest（生产镜像无 tests/ 与 pytest，且会写入测试数据污染恢复结果）。
+#    如需代码回归测试：仅在 UAT / 隔离 test DB 中另行执行 make test-be，不作为生产恢复数据完整性校验。
 docker exec cmab-mdm-postgres psql -U postgres -d cmab_mdm -c "
   SELECT
     (SELECT count(*) FROM srs.substance) AS substances,
@@ -129,8 +131,8 @@ docker compose -f deploy/docker-compose.prod.yml start backend
 |---|---|
 | 1 | 从生产备份选最近 1 周内任意一份 dump |
 | 2 | 在 UAT/Staging 上跑 restore_db.sh |
-| 3 | `alembic current` 显示备份时 head（不是当前 head） |
-| 4 | `pytest tests/ -q` 全量通过 |
+| 3 | `docker compose run --rm backend alembic current` 显示备份时 head（不是当前 head） |
+| 4 | 代码回归：仅在 UAT / 隔离 test DB 另行 `make test-be` 全量通过（不对恢复库直接跑 pytest） |
 | 5 | 关键业务计数与备份时间点 ±0%（无失踪行） |
 | 6 | 关键资产抽检（5 条物质/项目/资产/物料）字段逐字段比对 |
 | 7 | 演练记录归档到 GxP 文档系统（含执行人、时间、结果） |
