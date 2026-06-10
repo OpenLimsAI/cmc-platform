@@ -164,13 +164,18 @@
 - 涉及文件：`backend/app/domains/srs/services.py:329-339 + alembic/versions/2026_05_12_1000_0028_srs_baseline_align.py:94-99`
 - 问题摘要：0028 想用 partial 索引让 internal_code 仅在未删行唯一，但新建索引未加 unique=True（仅普通索引），且 0001 的全量 UniqueConstraint uq_substance_internal_code 从未 drop。create/update 的 pre-check 只查 deleted_at IS NULL 会放行，DB 全量唯一约束却拒绝，复用已软删 internal_code 直接 IntegrityError 500。
 - 原报告建议：0028 索引补 unique=True 并 drop 全量 uq_substance_internal_code。
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11，与 H-10/H-13 同属"软删唯一约束"同类缺陷包）
+- 复核结论：**真实**
+  - 证据 1：0001 migration:214 全量 `UniqueConstraint("internal_code", name="uq_substance_internal_code")`，后续从未 drop；srs/models.py:34 同样声明全量约束；
+  - 证据 2：0028 migration:94-99 建的 `ix_substance_internal_code`（WHERE deleted_at IS NULL）**未加 unique=True**，只是普通 partial 索引，对唯一性无任何作用；docstring S4 引 §7.2.2 表明设计意图是"未删行内唯一"；
+  - 证据 3：create 预检（services.py:330-339）与 update 预检（services.py:438-448）均过滤 `deleted_at IS NULL`——软删行占用的 internal_code 预检放行，flush 撞 0001 全量约束抛 IntegrityError；项目约定 service 禁 catch IntegrityError（避免 async session 报废），异常直接冒泡 → 500。
+- 根因：0028 实施时漏了两步——partial 索引没加 unique、旧全量约束没 drop；预检口径（active-only）按设计基准写，DB 实际约束停留在 0001 口径，三处不一致。
+- 策略建议：**优先策略 B**（软删后允许复用）。依据：0028 S4 注释引设计基准 §7.2.2 partial 口径 + 预检已按 active-only 实现，B 是补完原设计而非改设计。新增 migration：drop uq_substance_internal_code → 重建 ix 为 partial UNIQUE（或新增 uq partial）→ models.py __table_args__ 同步去掉全量 UniqueConstraint。策略 A（预检改全表口径返回 409、编码终身占用）仅在负责人决定 internal_code 走"编码终身制"时选用，无需 migration 但与既有设计基准相悖。
+- 修复状态：已修复（2026-06-11，策略 B，负责人拍板；与 H-10 同一 migration）
+- 是否需要代码修复：是（已完成）
+- 是否需要 migration：是（已新增 `2026_06_11_0100_0045_softdelete_partial_unique.py`：drop uq_substance_internal_code + drop 0028 普通 partial 索引 ix_substance_internal_code + 建 partial UNIQUE `uq_substance_internal_code_active`（WHERE deleted_at IS NULL；internal_code 可 NULL，PG 默认 NULLS DISTINCT 多行 NULL 不冲突））
+- 是否需要测试：是（已补 test_substance_crud.py::test_internal_code_reusable_after_soft_delete——软删后复用 201；既有 test_duplicate_internal_code_rejected 覆盖未删行间 409/40902；全量 281 项全绿）
+- 人工决策备注：srs/models.py 全量 UniqueConstraint 替换为 partial unique Index 声明；dev/生产库需 `alembic upgrade head` 后生效（本次未动运行态 DB，test DB 由 run_tests.sh bootstrap 验证 migration 可执行）。
 
 ## H-09：[BE-be-ref-01] 主数据软删后引用无法解除
 
@@ -198,13 +203,18 @@
 - 涉及文件：`backend/app/domains/ars/services.py:329-364; backend/alembic/versions/2026_05_12_0040_0023_ars_market_id.py:40-43`
 - 问题摘要：add_market_id 预检只过滤 deleted_at IS NULL，但 DB 的 uq_asset_market_id 是含软删行的全量约束。软删某注册号后再添加相同 (market_code,id_type,id_value) 预检通过、INSERT 触发 IntegrityError 500。
 - 原报告建议：改为 partial unique index（WHERE deleted_at IS NULL），或参照 AssetSubstanceLinkService 复活软删行。
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11，与 H-08/H-13 同属"软删唯一约束"同类缺陷包）
+- 复核结论：**真实**
+  - 证据 1：0023 migration:40-43 与 ars/models.py:100-106 均为全量 `UniqueConstraint(asset_id, market_code, id_type, id_value, name="uq_asset_market_id")`，无 WHERE 子句、无 partial 索引补丁；
+  - 证据 2：add_market_id 预检（services.py:333-346）过滤 `deleted_at IS NULL`——软删的注册号记录占用四元组，预检放行后 INSERT 撞全量约束 → IntegrityError 冒泡 500（项目约定 service 不 catch）；
+  - 证据 3：与 H-08 不同，本表连"未完成的 partial 索引"都没有，DB 层从未向 active-only 口径迈步，预检与约束自创建之日即不一致。
+- 根因：0023 建表时唯一约束未考虑软删行；预检按项目通行的 active-only 口径写，两层口径错位。
+- 策略建议：**优先策略 B**（partial unique index）。依据：注册号软删重录是常见业务操作（错删恢复、注册状态变更重建），且 SRS/MM 同口径统一治理一致性最好。新增 migration：drop uq_asset_market_id → 建 partial UNIQUE INDEX（WHERE deleted_at IS NULL）→ models.py 同步。策略 A（全表预检 + 409 占用提示）无 migration 但会让错删的注册号永久不可重录，需配套"复活软删行"接口（原报告备选，改动更大），不推荐。
+- 修复状态：已修复（2026-06-11，策略 B，负责人拍板；与 H-08 同一 migration）
+- 是否需要代码修复：是（已完成）
+- 是否需要 migration：是（已新增 `2026_06_11_0100_0045_softdelete_partial_unique.py`：drop uq_asset_market_id + 建 partial UNIQUE `uq_asset_market_id_active`(asset_id, market_code, id_type, id_value) WHERE deleted_at IS NULL）
+- 是否需要测试：是（已补 test_asset_state_machine.py::test_market_id_reusable_after_soft_delete——软删后重建同四元组 201；既有 test_market_id_duplicate_rejected 覆盖未删行间 409；全量 281 项全绿）
+- 人工决策备注：ars/models.py 全量 UniqueConstraint 替换为 partial unique Index 声明；dev/生产库需 `alembic upgrade head` 后生效。
 
 ## H-11：[BE-be-ars-02] 幂等缓存先于事务提交写入
 
@@ -249,13 +259,18 @@
 - 涉及文件：`backend/app/domains/mm/services.py:380-391, 440-454; backend/alembic/versions/2026_05_13_0500_0033_mm_material_batch.py:72`
 - 问题摘要：uq_material_batch 是全表唯一约束（含软删行），但 add_batch/update_batch 的重复预检均过滤 deleted_at IS NULL。软删某批次后再以同批号新建/改名，预检通过、flush 时撞 DB 唯一约束抛 IntegrityError。
 - 原报告建议：将 uq_material_batch 改为 partial unique index（WHERE deleted_at IS NULL），或预检改为全表口径并提示编码占用。
-- 当前状态：待复核
-- 复核结论：未开始
+- 当前状态：已复核（2026-06-11，与 H-08/H-10 同属"软删唯一约束"同类缺陷包）
+- 复核结论：**真实**
+  - 证据 1：0033 migration:72 与 mm/models.py:109 均为全量 `UniqueConstraint("material_id", "batch_number", name="uq_material_batch")`，含软删行；
+  - 证据 2：add_batch 预检（services.py:380-391）与 update_batch 改批号预检（services.py:441-454）均过滤 `deleted_at IS NULL`——软删批次占用的批号预检放行，flush 撞全量约束 → IntegrityError 冒泡 500，绕过了已定义的业务错误 MaterialBatchNumberDuplicateError（44001 族）；
+  - 证据 3：触发路径有两条（新建批次 / 改名撞已删批号），与原报告所述一致。
+- 根因：0033 建表时唯一约束未考虑软删行，与预检 active-only 口径错位（与 H-08/H-10 同模式）。
+- 策略建议：**倾向策略 B，但批号口径属合规敏感，需负责人先拍板**。考量：错删批次后重录同批号是主要业务场景（B 支持）；但 GxP 视角下"同一物料同一批号出现一活一删两行"对批次追溯/审计报表有歧义风险——若合规口径要求批号终身唯一，则选策略 A（预检去掉 deleted_at 过滤、改全表口径，命中时返回 MaterialBatchNumberDuplicateError 并提示"批号已被已删除批次占用"），A 无需 migration、改动仅 services.py 两处查询。原型阶段两者皆可行，区别在口径承诺。
 - 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 是否需要代码修复：是（B：migration + models.py；A：services.py 两处预检）
+- 是否需要 migration：策略 B 需要；策略 A 不需要
+- 是否需要测试：是（软删批次后复用批号：按选定口径断言 201 或 409；改名撞已删批号同口径；未删行间重复仍 409）
+- 人工决策备注：批号复用口径必须负责人确认（合规敏感，参照原型阶段姿态由负责人直接决策）。2026-06-11 决策：暂不与 H-08/H-10 同批修复（H-08/H-10 已按策略 B 走 migration 0045），本条保持未修，待批号复用口径确认后单独处理。
 
 ## H-14：[TEST-be-tests-01] 硬编码 8000 绕过隔离 test DB
 
@@ -266,13 +281,20 @@
 - 涉及文件：`backend/tests/test_smoke.py:8 / test_rate_limit.py:14 / test_refresh_token.py:13`
 - 问题摘要：这三个文件模块级 BASE_URL='http://localhost:8000'，用自建 AsyncClient 直打 dev 服务；run_tests.sh 把测试服务起在 8001 并经 TEST_BASE_URL 隔离 cmab_test，这些用例完全绕过隔离，读写/污染 dev 库或在 dev 未起时失败。
 - 原报告建议：改用 conftest 的 BASE_URL/http_client fixture，统一读 TEST_BASE_URL
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**
+  - 证据 1（隔离机制确认）：`backend/scripts/run_tests.sh:18-20,61-62`——引导 cmab_test → 8001 起独立 uvicorn（test DB + 独立 redis db）→ `export TEST_BASE_URL=http://localhost:8001` → pytest；`conftest.py:26` 正确模式为 `BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")`；
+  - 证据 2（三处硬编码确认）：`test_smoke.py:8`、`test_rate_limit.py:14`、`test_refresh_token.py:13` 均为模块级 `BASE_URL = "http://localhost:8000"`，且全部用自建 `AsyncClient(base_url=BASE_URL)`（smoke 2 处、rate_limit 2 处、refresh_token 8 处），不经 conftest 的 BASE_URL/http_client fixture，完全绕过 TEST_BASE_URL；
+  - 证据 3（影响分级）：test_smoke 仅只读 /health + 401 探测（污染轻微但目标错误）；test_rate_limit 反复打 dev 服务登录接口——在 dev redis 留限流桶、向 dev 库写登录失败审计；test_refresh_token 在 dev 库真实创建 refresh token / 登录历史 / 审计日志——实质性污染 dev 数据（即此前"pytest 18k+ 垃圾累积"问题在这三个文件上的残留）；
+  - 证据 4（确定性风险）：dev 服务未起（纯 CI / 仅 test 环境）时这三个文件必然连接失败；dev 起着时则测限流等行为受 dev 数据/状态漂移影响，结果不确定。
+- 根因：test DB 隔离改造（run_tests.sh + conftest 读 TEST_BASE_URL）落地时，这三个早期 Phase 1 测试文件的模块级常量未随迁，仍是改造前的直连写法。
+- 最小修复建议：三个文件各删 1 行硬编码，改为 `from tests.conftest import BASE_URL`（与 test_admin_users.py 导入 pg_connect_kwargs 的既有模式一致）；自建 AsyncClient 写法可保留（rate_limit/refresh_token 需要无状态裸客户端，不必强迁 http_client fixture）。
+- 修复状态：已修复（2026-06-11）
+- 是否需要代码修复：是（测试代码最小修复，已完成）
+- 是否需要 migration：否
+- 是否需要测试：是（已运行，见备注）
+- 风险说明：修复前 make test-be 的"全绿"对这三个文件而言测的是 dev 服务而非隔离环境，且持续向 dev 库/redis 注入测试数据；修复仅改测试侧 URL 来源，零业务风险。
+- 人工决策备注：三个文件（test_smoke.py / test_rate_limit.py / test_refresh_token.py）模块级硬编码 `BASE_URL = "http://localhost:8000"` 均改为 `from tests.conftest import BASE_URL`（统一经 TEST_BASE_URL 指向 8001 隔离服务），自建 AsyncClient 写法保留；run_tests.sh / conftest.py / Makefile 未动。验证：① grep 确认 tests/ 下硬编码 :8000 已清零（仅剩 conftest 的 env 兜底默认值与注释，属正确模式本身）；② 三文件 11 项隔离环境全过；③ 全量 run_tests.sh 跑 3 次——首次 test_refresh_old_token_rejected_after_rotation 偶发失败 1 次（单测重跑即过），后两次全量 279 项均全绿。遗留观察项：该用例在全量下存在偶发 flake（旧 refresh 重放预期 401 偶现不满足），系本修复将其迁入共享隔离环境后新暴露的时序/顺序敏感问题，与 URL 修复本身无关，建议后续单独排查（不属 H-14 范围）。
 
 ## H-15：[MATCH-数据模型↔ORM+迁移-01] milestone_type 空约束 ORM↔DB 冲突
 
