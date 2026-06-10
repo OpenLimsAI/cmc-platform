@@ -119,10 +119,10 @@ api.interceptors.response.use(
       }
     }
 
-    // 401 其他场景（token_missing / token_invalid / signature_invalid）
+    // 401 其他场景（token_missing / token_invalid / signature_invalid / old_password_wrong）
     if (status === 401) {
-      // signature_invalid：业务身份再验证，不是会话失效，交给调用方
-      if (errorType === 'signature_invalid') {
+      // 业务型 401（身份再验证 / 旧密码错误），不是会话失效，交给调用方
+      if (errorType === 'signature_invalid' || errorType === 'old_password_wrong') {
         return Promise.reject(error);
       }
       const authStore = useAuthStore.getState();

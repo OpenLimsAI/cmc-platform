@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.exceptions import (
     AccountDisabledError,
+    PasswordChangeRequiredError,
     PermissionDeniedError,
     TokenInvalidError,
     TokenMissingError,
@@ -20,6 +21,16 @@ from app.shared.audit_context import (
     audit_username,
     set_audit_session_vars,
 )
+
+
+# 强制改密期间仅放行改密闭环必要接口（refresh/logout 当前不依赖
+# get_current_user，列入以防御未来加依赖）
+FORCE_PASSWORD_CHANGE_ALLOWED_PATHS = frozenset({
+    "/api/v1/auth/change-password",
+    "/api/v1/auth/logout",
+    "/api/v1/auth/me",
+    "/api/v1/auth/refresh",
+})
 
 
 async def get_current_user(
@@ -73,6 +84,11 @@ async def get_current_user(
             pwd_changed_sec = int(user.password_changed_at.timestamp())
             if int(token_iat) < pwd_changed_sec:
                 raise TokenInvalidError("密码已变更，请重新登录")
+
+    # 强制改密拦截：临时密码仅可走改密闭环，其余接口 403
+    # （403 而非 401：避免前端拦截器按会话失效登出）
+    if user.force_password_change and request.url.path not in FORCE_PASSWORD_CHANGE_ALLOWED_PATHS:
+        raise PasswordChangeRequiredError()
 
     # 认证通过后把 user 写入 ContextVar 并回灌当前事务的 PG session 变量，
     # 后续业务 SQL 触发的 audit trigger 才能取到正确的 user_id/username

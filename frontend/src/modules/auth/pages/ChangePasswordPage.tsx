@@ -108,10 +108,10 @@ export function ChangePasswordPage() {
           <Form.Item
             label="新密码"
             name="new_password"
-            tooltip="至少 8 位，建议包含大小写字母 + 数字 + 特殊字符"
+            tooltip="至少 12 位，建议包含大小写字母 + 数字 + 特殊字符"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 8, message: '新密码至少 8 位' },
+              { min: 12, message: '新密码至少 12 位' },
               { max: 128 },
               {
                 validator: (_, value) =>

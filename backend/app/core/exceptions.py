@@ -153,6 +153,14 @@ class SystemRoleProtectedError(AppError):
     default_message = "系统内置角色不可修改或删除"
 
 
+class PasswordChangeRequiredError(AppError):
+    """force_password_change=true 期间仅允许改密闭环接口（403 而非 401，避免前端按会话失效登出）"""
+    code = 40307
+    http_status = 403
+    error_type = "password_change_required"
+    default_message = "请先修改初始密码后再使用系统"
+
+
 class NotFoundError(AppError):
     code = 40400
     http_status = 404
