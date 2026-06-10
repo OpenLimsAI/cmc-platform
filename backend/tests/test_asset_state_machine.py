@@ -212,6 +212,30 @@ async def test_market_id_duplicate_rejected(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_market_id_reusable_after_soft_delete(admin_client, unique_suffix):
+    """H-10 策略 B：软删后同四元组可重建（0045 partial unique）"""
+    code = await _new_asset(admin_client, unique_suffix, "reuse")
+    payload = {
+        "market_code": "US",
+        "id_type": "NDC",
+        "id_value": f"NDC-{unique_suffix}-reuse",
+    }
+    first = await admin_client.post(f"/api/v1/assets/{code}/market-ids", json=payload)
+    assert first.status_code == 201
+    mid = first.json()["data"]["market_id_pk"]
+
+    deleted = await admin_client.delete(
+        f"/api/v1/assets/{code}/market-ids/{mid}",
+        json={"change_reason": "pytest H-10 软删后重建回归"},
+    )
+    assert deleted.status_code == 204
+
+    # 重建同四元组：应 201 而非 500/409
+    rebuild = await admin_client.post(f"/api/v1/assets/{code}/market-ids", json=payload)
+    assert rebuild.status_code == 201, rebuild.text
+
+
+@pytest.mark.asyncio
 async def test_market_id_audit_inherits_asset_code(admin_client, unique_suffix):
     """market_id audit_log.entity_code 应为父 asset_code（v2 parent_ref）"""
     code = await _new_asset(admin_client, unique_suffix, "audit")

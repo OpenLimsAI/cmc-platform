@@ -107,6 +107,32 @@ async def test_duplicate_internal_code_rejected(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_internal_code_reusable_after_soft_delete(admin_client, unique_suffix):
+    """H-08 策略 B：软删后 internal_code 可被新建物质复用（0045 partial unique）"""
+    ic = f"TEST-REUSE-{unique_suffix}"
+    code = (
+        await admin_client.post(
+            "/api/v1/substances",
+            json={"substance_type": "mab", "internal_code": ic, "preferred_name": "first"},
+        )
+    ).json()["data"]["substance_code"]
+
+    del_resp = await admin_client.delete(
+        f"/api/v1/substances/{code}",
+        json={"change_reason": "pytest H-08 软删后复用回归"},
+    )
+    assert del_resp.status_code == 204
+
+    # 复用已软删的 internal_code：应 201 而非 500/409
+    reuse = await admin_client.post(
+        "/api/v1/substances",
+        json={"substance_type": "mab", "internal_code": ic, "preferred_name": "second"},
+    )
+    assert reuse.status_code == 201, reuse.text
+    assert reuse.json()["data"]["internal_code"] == ic
+
+
+@pytest.mark.asyncio
 async def test_soft_delete_excludes_from_list(admin_client, unique_suffix):
     code = (
         await admin_client.post(

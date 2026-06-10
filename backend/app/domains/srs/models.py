@@ -14,12 +14,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,7 +33,11 @@ class Substance(Base):
     __tablename__ = "substance"
     __table_args__ = (
         UniqueConstraint("substance_code", name="uq_substance_substance_code"),
-        UniqueConstraint("internal_code", name="uq_substance_internal_code"),
+        # 0045：internal_code 唯一性仅约束未删行（软删后允许复用，H-08 策略 B）
+        Index(
+            "uq_substance_internal_code_active", "internal_code",
+            unique=True, postgresql_where=text("deleted_at IS NULL"),
+        ),
         CheckConstraint(
             "substance_type IN ('mab','bispecific','adc','fusion','small_molecule','oligonucleotide','other')",
             name="ck_substance_substance_type",

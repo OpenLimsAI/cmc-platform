@@ -11,11 +11,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -98,9 +100,11 @@ class AssetMarketId(Base):
 
     __tablename__ = "asset_market_id"
     __table_args__ = (
-        UniqueConstraint(
+        # 0045：四元组唯一性仅约束未删行（软删后允许重建，H-10 策略 B）
+        Index(
+            "uq_asset_market_id_active",
             "asset_id", "market_code", "id_type", "id_value",
-            name="uq_asset_market_id",
+            unique=True, postgresql_where=text("deleted_at IS NULL"),
         ),
         {"schema": "ars"},
     )
