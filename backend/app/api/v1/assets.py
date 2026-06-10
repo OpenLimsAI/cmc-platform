@@ -98,6 +98,9 @@ async def create_asset(
         message="Asset 创建成功",
         request_id=getattr(request.state, "request_id", None),
     )
+    # H-11：先显式 commit 再写幂等缓存，避免 commit 失败后 Redis 留下假成功
+    # （get_db 收尾的 commit 对已提交会话是 no-op；body 已 dump 完毕不受 expire 影响）
+    await db.commit()
     if idempotency_key:
         await IdempotencyService.save(
             user.user_id, idempotency_key, payload.model_dump(),

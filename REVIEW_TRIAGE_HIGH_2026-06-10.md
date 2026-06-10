@@ -234,13 +234,21 @@
 - 涉及文件：`backend/app/api/v1/assets.py:101-105; backend/app/core/database.py:64-73`
 - 问题摘要：create_asset 在 IdempotencyService.save 写 Redis 后才由 get_db 在响应后 commit。若 commit 失败（约束/连接），Redis 已缓存 201 成功体，客户端持同一 Idempotency-Key 重试将永远命中缓存假成功，DB 无该资产。
 - 原报告建议：按项目强一致约定在 service 内显式 commit 成功后再写幂等缓存。
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实（且波及面比原报告大：五个域的 create 同模式）**
+  - 证据 1（commit 时机）：core/database.py:64-73 get_db 的 commit 在 `yield session` 之后——即路由函数 return、响应序列化后才执行（项目已知坑：FastAPI yield 依赖 commit 时机）；
+  - 证据 2（service 不显式 commit）：AssetService.create 仅 `flush()`（ars/services.py，create 方法内无 commit；全文件唯一 commit 在 change_status:296）——flush 只把 INSERT 发到 DB 拿回 asset_code，事务并未提交；
+  - 证据 3（缓存先行）：assets.py create 路由在 return 前执行 `IdempotencyService.save(...)` 写 Redis（status_code=201 + 完整响应体 + Location）——此时事务未提交；若 get_db 的 commit 失败（约束延迟校验/连接断开/审计触发器异常），Redis 已留下成功记录；
+  - 证据 4（影响窗口）：idempotency.py:31-32 IDEM_TTL_SECONDS=24h——同 Idempotency-Key 重试在 24 小时窗口内全部命中缓存假 201（原报告"永远"应修正为"24h 窗口内"，但幂等重试恰恰集中在该窗口，实际危害等同），且 Location 指向不存在的资源；
+  - 证据 5（波及面）：grep 确认同模式存在于全部五个 create 路由——assets.py、substances.py:86/104、projects.py:93+、materials.py:74/92、equipments.py:63/80；五个域 service 的 create 均 flush-only（srs/prs 的 commit 在状态机等其他方法，mm 无任何显式 commit）。
+- 根因：幂等缓存写入被放在"业务成功"（service 返回）时点，而项目的事务边界在 yield 依赖里晚于该时点；二者之间存在 commit 失败窗口。与既有约定"强一致场景 service 内显式 commit"未对齐。
+- 推荐修复策略（最小）：五个 create 路由在 `IdempotencyService.save(...)` 之前显式 `await db.commit()`（get_db 收尾的 commit 对已提交会话是无害 no-op；与 ref 域 link/unlink 的显式 commit 先例一致）。备选（更厚重，不推荐本轮做）：把 commit 下沉进各 service.create。仅修 assets 不修其余四个会留同型残缺，应五处同批。
+- 修复状态：已修复（2026-06-11）
+- 是否需要代码修复：是（五个 create 路由显式 commit 后再 save 幂等缓存，已完成）
+- 是否需要 migration：否
+- 是否需要测试：是（已运行：test_idempotency.py 6 项全过——material/substance 同 Key 重放命中缓存、异 body 409、无 Key 正常路径、非法 Key 400、跨用户隔离；全量 286 项全绿，覆盖五域 create 正常 201 回归。commit 失败注入未做，按决策以顺序评审替代）
+- 风险说明：现状为低概率高危害（commit 失败罕见，但一旦发生客户端将拿到指向不存在资源的 201 并在 24h 内无法重试成功）；修复后 commit 提前至响应前，与 ref 域显式 commit 先例一致。
+- 人工决策备注：五个 create 路由（assets/substances/projects/materials/equipments）统一插入 `await db.commit()`——顺序为 service.create → 构造 Location/body（model_dump 完成）→ **commit** → IdempotencyService.save → return；"先 dump 再 commit"保证 ORM expire 不影响响应体；get_db 收尾 commit 对已提交会话为 no-op，未改 get_db/IdempotencyService/service 层。update/delete/状态机路由未动（H-12 另行处理）。
 
 ## H-12：[BE-be-ars-03] 状态机并发竞态可复活已终止资产
 
@@ -251,12 +259,19 @@
 - 涉及文件：`backend/app/domains/ars/services.py:234-275`
 - 问题摘要：change_status 先 SELECT（无 FOR UPDATE）在 Python 校验转移合法性，再无条件 UPDATE status。并发下 T1 terminate 提交后，T2 基于陈旧 active 读的 hold 仍会执行，把 terminated 改回 on_hold。
 - 原报告建议：查询加 with_for_update()，或 UPDATE ... WHERE status=:old 校验影响行数。
-- 当前状态：待复核
-- 复核结论：未开始
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**（置信度可由原报告的"中"上调为"高"——竞态路径完整确认）
+  - 证据 1（无锁读）：change_status（ars/services.py:218-300）经 `_get_asset_or_404`（:119-126）取实体——普通 SELECT，无 with_for_update（grep 确认 ars/srs/prs 三域 services 全文无 with_for_update）；
+  - 证据 2（Python 侧校验 + 无条件写）：转移合法性在 Python 内存中基于读到的 old_status 判定（:236-242），随后 `asset.status = next_status` 经 ORM flush 生成 `UPDATE ... WHERE asset_id = :pk`——WHERE 不含 status 旧值，也不带 version 乐观锁（change_status 不接收 version 参数，乐观锁仅存在于 update() 方法）；
+  - 证据 3（竞态时序）：READ COMMITTED 下 T1 terminate（active→terminated）commit:296 后，T2 hold 此前已读到 active 并通过校验，其 UPDATE 在行锁释放后执行，把 terminated 覆写为 on_hold——**被电子签名保护的不可逆 terminate 被一个无签名的 hold 动作事实撤销**，状态机约束被绕过；audit/status_history 会留下两条记录但终态错误；
+  - 证据 4（同型兄弟）：srs/prs 状态机同样无锁（grep 证据 1），修复时应一并排查（原报告仅点名 ars）。
+- 根因：check-then-act 竞态——状态机校验与状态写入之间无并发控制（行锁/条件 UPDATE/乐观锁三者皆缺）。
+- 推荐修复策略（最小）：change_status 的实体读取改 `select(...).with_for_update()`（仅此一处调用点，_get_asset_or_404 可加形参或 change_status 内联带锁查询）——T2 的 SELECT 将阻塞至 T1 提交，随后基于新状态（terminated）校验自然失败，抛 StateInvalidError 业务错误。该方案锁窗口短（单行、单事务内），且签名/审计逻辑无需变动。备选：UPDATE ... WHERE status=:old + rowcount 校验，但 ORM flush 路径需改写为手写 UPDATE，侵入更大。srs/prs 状态机若确认同型，宜同批修复或另立条目。
 - 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
+- 是否需要代码修复：是（ars change_status 读取加行锁；srs/prs 同型确认后同批处理）
+- 是否需要 migration：否
+- 是否需要测试：是（并发竞态难以在 HTTP 层稳定复现，最小验证：单元/集成层并发两个 change_status（asyncio.gather 双 session）断言后到者失败；或至少回归既有状态机测试全绿 + 代码评审确认锁语义）
+- 风险说明：原型阶段并发低、实际触发概率小，但 terminate 属签名保护的 GxP 不可逆动作，竞态后果是合规性事故级别；修复用单行 FOR UPDATE，死锁风险可忽略（单表单行、无嵌套锁序）。注意 ESignatureService.sign 在锁内执行（密码校验含 bcrypt 开销）会拉长持锁时间——可接受（同一资产的并发状态变更本就该串行）。
 - 人工决策备注：
 
 ## H-13：[BE-be-mm-01] 软删批次后复用批号触发500
