@@ -7,6 +7,7 @@ v2.0:
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -85,6 +86,44 @@ MATERIAL_MDM_READONLY_FIELDS = {
     "name_cn", "category", "grade", "manufacturer", "spec_model",
     "catalog_no", "unit", "package_spec", "hazard_class",
 }
+
+
+def _prepare_mdm_material_dicts(db: Session, mdm_data: dict) -> tuple[str, Optional[str]]:
+    """确保 MDM 快照引用的单位/分类在本地字典中存在。"""
+    unit = mdm_data.get("unit", "ea")
+    if not db.get(crud.UnitDict, unit):
+        db.add(crud.UnitDict(unit=unit, description=unit))
+        db.flush()
+
+    category = mdm_data.get("category")
+    if category and not db.get(crud.CategoryDict, category):
+        db.add(crud.CategoryDict(category=category))
+        db.flush()
+
+    return unit, category
+
+
+def _apply_mdm_material_snapshot(
+    obj,
+    mdm_data: dict,
+    unit: str,
+    category: Optional[str],
+    *,
+    include_material_type: bool,
+) -> None:
+    """把 MDM 物料身份字段覆盖到本地快照;本地运营字段不受影响。"""
+    obj.name_cn = mdm_data.get("material_name", mdm_data.get("name_cn", obj.name_cn))
+    obj.category = category
+    if include_material_type:
+        obj.material_type = mdm_data.get("material_type")
+    obj.grade = mdm_data.get("grade")
+    obj.manufacturer = mdm_data.get("manufacturer")
+    obj.spec_model = mdm_data.get("spec_model")
+    obj.catalog_no = mdm_data.get("catalog_no")
+    obj.unit = unit
+    obj.package_spec = mdm_data.get("package_spec")
+    obj.hazard_class = mdm_data.get("hazard_class")
+    obj.data_source = "mdm"
 
 
 @router.patch("/materials/{material_id}", response_model=MaterialOut)
@@ -220,44 +259,52 @@ def create_from_mdm(
     authorization: Optional[str] = Header(default=None),
 ):
     """从 MDM 拉取物料身份信息，在本地创建记录（data_source='mdm'）。
-    如果本地已存在该编码，返回已有记录。"""
+    如果本地已存在该编码，则刷新 MDM 快照字段后返回；MDM 不可用时返回已有记录。"""
     existing = crud.get_material_by_code(db, code)
-    if existing:
-        return existing
 
     token = mdm_client.extract_bearer_token(authorization)
     mdm_data = mdm_client.get_material_by_code(code, token=token)
     if mdm_data is None:
+        if existing:
+            return existing
         raise HTTPException(status_code=404, detail=f"MDM 中未找到物料 {code}")
 
-    unit = mdm_data.get("unit", "ea")
-    if not db.get(crud.UnitDict, unit):
-        db.add(crud.UnitDict(unit=unit, description=unit))
-        db.flush()
-
-    category = mdm_data.get("category")
-    if category and not db.get(crud.CategoryDict, category):
-        db.add(crud.CategoryDict(category=category))
-        db.flush()
+    unit, category = _prepare_mdm_material_dicts(db, mdm_data)
 
     from models import Material
-    from decimal import Decimal
+
+    if existing:
+        before = model_snapshot(existing)
+        _apply_mdm_material_snapshot(
+            existing,
+            mdm_data,
+            unit,
+            category,
+            include_material_type=False,
+        )
+        db.flush()
+        db.refresh(existing)
+        write_audit(
+            db, current, "material.sync_from_mdm",
+            entity_type="material", entity_id=existing.material_id,
+            before=before, after=model_snapshot(existing),
+            source_ip=get_request_ip(request),
+        )
+        db.commit()
+        return existing
 
     obj = Material(
         material_code=mdm_data.get("material_code", code),
         name_cn=mdm_data.get("material_name", mdm_data.get("name_cn", code)),
-        category=category,
-        material_type=mdm_data.get("material_type"),
-        grade=mdm_data.get("grade"),
-        manufacturer=mdm_data.get("manufacturer"),
-        spec_model=mdm_data.get("spec_model"),
-        catalog_no=mdm_data.get("catalog_no"),
-        unit=unit,
-        package_spec=mdm_data.get("package_spec"),
-        hazard_class=mdm_data.get("hazard_class"),
         safety_stock=Decimal("0"),
         is_active=True,
-        data_source="mdm",
+    )
+    _apply_mdm_material_snapshot(
+        obj,
+        mdm_data,
+        unit,
+        category,
+        include_material_type=True,
     )
     db.add(obj)
     db.flush()

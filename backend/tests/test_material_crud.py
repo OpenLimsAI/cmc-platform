@@ -145,6 +145,71 @@ def test_patch_mdm_material_identity_fields_rejected(client, db, seed_material):
     assert resp.json()["remark"] == "运营可改"
 
 
+def test_create_from_mdm_refreshes_existing_material(client, db, seed_material, monkeypatch):
+    """入库解析已有物料时,应从 MDM 刷新身份快照,但保留本地运营字段。"""
+    import mdm_client
+
+    mid, code, _ = seed_material
+    db.execute(text(
+        "UPDATE material SET data_source='mdm', material_type='reagent', remark='本地备注' "
+        "WHERE material_id=:m"
+    ), {"m": mid})
+    db.commit()
+
+    def fake_get_material_by_code(query_code, token=None):
+        assert query_code == code
+        return {
+            "material_code": code,
+            "material_name": "MDM 新名称",
+            "category": "细胞种子",
+            "material_type": "consumable",
+            "grade": "AR",
+            "manufacturer": "MDM 厂家",
+            "spec_model": "10mL",
+            "catalog_no": "MDM-001",
+            "unit": "箱",
+            "package_spec": "10mL/箱",
+            "hazard_class": ["易燃"],
+        }
+
+    monkeypatch.setattr(mdm_client, "get_material_by_code", fake_get_material_by_code)
+
+    resp = client.post(f"/api/materials/from-mdm/{code}")
+    assert resp.status_code == 201, resp.json()
+    body = resp.json()
+    assert body["material_id"] == mid
+    assert body["name_cn"] == "MDM 新名称"
+    assert body["category"] == "细胞种子"
+    assert body["manufacturer"] == "MDM 厂家"
+    assert body["unit"] == "箱"
+    assert body["hazard_class"] == ["易燃"]
+    assert body["material_type"] == "reagent"
+    assert body["safety_stock"] == "100.00"
+    assert body["remark"] == "本地备注"
+
+    unit = db.execute(text("SELECT unit FROM unit_dict WHERE unit='箱'")).scalar_one()
+    category = db.execute(text(
+        "SELECT category FROM category_dict WHERE category='细胞种子'"
+    )).scalar_one()
+    assert unit == "箱"
+    assert category == "细胞种子"
+
+
+def test_create_from_mdm_existing_material_falls_back_when_mdm_missing(client, seed_material, monkeypatch):
+    """MDM 查不到/不可用时,已有物料仍可继续用于入库。"""
+    import mdm_client
+
+    mid, code, _ = seed_material
+    monkeypatch.setattr(mdm_client, "get_material_by_code", lambda query_code, token=None: None)
+
+    resp = client.post(f"/api/materials/from-mdm/{code}")
+    assert resp.status_code == 201, resp.json()
+    body = resp.json()
+    assert body["material_id"] == mid
+    assert body["material_code"] == code
+    assert body["name_cn"] == "测试耗材"
+
+
 def test_patch_material_new_category_added_to_dict(client, db, seed_material):
     """编辑时改 category 为白名单内但字典尚无的值,应自动加入 category_dict;
     白名单外的值在 pydantic 层就被拒(见 create 的 422 测试)。"""

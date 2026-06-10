@@ -182,7 +182,22 @@ function IntakeForm() {
       return;
     }
     const m = opt.material;
-    if (m) { setResolved(m); setMaterialCode(`${m.material_code === TT_INTERNAL_CODE ? "无编码" : m.material_code} ${m.name_cn}`); }
+    if (m) {
+      setResolved(m);
+      setMaterialCode(`${m.material_code === TT_INTERNAL_CODE ? "无编码" : m.material_code} ${m.name_cn}`);
+      if (m.material_code !== TT_INTERNAL_CODE) {
+        setResolving(true);
+        try {
+          const { data } = await createFromMdm(m.material_code);
+          setResolved(data);
+          setMaterialCode(`${data.material_code} ${data.name_cn}`);
+        } catch {
+          message.warning("MDM 暂不可用,已使用本地物料快照");
+        } finally {
+          setResolving(false);
+        }
+      }
+    }
   };
 
   // ---- 批次组 / 位置 的不可变更新 ----
