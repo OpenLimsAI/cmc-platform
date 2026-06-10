@@ -245,7 +245,7 @@ git push
 Linux 服务器（生产 = 原生 venv+systemd+nginx，非 Docker）
     │
     ├─ git pull
-    ├─ backend/.venv/bin/pip install -r backend/requirements.txt
+    ├─ backend/.venv/bin/pip install -e backend
     ├─ backend/.venv/bin/alembic upgrade head
     ├─ cd frontend && pnpm install && pnpm build   （nginx 伺服 dist）
     └─ sudo systemctl restart cmab-backend
@@ -266,7 +266,7 @@ cd /opt/cmab-mdm-platform
 git pull origin main
 
 # 1) 后端依赖 + 迁移（DBA 手动执行，不自动）
-backend/.venv/bin/pip install -q -r backend/requirements.txt
+backend/.venv/bin/pip install -q -e backend
 backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
 
 # 2) 前端重新构建（产物 frontend/dist 由 nginx 伺服，立即生效）
