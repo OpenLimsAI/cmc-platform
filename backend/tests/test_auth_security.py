@@ -171,6 +171,42 @@ async def test_auto_unlock_after_duration(http_client, admin_client, unique_suff
     assert row["locked_at"] is None
 
 
+@pytest.mark.asyncio
+async def test_relock_after_auto_unlock_window(http_client, admin_client, unique_suffix):
+    """H-01：锁定窗口过后继续错密码 → 自动解锁独立提交、计数恢复累加并再次锁定
+
+    修复前：自动解锁随密码错误 rollback 丢失，旁路计数被 status=='active'
+    守卫跳过，账户停留在 locked+窗口已过稳态，可无限次尝试密码。
+    """
+    username, _ = await _create_throwaway_user(admin_client, http_client, unique_suffix)
+
+    # 触发锁定
+    for _ in range(5):
+        await _login(http_client, username, "WRONG_PASSWORD")
+
+    # 模拟锁定窗口已过
+    await _db_exec(
+        "UPDATE auth.user SET locked_at = NOW() - INTERVAL '31 minutes' WHERE username=$1",
+        username,
+    )
+
+    # 窗口过后继续错密码：第 1 次触发自动解锁（独立提交）并重新计数，
+    # 第 5 次应再次锁定 423
+    for i in range(5):
+        r = await _login(http_client, username, "WRONG_PASSWORD")
+        if i < 4:
+            assert r.status_code == 401, f"attempt {i}: {r.text}"
+        else:
+            assert r.status_code == 423, f"attempt {i}: {r.text}"
+
+    row = await _db_exec(
+        "SELECT status, failed_login_count, locked_at FROM auth.user WHERE username=$1",
+        username,
+    )
+    assert row["status"] == "locked"
+    assert row["locked_at"] is not None
+
+
 # ============== 签名失败旁路审计 ==============
 @pytest.mark.asyncio
 async def test_signature_failure_persists_audit_independently(admin_client, unique_suffix):

@@ -184,6 +184,10 @@ class AuthService:
                     user.status = "active"
                     user.failed_login_count = 0
                     user.locked_at = None
+                    # H-01：解锁是既成事实，立即独立提交——否则随后密码错误
+                    # raise 后 get_db rollback 会丢失解锁，旁路计数读到 locked
+                    # 被 status=='active' 守卫跳过，账户永不再锁（暴力破解防护失效）
+                    await self.db.commit()
                     # 继续走密码校验流程
                 else:
                     await self._persist_login_failure(

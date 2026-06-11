@@ -14,13 +14,21 @@
 - 涉及文件：`backend/app/domains/auth/services.py:180-186,122`
 - 问题摘要：自动解锁只在主 session 内存中改 status/locked_at，密码错时主事务 rollback 丢失；旁路 session 重读 DB 仍是 locked，因 `u.status=='active'` 条件跳过计数与再锁定。用户永远停在 locked+窗口已过状态，每次都走完整密码校验。
 - 原报告建议：自动解锁用旁路 session 立即持久化；或旁路计数时对 locked+窗口已过状态也累加并重置 locked_at。
-- 当前状态：待复核
-- 复核结论：未开始
-- 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
-- 人工决策备注：
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**
+  - 证据 1（解锁不持久化）：login 的自动解锁分支（services.py:175-186）仅在主 session 内存中改 `user.status="active"` 等三字段后继续走密码校验，无 flush/commit；
+  - 证据 2（失败即丢失）：密码错 → raise InvalidCredentialsError → get_db 收尾 rollback → 解锁改动丢失，DB 中用户仍是 locked + 旧 locked_at；
+  - 证据 3（旁路计数被守卫跳过）：`_persist_login_failure` 旁路 session 重读 DB（:117-127），命中 `u.status == "active"` 守卫——locked 状态不累加 failed_login_count、不重置 locked_at，locked_now 恒 False；
+  - 证据 4（闭环）：用户从此停在"locked + 窗口已过"稳态：每次尝试都走完整 bcrypt 校验（计时侧信道也暴露），永不再锁——单账户暴力破解防护在首次锁定后彻底失效。密码对了则正常登录（主事务提交把解锁带上），攻击者无感知障碍；
+  - 缓解因素：登录接口有 slowapi 限流（生产 nginx+slowapi 双层 10/min/IP），但按 IP 分桶，分布式源可绕过，不抵消本缺陷。
+- 根因：自动解锁写在主事务（会随失败 rollback），而失败计数走旁路 session（项目约定），两条路径对"locked 但窗口已过"状态的认知不一致——主路径当它已解锁，旁路当它还锁着。
+- 推荐修复策略（最小）：自动解锁分支内立即持久化——置三字段后 `await self.db.commit()`（解锁是既成事实，不应随后续密码校验失败回滚；与项目"失败路径副作用走旁路/立即提交"的既有原则一致）。这样密码错时旁路重读到 active，正常累加并可再锁。备选：旁路 `_persist_login_failure` 对 `locked 且窗口已过` 也累加并重置 locked_at——逻辑分散两处，不如前者直观。
+- 修复状态：已修复（2026-06-11）
+- 是否需要代码修复：是（自动解锁后显式 commit，已完成；_persist_login_failure 未动——commit 方案经测试验证已足够）
+- 是否需要 migration：否
+- 是否需要测试：是（已补 test_auth_security.py::test_relock_after_auto_unlock_window——锁定 → 改 DB locked_at 模拟窗口过期 → 连错 5 次 → 前 4 次 401、第 5 次 423 再锁定、DB 断言 status=locked + locked_at 非空；auth 套件 5 项 + 全量 287 项全绿）
+- 风险说明：安全缺陷已闭环；AsyncSessionLocal 配置 expire_on_commit=False（database.py:49），commit 后 user 对象（含已 selectinload 的 roles）仍可访问，后续密码校验/last_login_at 写入在新事务正常进行。
+- 人工决策备注：修复机制——自动解锁是既成事实，在解锁分支内独立 `await self.db.commit()`（services.py 自动解锁三字段后），不随本次密码错误的 rollback 丢失；密码错时旁路 session 读到 active，正常累加并在阈值处再次锁定。限流策略/token 逻辑/get_db 均未动。
 
 ## H-02：[BE-be-auth-02] auth 域全部表无审计追踪
 
@@ -31,12 +39,21 @@
 - 涉及文件：`backend/alembic/versions/2026_05_11_1200_0001_init_schemas.py:76-165；backend/app/domains/auth/admin_service.py:201-375`
 - 问题摘要：auth.user/user_role/role/role_permission/refresh_token 均未挂 audit.fn_audit_trigger，管理员建用户、改角色、锁定、重置密码等安全敏感写操作仅 loguru 日志，不落 audit_log。
 - 原报告建议：为 auth 业务表挂 audit trigger 或在 admin service 写应用层审计记录。
-- 当前状态：待复核
-- 复核结论：未开始
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**
+  - 证据 1（trigger 全景）：grep 全部 migration 的 CREATE TRIGGER——srs（substance 及五张子表）/prs（project/milestone/team）/ars（asset/market_id）/mm（material/batch）/eqp（equipment）/ref（三张链接表）全部挂了 audit trigger，**auth schema 零覆盖**（user/role/user_role/role_permission/refresh_token 一张都没有）；
+  - 证据 2（应用层也没有）：admin_service.py 与 admin_role_service.py 全文无 audit_log/AuditLog 引用——建用户、改角色、分配权限、锁定/解锁、重置密码等安全敏感操作只有 loguru logger.info/warning，日志轮转即灭失、不可结构化查询；
+  - 证据 3（对照）：同为 Phase 5.A 交付的登录历史（auth.login_history）和电子签名（audit.e_signature）有独立持久化，唯独账户/角色/权限变更这一 Part 11 核心审计对象缺失。
+- 根因：audit trigger 体系建设按业务域推进（0002 基线→各域建表时挂载），auth 域建于 0001（早于 audit 基线 0002），后续补挂动作从未发生；Phase 5.A 管理端开发时也未补应用层审计。
+- 推荐修复策略（需先决策机制，两选一）：
+  - 方案 T（trigger）：新增 migration 为 auth.user/role/user_role/role_permission 挂 audit.fn_audit_trigger（refresh_token/login_history 本身是会话/日志表，不挂）。**两个前置必须验证**：① 高频自更新噪声——auth.user 的 failed_login_count/last_login_at 每次登录都变，trigger v3 是否支持列排除，否则 audit_log 会被登录流量淹没；② 旁路 session（登录失败计数、签名失败审计）未调 set_audit_session_vars，trigger 取 app.user_id GUC 的行为（NULL 写入 or 报错）需确认，报错会反过来打断登录主流程；
+  - 方案 A（应用层）：admin_service/admin_role_service 在各写操作内显式写 audit_log（actor/action/entity/before-after），不动 DB。规避方案 T 的两个坑，但覆盖面靠人工维护、绕过 service 的写不留痕。
+  - 倾向：方案 T 排除高频列 + 方案 A 兜底语义字段，但工作量为本批 High 之最，建议作为独立工作项排期而非顺手修。
 - 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
+- 是否需要代码修复：是（机制待决策：migration 挂 trigger 或 service 层审计写入，或组合）
+- 是否需要 migration：方案 T 需要；方案 A 不需要
+- 是否需要测试：是（建用户/改角色/重置密码后 audit_log 可查；若挂 trigger 须加"高频登录不产生审计洪水 + 旁路 session 写 user 表不报错"两个回归）
+- 风险说明：现状违背 Part 11 审计追踪要求（账户与权限变更不可追溯），原型阶段可接受但进 GMP 前必须补；修复本身的主要风险在方案 T 的两个前置（噪声与 GUC 缺失），未验证就挂 trigger 可能直接打挂登录链路。
 - 人工决策备注：
 
 ## H-03：[BE-be-auth-03] 软删角色重建触发 500
@@ -48,12 +65,19 @@
 - 涉及文件：`backend/app/domains/auth/admin_role_service.py:151-156,234`
 - 问题摘要：delete_role 是软删（deleted_at），但 uq_role_role_code 是全表唯一；create_role 预检排除了软删行，重建同名 role_code 时预检通过、INSERT 撞唯一约束抛 IntegrityError 500。
 - 原报告建议：唯一约束改 partial（WHERE deleted_at IS NULL），或预检不排除软删行。
-- 当前状态：待复核
-- 复核结论：未开始
+- 当前状态：已复核（2026-06-11）
+- 复核结论：**真实**（与 H-08/H-10/H-13 同族：预检 active-only vs DB 全表唯一）
+  - 证据 1（DB 全表约束）：0001 migration:126 `UniqueConstraint("role_code", name="uq_role_role_code")`，含软删行，后续无任何 migration 改动（注意：auth/models.py:80 的 ORM 声明名为 uq_role_code，与 DB 实际名 uq_role_role_code 不一致——修复时以 DB 名为准 drop，并顺手校正 ORM 声明）；
+  - 证据 2（预检 active-only）：create_role（admin_role_service.py:150-156）预检 `Role.deleted_at.is_(None)`——软删角色占用的 role_code 放行；
+  - 证据 3（软删路径）：delete_role（:225-237）硬删 role_permission 行 + 软删 role（deleted_at/deleted_by）——重建同 role_code 时预检通过、INSERT 撞全表约束 → IntegrityError 裸 500（项目约定禁 catch）；
+  - 证据 4（前置可达）：删除→重建同名自定义角色是常规管理操作（系统角色受 SystemRoleProtectedError 保护不可删，不受影响）。
+- 根因：与 H-08/H-10/H-13 同模式——0001 建表时唯一约束未考虑软删，预检按 active-only 写。
+- 推荐修复策略：**策略 B（partial unique），与已定案的 H-08/H-10 口径一致**——新增 migration：drop uq_role_role_code → 建 partial UNIQUE（role_code WHERE deleted_at IS NULL）→ models.py 同步为 partial unique Index（顺带消除命名不一致）。role_code 无 H-13 批号那样的合规敏感性（软删角色的 role_permission 已硬删、用户数已清零，重建即全新角色），无需额外口径决策。
 - 修复状态：未开始
-- 是否需要代码修复：待定
-- 是否需要 migration：待定
-- 是否需要测试：待定
+- 是否需要代码修复：是（migration + models.py + create_role 预检维持现状）
+- 是否需要 migration：是（策略 B；可与 H-13 拍板后的 mm 改动合并一个 migration，或单独 0046）
+- 是否需要测试：是（建角色 → 软删 → 重建同 role_code 应 201；两个未删角色同 code 仍 409 RoleCodeExistsError；既有 test_admin_roles 回归）
+- 风险说明：现状管理员删除→重建同名角色必然 500；修复与 0045 同模式，零业务逻辑改动。partial unique 后"一活一删"同 code 共存对角色列表/审计查询无歧义（删除行默认不展示）。
 - 人工决策备注：
 
 ## H-04：[FE-auth+admin-01] 改密旧密码错被强制登出
