@@ -78,6 +78,9 @@ const Labeled = ({ label, children }: { label: React.ReactNode; children: React.
   </div>
 );
 
+const dash = (value?: string | null) => value || "—";
+const joinValues = (values?: string[] | null) => (values && values.length ? values.join("、") : "—");
+
 // 一个存放位置 + 数量(散放),或一个 -80℃ 冰箱孔位选择
 interface Pos {
   key: number;
@@ -117,12 +120,12 @@ function IntakeForm() {
   const [resolving, setResolving] = useState(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
   const [nameQuery, setNameQuery] = useState("");
-  // 物料级:单位 / 规格 —— 主数据有则只读取自 resolved;无编码新建时用下面两个本地态
+  // 物料级:单位 / 规格型号 —— 主数据有则只读取自 resolved;无编码新建时用下面两个本地态
   const [unitVal, setUnitVal] = useState("");
   const [specVal, setSpecVal] = useState("");
   // 标准品:项目编号(表单级,所有批次共用)
   const [projectNo, setProjectNo] = useState("");
-  // 实际展示/提交的单位、规格:已解析物料用主数据,否则用用户输入
+  // 实际展示/提交的单位、规格型号:已解析物料用主数据,否则用用户输入
   const unitShown = resolved ? (resolved.unit ?? "") : unitVal;
   const specShown = resolved ? (resolved.spec_model ?? "") : specVal;
   // 批次组(可多组,每组可多位置)
@@ -141,7 +144,7 @@ function IntakeForm() {
     queryFn: () => listMaterials({ keyword: nameQuery.trim() }).then((r) => r.data),
     enabled: noCode && nameQuery.trim().length > 0,
   });
-  // 编码模式:多字段(编码/名称/厂家/规格/货号)、多词、忽略大小写的实时搜索
+  // 编码模式:多字段(编码/名称/厂家/规格型号/货号)、多词、忽略大小写的实时搜索
   const { data: codeMatches = [], isFetching: codeSearching } = useQuery({
     queryKey: ["materials", "search", materialCode],
     queryFn: () => listMaterials({ keyword: materialCode.trim() }).then((r) => r.data),
@@ -450,7 +453,7 @@ function IntakeForm() {
               <Space wrap align="end" size="middle" style={{ marginBottom: 16 }}>
                 <Form.Item name="manufacturer" label="来源/厂家" style={{ marginBottom: 0 }}><Input style={{ width: 160 }} /></Form.Item>
                 <Form.Item name="grade" label="级别" style={{ marginBottom: 0 }}><Input style={{ width: 120 }} /></Form.Item>
-                {/* 单位/规格是物料级属性,无编码新建在此填(不受散放/冻存影响),位置行里只读回显 */}
+                {/* 单位/规格型号是物料级属性,无编码新建在此填(不受散放/冻存影响),位置行里只读回显 */}
                 <Labeled label={<span>单位 <span style={{ color: "#ff4d4f" }}>*</span></span>}>
                   <Select
                     showSearch placeholder="单位" optionFilterProp="label" style={{ width: 120 }}
@@ -458,8 +461,8 @@ function IntakeForm() {
                     options={units.map((u) => ({ label: u.unit, value: u.unit }))}
                   />
                 </Labeled>
-                <Labeled label="规格">
-                  <Input placeholder="规格" style={{ width: 150 }}
+                <Labeled label="规格型号">
+                  <Input placeholder="规格型号" style={{ width: 150 }}
                     value={specVal} onChange={(e) => setSpecVal(e.target.value)} />
                 </Labeled>
               </Space>
@@ -480,11 +483,13 @@ function IntakeForm() {
             <Descriptions.Item label="来源">
               {resolved ? (resolved.data_source === "mdm" ? <Tag color="geekblue">MDM</Tag> : <Tag>本地</Tag>) : "—"}
             </Descriptions.Item>
-            <Descriptions.Item label="生产商">{resolved?.manufacturer ?? "—"}</Descriptions.Item>
-            <Descriptions.Item label="规格">{resolved?.spec_model ?? "—"}</Descriptions.Item>
-            <Descriptions.Item label="货号">{resolved?.catalog_no ?? "—"}</Descriptions.Item>
-            <Descriptions.Item label="单位">{resolved?.unit ?? "—"}</Descriptions.Item>
-            <Descriptions.Item label="分类">{resolved?.category ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="生产商">{dash(resolved?.manufacturer)}</Descriptions.Item>
+            <Descriptions.Item label="规格型号">{dash(resolved?.spec_model)}</Descriptions.Item>
+            <Descriptions.Item label="单位">{dash(resolved?.unit)}</Descriptions.Item>
+            <Descriptions.Item label="货号">{dash(resolved?.catalog_no)}</Descriptions.Item>
+            <Descriptions.Item label="分类">{dash(resolved?.category)}</Descriptions.Item>
+            <Descriptions.Item label="包装规格">{dash(resolved?.package_spec)}</Descriptions.Item>
+            <Descriptions.Item label="危化品分类">{joinValues(resolved?.hazard_class)}</Descriptions.Item>
           </Descriptions>
 
           <Divider titlePlacement="left">批次信息</Divider>
@@ -592,12 +597,12 @@ function IntakeForm() {
                           <InputNumber placeholder="数量" min={0.01} value={p.qty} style={{ width: 110 }}
                             onChange={(q) => patchPos(g.key, p.key, { qty: q ?? undefined })} />
                         </Labeled>
-                        {/* 单位/规格为物料级,此处只读回显;编辑入口:有编码看物料信息表,无编码在顶部"无编码物料"区 */}
+                        {/* 单位/规格型号为物料级,此处只读回显;编辑入口:有编码看物料信息表,无编码在顶部"无编码物料"区 */}
                         <Labeled label="单位">
                           <Input disabled placeholder="单位" style={{ width: 100 }} value={unitShown} />
                         </Labeled>
-                        <Labeled label="规格">
-                          <Input disabled placeholder="规格" style={{ width: 150 }} value={specShown} />
+                        <Labeled label="规格型号">
+                          <Input disabled placeholder="规格型号" style={{ width: 150 }} value={specShown} />
                         </Labeled>
                       </>
                     )}

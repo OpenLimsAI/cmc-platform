@@ -63,7 +63,7 @@ export default function MaterialListPage() {
     },
     { title: "分类", dataIndex: "category", width: 120 },
     { title: "生产商", dataIndex: "manufacturer", width: 120, ellipsis: true },
-    { title: "规格", dataIndex: "spec_model", width: 150, ellipsis: true },
+    { title: "规格型号", dataIndex: "spec_model", width: 150, ellipsis: true },
     { title: "货号", dataIndex: "catalog_no", width: 120 },
     { title: "单位", dataIndex: "unit", width: 60 },
     {
@@ -90,7 +90,7 @@ export default function MaterialListPage() {
       </Typography.Paragraph>
       <Space style={{ marginBottom: 16 }} wrap>
         <Input
-          placeholder="编码/名称/生产商/规格/货号 (空格分隔多词, * 通配)"
+          placeholder="编码/名称/生产商/规格型号/货号 (空格分隔多词, * 通配)"
           prefix={<SearchOutlined />}
           allowClear
           style={{ width: 360 }}

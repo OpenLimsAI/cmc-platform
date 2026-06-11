@@ -71,7 +71,7 @@ export default function MaterialDetailModal({ materialId, open, onClose }: Props
             </Descriptions.Item>
             <Descriptions.Item label="物料名称">{material.name_cn}</Descriptions.Item>
             <Descriptions.Item label="生产商">{material.manufacturer ?? "—"}</Descriptions.Item>
-            <Descriptions.Item label="规格">{material.spec_model ?? "—"}</Descriptions.Item>
+            <Descriptions.Item label="规格型号">{material.spec_model ?? "—"}</Descriptions.Item>
             <Descriptions.Item label="货号">{material.catalog_no ?? "—"}</Descriptions.Item>
             <Descriptions.Item label="单位">{material.unit}</Descriptions.Item>
             <Descriptions.Item label="级别">{material.grade ?? "—"}</Descriptions.Item>

@@ -82,7 +82,7 @@ export default function StockPage() {
                 { title: "物料编码", dataIndex: "material_code", width: 120 },
                 { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
                 { title: "生产商", dataIndex: "manufacturer", width: 120, ellipsis: true },
-                { title: "规格", dataIndex: "spec_model", width: 150, ellipsis: true },
+                { title: "规格型号", dataIndex: "spec_model", width: 150, ellipsis: true },
                 { title: "单位", dataIndex: "unit", width: 60 },
                 {
                   title: "总库存",
