@@ -10,11 +10,13 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -77,7 +79,11 @@ class User(Base):
 class Role(Base):
     __tablename__ = "role"
     __table_args__ = (
-        UniqueConstraint("role_code", name="uq_role_code"),
+        # 0046：role_code 唯一性仅约束未删行（软删后允许重建，H-03 策略 B）
+        Index(
+            "uq_role_code_active", "role_code",
+            unique=True, postgresql_where=text("deleted_at IS NULL"),
+        ),
         {"schema": "auth"},
     )
 

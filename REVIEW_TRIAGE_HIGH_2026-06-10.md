@@ -73,12 +73,12 @@
   - 证据 4（前置可达）：删除→重建同名自定义角色是常规管理操作（系统角色受 SystemRoleProtectedError 保护不可删，不受影响）。
 - 根因：与 H-08/H-10/H-13 同模式——0001 建表时唯一约束未考虑软删，预检按 active-only 写。
 - 推荐修复策略：**策略 B（partial unique），与已定案的 H-08/H-10 口径一致**——新增 migration：drop uq_role_role_code → 建 partial UNIQUE（role_code WHERE deleted_at IS NULL）→ models.py 同步为 partial unique Index（顺带消除命名不一致）。role_code 无 H-13 批号那样的合规敏感性（软删角色的 role_permission 已硬删、用户数已清零，重建即全新角色），无需额外口径决策。
-- 修复状态：未开始
-- 是否需要代码修复：是（migration + models.py + create_role 预检维持现状）
-- 是否需要 migration：是（策略 B；可与 H-13 拍板后的 mm 改动合并一个 migration，或单独 0046）
-- 是否需要测试：是（建角色 → 软删 → 重建同 role_code 应 201；两个未删角色同 code 仍 409 RoleCodeExistsError；既有 test_admin_roles 回归）
-- 风险说明：现状管理员删除→重建同名角色必然 500；修复与 0045 同模式，零业务逻辑改动。partial unique 后"一活一删"同 code 共存对角色列表/审计查询无歧义（删除行默认不展示）。
-- 人工决策备注：
+- 修复状态：已修复（2026-06-11）
+- 是否需要代码修复：是（已完成：auth/models.py 全量 UniqueConstraint 替换为 partial unique Index `uq_role_code_active`，顺带消除 ORM uq_role_code 与 DB uq_role_role_code 的命名不一致；create_role 预检维持 active-only 现状）
+- 是否需要 migration：是（已新增 `2026_06_11_0200_0046_role_code_partial_unique.py`：drop uq_role_role_code（以 DB 实际名为准）→ 建 partial UNIQUE uq_role_code_active（role_code WHERE deleted_at IS NULL）；downgrade 完整可逆）
+- 是否需要测试：是（已补 test_admin_roles.py::test_recreate_role_code_after_soft_delete——建角色→软删→重建同 code 201；活-活 409 由既有 test_create_role_duplicate_code 覆盖；角色定向 16 项 + 全量 288 项全绿，0046 经 run_tests.sh bootstrap 验证可执行）
+- 风险说明：修复与 0045 同模式，零业务逻辑改动。partial unique 后"一活一删"同 code 共存对角色列表/审计查询无歧义（删除行默认不展示）。dev/生产库需 alembic upgrade head 后生效。
+- 人工决策备注：采用策略 B，与 H-08/H-10（migration 0045）partial unique 口径一致；未与 H-13 合并（mm 批号口径仍待负责人确认）。
 
 ## H-04：[FE-auth+admin-01] 改密旧密码错被强制登出
 

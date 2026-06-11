@@ -191,6 +191,23 @@ async def test_delete_custom_role_empty(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
+async def test_recreate_role_code_after_soft_delete(admin_client, unique_suffix):
+    """H-03 策略 B：软删角色后同 role_code 可重建（0046 partial unique）"""
+    p = _custom_role_payload(unique_suffix)
+    r1 = await admin_client.post("/api/v1/roles", json=p)
+    assert r1.status_code == 201, r1.text
+    role_code = r1.json()["data"]["role_code"]
+
+    r2 = await admin_client.delete(f"/api/v1/roles/{role_code}")
+    assert r2.status_code == 200
+
+    # 重建同 role_code：应 201 而非 500/409
+    r3 = await admin_client.post("/api/v1/roles", json=p)
+    assert r3.status_code == 201, r3.text
+    assert r3.json()["data"]["role_code"] == role_code
+
+
+@pytest.mark.asyncio
 async def test_delete_custom_role_in_use(admin_client, unique_suffix):
     p = _custom_role_payload(unique_suffix)
     r1 = await admin_client.post("/api/v1/roles", json=p)
