@@ -470,7 +470,8 @@ function IntakeForm() {
           )}
 
           {/* 物料基本信息(只读;常驻显示,解析后填充) */}
-          <Descriptions bordered size="small" column={{ xs: 1, sm: 2, lg: 3, xxl: 4 }} style={{ marginBottom: 16 }}>
+          <Descriptions bordered size="small" column={{ xs: 1, sm: 2, lg: 3, xxl: 4 }} style={{ marginBottom: 16 }}
+            styles={{ label: { width: 90, whiteSpace: "nowrap" } }}>
             <Descriptions.Item label="物料ID">
               {resolved ? <span style={{ color: "#8c8c8c" }}>{resolved.material_id}</span> : "—"}
             </Descriptions.Item>
@@ -485,10 +486,11 @@ function IntakeForm() {
             </Descriptions.Item>
             <Descriptions.Item label="生产商">{dash(resolved?.manufacturer)}</Descriptions.Item>
             <Descriptions.Item label="规格型号">{dash(resolved?.spec_model)}</Descriptions.Item>
+            <Descriptions.Item label="Catalog No.">{dash(resolved?.catalog_no)}</Descriptions.Item>
             <Descriptions.Item label="单位">{dash(resolved?.unit)}</Descriptions.Item>
-            <Descriptions.Item label="货号">{dash(resolved?.catalog_no)}</Descriptions.Item>
             <Descriptions.Item label="分类">{dash(resolved?.category)}</Descriptions.Item>
             <Descriptions.Item label="包装规格">{dash(resolved?.package_spec)}</Descriptions.Item>
+            <Descriptions.Item label="等级">{dash(resolved?.grade)}</Descriptions.Item>
             <Descriptions.Item label="危化品分类">{joinValues(resolved?.hazard_class)}</Descriptions.Item>
           </Descriptions>
 
