@@ -159,6 +159,7 @@ class Material(Base):
     # 老物料没分类的可以为 NULL, 入库时回退到普通表单
     material_type: Mapped[Optional[str]] = mapped_column(String(20))
     name_cn: Mapped[str] = mapped_column(String(200), nullable=False)
+    name_en: Mapped[Optional[str]] = mapped_column(String(255))  # MDM material_name_en 快照
     grade: Mapped[Optional[str]] = mapped_column(String(50))
     manufacturer: Mapped[Optional[str]] = mapped_column(String(100))
     spec_model: Mapped[Optional[str]] = mapped_column(String(200))

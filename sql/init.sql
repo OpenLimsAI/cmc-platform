@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS material (
     -- 入库表单"大类"; 决定入库页面的字段布局
     material_type      VARCHAR(20)  CHECK (material_type IS NULL OR material_type IN ('reagent','consumable','standard','column')),
     name_cn            VARCHAR(200) NOT NULL,
+    name_en            VARCHAR(255),                    -- 英文名(MDM 快照)
     grade              VARCHAR(50),
     manufacturer       VARCHAR(100),
     spec_model         VARCHAR(200),
@@ -310,6 +311,10 @@ END$$;
 -- material: 危化品分类多选
 ALTER TABLE material
     ADD COLUMN IF NOT EXISTS hazard_class TEXT[];
+
+-- material: v1.6 英文名(MDM mm.material_name_en 快照)
+ALTER TABLE material
+    ADD COLUMN IF NOT EXISTS name_en VARCHAR(255);
 
 -- batch: v1.2 加入入库类型及标准物质/色谱柱专属字段
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_type             VARCHAR(20);

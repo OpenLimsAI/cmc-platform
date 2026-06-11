@@ -486,7 +486,7 @@ function IntakeForm() {
             </Descriptions.Item>
             <Descriptions.Item label="生产商">{dash(resolved?.manufacturer)}</Descriptions.Item>
             <Descriptions.Item label="规格型号">{dash(resolved?.spec_model)}</Descriptions.Item>
-            <Descriptions.Item label="Catalog No.">{dash(resolved?.catalog_no)}</Descriptions.Item>
+            <Descriptions.Item label="英文名">{dash(resolved?.name_en)}</Descriptions.Item>
             <Descriptions.Item label="单位">{dash(resolved?.unit)}</Descriptions.Item>
             <Descriptions.Item label="分类">{dash(resolved?.category)}</Descriptions.Item>
             <Descriptions.Item label="包装规格">{dash(resolved?.package_spec)}</Descriptions.Item>

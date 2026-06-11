@@ -4,6 +4,7 @@ export interface Material {
   material_id: number;
   material_code: string;
   name_cn: string;
+  name_en: string | null;
   category: string | null;
   material_type: string | null;
   grade: string | null;
@@ -20,7 +21,6 @@ export interface Material {
   deactivated_at: string | null;
   deactivated_by: string | null;
   deactivate_reason: string | null;
-  import_batch_id: number | null;
   created_at: string;
   updated_at: string;
 }

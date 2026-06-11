@@ -286,6 +286,7 @@ class MaterialBase(BaseModel):
         None, pattern="^(reagent|consumable|standard|column)$"
     )
     name_cn: str
+    name_en: Optional[str] = None
     grade: Optional[str] = None
     manufacturer: Optional[str] = None
     spec_model: Optional[str] = None
@@ -326,6 +327,7 @@ class MaterialUpdate(BaseModel):
         None, pattern="^(reagent|consumable|standard|column)$"
     )
     name_cn: Optional[str] = None
+    name_en: Optional[str] = None
     grade: Optional[str] = None
     manufacturer: Optional[str] = None
     spec_model: Optional[str] = None

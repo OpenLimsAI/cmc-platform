@@ -83,7 +83,7 @@ def get_material(material_id: int, db: Session = Depends(get_db)):
 # MDM 快照字段:data_source='mdm' 时本系统只读,修改须回 MDM(物料无 sync 端点,
 # 身份变更走 MDM 后重新入库拉取);material_type 是入库 tab 权威(本地运营),不在此列
 MATERIAL_MDM_READONLY_FIELDS = {
-    "name_cn", "category", "grade", "manufacturer", "spec_model",
+    "name_cn", "name_en", "category", "grade", "manufacturer", "spec_model",
     "catalog_no", "unit", "package_spec", "hazard_class",
 }
 
@@ -113,6 +113,7 @@ def _apply_mdm_material_snapshot(
 ) -> None:
     """把 MDM 物料身份字段覆盖到本地快照;本地运营字段不受影响。"""
     obj.name_cn = mdm_data.get("material_name", mdm_data.get("name_cn", obj.name_cn))
+    obj.name_en = mdm_data.get("material_name_en")
     obj.category = category
     if include_material_type:
         obj.material_type = mdm_data.get("material_type")
