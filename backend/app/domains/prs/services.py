@@ -155,13 +155,15 @@ class ProjectService:
         return [ProjectBrief.model_validate(p) for p in projects], total
 
     # ----------- 详情 -----------
-    async def _get_project_or_404(self, code: str) -> Project:
-        result = await self.db.execute(
-            select(Project).where(
-                Project.project_code == code,
-                Project.deleted_at.is_(None),
-            )
+    async def _get_project_or_404(self, code: str, for_update: bool = False) -> Project:
+        # for_update：状态机等 check-then-act 路径加行锁，防并发覆写（H-12）
+        stmt = select(Project).where(
+            Project.project_code == code,
+            Project.deleted_at.is_(None),
         )
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.db.execute(stmt)
         proj = result.scalar_one_or_none()
         if not proj:
             raise ProjectNotFoundError(f"未找到 project: {code}")
@@ -284,7 +286,7 @@ class ProjectService:
                 f"动作 '{action}' 为 GxP 关键转移，必须提供 signature 对象进行电子签名"
             )
 
-        proj = await self._get_project_or_404(code)
+        proj = await self._get_project_or_404(code, for_update=True)
         old_status = proj.status
         next_status = transitions.get(old_status)
         if not next_status:

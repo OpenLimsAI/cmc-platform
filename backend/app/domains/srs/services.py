@@ -681,10 +681,13 @@ class SubstanceService:
             )
 
         result = await self.db.execute(
-            select(Substance).where(
+            select(Substance)
+            .where(
                 Substance.substance_code == code,
                 Substance.deleted_at.is_(None),
             )
+            # H-12：行锁防 check-then-act 竞态（并发状态变更串行化，后到者按新状态校验）
+            .with_for_update()
         )
         sub = result.scalar_one_or_none()
         if not sub:

@@ -267,12 +267,12 @@
   - 证据 4（同型兄弟）：srs/prs 状态机同样无锁（grep 证据 1），修复时应一并排查（原报告仅点名 ars）。
 - 根因：check-then-act 竞态——状态机校验与状态写入之间无并发控制（行锁/条件 UPDATE/乐观锁三者皆缺）。
 - 推荐修复策略（最小）：change_status 的实体读取改 `select(...).with_for_update()`（仅此一处调用点，_get_asset_or_404 可加形参或 change_status 内联带锁查询）——T2 的 SELECT 将阻塞至 T1 提交，随后基于新状态（terminated）校验自然失败，抛 StateInvalidError 业务错误。该方案锁窗口短（单行、单事务内），且签名/审计逻辑无需变动。备选：UPDATE ... WHERE status=:old + rowcount 校验，但 ORM flush 路径需改写为手写 UPDATE，侵入更大。srs/prs 状态机若确认同型，宜同批修复或另立条目。
-- 修复状态：未开始
-- 是否需要代码修复：是（ars change_status 读取加行锁；srs/prs 同型确认后同批处理）
+- 修复状态：已修复（2026-06-11，三域状态机同批加锁）
+- 是否需要代码修复：是（已完成：ars `_get_asset_or_404` 与 prs `_get_project_or_404` 增加 `for_update: bool = False` 形参（默认无锁，其余调用方行为不变），各自 change_status 调用处传 True；srs change_status 的内联 select 直接加 `.with_for_update()`。grep 确认 for_update 仅出现在三个 change_status 路径）
 - 是否需要 migration：否
-- 是否需要测试：是（并发竞态难以在 HTTP 层稳定复现，最小验证：单元/集成层并发两个 change_status（asyncio.gather 双 session）断言后到者失败；或至少回归既有状态机测试全绿 + 代码评审确认锁语义）
-- 风险说明：原型阶段并发低、实际触发概率小，但 terminate 属签名保护的 GxP 不可逆动作，竞态后果是合规性事故级别；修复用单行 FOR UPDATE，死锁风险可忽略（单表单行、无嵌套锁序）。注意 ESignatureService.sign 在锁内执行（密码校验含 bcrypt 开销）会拉长持锁时间——可接受（同一资产的并发状态变更本就该串行）。
-- 人工决策备注：
+- 是否需要测试：是（已运行：三个状态机套件 test_asset_state_machine + test_project_state_machine + test_state_machine 共 24 项全过；全量 286 项全绿。真并发竞态用例未补——HTTP 层无法稳定复现窗口，按复核备选方案以"回归全绿 + 锁语义评审"替代：FOR UPDATE 使后到事务阻塞至先到提交，再按新状态校验自然抛 StateInvalidError）
+- 风险说明：原型阶段并发低、实际触发概率小，但 terminate 属签名保护的 GxP 不可逆动作，竞态后果是合规性事故级别；修复用单行 FOR UPDATE，死锁风险可忽略（单表单行、无嵌套锁序）。ESignatureService.sign 在锁内执行（bcrypt 开销）拉长持锁时间——可接受（同一实体的并发状态变更本就该串行）。
+- 人工决策备注：原报告仅点名 ars，复核确认 srs/prs 同型后三域同批修复；锁仅加在状态机入口，update/soft_delete 等其他 check-then-act 路径维持现状（有乐观锁 version 或风险较低，未扩散）。
 
 ## H-13：[BE-be-mm-01] 软删批次后复用批号触发500
 

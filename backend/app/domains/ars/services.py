@@ -116,13 +116,15 @@ class AssetService:
         return [AssetBrief.model_validate(a) for a in assets], total
 
     # ----------- 详情 -----------
-    async def _get_asset_or_404(self, code: str) -> Asset:
-        result = await self.db.execute(
-            select(Asset).where(
-                Asset.asset_code == code,
-                Asset.deleted_at.is_(None),
-            )
+    async def _get_asset_or_404(self, code: str, for_update: bool = False) -> Asset:
+        # for_update：状态机等 check-then-act 路径加行锁，防并发覆写（H-12）
+        stmt = select(Asset).where(
+            Asset.asset_code == code,
+            Asset.deleted_at.is_(None),
         )
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.db.execute(stmt)
         asset = result.scalar_one_or_none()
         if not asset:
             raise AssetNotFoundError(f"未找到 asset: {code}")
@@ -231,7 +233,7 @@ class AssetService:
                 f"动作 '{action}' 为 GxP 关键转移，必须提供 signature 对象进行电子签名"
             )
 
-        asset = await self._get_asset_or_404(code)
+        asset = await self._get_asset_or_404(code, for_update=True)
         old_status = asset.status
         next_status = transitions.get(old_status)
         if not next_status:
