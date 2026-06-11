@@ -1,5 +1,5 @@
 "use client"
-// 检验周期页：KPI + 月度趋势 + 5重点检项趋势 + 方法明细表（对应 Streamlit View 3）
+// 检验周期页：KPI + 月度趋势 + 6重点检项趋势 + 方法明细表（对应 Streamlit View 3）
 // 注意：左侧边栏的日期范围对本页不生效，由页面内「趋势月数」滑块控制统计区间
 export const dynamic = "force-dynamic"
 import { useState, useMemo } from "react"
@@ -25,13 +25,15 @@ import { StatCard } from "@/components/stat-card"
 import type { CardScheme } from "@/components/stat-card"
 import ReactECharts from "echarts-for-react"
 
-// 5 个重点检项（目标天数从 meta.dim_method.target_days 读取，不再硬编码）
+// 6 个重点检项（目标天数从 meta.dim_method.target_days 读取，不再硬编码）
 const KEY_METHODS = [
   { fallback: "表达量",                    include: "表达量",    exclude: null        },
   { fallback: "分子排阻色谱法（SEC）",       include: "分子排阻",  exclude: null        },
   { fallback: "离子交换高效液相色谱（IEX）",  include: "离子交换",  exclude: null        },
   { fallback: "R-CE-SDS",                include: "R-CE-SDS", exclude: "NR-CE-SDS" },
   { fallback: "NR-CE-SDS",               include: "NR-CE-SDS",exclude: null        },
+  // 蛋白质含量有「普通/微量/高通量」三个变体，include 用全词避免误匹配另两个
+  { fallback: "蛋白质含量（高通量）",        include: "蛋白质含量（高通量）", exclude: null },
 ]
 
 function matchMethod(name: string, include: string, exclude: string | null) {
@@ -461,7 +463,7 @@ export default function CycleTimePage() {
         </div>
       )}
 
-      {/* 5 个重点检项月度趋势：4 段堆叠柱 */}
+      {/* 6 个重点检项月度趋势：4 段堆叠柱 */}
       <div>
         <h2 className="text-base font-semibold text-gray-800 mb-1">日常检项月度周期细分趋势</h2>
         <p className="text-xs text-gray-400 mb-4">
