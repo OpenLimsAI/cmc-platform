@@ -161,7 +161,7 @@ async def test_export_csv_with_filter(admin_client, http_client, unique_suffix):
     assert "log_id,timestamp,username" in body
     # 至少 2 行（CREATE + UPDATE）
     # 注：CSV 第一行是 header，所以 splitlines() 后业务行 >= 2
-    lines = [l for l in body.splitlines() if l.strip()]
+    lines = [line for line in body.splitlines() if line.strip()]
     assert len(lines) >= 3  # header + CREATE + UPDATE
     # 所有数据行都含 entity_code
     for line in lines[1:]:
@@ -206,7 +206,7 @@ async def test_export_csv_empty_with_strict_filter(admin_client, http_client):
         headers={"Authorization": admin_client._headers["Authorization"]},
     )
     assert r.status_code == 200
-    lines = [l for l in r.text.splitlines() if l.strip()]
+    lines = [line for line in r.text.splitlines() if line.strip()]
     assert len(lines) == 1  # 仅 header
     assert int(r.headers.get("x-row-count", 0)) == 0
 

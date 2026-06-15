@@ -27,7 +27,7 @@ async def test_create_writes_audit_log(admin_client, unique_suffix):
     ).json()["data"]["substance_code"]
 
     logs = await _audit_logs(admin_client, code)
-    creates = [l for l in logs if l["entity_table"] == "substance" and l["action"] == "CREATE"]
+    creates = [log for log in logs if log["entity_table"] == "substance" and log["action"] == "CREATE"]
     assert len(creates) == 1
     assert creates[0]["entity_code"] == code
     assert creates[0]["username"] == "admin"
@@ -53,7 +53,7 @@ async def test_update_writes_change_history(admin_client, unique_suffix):
     )
 
     logs = await _audit_logs(admin_client, code)
-    updates = [l for l in logs if l["entity_table"] == "substance" and l["action"] == "UPDATE"]
+    updates = [log for log in logs if log["entity_table"] == "substance" and log["action"] == "UPDATE"]
     assert len(updates) == 1
     assert updates[0]["reason"] == "改靶点测试 audit"
 
@@ -97,8 +97,8 @@ async def test_xref_lifecycle_audited(admin_client, unique_suffix):
     await admin_client.delete(f"/api/v1/substances/{code}/xrefs/{xref_id}")
 
     logs = await _audit_logs(admin_client, code)
-    xref_logs = [l for l in logs if l["entity_table"] == "substance_xref" and l["entity_id"] == xref_id]
-    actions = sorted([l["action"] for l in xref_logs])
+    xref_logs = [log for log in logs if log["entity_table"] == "substance_xref" and log["entity_id"] == xref_id]
+    actions = sorted([log["action"] for log in xref_logs])
     assert actions == ["CREATE", "DELETE", "UPDATE"]
 
 
