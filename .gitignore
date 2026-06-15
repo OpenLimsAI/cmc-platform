@@ -76,3 +76,8 @@ tmp/
 ~$*.docx
 ~$*.xlsx
 ~$*.pptx
+
+# Playwright MCP 截图/快照产物(本地,勿提交)
+.playwright-mcp/
+*-screenshot.png
+smoke-*.png
