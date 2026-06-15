@@ -31,6 +31,13 @@ CMC LabOps Portal —— 实验室物料库存 + 设备管理系统。
 
 服务名：`cmc-backend`（LabOps 后端 :8010）、`cmab-backend`（MDM 后端 :18000）、`nginx`（前端静态 + 反代）。
 
+## 数据库结构变更约定（重要）
+对 `cmc_data_platform` 的任何结构性变更（建表/改表/删表、加列/改列/删列、加约束/索引等）**一律通过 `cmc-schema-migrations` 工具（Alembic 版本化迁移）执行并同步到各环境**。
+- ❌ 禁止直接在生产/任意库手敲 `psql` DDL，也不要依赖 `sql/init.sql` 改生产结构。
+- ✅ `sql/init.sql` 仅用于测试库与本地 dev 初次 bootstrap，**不是生产结构的权威来源**；它与生产可能存在漂移（例如已废弃的 `app_user`/`auth_session` 表仍残留在生产，需由迁移脚本正式清除）。
+- 流程：在 `cmc-schema-migrations` 写迁移 → review → 按其发布流程升级各环境，保证结构变更**可版本化、可回滚、可审计**。
+- LabOps 后端 `cmc_user` 仅有 `material_mgmt` schema 权限，无权做跨 schema 的结构变更——更印证结构变更应走专门的迁移工具，而非应用连接。
+
 ## 时区约定（重要）
 所有 `TIMESTAMP` 列存**裸上海墙钟**（无时区、不存 UTC、显示不换算）。三重保险：
 1. ORM 列默认 `default=datetime.now`（应用进程，宿主机时区 = Asia/Shanghai）
