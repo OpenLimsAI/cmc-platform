@@ -35,6 +35,7 @@ export interface Batch {
   remark: string | null;
   intake_type: string | null;
   concentration: string | null;
+  extinction_coefficient: number | null;
   serial_no: string | null;
   asset_no: string | null;
   responsible_person: string | null;
@@ -96,6 +97,29 @@ export interface Location {
 
 export const createBatch = (data: BatchCreate) =>
   client.post<Batch>("/api/batches", data);
+
+export const getBatch = (batchId: number) =>
+  client.get<Batch>(`/api/batches/${batchId}`);
+
+// 批次元信息可改字段(全部可选,只发改动的);reviewer_* 为第二位库管员的复核签名凭据。
+export interface BatchMetaUpdate {
+  expiry_date?: string | null;
+  received_date?: string | null;
+  remark?: string | null;
+  concentration?: string | null;
+  extinction_coefficient?: number | null;
+  serial_no?: string | null;
+  asset_no?: string | null;
+  responsible_person?: string | null;
+  project_no?: string | null;
+  originator_batch_no?: string | null;
+  aliquot_date?: string | null;
+  reviewer_username: string;
+  reviewer_password: string;
+}
+
+export const updateBatchMeta = (batchId: number, data: BatchMetaUpdate) =>
+  client.patch<Batch>(`/api/batches/${batchId}`, data);
 
 export const outgoing = (data: TxnOutRequest) =>
   client.post("/api/inventory/out", data);

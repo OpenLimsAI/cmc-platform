@@ -1027,6 +1027,24 @@ def get_batch(db: Session, batch_id: int) -> Optional[Batch]:
     return db.get(Batch, batch_id)
 
 
+# 批次"元信息"白名单:可经双人复核修改的字段。
+# 不含 batch_no(身份)/数量(走盘点)/location_id(走移库)/material_id/intake_type(分类权威)。
+BATCH_EDITABLE_FIELDS = {
+    "expiry_date", "received_date", "remark", "concentration",
+    "extinction_coefficient", "serial_no", "asset_no",
+    "responsible_person", "project_no", "originator_batch_no", "aliquot_date",
+}
+
+
+def update_batch_meta(db: Session, batch: Batch, changes: dict) -> Batch:
+    """按白名单改批次元信息;审计与 commit 由调用方负责。"""
+    for k, v in changes.items():
+        if k in BATCH_EDITABLE_FIELDS:
+            setattr(batch, k, v)
+    db.flush()
+    return batch
+
+
 def get_batch_qty(db: Session, batch_id: int) -> Decimal:
     """实时聚合该批次当前库存。"""
     val = db.execute(

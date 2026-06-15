@@ -13,6 +13,8 @@ import {
 } from "../../../api/storage";
 import CellGrid from "../../storage/components/CellGrid";
 import { getErrorDetail } from "../../../shared/errors";
+import { useAuthStore } from "../../../stores/authStore";
+import BatchEditModal from "../components/BatchEditModal";
 
 function expiryTag(v: string | null, days: number | null) {
   if (!v) return <span style={{ color: "#8c8c8c" }}>—</span>;
@@ -103,8 +105,10 @@ export default function OutgoingPage() {
   const [keyword, setKeyword] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<StockByBatch | null>(null);
   const [selectedCellIds, setSelectedCellIds] = useState<number[]>([]);
+  const [editBatchId, setEditBatchId] = useState<number | null>(null);
   const [form] = Form.useForm();
   const qc = useQueryClient();
+  const canWrite = useAuthStore((s) => s.canWrite());
 
   const { data: batches = [], isLoading, refetch } = useQuery({
     queryKey: ["stockByBatch", keyword],
@@ -218,6 +222,22 @@ export default function OutgoingPage() {
             width: 110,
             render: (v: string | null, r: StockByBatch) => expiryTag(v, r.days_to_expiry),
           },
+          ...(canWrite
+            ? [{
+                title: "操作",
+                key: "action",
+                width: 80,
+                render: (_: unknown, r: StockByBatch) => (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); setEditBatchId(r.batch_id); }}
+                  >
+                    编辑
+                  </Button>
+                ),
+              }]
+            : []),
         ]}
       />
 
@@ -301,6 +321,13 @@ export default function OutgoingPage() {
           )}
         </div>
       )}
+
+      <BatchEditModal
+        batchId={editBatchId}
+        open={editBatchId != null}
+        onClose={() => setEditBatchId(null)}
+        onSuccess={() => { setEditBatchId(null); refetch(); }}
+      />
     </>
   );
 }

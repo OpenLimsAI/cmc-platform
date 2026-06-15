@@ -9,6 +9,7 @@ v1.2:
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import List, Optional
 from decimal import Decimal
 
@@ -19,9 +20,12 @@ from sqlalchemy.orm import Session
 import crud
 from audit import get_request_ip, model_snapshot, write_audit
 from database import get_db
-from auth import CurrentUser, require_warehouse
+from auth import CurrentUser, require_warehouse, verify_reviewer
 from models import InventoryTxn
-from schemas import BatchCreate, BatchOut
+from schemas import BatchCreate, BatchOut, BatchMetaUpdate
+
+# 复核人需具备的角色(库管理员或系统管理员)
+REVIEWER_ALLOWED_ROLES = {"SYS_ADMIN", "CMC_WAREHOUSE_ADMIN"}
 
 router = APIRouter(prefix="/api/batches", tags=["batch"])
 
@@ -170,6 +174,85 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
     b = crud.get_batch(db, batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {batch_id} 不存在")
+    qty = crud.get_batch_qty(db, batch_id)
+    return {
+        "batch_id": b.batch_id,
+        "material_id": b.material_id,
+        "batch_no": b.batch_no,
+        "expiry_date": b.expiry_date,
+        "location_id": b.location_id,
+        "received_date": b.received_date,
+        "initial_qty": b.initial_qty,
+        "remark": b.remark,
+        "intake_type": b.intake_type,
+        "concentration": b.concentration,
+        "extinction_coefficient": b.extinction_coefficient,
+        "serial_no": b.serial_no,
+        "asset_no": b.asset_no,
+        "responsible_person": b.responsible_person,
+        "project_no": b.project_no,
+        "originator_batch_no": b.originator_batch_no,
+        "aliquot_date": b.aliquot_date,
+        "created_at": b.created_at,
+        "current_qty": qty,
+        "location_name": b.location.name if b.location else None,
+        "material_code": b.material.material_code if b.material else None,
+        "material_name": b.material.name_cn if b.material else None,
+        "unit": b.material.unit if b.material else None,
+    }
+
+
+@router.patch("/{batch_id}", response_model=BatchOut)
+def update_batch(
+    batch_id: int,
+    payload: BatchMetaUpdate,
+    request: Request,
+    current: CurrentUser = Depends(require_warehouse),
+    db: Session = Depends(get_db),
+):
+    """修改批次元信息 —— 需第二位库管员/管理员当场电子签名复核(四眼原则)。
+    可改:有效期/原研药批号/浓度/消光系数/序列号/资产编号/负责人/项目编号/分装日期/入库日期/备注。
+    不可改:批号(身份)、数量(走盘点调整)、位置(走移库)。"""
+    b = crud.get_batch(db, batch_id)
+    if not b:
+        raise HTTPException(status_code=404, detail=f"批次 {batch_id} 不存在")
+
+    # 只取显式提交的、且排除复核凭据的字段
+    changes = payload.model_dump(
+        exclude_unset=True,
+        exclude={"reviewer_username", "reviewer_password"},
+    )
+    if not changes:
+        raise HTTPException(status_code=400, detail="没有要修改的字段")
+
+    # 复核签名:第二位库管员/管理员凭据 → 向 MDM 验证身份
+    reviewer = verify_reviewer(payload.reviewer_username, payload.reviewer_password)
+    if reviewer.user_id == current.user_id:
+        raise HTTPException(
+            status_code=400, detail="复核人不能是修改本人,请由第二位库管员复核"
+        )
+    if not (set(reviewer.roles) & REVIEWER_ALLOWED_ROLES):
+        raise HTTPException(
+            status_code=403, detail="复核人需具备库管理员或系统管理员权限"
+        )
+
+    before = model_snapshot(b)
+    crud.update_batch_meta(db, b, changes)
+    after = model_snapshot(b)
+    after["__review_signature__"] = {
+        "reviewer_id": reviewer.user_id,
+        "reviewer_name": reviewer.username,
+        "meaning": "批次信息修改二人复核确认",
+        "signed_at": datetime.now().isoformat(),
+    }
+    write_audit(
+        db, current, "batch.update",
+        entity_type="batch", entity_id=batch_id,
+        before=before, after=after,
+        source_ip=get_request_ip(request),
+    )
+    db.commit()
+    db.refresh(b)
     qty = crud.get_batch_qty(db, batch_id)
     return {
         "batch_id": b.batch_id,

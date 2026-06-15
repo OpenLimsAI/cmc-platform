@@ -12,6 +12,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional
 
+import httpx
 from fastapi import Depends, Header, HTTPException
 from jose import JWTError, jwt
 
@@ -20,6 +21,8 @@ MDM_SECRET_KEY = os.getenv(
     "dev-secret-key-CHANGE-ME-IN-PRODUCTION-please-32-chars",
 )
 MDM_JWT_ALGORITHM = os.getenv("MDM_JWT_ALGORITHM", "HS256")
+MDM_BASE_URL = os.getenv("MDM_BASE_URL", "http://127.0.0.1:18000/api/v1")
+MDM_TIMEOUT = float(os.getenv("MDM_TIMEOUT", "5"))
 
 
 @dataclass
@@ -65,6 +68,39 @@ def get_current_user(
         username=payload.get("username", ""),
         roles=payload.get("roles", []),
     )
+
+
+def verify_reviewer(username: str, password: str) -> CurrentUser:
+    """用账号密码向 MDM 验证一个复核人身份,返回其 CurrentUser(含 roles)。
+    用于双人复核电子签名:第二位库管员/管理员当场输入凭据证明本人。
+    注意 httpx 须 trust_env=False(本机有 SOCKS 代理)。"""
+    try:
+        with httpx.Client(timeout=MDM_TIMEOUT, trust_env=False) as c:
+            resp = c.post(
+                f"{MDM_BASE_URL}/auth/login",
+                json={"username": username, "password": password},
+            )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="认证服务不可用,无法完成复核签名")
+    if resp.status_code != 200:
+        # 必须用 400 而非 401:复核人凭据错误是"业务校验失败",
+        # 前端对 401 会统一清登录态并跳登录页(client.ts),用 401 会把
+        # 正在操作的修改人误踢回登录页。复核失败只应在弹窗里提示。
+        raise HTTPException(status_code=400, detail="复核人账号或密码错误")
+    body = resp.json()
+    data = body.get("data", body)
+    token = data.get("access_token") if isinstance(data, dict) else None
+    if not token:
+        raise HTTPException(status_code=502, detail="复核认证返回异常")
+    try:
+        claims = jwt.decode(token, MDM_SECRET_KEY, algorithms=[MDM_JWT_ALGORITHM])
+        return CurrentUser(
+            user_id=int(claims["sub"]),
+            username=claims.get("username", ""),
+            roles=claims.get("roles", []),
+        )
+    except (JWTError, KeyError, ValueError, TypeError):
+        raise HTTPException(status_code=502, detail="复核认证令牌解析失败")
 
 
 def require_admin(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:

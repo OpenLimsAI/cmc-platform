@@ -493,6 +493,26 @@ class StockByMaterial(BaseModel):
     low_stock: bool  # total_qty < safety_stock 且 safety_stock > 0
 
 
+class BatchMetaUpdate(BaseModel):
+    """批次元信息修改(双人复核电子签名)。
+    仅可改元信息;批号/数量/位置/物料不在此改(数量走盘点、位置走移库)。
+    只提交需要改动的字段;reviewer_* 为第二位库管员/管理员的当场复核签名凭据。"""
+    expiry_date: Optional[date] = None
+    received_date: Optional[date] = None
+    remark: Optional[str] = None
+    concentration: Optional[str] = None
+    extinction_coefficient: Optional[Decimal] = None
+    serial_no: Optional[str] = None
+    asset_no: Optional[str] = None
+    responsible_person: Optional[str] = None
+    project_no: Optional[str] = None
+    originator_batch_no: Optional[str] = None
+    aliquot_date: Optional[date] = None
+    # 复核签名:第二位库管员/管理员的账号密码(向 MDM 验证身份,证明本人)
+    reviewer_username: str
+    reviewer_password: str
+
+
 class StockByBatch(BaseModel):
     batch_id: int
     material_id: int
