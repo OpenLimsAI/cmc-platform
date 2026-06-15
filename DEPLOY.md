@@ -22,7 +22,7 @@
 服务器 OS 上需要:
 
 ```bash
-# 1) Python 3.10+ 与 Node.js 20+(React 前端构建/伺服需要)
+# 1) Python 3.11+ 与 Node.js 20+(React 前端构建/伺服需要)
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip git nodejs npm
 
@@ -56,7 +56,9 @@ PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
     -d cmc_data_platform -f sql/init.sql
 ```
 
-验证(应能看到 10 张表,owner 都是 cmc_user):
+验证(应能看到 11 张表 —— unit_dict / category_dict / location / material / batch /
+inventory_txn / audit_log / storage_node / cell_occupancy,外加 v2.0 已废弃但仍建空的
+app_user / auth_session;owner 都是 cmc_user):
 
 ```bash
 PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
@@ -108,20 +110,21 @@ cd /opt/cmc-labops
 ./install.sh
 ```
 
-脚本做了什么:
+脚本做了什么(**默认 `FRONTEND_MODE=nginx`**,适配本生产):
 1. `python3 -m venv backend/.venv` + `pip install -r backend/requirements.txt`
 2. `cd frontend-react && npm ci && npm run build`(产物在 frontend-react/dist)
-3. 把 `systemd/*.service` 复制到 `/etc/systemd/system/`(需 sudo)
-4. `systemctl daemon-reload` + `enable --now` 两个服务
+3. 把 `systemd/cmc-backend.service` 复制到 `/etc/systemd/system/`(需 sudo)
+4. `daemon-reload` + `enable --now cmc-backend`;**nginx 模式下不安装/不启用 `cmc-frontend`**
+   (若该 unit 之前被误启用过,会顺手 `disable --now` 掉,避免与 nginx 争 5110)
 
 成功后:
 
 - 后端:只监听服务器本机 `127.0.0.1:8010`;看 Swagger `/docs` 需要 SSH 隧道,见第 6 节
-- 前端:见下面 §4b——**本服务器由 nginx 伺服 `frontend-react/dist`**,不靠 `install.sh` 装的 vite preview 单元
+- 前端:见下面 §4b——**本服务器由 nginx 伺服 `frontend-react/dist`**,前端更新只需 `npm run build` 即生效
 
-> ⚠️ `install.sh` 会 `enable --now cmc-frontend`(vite preview 监听 5110)。**本服务器前端已由 nginx 占用 5110**,
-> 两者会撞端口。本机的正确形态是:**用 nginx 伺服前端,`cmc-frontend.service` 保持 `disable`**;
-> 只有不装 nginx 的主机才用 vite preview 那条路。
+> ℹ️ 只有**不装 nginx** 的主机才需要 vite preview 那条路:用 `FRONTEND_MODE=vite ./install.sh`,
+> 它才会安装并 `enable --now cmc-frontend`(vite preview 监听 5110)。本服务器走 nginx,保持默认即可,
+> 不会再出现 cmc-frontend 与 nginx 撞 5110 的老问题。
 
 ---
 
@@ -268,6 +271,7 @@ A: 检查服务器能否访问 MDM Portal 后端:`curl <MDM_BASE_URL>/health`;
 A: `ss -ltnp | grep -E '8010|5110'` 查谁占着。通常只需要改 `.env` 中的 `BACKEND_PORT` / `FRONTEND_PORT`,然后 `./restart.sh`。
 
 **Q: 想加开机自启 / 取消自启**
-A: install.sh 默认已 `enable`。
-- 取消自启:`sudo systemctl disable cmc-backend cmc-frontend`
-- 重新自启:`sudo systemctl enable cmc-backend cmc-frontend`
+A: install.sh 默认已 `enable cmc-backend`(nginx 自带开机自启,无需单独处理前端)。
+- 取消自启:`sudo systemctl disable cmc-backend`
+- 重新自启:`sudo systemctl enable cmc-backend`
+- (仅 `FRONTEND_MODE=vite` 的无 nginx 主机才另有 `cmc-frontend` 需要一并 enable/disable)

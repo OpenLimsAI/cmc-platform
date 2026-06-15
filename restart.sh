@@ -18,6 +18,10 @@ BACKEND_SERVICE="${BACKEND_SERVICE:-cmc-backend}"
 FRONTEND_SERVICE="${FRONTEND_SERVICE:-cmc-frontend}"
 BACKEND_PORT="${BACKEND_PORT:-8010}"
 FRONTEND_PORT="${FRONTEND_PORT:-5110}"
+# 前端伺服模式:nginx(本生产实际,前端走 nginx 伺服 dist,本脚本不碰 cmc-frontend)
+#              vite(无 nginx 主机,由 cmc-frontend.service 跑 vite preview)
+# 覆盖:FRONTEND_MODE=vite ./restart.sh
+FRONTEND_MODE="${FRONTEND_MODE:-nginx}"
 
 if [ -f "$ENV_FILE" ]; then
     # .env 由 systemd EnvironmentFile 使用,格式是 KEY=VALUE。
@@ -39,7 +43,11 @@ echo "============================================================"
 echo " CMC 库存系统 - Linux 一键重启"
 echo " 项目目录: $ROOT"
 echo " 后端服务: $BACKEND_SERVICE"
-echo " 前端服务: $FRONTEND_SERVICE"
+if [ "$FRONTEND_MODE" = "vite" ]; then
+    echo " 前端服务: $FRONTEND_SERVICE (vite 模式)"
+else
+    echo " 前端伺服: nginx(伺服 dist;本脚本只重建 dist,不重启 cmc-frontend)"
+fi
 echo "============================================================"
 echo
 
@@ -76,19 +84,27 @@ echo "1. 重新加载 systemd 配置"
 sudo systemctl daemon-reload
 echo
 
-echo "2. 重启后端和前端"
-sudo systemctl restart "$BACKEND_SERVICE" "$FRONTEND_SERVICE"
+if [ "$FRONTEND_MODE" = "vite" ]; then
+    echo "2. 重启后端和前端"
+    sudo systemctl restart "$BACKEND_SERVICE" "$FRONTEND_SERVICE"
+else
+    echo "2. 重启后端(前端走 nginx,dist 已在步骤 0 重建,无需重启服务)"
+    sudo systemctl restart "$BACKEND_SERVICE"
+fi
 echo
 
 echo "3. 服务状态"
 sudo systemctl --no-pager --lines=0 status "$BACKEND_SERVICE" | sed -n '1,8p'
-echo
-sudo systemctl --no-pager --lines=0 status "$FRONTEND_SERVICE" | sed -n '1,8p'
+if [ "$FRONTEND_MODE" = "vite" ]; then
+    echo
+    sudo systemctl --no-pager --lines=0 status "$FRONTEND_SERVICE" | sed -n '1,8p'
+fi
 echo
 
 echo "4. 健康检查"
-# systemctl restart 返回时,服务进程刚 fork,uvicorn/streamlit 的 socket 还没 listen,
+# systemctl restart 返回时,服务进程刚 fork,uvicorn 的 socket 还没 listen,
 # 直接 curl 会 connection refused。这里 retry 最多 20 秒,每秒一次。
+# 前端 5110:nginx 模式下打到 nginx,vite 模式下打到 cmc-frontend,两种都该通。
 backend_ok=0
 for i in $(seq 1 20); do
     if curl -fsS --max-time 2 "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null 2>&1; then
@@ -114,7 +130,11 @@ for i in $(seq 1 20); do
 done
 if [ "$frontend_ok" -eq 0 ]; then
     echo "前端 20s 内未通过健康检查,查看日志:"
-    echo "  sudo journalctl -u $FRONTEND_SERVICE -n 80 --no-pager"
+    if [ "$FRONTEND_MODE" = "vite" ]; then
+        echo "  sudo journalctl -u $FRONTEND_SERVICE -n 80 --no-pager"
+    else
+        echo "  sudo nginx -t && sudo tail -n 80 /var/log/nginx/error.log"
+    fi
 fi
 echo
 
@@ -123,4 +143,8 @@ echo "  http://${SERVER_IP}:${FRONTEND_PORT}"
 echo
 echo "常用看日志命令:"
 echo "  sudo journalctl -u $BACKEND_SERVICE -f"
-echo "  sudo journalctl -u $FRONTEND_SERVICE -f"
+if [ "$FRONTEND_MODE" = "vite" ]; then
+    echo "  sudo journalctl -u $FRONTEND_SERVICE -f"
+else
+    echo "  sudo tail -f /var/log/nginx/access.log   # 前端访问日志(nginx)"
+fi

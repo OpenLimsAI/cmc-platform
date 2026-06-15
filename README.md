@@ -81,6 +81,7 @@ cmc-labops/
 ├── .gitignore
 ├── sql/
 │   ├── init.sql                    物料模块建表 + 字典初始化(末尾含迁移段)
+│   ├── migrate_v1_2.sql            v1.1→v1.2 增量迁移(非全新库升级时用,见 DEPLOY.md §7)
 │   └── equipment_init.sql          设备模块建表(equipment_mgmt schema,末尾含迁移段)
 ├── systemd/
 │   ├── cmc-backend.service         FastAPI 后端 systemd unit(Linux)
@@ -590,10 +591,7 @@ cd frontend-react
 npm install
 npm run dev          # 固定 5110 端口,自动代理 /api 到后端 8010
 
-# 6)(可选)生成 Excel 导入模板
-cd template && python3 generate_template.py
-
-# 7) 访问(以下端口若 .env 中改过,以 .env 为准)
+# 6) 访问(以下端口若 .env 中改过,以 .env 为准)
 #    前端: http://localhost:5110
 #    后端 API 文档: http://localhost:8010/docs
 #    注意:登录依赖 MDM Portal 后端(Docker,127.0.0.1:18000),需先启动
@@ -638,7 +636,9 @@ cd /opt/cmc-labops
 ./restart.sh
 ```
 
-`restart.sh` 会 `daemon-reload`、重启 `cmc-backend`、检查 `/health` 并打印访问地址。
+`restart.sh` 会按需重建前端 dist、`daemon-reload`、重启 `cmc-backend`、检查 `/health`(及前端 5110)并打印访问地址。
+**默认 `FRONTEND_MODE=nginx`,不会去重启 `cmc-frontend`**(前端由 nginx 伺服 dist);只有无 nginx 主机才用
+`FRONTEND_MODE=vite ./restart.sh` 让它一并重启 vite preview。
 
 > ⚠️ 本生产前端由 **nginx** 伺服 `frontend-react/dist`(静态文件),前端更新只需 `npm run build` 即生效,**无需重启 cmc-frontend**(该 unit 在本机 disable,详见 DEPLOY.md §4b)。后端完整重启用 `sudo systemctl restart cmc-backend`。
 
@@ -751,7 +751,7 @@ cd template && python3 generate_template.py
 - MDM 统一认证(JWT 本地校验)、按角色守卫(前端路由 + 后端接口双层)
 - 主数据写边界:data_source='mdm' 记录身份字段后端只读
 - 操作日志审计(所有写操作含批次首笔流水)
-- macOS 双击重启脚本和 Linux `restart.sh` 一键重启;后端测试 39 例全绿
+- macOS 双击重启脚本和 Linux `restart.sh` 一键重启;后端测试 40 例全绿
 
 仍明确不做:
 
