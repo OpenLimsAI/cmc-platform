@@ -111,7 +111,7 @@ class StorageNode(Base):
     temp_text: Mapped[Optional[str]] = mapped_column(String(50))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     location: Mapped[Optional["Location"]] = relationship()
 
@@ -136,7 +136,7 @@ class CellOccupancy(Base):
     )
     sample_label: Mapped[Optional[str]] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="stored")
-    stored_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    stored_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     stored_by: Mapped[Optional[str]] = mapped_column(String(50))
     removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     remark: Mapped[Optional[str]] = mapped_column(Text)
@@ -177,8 +177,8 @@ class Material(Base):
     deactivated_by: Mapped[Optional[str]] = mapped_column(String(50))
     deactivate_reason: Mapped[Optional[str]] = mapped_column(String(200))
     data_source: Mapped[Optional[str]] = mapped_column(String(10), default="local")
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     batches: Mapped[List["Batch"]] = relationship(back_populates="material")
 
@@ -219,7 +219,7 @@ class Batch(Base):
     project_no: Mapped[Optional[str]] = mapped_column(String(100))                     # 标准品 项目编号
     originator_batch_no: Mapped[Optional[str]] = mapped_column(String(100))            # 标准品 原研药批号
     aliquot_date: Mapped[Optional[date]] = mapped_column(Date)                         # 标准品 分装日期
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     material: Mapped["Material"] = relationship(back_populates="batches")
     location: Mapped["Location"] = relationship()
@@ -246,7 +246,7 @@ class InventoryTxn(Base):
     operator: Mapped[str] = mapped_column(String(50), nullable=False)
     purpose: Mapped[Optional[str]] = mapped_column(String(200))
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     batch: Mapped["Batch"] = relationship(back_populates="txns")
 
@@ -268,4 +268,4 @@ class AuditLog(Base):
     before_json: Mapped[Optional[dict]] = mapped_column(JSONB)
     after_json: Mapped[Optional[dict]] = mapped_column(JSONB)
     source_ip: Mapped[Optional[str]] = mapped_column(String(45))
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())

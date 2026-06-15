@@ -85,9 +85,9 @@ class Equipment(Base):
     deactivated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     deactivated_by: Mapped[Optional[str]] = mapped_column(String(50))
     deactivate_reason: Mapped[Optional[str]] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     created_by: Mapped[Optional[str]] = mapped_column(String(50))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     updated_by: Mapped[Optional[str]] = mapped_column(String(50))
 
 
@@ -111,7 +111,7 @@ class EquipmentCalibration(Base):
     certificate_no: Mapped[Optional[str]] = mapped_column(String(100))
     next_calibration_date: Mapped[Optional[date]] = mapped_column(Date)
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     created_by: Mapped[Optional[str]] = mapped_column(String(50))
 
 
@@ -135,7 +135,7 @@ class EquipmentMaintenance(Base):
     performed_by: Mapped[str] = mapped_column(String(50), nullable=False)
     next_maintenance_date: Mapped[Optional[date]] = mapped_column(Date)
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     created_by: Mapped[Optional[str]] = mapped_column(String(50))
 
 
@@ -158,7 +158,7 @@ class EquipmentRepair(Base):
     repair_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
     conclusion: Mapped[Optional[str]] = mapped_column(Text)
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     created_by: Mapped[Optional[str]] = mapped_column(String(50))
 
 
@@ -180,8 +180,8 @@ class EquipmentWarranty(Base):
     provider_name: Mapped[Optional[str]] = mapped_column(String(200))
     provider_contact: Mapped[Optional[str]] = mapped_column(String(200))
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
 
 class EquipmentAttachment(Base):
@@ -204,7 +204,7 @@ class EquipmentAttachment(Base):
     file_type: Mapped[Optional[str]] = mapped_column(String(20))
     tag: Mapped[Optional[str]] = mapped_column(String(30))
     description: Mapped[Optional[str]] = mapped_column(String(200))
-    uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
     uploaded_by: Mapped[Optional[str]] = mapped_column(String(50))
 
 
@@ -229,4 +229,4 @@ class EquipmentReminder(Base):
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     resolved_by: Mapped[Optional[str]] = mapped_column(String(50))
     remark: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())

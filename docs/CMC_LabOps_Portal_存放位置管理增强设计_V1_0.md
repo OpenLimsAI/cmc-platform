@@ -63,13 +63,13 @@ storage_node
 ├─ temp_text      VARCHAR(50)   -- 温区可读文本, 如 '-20~-40℃'
 ├─ is_active      BOOLEAN  DEFAULT TRUE
 ├─ remark         TEXT
-└─ created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP   -- 裸上海时间, datetime.now()
+└─ created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP   -- 裸上海墙钟(ORM:datetime.now / DB默认:CURRENT_TIMESTAMP)
 
 UNIQUE (parent_id, code)        -- 同一父节点下编号唯一
 INDEX  (parent_id), (node_type), (path)
 ```
 
-> 时区遵循项目约定：所有时间戳为裸上海墙钟，Python 端用 `datetime.now()`，禁止 `utcnow()`。
+> 时区遵循项目约定：所有时间戳为裸上海墙钟，禁止 `utcnow()`。写入有三重保障且都产出上海时间——ORM 用 Python `datetime.now()`（**首选**，宿主机 Asia/Shanghai，不依赖 DB 连接）、列默认 `NOW()/CURRENT_TIMESTAMP`、`backend/database.py` 连接事件 `SET TIME ZONE 'Asia/Shanghai'` 兜底。⚠️ 仅靠 DB 默认值时，部署后未完整重启致连接池残留旧连接可能写成 UTC，故以 ORM `datetime.now()` 为权威写入路径。
 
 ### 3.2 `node_type` 枚举与两条典型路径
 

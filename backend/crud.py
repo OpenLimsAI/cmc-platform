@@ -197,8 +197,8 @@ def deactivate_material(
     if not obj:
         return None
     obj.is_active = False
-    # 用 PG 服务器时间,与其他时间字段(created_at/updated_at)统一时区口径
-    obj.deactivated_at = func.now()
+    # 裸上海墙钟,与其他时间字段(created_at/updated_at)统一时区口径
+    obj.deactivated_at = datetime.now()
     obj.deactivated_by = operator
     obj.deactivate_reason = reason
     db.flush()

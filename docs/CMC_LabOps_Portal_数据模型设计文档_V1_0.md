@@ -41,7 +41,7 @@
 3. **认证对接 MDM（V1.1 变更）**：不建本地用户/角色表，信任 MDM Portal 签发的 JWT；material_mgmt.app_user / auth_session 已停用
 4. **审计沿用现有表（V1.1 变更）**：继续使用 material_mgmt.audit_log；labops_audit（module/reason 字段）降级为 Phase 4 可选项
 5. **软删除**：所有业务表使用 is_active 或 deleted_at 标记，禁止物理删除
-6. **时间戳**：所有时间字段使用 TIMESTAMP（上海本地时间），datetime.now() 写入
+6. **时间戳**：所有时间字段使用 TIMESTAMP（无时区），统一存储**裸上海墙钟**，不存 UTC、显示不做时区换算。写入有三重保障且均产出上海时间：① ORM 写入用 Python 端 `datetime.now()`（**首选**，宿主机时区=Asia/Shanghai，不依赖 DB 连接）；② 列默认值 `NOW()`/`CURRENT_TIMESTAMP`；③ `backend/database.py` 在每个连接执行 `SET TIME ZONE 'Asia/Shanghai'` 兜底。禁止 `datetime.utcnow()`。⚠️ 注意：DB 默认值依赖会话时区，若部署后未完整重启致连接池残留旧连接，可能写成 UTC（曾导致审计时间混杂），故以 ORM `datetime.now()` 为权威写入路径。
 7. **数量精度**：NUMERIC(12,2) 避免浮点误差
 8. **数据完整性**：通过外键 + CHECK 约束 + 触发器保证
 
