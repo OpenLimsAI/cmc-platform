@@ -34,9 +34,20 @@ CMC LabOps Portal —— 实验室物料库存 + 设备管理系统。
 ## 数据库结构变更约定（重要）
 对 `cmc_data_platform` 的任何结构性变更（建表/改表/删表、加列/改列/删列、加约束/索引等）**一律通过 `cmc-schema-migrations` 工具（Alembic 版本化迁移）执行并同步到各环境**。
 - ❌ 禁止直接在生产/任意库手敲 `psql` DDL，也不要依赖 `sql/init.sql` 改生产结构。
-- ✅ `sql/init.sql` 仅用于测试库与本地 dev 初次 bootstrap，**不是生产结构的权威来源**；它与生产可能存在漂移（例如已废弃的 `app_user`/`auth_session` 表仍残留在生产，需由迁移脚本正式清除）。
-- 流程：在 `cmc-schema-migrations` 写迁移 → review → 按其发布流程升级各环境，保证结构变更**可版本化、可回滚、可审计**。
+- ✅ `sql/init.sql` 仅用于测试库与本地 dev 初次 bootstrap，**不是生产结构的权威来源**；它要和真实库保持一致，但生产结构以迁移为准。
 - LabOps 后端 `cmc_user` 仅有 `material_mgmt` schema 权限，无权做跨 schema 的结构变更——更印证结构变更应走专门的迁移工具，而非应用连接。
+
+**迁移仓库**：`~/code/cmc-schema-migrations`（生产在 `~/cmc-schema-migrations`），统一入口 `./dbmig cmc_data_platform <alembic 子命令>`。
+
+**标准流程**（本机改 → 上线）：
+1. 应用要读写新结构时，先改 `backend/models.py`（ORM）+ `sql/init.sql`（建表块 / 末尾"迁移段"加列），保持与真实库一致。
+2. 写迁移：`cd ~/code/cmc-schema-migrations && ./dbmig cmc_data_platform revision -m "..."`；编辑生成的 `.py`，写 `upgrade()`/`downgrade()`，DDL 一律带 `schema="material_mgmt"`。
+3. 本机落地验证：`./dbmig cmc_data_platform upgrade head`。**破坏性变更（删表/删列）必须 `downgrade -1` → `upgrade head` 往返一次，确认可逆。**
+4. 两个仓库各自 `commit + push`：schema 仓一条、cmc-labops 一条。
+5. 上线顺序：**加列 = 先 schema 后代码；删列/删表 = 先代码后 schema**。
+6. 生产应用：`ssh ... 'cd ~/cmc-schema-migrations && git pull --ff-only origin main && ./dbmig cmc_data_platform upgrade head'`，再核对 `current` 为 head。
+
+> 范例:迁移 `08941b314a8f` 删除废弃表 `app_user`/`auth_session`（upgrade 先删引用方 `auth_session` 再删 `app_user`；downgrade 按 init.sql 原定义复刻重建）。
 
 ## 时区约定（重要）
 所有 `TIMESTAMP` 列存**裸上海墙钟**（无时区、不存 UTC、显示不换算）。三重保险：
