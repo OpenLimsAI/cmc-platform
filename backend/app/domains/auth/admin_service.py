@@ -23,8 +23,8 @@ from app.core.exceptions import (
     CannotOperateSelfError,
     EmailExistsError,
     OperationNotAllowedError,
-    UserNotFoundError,
     UsernameExistsError,
+    UserNotFoundError,
     ValidationError,
 )
 from app.core.security import hash_password

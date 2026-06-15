@@ -8,8 +8,6 @@ M2.5.2 安全收尾测试
 - 签名失败旁路审计：错密码触发 → audit_log SIGN 失败记录持久化，failed_login_count++
 """
 import asyncio
-import uuid
-from datetime import UTC, datetime, timedelta
 
 import pytest
 

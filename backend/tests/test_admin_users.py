@@ -10,7 +10,6 @@
 - readonly 调用 403
 - 临时密码登录 must_change_password=True，改密后清零
 """
-import asyncio
 import uuid
 
 import pytest

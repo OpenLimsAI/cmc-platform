@@ -9,15 +9,14 @@ from decimal import Decimal
 
 import openpyxl
 import pytest
-
 from app.scripts.import_equipment_excel import (
+    _norm,
     detect_header,
     normalize_category,
     parse_date,
     parse_decimal,
     parse_row,
     read_excel,
-    _norm,
 )
 
 

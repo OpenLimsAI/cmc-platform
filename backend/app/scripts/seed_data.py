@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal, engine
 from app.core.security import hash_password
+from app.domains.ars.models import Asset, AssetMarketId
 from app.domains.auth.models import (
     Permission,
     Role,
@@ -26,13 +27,12 @@ from app.domains.auth.models import (
     User,
     UserRole,
 )
+from app.domains.mm.models import Material, MaterialBatch
 from app.domains.prs.models import (
     Project,
     ProjectMilestone,
     ProjectTeam,
 )
-from app.domains.ars.models import Asset, AssetMarketId
-from app.domains.mm.models import Material, MaterialBatch
 from app.domains.ref.models import (
     AssetSubstanceLink,
     ProjectAssetLink,

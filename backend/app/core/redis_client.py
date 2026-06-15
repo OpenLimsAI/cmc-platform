@@ -9,14 +9,13 @@ JWT 黑名单等）。Phase 4.B 仅为下面两个用例提前接入 redis-py cl
 后续 Phase 5 上业务缓存时，可继续复用此 client；如改 Redis Cluster / Sentinel，只
 需在 redis_from_url 处替换。
 """
-from typing import Optional
 
 import redis.asyncio as redis_async
 from loguru import logger
 
 from app.core.config import settings
 
-_client: Optional[redis_async.Redis] = None
+_client: redis_async.Redis | None = None
 
 
 def get_redis() -> redis_async.Redis:

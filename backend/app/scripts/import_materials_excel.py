@@ -46,7 +46,6 @@ from app.shared.audit_context import (
     set_audit_session_vars,
 )
 
-
 # ---------- 配置 ----------
 
 CATEGORY_TO_TYPE: dict[str, str] = {

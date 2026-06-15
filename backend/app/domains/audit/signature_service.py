@@ -107,8 +107,9 @@ async def _persist_signature_failure(
     必须独立 commit，否则外层主事务 rollback 会一起把这条审计回滚，违反 GxP 不可篡改要求。
     与登录失败共享同一锁定阈值（LOGIN_MAX_FAILED_ATTEMPTS）。
     """
-    from app.core.config import settings
     from sqlalchemy import select
+
+    from app.core.config import settings
 
     async with AsyncSessionLocal() as side_session:
         # 注入审计上下文，让 audit.fn_audit_trigger 能在 user UPDATE 时拿到 user_id

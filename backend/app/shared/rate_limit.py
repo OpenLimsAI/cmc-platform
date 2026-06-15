@@ -11,7 +11,7 @@
   - key_func: 已登录走 user_id, 未登录走 X-Forwarded-For -> client.host
   - 超限统一通过 app_error_handler 走 42901 错误码 + Retry-After + X-RateLimit-* header
 """
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request
 from slowapi import Limiter

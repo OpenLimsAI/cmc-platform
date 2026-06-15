@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ============== 状态机端点公用：嵌套签名块 + 通用响应 ==============
 # 对齐 API-MDM-001 V1.1 §6.5 / §7.4 / §8.x 状态机端点契约
 

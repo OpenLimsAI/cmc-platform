@@ -34,14 +34,17 @@ from app.domains.prs.schemas import (
     ProjectCreate,
     ProjectDetail,
     ProjectFilter,
-    ProjectMilestone as ProjectMilestoneSchema,
     ProjectMilestoneCreate,
     ProjectMilestoneUpdate,
-    ProjectTeamMember as ProjectTeamMemberSchema,
     ProjectTeamMemberCreate,
     ProjectUpdate,
 )
-
+from app.domains.prs.schemas import (
+    ProjectMilestone as ProjectMilestoneSchema,
+)
+from app.domains.prs.schemas import (
+    ProjectTeamMember as ProjectTeamMemberSchema,
+)
 
 # 状态机：action → {当前状态: 下一状态}
 # 依据 DM-MDM-001 §9.2 status 枚举：proposed/initiated/active/on_hold/completed/terminated
@@ -274,7 +277,9 @@ class ProjectService:
         signature: "SignatureBlock | None" = None,
     ) -> "StateChangeResponse":
         """状态机入口（API-MDM-001 V1.1 §7.4）"""
-        from app.domains.audit.schemas import SignatureBlock, StateChangeResponse  # 局部导入避免循环
+        from app.domains.audit.schemas import (  # 局部导入避免循环
+            StateChangeResponse,
+        )
 
         transitions = STATE_MACHINE.get(action)
         if not transitions:

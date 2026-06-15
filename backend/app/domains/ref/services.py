@@ -38,7 +38,6 @@ from app.domains.ref.schemas import (
 )
 from app.domains.srs.models import Substance
 
-
 # 关联业务规则
 SUBSTANCE_STATUS_FORBID_LINK = {"obsoleted"}
 ASSET_STATUS_FORBID_LINK = {"terminated"}

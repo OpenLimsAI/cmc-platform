@@ -89,7 +89,7 @@ async def _candidate_users(session):
     fk_cols = await _user_fk_columns(session)
 
     # 统计每个候选用户在「业务表」（排除 3 张 auth 依赖表）的引用数
-    ref_count = {uid: 0 for uid in ids}
+    ref_count = dict.fromkeys(ids, 0)
     for sch, tbl, col in fk_cols:
         if sch == "auth" and tbl in AUTH_DEP_TABLES:
             continue

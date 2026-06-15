@@ -22,7 +22,6 @@ from app.shared.audit_context import (
     set_audit_session_vars,
 )
 
-
 # 强制改密期间仅放行改密闭环必要接口（refresh/logout 当前不依赖
 # get_current_user，列入以防御未来加依赖）
 FORCE_PASSWORD_CHANGE_ALLOWED_PATHS = frozenset({

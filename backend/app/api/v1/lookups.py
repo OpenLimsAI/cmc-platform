@@ -7,7 +7,7 @@ V1.2 评审 API11:B（部分立即做）：从 meta.lookup_value 表读 enum 字
 供前端表单 / 列表 select 选项使用。无需鉴权（只读字典）。
 """
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db

@@ -14,7 +14,6 @@ from datetime import UTC, datetime
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import (
     PermissionNotFoundError,

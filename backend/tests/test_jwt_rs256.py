@@ -14,8 +14,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from jose import jwt as jose_jwt
-
 from app.core import jwt_keys as keys_module
 from app.core.config import settings
 from app.core.exceptions import TokenInvalidError
@@ -23,6 +21,7 @@ from app.core.security import (
     create_access_token,
     decode_token,
 )
+from jose import jwt as jose_jwt
 
 
 def _reset_keys_cache() -> None:

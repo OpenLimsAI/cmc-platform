@@ -18,7 +18,6 @@ from loguru import logger
 from app.core.database import AsyncSessionLocal
 from app.scripts import seed_data
 
-
 # =============================================================================
 # 物质（SRS）：3 个单抗
 # =============================================================================
@@ -438,6 +437,6 @@ async def main() -> None:
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except Exception as e:
+    except Exception:
         logger.exception("种子失败")
         sys.exit(1)

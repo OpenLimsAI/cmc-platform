@@ -9,7 +9,7 @@
 注：**不暴露 POST /signatures**（电子签名只能绑定到具体业务操作，与
 21 CFR Part 11 §11.50/§11.70 上下文绑定要求一致）。
 """
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Request, Response

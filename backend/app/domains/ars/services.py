@@ -34,7 +34,6 @@ from app.domains.audit.schemas import StatusHistoryItem
 from app.domains.audit.signature_service import ESignatureService
 from app.domains.auth.models import User
 
-
 # 状态机：action → {当前状态: 下一状态}
 # DM-MDM-001 §8.2 status ∈ {active, on_hold, terminated}（3 值）
 STATE_MACHINE: dict[str, dict[str, str]] = {
@@ -221,7 +220,7 @@ class AssetService:
         signature: "SignatureBlock | None" = None,
     ) -> "StateChangeResponse":
         """状态机入口（API-MDM-001 V1.1 §8.x）"""
-        from app.domains.audit.schemas import SignatureBlock, StateChangeResponse
+        from app.domains.audit.schemas import StateChangeResponse
 
         transitions = STATE_MACHINE.get(action)
         if not transitions:

@@ -18,8 +18,8 @@ from app.core.exceptions import (
     VersionConflictError,
     XrefNotFoundError,
 )
-from app.domains.audit.signature_service import ESignatureService
 from app.domains.audit.schemas import StatusHistoryItem
+from app.domains.audit.signature_service import ESignatureService
 from app.domains.auth.models import User
 from app.domains.srs.models import (
     Substance,
@@ -36,11 +36,12 @@ from app.domains.srs.schemas import (
     SubstanceDetail,
     SubstanceFilter,
     SubstanceUpdate,
-    SubstanceXref as SubstanceXrefSchema,
     SubstanceXrefCreate,
     SubstanceXrefUpdate,
 )
-
+from app.domains.srs.schemas import (
+    SubstanceXref as SubstanceXrefSchema,
+)
 
 # 状态机：action → {当前状态: 下一状态}
 # 设计依据 ARCH-MDM-001 §11.2.1
@@ -496,7 +497,6 @@ class SubstanceService:
     async def update_protein(self, code: str, payload, current_user: User):
         """V1.1 §5.1.3 行 750：PUT /substances/{code}/protein 独立子资源端点
         V1.2 评审 API13:A 决议（2026-05-13）"""
-        from app.domains.srs.schemas import SubstanceDetail  # 局部避免循环
 
         sub = await self._get_substance_or_404(code)
         if sub.substance_type not in ("mab", "bispecific", "fusion"):
@@ -667,7 +667,9 @@ class SubstanceService:
 
         返回 StateChangeResponse（V1.1 §6.5 行 1140-1155）。
         """
-        from app.domains.audit.schemas import SignatureBlock, StateChangeResponse  # 局部导入避免循环
+        from app.domains.audit.schemas import (  # 局部导入避免循环
+            StateChangeResponse,
+        )
 
         transitions = STATE_MACHINE.get(action)
         if not transitions:

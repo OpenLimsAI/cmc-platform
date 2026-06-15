@@ -10,7 +10,6 @@
 """
 import pytest
 
-
 ADMIN_PASSWORD = "__REDACTED_SEED_PASSWORD_1__"
 
 
@@ -184,9 +183,9 @@ async def test_signature_reason_independent_from_comment(admin_client, unique_su
     - signature.reason 写入 e_signature.signature_reason
     两者必须分离记录（21 CFR Part 11 §11.50）。
     """
-    from sqlalchemy import select
     from app.core.database import AsyncSessionLocal
     from app.domains.audit.models import ESignature
+    from sqlalchemy import select
 
     # 1) signature.reason ≠ comment → 各自落到对应字段
     code = await _new_substance(admin_client, unique_suffix)

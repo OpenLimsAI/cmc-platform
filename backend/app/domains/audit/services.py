@@ -24,9 +24,7 @@ from app.domains.audit.schemas import (
 )
 from app.domains.mm.models import Material, MaterialBatch
 from app.domains.prs.models import Project, ProjectMilestone, ProjectTeam
-from app.domains.ref.models import ProjectSubstanceLink
 from app.domains.srs.models import Substance, SubstanceXref
-
 
 # CSV 导出列定义（21 CFR Part 11 §11.10(c) 审计归档；用户决策 CSV-only）
 _AUDIT_CSV_HEADERS = [

@@ -6,7 +6,6 @@ Create Date: 2026-05-19
 """
 from alembic import op
 
-
 revision = "0039_mm_category_add_waibao"
 down_revision = "0038_mm_material_v2"
 branch_labels = None
