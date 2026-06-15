@@ -8,6 +8,15 @@ CMAB MDM Portal —— 生物制药 CMC 主数据平台,五域:SRS(物质)/PRS(�
 
 **当前为原型阶段,未进入 GxP/GMP。** 不走正式评审会/合规产物暂缓;原本"需评审"的事项由负责人直接决策。不要主动要求走 GMP 流程或补合规产物——除非用户明确说进入 GMP。
 
+## ⚠️ 数据安全:已上线测试运行,严禁灌 demo / 清库(2026-06-15 起)
+
+项目已进入**上线测试运行**,dev 库里的数据**部分是真实生产数据**,不可破坏:
+
+- **物料(MM)、设备(EQP)= 真实数据**(物料 ~3770、设备 ~461),绝不能被覆盖/清空/灌假数据。
+- **物质(SRS)、项目(PRS)、资产(ARS)= 真实即为 0 条**(尚未录入,空是正常状态,不是数据丢失)。若看到物质里有 `audit test...` 之类记录,那是历史污染,清理需用户确认,不要自行 seed 补数。
+- **禁止运行任何会灌 demo 或重置库的命令**:`make seed-demo`、`make seed --demo`、`make reset-db`、`app.scripts.seed_real_demo` 等——除非用户**明确**要求。`make seed`(基线种子)同样先确认。
+- **测试只能走 `make test-be`**(隔离 `cmab_test` 库)。**绝对禁止** `make test-be-dev` 或在容器里直跑 `pytest`——会打到 dev 库 `cmab_mdm`,污染真实物料/设备数据。
+
 ## 工具链全在 Docker 容器里
 
 ruff / mypy / eslint / pytest / alembic **都不装在宿主机**,只在容器内。一律通过 `make`(底层 `docker compose -f deploy/docker-compose.dev.yml exec`)或 `docker exec <容器名> ...` 调用,不要在宿主机直接跑这些命令。容器名:`cmab-mdm-backend` / `cmab-mdm-frontend` / `cmab-mdm-postgres` / `cmab-mdm-redis`。
