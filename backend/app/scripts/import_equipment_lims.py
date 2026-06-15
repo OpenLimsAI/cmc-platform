@@ -98,11 +98,12 @@ def clean(v, maxlen: int | None = None) -> str | None:
 # ---------- env ----------
 def load_env(path: str) -> dict:
     cfg = {}
-    for line in open(path, encoding="utf-8"):
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            k, v = line.split("=", 1)
-            cfg[k.strip()] = v.strip()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                cfg[k.strip()] = v.strip()
     return cfg
 
 
@@ -297,7 +298,7 @@ def main() -> int:
     ocur = oconn.cursor()
     ocur.execute(FETCH_SQL)
     cols = [d[0] for d in ocur.description]
-    raw = [dict(zip(cols, r)) for r in ocur.fetchall()]
+    raw = [dict(zip(cols, r, strict=True)) for r in ocur.fetchall()]
     oconn.close()
     print(f"LIMS 读到 {len(raw)} 行")
 

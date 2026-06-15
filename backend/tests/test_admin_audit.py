@@ -9,7 +9,7 @@
 - GET /signatures 列表（schema 验证；不假设特定数据存在）
 - readonly 403
 """
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -104,9 +104,20 @@ async def test_filter_by_q(admin_client, unique_suffix):
 async def test_filter_by_date_range(admin_client, unique_suffix):
     code = await _create_substance(admin_client, unique_suffix)
 
-    # 用半小时前作为 from（确保新创建的命中），用未来 1 天作为 to
+    # 正向：用半小时前作为 from（应命中刚创建的记录）
     now = datetime.now(UTC)
-    date_from = now.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    date_from = (now - timedelta(minutes=30)).replace(microsecond=0).isoformat().replace(
+        "+00:00", "Z"
+    )
+    r_hit = await admin_client.get(
+        f"/api/v1/audit-logs?date_from={date_from}&entity_code={code}"
+    )
+    assert r_hit.status_code == 200
+    assert r_hit.json()["meta"]["pagination"]["total"] >= 1
+    assert any(
+        item["entity_code"] == code for item in r_hit.json()["data"]
+    )
+
     # 反向：用未来时间作为 from 应该返回 0 行
     future = "2099-12-31T00:00:00Z"
     r = await admin_client.get(
