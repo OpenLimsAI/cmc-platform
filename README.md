@@ -1,7 +1,7 @@
 # CMC LabOps Portal (`cmc-labops`)
 
 > CMC 部门运营平台(原"CMC 物料管理系统",集成设备管理后更名,命名决策见 docs/架构设计文档 §1.2)。
-> **物料库存模块**聚焦核心闭环:物料导入 → 入库 → 出库 → 移库 → 盘点 → 库存统计 → 预警;
+> **物料库存模块**聚焦核心闭环:入库 → 出库 → 移库 → 盘点 → 库存统计 → 预警(物料主数据由 MDM 维护);
 > **仪器设备模块**覆盖:台账 → 计量校验 → 维护 → 维修 → 保修 → 附件 → 到期预警。
 > 认证对接 CMAB MDM Portal(JWT);物料/设备主数据以 MDM 为权威源,本系统持运营数据。
 > 不涉及 GMP 合规、申购审批、CoA 管理等扩展模块,这些将在后续迭代中逐步加入。
@@ -62,8 +62,7 @@
 | 数据库 | PostgreSQL 16,复用现有实例,新建 schema `material_mgmt`(Mac 调试时 PG 在 Docker;Linux 生产时 PG 原生装在宿主机) |
 | 后端 | Python 3.11+ / FastAPI / SQLAlchemy 2.0 / Pydantic v2 |
 | 前端 | **React 18 + TypeScript + Ant Design 5 + Vite**(frontend-react/,v2.x 起;旧 Streamlit 前端已删除,历史描述见下文各 v1.2 章节) |
-| 文件导入 | pandas + openpyxl(Excel 读取) |
-| 部署 | **不用 Docker 跑应用**。Mac:venv 直接起进程;Linux:venv + systemd unit |
+| 部署 | **不用 Docker 跑应用**。Mac:venv 直接起进程;Linux:venv + systemd(后端) + nginx(前端 dist) |
 | 认证 | **对接 CMAB MDM Portal**(v2.0 起):登录代理 MDM /auth/login,后端本地校验 MDM 签发的 JWT;不建本地用户表,账号/角色/改密都在 MDM 操作 |
 | 审计 | 写操作统一落 `audit_log`,记录用户 / 实体 / 前后快照 / 来源 IP |
 
@@ -85,7 +84,7 @@ cmc-labops/
 │   └── equipment_init.sql          设备模块建表(equipment_mgmt schema,末尾含迁移段)
 ├── systemd/
 │   ├── cmc-backend.service         FastAPI 后端 systemd unit(Linux)
-│   └── cmc-frontend.service        React 前端 systemd unit(vite preview 伺服 dist,Linux)
+│   └── cmc-frontend.service        React 前端 vite preview unit(仅无 nginx 主机备用;本生产用 nginx 伺服 dist,该 unit disable)
 ├── backend/
 │   ├── requirements.txt
 │   ├── main.py                     FastAPI 入口
@@ -107,7 +106,9 @@ cmc-labops/
 │       ├── inventory.py            出入库 / 盘点 / 移库 API
 │       ├── stock.py                库存查询 + 预警 API
 │       ├── location.py             储存位置 API
-│       ├── import_data.py          Excel 导入 API(历史初始化例外,见 URD FR-MAT-001)
+│       ├── intake.py               入库登记 API(批量入库/储位占用)
+│       ├── storage.py              储位树 / 孔位占用 API
+│       ├── dashboard.py            仪表盘统计 API
 │       └── equipment.py            设备 API(台账/校验/维护/维修/保修/附件/MDM 同步)
 ├── frontend-react/                 React 前端(v2.x,旧 Streamlit 前端已删除)
 │   ├── package.json
@@ -117,14 +118,15 @@ cmc-labops/
 │       ├── modules/                materials / equipment / alerts / admin 页面
 │       ├── shared/                 布局、MDM 跳转等共享件
 │       └── stores/                 登录态(zustand)
-└── template/
-    ├── generate_template.py        生成 Excel 模板的脚本
-    └── 物料导入模板.xlsx            生成产物(.gitignore 排除,本地跑脚本生成)
+└── template/                       ⚠️ Excel 导入功能已移除(c9cde53),此目录为残留文件,待清理
 ```
 
 ---
 
-## 四、数据模型(10 张表)
+## 四、数据模型
+
+> ⏱ **时区约定**:所有 `TIMESTAMP` 列存**裸上海墙钟**(无时区、不存 UTC、显示不换算),详见 [CLAUDE.md](CLAUDE.md) 时区约定一节。
+> ⚠️ 下表含 v1.2/v2.0 已废弃的表(`import_log`/`app_user`/`auth_session`),保留作历史;现行表结构以代码 `models.py`/`models_equipment.py` 为准。
 
 ### 4.1 `material` — 物料主数据
 
@@ -221,7 +223,7 @@ cmc-labops/
 
 **初始为空**,导入时自动从文件中提取唯一值入库。
 
-### 4.7 `import_log` — 导入日志
+### 4.7 `import_log` — 导入日志(⚠️ v1.2 废弃:Excel 导入功能已移除 c9cde53,此表已从 init.sql 删除)
 
 | 字段 | 类型 | UI 中文名 | 说明 |
 |------|------|------------|------|
@@ -235,7 +237,7 @@ cmc-labops/
 | `failed_rows` | INT | 失败行数 | 导入失败行数 |
 | `error_detail` | JSONB | 错误详情 | 失败行详情 |
 
-### 4.8 `app_user` — 应用账号
+### 4.8 `app_user` — 应用账号(⚠️ v2.0 废弃:认证移交 MDM Portal,无本地用户表)
 
 | 字段 | 类型 | UI 中文名 | 说明 |
 |------|------|------------|------|
@@ -248,7 +250,7 @@ cmc-labops/
 | `created_at` | TIMESTAMP | 创建时间 | 创建时间 |
 | `last_login_at` | TIMESTAMP | 上次登录 | 最近登录时间 |
 
-### 4.9 `auth_session` — 登录会话
+### 4.9 `auth_session` — 登录会话(⚠️ v2.0 废弃:JWT 无状态,无本地会话表)
 
 | 字段 | 类型 | UI 中文名 | 说明 |
 |------|------|------------|------|
@@ -282,18 +284,13 @@ cmc-labops/
 
 - `material_code` 存储为 `VARCHAR(20)`,**严格保留前导 0**
 - `material_id` 是内部主键;`material_code='TT内部物料'` 允许重复,其余编码唯一
-- Excel 读取时强制全列字符串 + 关掉 NaN 自动识别(实现见 `backend/routers/import_data.py`):
-  ```python
-  pd.read_excel(file, dtype=str, keep_default_na=False)
-  ```
-- 导入预览时,若检测到以 `0` 开头的编码,**前端弹窗提示用户核对**,避免 Excel 自动去 0
 
 ### 5.2 N/A 与空白处理
 
 - 原表中 `N/A`、空字符串、`NaN` **统一转为 NULL**
 - 前端展示时 NULL 显示为 `-`
 
-### 5.3 Excel 导入流程
+### 5.3 Excel 导入流程(⚠️ v1.2 已移除:Excel 导入于 c9cde53 彻底删除;物料主数据现由 MDM 维护、入库时按编码拉取。以下仅存历史)
 
 ```
 ①上传 Excel
@@ -354,7 +351,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 
 ## 六、前端页面设计(⚠️ v1.2 Streamlit 历史快照;现行 React UI 见 docs/UI信息架构与线框图 V1.4)
 
-### 6.1 物料导入页
+### 6.1 物料导入页(⚠️ 已移除)
 - 文件上传组件
 - 上传后预览前 10 行
 - 字段映射确认(自动匹配,允许人工调整)
@@ -476,15 +473,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 | GET | `/api/locations` | 查询 |
 | POST | `/api/locations` | 新增 |
 
-### 7.6 导入 `/api/import`
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/import/materials/dry-run` | 干跑校验 |
-| POST | `/api/import/materials/commit` | 正式导入 |
-| GET | `/api/import/logs` | 导入历史 |
-
-### 7.7 鉴权 / 审计(v2.0 修订:用户管理移交 MDM Portal)
+### 7.6 鉴权 / 审计(v2.0 修订:用户管理移交 MDM Portal)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -504,7 +493,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 |  | Mac(开发调试) | Linux(生产) |
 |---|---|---|
 | PostgreSQL | Docker 容器,host 端口暴露(默认 5432) | 宿主机原生(`apt install postgresql`) |
-| 后端 / 前端 | 后端 venv+`uvicorn`,前端 `npm run dev`(Vite) | 后端 venv+systemd,前端 `npm run build`+vite preview(systemd,由 `install.sh` 装) |
+| 后端 / 前端 | 后端 venv+`uvicorn`,前端 `npm run dev`(Vite) | 后端 venv+systemd,前端 `npm run build`+**nginx 伺服 dist**(见 DEPLOY.md §4b) |
 | 数据库主机 | `127.0.0.1`(到 docker 暴露端口) | `127.0.0.1`(到宿主机 PG) |
 | 是否跑 `install.sh` | **不要跑**(`systemctl`/`sudo` 在 mac 没意义) | **要跑**,见 `DEPLOY.md` |
 
@@ -649,14 +638,9 @@ cd /opt/cmc-labops
 ./restart.sh
 ```
 
-`restart.sh` 会自动:
+`restart.sh` 会 `daemon-reload`、重启 `cmc-backend`、检查 `/health` 并打印访问地址。
 
-1. `sudo systemctl daemon-reload`
-2. 重启 `cmc-backend`
-3. 重启 `cmc-frontend`
-4. 打印两个服务状态
-5. 检查后端 `/health`
-6. 打印前端访问地址
+> ⚠️ 本生产前端由 **nginx** 伺服 `frontend-react/dist`(静态文件),前端更新只需 `npm run build` 即生效,**无需重启 cmc-frontend**(该 unit 在本机 disable,详见 DEPLOY.md §4b)。后端完整重启用 `sudo systemctl restart cmc-backend`。
 
 如果提示输入密码,输入 Linux 登录用户的密码即可。
 
@@ -695,8 +679,7 @@ git pull
 
 ```bash
 sudo journalctl -u cmc-backend -f             # 后端实时日志
-sudo journalctl -u cmc-frontend -f            # 前端实时日志
-sudo systemctl status cmc-backend cmc-frontend  # 状态摘要
+sudo systemctl status cmc-backend nginx       # 状态摘要(前端由 nginx 伺服)
 ./install.sh uninstall                         # 停服务 + 删 unit(数据库 / venv / 代码 都保留)
 ```
 
@@ -704,11 +687,11 @@ sudo systemctl status cmc-backend cmc-frontend  # 状态摘要
 
 | 服务 | 地址 | 谁能访问 |
 |---|---|---|
-| 前端 React(vite preview) | `http://<server-ip>:<FRONTEND_PORT>`(默认 5110) | 任何能到服务器内网的人,直接浏览器打开 |
+| 前端 React(nginx 伺服 dist) | `http://<server-ip>:<FRONTEND_PORT>`(默认 5110) | 任何能到服务器内网的人,直接浏览器打开 |
 | 后端 FastAPI | `http://127.0.0.1:<BACKEND_PORT>` | **只允许服务器本机**;前端同机调用 |
 | 后端 Swagger `/docs` | 走 SSH 隧道,见下 | 临时调试用 |
 
-**后端为什么只绑 127.0.0.1?** 后端虽已有 JWT 鉴权,但内部 API 不需要直接暴露给所有内网用户;统一由同机前端(vite preview 的 /api 代理)调用更简单也更稳。
+**后端为什么只绑 127.0.0.1?** 后端虽已有 JWT 鉴权,但内部 API 不需要直接暴露给所有内网用户;统一由同机 nginx 反代 `/api` 调用更简单也更稳。
 内网用户访问前端 5110 即可,所有 API 调用都在服务器内完成。
 
 #### 在自己笔记本上看 Swagger `/docs`(SSH 隧道)
@@ -726,14 +709,16 @@ ssh -L 28010:127.0.0.1:8010 -p <ssh-port> prometheus@<server-ip>
 
 ### 10.C 首次使用(两套环境通用)
 
-1. 打开「物料导入」页,上传贵司物料代码 Excel 完成主数据导入
-2. 打开「物料管理」页,维护各物料的安全库存
+1. 在 MDM Portal 登记物料主数据(编码/名称/厂家);LabOps 入库时按编码自动拉取建档
+2. 打开「物料查询」页,维护各物料的安全库存
 3. 在「入库登记」页录入实际批次
 4. 日常使用「出库登记」扣减,定期查看「库存预警」
 
 ---
 
-## 十一、Excel 导入模板
+## 十一、Excel 导入模板(⚠️ 已废弃)
+
+> Excel 导入功能于 c9cde53 彻底移除,物料主数据改由 MDM Portal 维护。本节及 `template/` 目录仅存历史,文件待清理。下文不再适用。
 
 模板由 `template/generate_template.py` 生成,产物 `template/物料导入模板.xlsx` 已在 `.gitignore` 中排除——克隆后本地跑一次脚本生成即可:
 
@@ -759,7 +744,7 @@ cd template && python3 generate_template.py
 
 当前代码已经完成(v2.x):
 
-- 物料:Excel 导入(历史初始化例外)、只读"物料查询"、从 MDM 引用、安全库存维护
+- 物料:只读"物料查询"、从 MDM 引用建档、安全库存维护(主数据由 MDM 维护;Excel 导入已移除)
 - 批次级入库、出库、盘点调整、移库;按物料/批次/位置查询实时库存
 - 效期预警、低库存预警
 - 设备:台账(从 MDM 引用/批量同步/快照刷新)、校验、维护、维修、保修、附件、到期预警
