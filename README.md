@@ -111,15 +111,14 @@ cmc-labops/
 │       ├── storage.py              储位树 / 孔位占用 API
 │       ├── dashboard.py            仪表盘统计 API
 │       └── equipment.py            设备 API(台账/校验/维护/维修/保修/附件/MDM 同步)
-├── frontend-react/                 React 前端(v2.x,旧 Streamlit 前端已删除)
-│   ├── package.json
-│   ├── vite.config.ts              5110 端口;dev/preview 均代理 /api → 后端
-│   └── src/
-│       ├── api/                    axios 封装 + 各模块 API/类型
-│       ├── modules/                materials / equipment / alerts / admin 页面
-│       ├── shared/                 布局、MDM 跳转等共享件
-│       └── stores/                 登录态(zustand)
-└── template/                       ⚠️ Excel 导入功能已移除(c9cde53),此目录为残留文件,待清理
+└── frontend-react/                 React 前端(v2.x,旧 Streamlit 前端已删除)
+    ├── package.json
+    ├── vite.config.ts              5110 端口;dev/preview 均代理 /api → 后端
+    └── src/
+        ├── api/                    axios 封装 + 各模块 API/类型
+        ├── modules/                materials / equipment / alerts / admin 页面
+        ├── shared/                 布局、MDM 跳转等共享件
+        └── stores/                 登录态(zustand)
 ```
 
 ---
@@ -716,31 +715,7 @@ ssh -L 28010:127.0.0.1:8010 -p <ssh-port> prometheus@<server-ip>
 
 ---
 
-## 十一、Excel 导入模板(⚠️ 已废弃)
-
-> Excel 导入功能于 c9cde53 彻底移除,物料主数据改由 MDM Portal 维护。本节及 `template/` 目录仅存历史,文件待清理。下文不再适用。
-
-模板由 `template/generate_template.py` 生成,产物 `template/物料导入模板.xlsx` 已在 `.gitignore` 中排除——克隆后本地跑一次脚本生成即可:
-
-```bash
-cd template && python3 generate_template.py
-```
-
-字段与贵司实际表对齐:
-
-| 序号 | 分类 | 代码 | 物料名称 | 级别 | 生产商 | 规格/型号 | 货号 | 单位 | 包装规格 | 备注 |
-|------|------|------|---------|------|--------|----------|------|------|---------|------|
-| 1 | 一般耗材 | 42001 | PVC封膜(透明) | N/A | N/A | 50*33mm | N/A | 张 | | N/A |
-
-**说明**:
-- `序号` 列读取时**忽略**(非业务字段)
-- `N/A` 与空白统一转 NULL
-- `代码` 列必须以**文本格式**存储,避免前导 0 丢失
-- `单位` 必须在 `unit_dict` 中,否则导入失败或自动追加(行为可配置)
-
----
-
-## 十二、当前实现状态
+## 十一、当前实现状态
 
 当前代码已经完成(v2.x):
 
@@ -760,7 +735,7 @@ cd template && python3 generate_template.py
 
 ---
 
-## 十三、后续路线图(仅作参考)
+## 十二、后续路线图(仅作参考)
 
 | 阶段 | 计划功能 |
 |------|---------|
@@ -774,7 +749,7 @@ cd template && python3 generate_template.py
 
 ---
 
-## 十四、测试
+## 十三、测试
 
 后端测试集中在核心账实计算、物料 CRUD、鉴权审计等路径,用例位于 `backend/tests/`。
 
@@ -800,7 +775,7 @@ PGPASSWORD='<postgres超管密码>' \
 
 ---
 
-## 十五、合规与法规提示
+## 十四、合规与法规提示
 
 当前阶段**不主张**满足 GMP / 21 CFR Part 11,仅为部门级管理工具。
 若未来扩展到 GMP 范围,需对照核对(**版本以发布时为准**):

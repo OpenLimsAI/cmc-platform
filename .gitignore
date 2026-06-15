@@ -14,9 +14,6 @@ __pycache__/
 .venv/
 venv/
 
-# Streamlit
-.streamlit/secrets.toml
-
 # IDE
 .idea/
 .vscode/
@@ -25,9 +22,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
-
-# 模板生成产物(可由 generate_template.py 重新生成)
-template/物料导入模板.xlsx
 
 # Mac 调试时本地重定向出来的日志(Linux 走 journald)
 logs/

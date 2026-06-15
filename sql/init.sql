@@ -3,7 +3,7 @@
 -- 用途: CMC 物料管理系统数据库初始化脚本
 --   1) 在 material_mgmt schema 中创建当前版本所需的 9 张表
 --      (material / batch / inventory_txn / location / unit_dict /
---       category_dict / app_user / auth_session / audit_log)
+--       category_dict / audit_log)
 --   2) 预置单位字典初始值
 --   3) 创建必要索引
 --
@@ -219,40 +219,11 @@ CREATE INDEX IF NOT EXISTS idx_txn_type   ON inventory_txn(txn_type);
 -- 这部分在旧服务器上重跑 init.sql 即可获得(IF NOT EXISTS 保证幂等)
 -- =============================================================================
 
--- -----------------------------------------------------------------------------
--- 8. 应用账号(app_user)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS app_user (
-    id                    SERIAL PRIMARY KEY,
-    username              VARCHAR(50)  NOT NULL UNIQUE,
-    password_hash         VARCHAR(255) NOT NULL,            -- bcrypt
-    role                  VARCHAR(20)  NOT NULL CHECK (role IN ('admin','warehouse_admin','user')),
-    is_active             BOOLEAN      NOT NULL DEFAULT TRUE,
-    must_change_password  BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_login_at         TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_app_user_active ON app_user(is_active);
+-- 注:认证自 v2.0 起统一走 MDM Portal 的 JWT,本系统无本地用户表,
+--    原 app_user / auth_session 两表已废弃删除。
 
 -- -----------------------------------------------------------------------------
--- 9. 会话/Token(auth_session)
---    随机 hex token,落库便于主动失效
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS auth_session (
-    token         VARCHAR(64) PRIMARY KEY,
-    user_id       INT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
-    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at    TIMESTAMP NOT NULL,
-    last_seen_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    source_ip     VARCHAR(45)
-);
-
-CREATE INDEX IF NOT EXISTS idx_auth_session_user    ON auth_session(user_id);
-CREATE INDEX IF NOT EXISTS idx_auth_session_expires ON auth_session(expires_at);
-
--- -----------------------------------------------------------------------------
--- 10. 审计日志(audit_log)
+-- 8. 审计日志(audit_log)
 --     before_json / after_json 用 JSONB 存任意结构;敏感字段(password_hash)
 --     业务层在写入前抹掉
 -- -----------------------------------------------------------------------------
