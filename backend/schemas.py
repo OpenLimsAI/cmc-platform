@@ -506,6 +506,7 @@ class StockByBatch(BaseModel):
     catalog_no: Optional[str] = None
     unit: str
     batch_no: str
+    originator_batch_no: Optional[str] = None    # 标准品 原研药批号
     expiry_date: Optional[date] = None
     location_id: int
     location_name: str

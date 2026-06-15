@@ -199,6 +199,12 @@ export default function OutgoingPage() {
           { title: "物料编码", dataIndex: "material_code", width: 120 },
           { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
           { title: "批号", dataIndex: "batch_no", width: 140 },
+          {
+            title: "原研药批号",
+            dataIndex: "originator_batch_no",
+            width: 140,
+            render: (v: string | null) => v || "—",
+          },
           { title: "位置", dataIndex: "location_name", width: 160 },
           {
             title: "当前库存",

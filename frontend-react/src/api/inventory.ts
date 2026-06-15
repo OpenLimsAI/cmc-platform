@@ -75,6 +75,7 @@ export interface StockByBatch {
   name_cn: string;
   unit: string;
   batch_no: string;
+  originator_batch_no: string | null;
   expiry_date: string | null;
   location_id: number;
   location_name: string;
