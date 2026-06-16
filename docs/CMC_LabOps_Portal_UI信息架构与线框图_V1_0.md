@@ -9,11 +9,11 @@
 | | |
 |---|---|
 | **文档编号** | UI-LABOPS-001 |
-| **版本** | V1.5（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.6（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
-| **上位文档** | ARCH-LABOPS-001 V1.5 |
+| **上位文档** | ARCH-LABOPS-001 V1.6 |
 | **关联文档** | DM-LABOPS-001 V1.5、URD-LABOPS-001 V1.6 |
 | **UI 框架** | React 18 + Ant Design 5 |
 
@@ -27,6 +27,7 @@
 | V1.3 | 2026-06-04 | CMC IT | 主数据入口治理："物料管理"更名只读"物料查询"（移除新增物料弹窗，保留"去 MDM 新增物料"跳转按钮）；设备新增仅"从 MDM 引用"弹窗（搜索 MDM → 预览 → 补运营字段），编辑弹窗仅运营字段并提示身份信息去 MDM 修改；入库页/设备弹窗查无结果时给"去 MDM 登记"按钮（MDM 新建页自动预填编码/名称） |
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2：设备详情"基本信息"Tab 扩展三标识/英文名/额定功率/产地/供应商/工作站配置分组，新增"从 MDM 刷新"按钮与 MDM 主数据状态展示（retired 黄条提示）；引用建档弹窗预览增加设备编号/固定资产号/工作站标记（§6.2 更新） |
 | V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（以代码现状为准）：§5.2 入库登记页重画为"单页常驻+4 Tab+无编码勾选+位置树级联/-80 孔位填充+入库人"；§2.1 导航树新增"位置管理"；新增 §5.6 位置管理页（左树右详情/模板新增/孔位热力图）；§5.4 库存查询补"按批次明细"含入库人列；§4.1 登录交互补无感自动续期、删除"首登强制改密"残留 |
+| V1.6 | 2026-06-16 | CMC IT | 清理迁移期遗留 drift（以代码现状为准）：附录 §10.1 删除不存在的"物料导入 /api/import/*"与"用户管理 /api/users"，预警中心 API 改为 /api/stock/alerts/*·/api/equipment/alerts、补仪表盘 /api/dashboard；§2.1 导航树移除不存在的"物料导入"项（前端无 /import 路由/页面）。§8.1 用户管理已于 V1.1 标注历史参考，保留 |
 
 ## 适用范围
 
@@ -90,8 +91,7 @@ CMC LabOps Portal
 │   ├─ 移库 (/material/transfer)
 │   ├─ 盘点调整 (/material/adjust)
 │   ├─ 库存查询 (/material/stock)
-│   ├─ 库存预警 (/material/alerts)
-│   └─ 物料导入 (/material/import)
+│   └─ 库存预警 (/material/alerts)
 │
 ├─ 仪器设备 (/equipment)
 │   ├─ 设备台账 (/equipment/list)
@@ -672,7 +672,6 @@ POST /api/equipment/batch-from-mdm，把 MDM 全部在册设备一次性引用�
 | 盘点 | POST /api/inventory/adjust |
 | 库存查询 | GET /api/stock/by-material, /by-batch |
 | 库存预警 | GET /api/stock/alerts/expiry, /alerts/low-stock |
-| 物料导入 | POST /api/import/materials/dry-run, /commit |
 | 设备台账 | GET /api/equipment |
 | 设备详情 | GET /api/equipment/:id |
 | 校验记录 | GET/POST /api/equipment/:id/calibrations |
@@ -680,6 +679,6 @@ POST /api/equipment/batch-from-mdm，把 MDM 全部在册设备一次性引用�
 | 维修记录 | GET/POST /api/equipment/:id/repairs |
 | 保修信息 | GET/PUT /api/equipment/:id/warranty |
 | 附件 | GET/POST /api/equipment/:id/attachments |
-| 预警中心 | GET /api/alerts (聚合) |
-| 用户管理 | GET/POST/PATCH /api/users |
+| 预警中心 | GET /api/stock/alerts/expiry·low-stock、/api/equipment/alerts（前端聚合） |
+| 仪表盘 | GET /api/dashboard |
 | 审计日志 | GET /api/audit/logs |
