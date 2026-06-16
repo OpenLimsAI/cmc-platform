@@ -113,6 +113,7 @@ def create_batch(
         received_date=payload.received_date,
         initial_qty=payload.initial_qty,
         operator=current.username,
+        intake_operator_name=current.full_name,
         remark=payload.remark,
         intake_type=payload.intake_type,
         concentration=payload.concentration,

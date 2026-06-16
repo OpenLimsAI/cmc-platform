@@ -29,6 +29,7 @@ MDM_TIMEOUT = float(os.getenv("MDM_TIMEOUT", "5"))
 class CurrentUser:
     user_id: int
     username: str
+    full_name: str = ""
     roles: list[str] = field(default_factory=list)
 
     @property
@@ -66,6 +67,7 @@ def get_current_user(
     return CurrentUser(
         user_id=user_id,
         username=payload.get("username", ""),
+        full_name=payload.get("full_name", ""),
         roles=payload.get("roles", []),
     )
 
@@ -97,6 +99,7 @@ def verify_reviewer(username: str, password: str) -> CurrentUser:
         return CurrentUser(
             user_id=int(claims["sub"]),
             username=claims.get("username", ""),
+            full_name=claims.get("full_name", ""),
             roles=claims.get("roles", []),
         )
     except (JWTError, KeyError, ValueError, TypeError):

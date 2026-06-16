@@ -110,6 +110,12 @@ export default function MaterialDetailModal({ materialId, open, onClose }: Props
               },
               { title: "收货日期", dataIndex: "received_date", width: 120 },
               {
+                title: "入库人",
+                dataIndex: "intake_operator_name",
+                width: 100,
+                render: (v: string | null) => v || "—",
+              },
+              {
                 title: "有效期",
                 dataIndex: "expiry_date",
                 width: 120,

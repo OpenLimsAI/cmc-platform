@@ -219,6 +219,7 @@ class Batch(Base):
     project_no: Mapped[Optional[str]] = mapped_column(String(100))                     # 标准品 项目编号
     originator_batch_no: Mapped[Optional[str]] = mapped_column(String(100))            # 标准品 原研药批号
     aliquot_date: Mapped[Optional[date]] = mapped_column(Date)                         # 标准品 分装日期
+    intake_operator_name: Mapped[Optional[str]] = mapped_column(String(128))           # 入库登记操作人姓名(快照)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     material: Mapped["Material"] = relationship(back_populates="batches")

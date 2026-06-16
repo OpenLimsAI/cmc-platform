@@ -687,6 +687,7 @@ def occupy_cells(
     extinction_coefficient: Optional[Decimal] = None,
     project_no: Optional[str] = None, originator_batch_no: Optional[str] = None,
     aliquot_date=None, remark: Optional[str] = None,
+    intake_operator_name: Optional[str] = None,
 ) -> dict:
     """把若干空孔分配给某物料批次: 校验空孔 → 找/建批次(锚冰箱 location) →
     写 cell_occupancy + 一条 IN 流水(qty=孔数)。返回 {batch_id, count, addresses}。"""
@@ -732,7 +733,7 @@ def occupy_cells(
             initial_qty=Decimal(n), remark=remark, intake_type=intake_type,
             concentration=concentration, extinction_coefficient=extinction_coefficient,
             project_no=project_no, originator_batch_no=originator_batch_no,
-            aliquot_date=aliquot_date,
+            aliquot_date=aliquot_date, intake_operator_name=intake_operator_name,
         )
         db.add(batch)
         db.flush()
@@ -763,6 +764,7 @@ def occupy_from_start(
     extinction_coefficient: Optional[Decimal] = None,
     project_no: Optional[str] = None, originator_batch_no: Optional[str] = None,
     aliquot_date=None, remark: Optional[str] = None,
+    intake_operator_name: Optional[str] = None,
 ) -> dict:
     """从起始孔起,沿地址顺序取连续 count 个孔(须全部为空,中间有占用即报错),
     占用入库。复用 occupy_cells 落库。返回 {batch_id, count, addresses}。"""
@@ -813,6 +815,7 @@ def occupy_from_start(
         concentration=concentration, extinction_coefficient=extinction_coefficient,
         project_no=project_no, originator_batch_no=originator_batch_no,
         aliquot_date=aliquot_date, remark=remark,
+        intake_operator_name=intake_operator_name,
     )
 
 
@@ -1088,6 +1091,7 @@ def create_batch_with_initial_in(
     project_no: Optional[str] = None,
     originator_batch_no: Optional[str] = None,
     aliquot_date=None,
+    intake_operator_name: Optional[str] = None,
 ) -> Batch:
     """新建批次并同步写入首笔入库 txn(IN)。
     若 intake_type 提供, 与物料当前 material_type 不一致, 用 intake_type 覆盖。
@@ -1117,6 +1121,7 @@ def create_batch_with_initial_in(
         project_no=project_no,
         originator_batch_no=originator_batch_no,
         aliquot_date=aliquot_date,
+        intake_operator_name=intake_operator_name,
     )
     db.add(b)
     db.flush()  # 获得 batch_id
@@ -1136,7 +1141,7 @@ def create_batch_with_initial_in(
     return b
 
 
-def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Optional[str] = None) -> dict:
+def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Optional[str] = None, intake_operator_name: Optional[str] = None) -> dict:
     """散放层多行批量入库。两遍式: 先逐行校验, 全部通过才写入(任一行不合法 → 不写任何数据)。
     命中同 (material_id, batch_no, location_id) → 追加 IN; 否则建批次 + 首笔 IN。
     返回 {ok, created, appended, failed, results}。rows 为 BulkIntakeRow 序列。"""
@@ -1181,7 +1186,7 @@ def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Op
                 concentration=r.concentration, extinction_coefficient=r.extinction_coefficient,
                 serial_no=r.serial_no, asset_no=r.asset_no, responsible_person=r.responsible_person,
                 project_no=r.project_no, originator_batch_no=r.originator_batch_no,
-                aliquot_date=r.aliquot_date,
+                aliquot_date=r.aliquot_date, intake_operator_name=intake_operator_name,
             )
             results[i] = {"index": i, "status": "created", "batch_id": b.batch_id, "message": None}
             created += 1
@@ -1263,6 +1268,7 @@ def transfer_batch(
             received_date=src.received_date,
             initial_qty=Decimal("0"),  # 真实数量靠下面的 IN txn 累计
             remark=f"由移库自动建,源批次 #{source_batch_id}",
+            intake_operator_name=src.intake_operator_name,
         )
         db.add(dest)
         db.flush()
@@ -1456,6 +1462,7 @@ def stock_by_batch(
             Material.material_type,
             Batch.intake_type,
             Batch.originator_batch_no,
+            Batch.intake_operator_name,
             Material.manufacturer,
             Material.spec_model,
             Material.catalog_no,
@@ -1509,6 +1516,7 @@ def stock_by_batch(
             "unit": r.unit,
             "batch_no": r.batch_no,
             "originator_batch_no": r.originator_batch_no,
+            "intake_operator_name": r.intake_operator_name,
             "expiry_date": r.expiry_date,
             "location_id": r.location_id,
             "location_name": r.location_name,

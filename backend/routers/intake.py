@@ -34,6 +34,7 @@ def bulk_intake(
         received_date=payload.received_date,
         operator=current.username,
         intake_type=payload.intake_type,
+        intake_operator_name=current.full_name,
     )
     if not res["ok"]:
         db.rollback()

@@ -527,6 +527,7 @@ class StockByBatch(BaseModel):
     unit: str
     batch_no: str
     originator_batch_no: Optional[str] = None    # 标准品 原研药批号
+    intake_operator_name: Optional[str] = None   # 入库登记操作人姓名(快照)
     expiry_date: Optional[date] = None
     location_id: int
     location_name: str
