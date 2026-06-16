@@ -27,7 +27,7 @@
 | V1.3 | 2026-06-04 | CMC IT | 无表结构变更。明确同步语义：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照（"用时拉取"）；data_source='local' 仅产生于后端 API 兜底，前端已无本地新增入口（§7 更新） |
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：equipment 表扩充 MDM 快照列（equipment_no / fixed_asset_no / name_en / rated_power / origin / supplier / has_workstation / workstation_info / mdm_status / mdm_synced_at）；purchase_date、asset_value 归属由"本地运营"改为"MDM 快照"（此前为本地运营字段）；设备分类对齐 MDM 5 值体系；新增快照刷新（sync-mdm）与批量引用建档（batch-from-mdm，台账初始化）机制说明（§4.2、§7 更新） |
 | V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（结构以 backend/models.py + sql/init.sql 现状为准）：§3 改写为"物料库存表"，新增位置树 `storage_node`（§3.2）、-80℃ 孔位占用 `cell_occupancy`（§3.3）两表；补 location 与位置树关系（§3.4，含 -80 冰箱在 FRIDGE 节点挂锚点 location_id、CELL 不进 location）；material/batch 增列（material_type / intake_type 及标准品·色谱柱专属字段、入库人姓名快照 intake_operator_name，§3.5）；移除已删表 app_user / auth_session（迁移 08941b314a8f） |
-| V1.6 | 2026-06-16 | CMC IT | 物料 Excel 导入功能已从代码移除，文档同步：§3 表清单注脚去除 import_log 说明；§5 labops_auth（已废弃）权限种子示例去"导入"；上位文档版本号同步 ARCH V1.7 |
+| V1.6 | 2026-06-16 | CMC IT | 物料 Excel 导入功能已从代码移除，文档同步：§3 表清单注脚去除 import_log 说明；§5 labops_auth（已废弃）权限种子示例去"导入"；§7 data_source 来源说明移除"Excel 批量导入"分支；上位文档版本号同步 ARCH V1.7 |
 
 ## 适用范围
 
@@ -749,7 +749,7 @@ CREATE INDEX ix_audit_action      ON labops_audit.audit_log(action, created_at D
 - 设备：GET /api/mdm/equipments* + POST /api/equipment/from-mdm/{code} + POST /api/equipment/{id}/sync-mdm（V1.4 新增，手动刷新快照）+ POST /api/equipment/batch-from-mdm（V1.4 新增，台账初始化批量引用建档：遍历 MDM 设备列表，本地不存在的逐台拉详情落快照，支持分类过滤，默认跳过已存在与 MDM 已退役设备，运营字段留空待补录）
 - 同步机制 = 用时拉取 + 手动刷新：MDM 登记后无后台同步任务，物料在首次入库、设备在建档时实时拉取落快照；设备详情页提供"从 MDM 刷新"按钮整体覆盖快照字段并更新 mdm_synced_at
 - MDM 后端地址通过 `MDM_BASE_URL` 环境变量配置，开发环境默认 `http://127.0.0.1:18000/api/v1`（与 MDM Docker 端口约定一致）
-- data_source='local' 产生于两个来源：①后端 API 兜底（V1.3 起前端无本地新增入口）②物料 Excel 批量导入（**主数据治理的唯一文档化例外**，定位为历史数据初始化，见 URD FR-MAT-001 V1.4）。两者均属"待在 MDM 补登"状态；设备补登后可通过 sync-mdm 按编码回挂（回填 mdm_equipment_id 并转 data_source='mdm'）
+- data_source='local' 产生于后端 API 兜底（V1.3 起前端无本地新增入口），属"待在 MDM 补登"状态；设备补登后可通过 sync-mdm 按编码回挂（回填 mdm_equipment_id 并转 data_source='mdm'）
 - MDM 侧 eqp 域设计详见 DM-MDM-001 V1.2 §10A（含迁移 0040~0044），API 详见 API-MDM-001 V1.2 §5.1.6A
 
 # 8. 附录：设备 ERD
