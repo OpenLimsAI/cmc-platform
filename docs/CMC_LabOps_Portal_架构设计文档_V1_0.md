@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **文档编号** | ARCH-LABOPS-001 |
-| **版本** | V1.5（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.6（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
@@ -27,6 +27,7 @@
 | V1.3 | 2026-06-04 | CMC IT | 主数据入口治理（标准化决议）：本系统前端不再提供物料/设备主数据的本地新增与身份编辑入口——"物料管理"更名为只读"物料查询"，设备新增仅"从 MDM 引用 + 补运营字段"、编辑仅运营字段；各入口提供"去 MDM 登记"跳转（MDM 新建页 ?code=/?name= 预填，地址由 VITE_MDM_PORTAL_URL 配置）。同步机制明确为"用时拉取"：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照。本地建档端点（POST /api/materials、POST /api/equipment）仅保留为后端 API 兜底，前端无入口。MDM 侧设计见 DM-MDM-001 V1.2 §10A、API-MDM-001 V1.2 §5.1.6A |
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：设备快照承接三标识体系（equipment_no/fixed_asset_no）、5 值分类、工作站配置、额定功率等新增主数据字段；purchase_date/asset_value 归属改为 MDM 快照；新增手动快照刷新端点 sync-mdm 与 mdm_status/mdm_synced_at 追踪；新增批量引用建档端点 batch-from-mdm（台账初始化/增量同步）；修正 MDM_BASE_URL 开发默认值为 18000（§4.2 更新） |
 | V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（以代码现状为准）：§4.1 Schema 主要表补 storage_node / cell_occupancy，并注明 app_user/auth_session 已删（迁移 08941b314a8f）；§2.3 后端模块 ORM 注释补两表；§5.1 统一认证补「无感自动续期」（refresh token 经 LabOps 中转为 HttpOnly Cookie、/api/auth/refresh 端点、前端主动续期+401 重放+并发去重），更正"登出/会话过期"旧表述，并声明空闲登出/编辑防丢尚未实现 |
+| V1.6 | 2026-06-16 | CMC IT | 清理迁移期遗留 drift（以代码现状为准）：§2.3 后端模块结构改为实际扁平结构（分包重组未实施）；§6.1 部署图去除 Streamlit 框、端口校正 8010、Nginx 必备；§6.2 改为"迁移已完成"最终部署形态（React 5110 + 后端 8010 + Nginx）；§7.1 路线图标注已全部完成；修正 §4.1 Schema 隔离原则中 Streamlit 现在时表述 |
 
 ## 适用范围
 
@@ -186,34 +187,32 @@ CMC 部门当前运行 cmc-labops v1.2 物料库存管理系统，基于 Streaml
 
 ```text
 backend/
-├── main.py                     FastAPI 应用入口
-├── database.py                 数据库连接配置
-│
-├── shared/                     共享层
-│   ├── auth.py                 认证与密码处理
-│   ├── audit.py                审计日志服务
-│   ├── deps.py                 依赖注入（get_db, get_current_user）
-│   └── permissions.py          RBAC 权限守卫
-│
-├── material/                   物料库存模块（从现有 routers 重组）
-│   ├── models.py               ORM: material, batch, inventory_txn, location, storage_node, cell_occupancy...
-│   ├── schemas.py              Pydantic: 请求/响应模型
-│   ├── crud.py                 数据访问层
-│   └── router.py               API 路由（合并现有 7 个 router）
-│
-├── equipment/                  仪器设备模块（新增）
-│   ├── models.py               ORM: equipment, calibration, maintenance...
-│   ├── schemas.py              Pydantic: 请求/响应模型
-│   ├── crud.py                 数据访问层
-│   └── router.py               API 路由
-│
-├── admin/                      管理模块
-│   ├── router.py               用户管理、角色管理
-│   └── schemas.py
-│
-└── tests/
-    ├── test_material/
-    └── test_equipment/
+├── main.py                  FastAPI 入口 + 路由注册
+├── database.py              连接配置（每连接 SET TIME ZONE 'Asia/Shanghai'）
+├── auth.py                  MDM JWT 解码、CurrentUser、角色权限依赖
+├── audit.py                 审计日志服务
+├── mdm_client.py            调用 MDM Portal 的 httpx 客户端
+├── models.py                ORM: material/batch/inventory_txn/location/storage_node/cell_occupancy...
+├── models_equipment.py      ORM: equipment/calibration/maintenance/repair/warranty/attachment/reminder
+├── schemas.py / schemas_equipment.py    Pydantic 请求/响应
+├── crud.py                  数据访问层（物料库存 + 设备，单文件）
+├── routers/                 API 路由（按域拆分，由 main.py 统一注册）
+│   ├── auth_router.py       登录/续期/登出（代理 MDM，/api/auth）
+│   ├── material.py          物料查询 + MDM 物料引用
+│   ├── batch.py             批次 / 首次入库
+│   ├── inventory.py         出库 / 移库 / 盘点 / 流水
+│   ├── stock.py             库存汇总 + 效期/低库存预警（/api/stock）
+│   ├── location.py          扁平位置（兼容旧三元组）
+│   ├── storage.py           位置树 + -80 孔位占用（/api/storage）
+│   ├── intake.py            批量入库（/api/intake）
+│   ├── equipment.py         设备台账 + MDM 设备引用（含 mdm_router）
+│   ├── dashboard.py         仪表盘聚合（/api/dashboard）
+│   └── admin_router.py      审计日志（/api/audit）
+├── tests/
+└── uploads/                 设备附件存储
+
+> 注：早期规划的 shared/、material/、equipment/、admin/ 分包重组未实施；
+> 当前为上述扁平结构（ORM/schemas 各两个文件，crud 单文件，路由集中在 routers/）。
 ```
 
 后端重组原则：
@@ -326,7 +325,7 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 | labops_audit | 审计日志 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log；如需 module/reason 字段再升级 |
 
 > Schema 隔离原则（V1.1 修订）
-> - material_mgmt 保留现有表不动，保证现有 Streamlit 前端在迁移期间继续工作
+> - material_mgmt 保留现有表不动以保护历史数据；迁移期间 Streamlit 曾与 React 并行，现 Streamlit 已退役
 > - equipment_mgmt 为新建 schema
 > - **认证不再建本地 schema**：LabOps 信任 MDM Portal 签发的 JWT（HS256 共享密钥），用户/角色主数据在 MDM 的 auth schema 中维护
 > - material_mgmt 中历史遗留的 app_user / auth_session 表已由迁移 `08941b314a8f` 删除；V1.5 起新增位置树 storage_node 与孔位占用 cell_occupancy（详见数据模型文档 §3.2 / §3.3）
@@ -422,14 +421,14 @@ MDM User ──→ MDM Role ──(JWT roles claim)──→ LabOps 权限守卫
 │   ┌──────────────────────────────────────────────────────┐     │
 │   │                                                      │     │
 │   │   ┌────────────────┐  ┌────────────────────────┐     │     │
-│   │   │ Nginx (可选)   │  │ React 静态资源         │     │     │
-│   │   │ :80            │  │ (由 Nginx 或独立服务)  │     │     │
+│   │   │ Nginx :80      │  │ React dist             │     │     │
+│   │   │ 伺服+反代/api  │  │ (Nginx 静态伺服)       │     │     │
 │   │   └────────┬───────┘  └────────────────────────┘     │     │
 │   │            │ /api/*                                  │     │
 │   │            ▼                                         │     │
 │   │   ┌────────────────────────┐                         │     │
 │   │   │ FastAPI Backend        │                         │     │
-│   │   │ :8000                  │                         │     │
+│   │   │ :8010                  │                         │     │
 │   │   │ material + equipment   │                         │     │
 │   │   └────────┬───────────────┘                         │     │
 │   │            │                                         │     │
@@ -441,29 +440,25 @@ MDM User ──→ MDM Role ──(JWT roles claim)──→ LabOps 权限守卫
 │   │   │ (认证复用 MDM auth)    │                         │     │
 │   │   └────────────────────────┘                         │     │
 │   │                                                      │     │
-│   │   迁移期间 Streamlit 仍在运行:                       │     │
-│   │   ┌────────────────────────┐                         │     │
-│   │   │ Streamlit Frontend     │                         │     │
-│   │   │ :8501 (旧前端)         │                         │     │
-│   │   └────────────────────────┘                         │     │
-│   │                                                      │     │
 │   └──────────────────────────────────────────────────────┘     │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-## 6.2 迁移期间双前端共存
+## 6.2 前端部署（迁移已完成）
 
-迁移期间 Streamlit 和 React 前端并行运行，共享同一后端和数据库：
+> 迁移已完成：Streamlit 旧前端已退役，当前仅 React 前端。下表为最终部署形态。
 
-| **前端** | **端口** | **状态** | **说明** |
-|---|---|---|---|
-| Streamlit（旧） | 8501 | 运行中 → 逐步退役 | 现有用户继续使用 |
-| React（新） | 80 或 3000 | 逐步上线 | 新页面优先在 React 实现 |
-| FastAPI（共享） | 8000 | 持续运行 | 两个前端调用同一后端 |
+| **组件** | **端口** | **说明** |
+|---|---|---|
+| React 前端 | 5110 | Vite 构建出 `frontend-react/dist/`，生产由 Nginx 静态伺服 |
+| FastAPI 后端 | 8010 | Nginx 反代 `/api/*`；systemd 管理（cmc-backend） |
+| Nginx | 80 | 伺服 React dist + 反代后端 |
 
 # 7. 实施路线图
 
 ## 7.1 总体节奏
+
+> 下表为迁移期的分阶段规划，**现已全部完成**：React 全量上线、设备模块落地、Dashboard/预警中心上线、Streamlit 退役。保留作历史路线记录。
 
 | **Phase** | **时间** | **主要交付** |
 |---|---|---|
