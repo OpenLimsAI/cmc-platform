@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **文档编号** | ARCH-LABOPS-001 |
-| **版本** | V1.4（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.5（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
@@ -26,6 +26,7 @@
 | V1.2 | 2026-06-04 | CMC IT | 主数据边界变更：设备主数据移交 MDM Portal 新建的 eqp 域（eqp.equipment，编码 EQP-yyyyXXXXXX）；LabOps equipment 表保留运营数据 + mdm_equipment_id/data_source 引用快照，照物料 from-mdm 模式按需拉取 |
 | V1.3 | 2026-06-04 | CMC IT | 主数据入口治理（标准化决议）：本系统前端不再提供物料/设备主数据的本地新增与身份编辑入口——"物料管理"更名为只读"物料查询"，设备新增仅"从 MDM 引用 + 补运营字段"、编辑仅运营字段；各入口提供"去 MDM 登记"跳转（MDM 新建页 ?code=/?name= 预填，地址由 VITE_MDM_PORTAL_URL 配置）。同步机制明确为"用时拉取"：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照。本地建档端点（POST /api/materials、POST /api/equipment）仅保留为后端 API 兜底，前端无入口。MDM 侧设计见 DM-MDM-001 V1.2 §10A、API-MDM-001 V1.2 §5.1.6A |
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：设备快照承接三标识体系（equipment_no/fixed_asset_no）、5 值分类、工作站配置、额定功率等新增主数据字段；purchase_date/asset_value 归属改为 MDM 快照；新增手动快照刷新端点 sync-mdm 与 mdm_status/mdm_synced_at 追踪；新增批量引用建档端点 batch-from-mdm（台账初始化/增量同步）；修正 MDM_BASE_URL 开发默认值为 18000（§4.2 更新） |
+| V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（以代码现状为准）：§4.1 Schema 主要表补 storage_node / cell_occupancy，并注明 app_user/auth_session 已删（迁移 08941b314a8f）；§2.3 后端模块 ORM 注释补两表；§5.1 统一认证补「无感自动续期」（refresh token 经 LabOps 中转为 HttpOnly Cookie、/api/auth/refresh 端点、前端主动续期+401 重放+并发去重），更正"登出/会话过期"旧表述，并声明空闲登出/编辑防丢尚未实现 |
 
 ## 适用范围
 
@@ -195,7 +196,7 @@ backend/
 │   └── permissions.py          RBAC 权限守卫
 │
 ├── material/                   物料库存模块（从现有 routers 重组）
-│   ├── models.py               ORM: material, batch, inventory_txn, location...
+│   ├── models.py               ORM: material, batch, inventory_txn, location, storage_node, cell_occupancy...
 │   ├── schemas.py              Pydantic: 请求/响应模型
 │   ├── crud.py                 数据访问层
 │   └── router.py               API 路由（合并现有 7 个 router）
@@ -319,7 +320,7 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 
 | **Schema** | **用途** | **来源** | **主要表** |
 |---|---|---|---|
-| material_mgmt | 物料库存 + 审计 | 现有，保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log, audit_log |
+| material_mgmt | 物料库存 + 审计 | 现有，保留 | material, batch, inventory_txn, location, storage_node, cell_occupancy, unit_dict, category_dict, import_log, audit_log |
 | equipment_mgmt | 仪器设备 | 新增 | equipment, calibration, maintenance, repair, warranty, attachment, reminder |
 | ~~labops_auth~~ | ~~认证与权限~~ | **已取消（V1.1）** | 认证由 MDM Portal 的 auth schema 提供，LabOps 不建用户/角色表 |
 | labops_audit | 审计日志 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log；如需 module/reason 字段再升级 |
@@ -328,7 +329,7 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 > - material_mgmt 保留现有表不动，保证现有 Streamlit 前端在迁移期间继续工作
 > - equipment_mgmt 为新建 schema
 > - **认证不再建本地 schema**：LabOps 信任 MDM Portal 签发的 JWT（HS256 共享密钥），用户/角色主数据在 MDM 的 auth schema 中维护
-> - material_mgmt 中历史遗留的 app_user / auth_session 表已停用，可在确认无引用后删除
+> - material_mgmt 中历史遗留的 app_user / auth_session 表已由迁移 `08941b314a8f` 删除；V1.5 起新增位置树 storage_node 与孔位占用 cell_occupancy（详见数据模型文档 §3.2 / §3.3）
 > - 审计当前仍写 material_mgmt.audit_log（username 冗余快照，不依赖本地用户表）
 
 ## 4.2 数据流向
@@ -367,17 +368,20 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 
 # 5. 统一能力设计
 
-## 5.1 统一认证（V1.1 已落地：对接 MDM）
+## 5.1 统一认证（V1.1 对接 MDM；V1.5 增无感自动续期）
 
 LabOps 不自建用户体系，复用 MDM Portal 统一认证：
 
 | **环节** | **实现** | **说明** |
 |---|---|---|
-| 登录 | POST /api/auth/login 代理 MDM `/auth/login` | 返回 MDM 签发的 JWT access token |
+| 登录 | POST /api/auth/login 代理 MDM `/auth/login`，并把 MDM 下发的 refresh token 中转为本域 HttpOnly Cookie | 返回 MDM 签发的 access token；refresh 存 Cookie |
 | 校验 | 后端用共享密钥（MDM_SECRET_KEY, HS256）本地解码 JWT | 无需每请求回调 MDM，零额外延迟 |
-| 登出 | JWT 无状态，客户端丢弃 token | 服务端无 session 表 |
+| 登出 | POST /api/auth/logout 转发 MDM 撤销 refresh + 清本域 refresh Cookie | access JWT 仍无状态；refresh 在 MDM 侧失效 |
 | 用户管理 / 改密 / 首登强制改密 | 由 MDM Portal 承担 | LabOps 不提供相关页面 |
-| 会话过期 | 由 MDM token 有效期控制 | 过期后 401 → 前端跳转登录 |
+| 会话续期（**V1.5 已落地**） | refresh token 经 LabOps 后端中转为本域 HttpOnly Cookie `cmab_refresh_token`（path=/api/auth，7 天，每次轮换）；POST /api/auth/refresh 用 Cookie 向 MDM 换新 access；前端 access 剩余<5 分钟主动续期、401 兜底续期并重放原请求（仅一次）、并发去重 | access 仍 30 分钟，续期无感、不再"过期即跳登录" |
+
+> **续期范围（V1.5）**：当前仅实现「无感自动续期」（保持登录不掉线）。「空闲超时登出」「未保存编辑防丢」为后续规划，**尚未实现**。
+> 实现位置：后端 `backend/routers/auth_router.py`（login 中转 Cookie / refresh 端点 / logout 撤销）；前端 `frontend-react/src/api/client.ts`（withCredentials + 主动续期 + 401 重放 + 并发去重）。
 
 ## 5.2 统一权限（V1.1 修订：角色随 JWT 下发）
 
