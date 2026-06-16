@@ -76,10 +76,10 @@ export function LoginPage() {
         <Form name="login" onFinish={onFinish} autoComplete="off" size="large" layout="vertical">
           <Form.Item
             name="username"
-            label="用户名"
-            rules={[{ required: true, message: '请输入用户名' }]}
+            label="工号"
+            rules={[{ required: true, message: '请输入工号' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" autoFocus />
+            <Input prefix={<UserOutlined />} placeholder="工号" autoFocus />
           </Form.Item>
 
           <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>

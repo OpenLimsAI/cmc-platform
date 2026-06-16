@@ -78,7 +78,9 @@ class ChangePasswordRequest(BaseModel):
 class UserCreate(BaseModel):
     """POST /api/v1/users — 管理员创建用户"""
 
-    username: str = Field(..., min_length=3, max_length=64, pattern=r"^[a-zA-Z][a-zA-Z0-9_.-]+$")
+    # 登录账号:过渡期内承载员工工号(纯数字),同时兼容历史字母账号(如 admin)。
+    # 因此放开为"字母或数字开头",不可收窄为纯数字。后续将整列正名为 employee_id。
+    username: str = Field(..., min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
     email: EmailStr
     password: str = Field(..., min_length=12, max_length=128)
     full_name: str = Field(..., min_length=1, max_length=128)

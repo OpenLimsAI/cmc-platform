@@ -104,17 +104,17 @@ export function UserFormDrawer({ open, mode, user, onClose, onSaved }: Props) {
       <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
         <Form.Item
           name="username"
-          label="用户名"
+          label="工号"
           rules={[
-            { required: true, message: '请输入用户名' },
+            { required: true, message: '请输入工号' },
             {
-              pattern: /^[a-zA-Z][a-zA-Z0-9_.-]+$/,
-              message: '以字母开头，仅含字母数字 _ . -',
+              pattern: /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/,
+              message: '字母或数字开头，仅含字母数字 _ . -',
             },
             { min: 3, max: 64 },
           ]}
         >
-          <Input disabled={mode === 'edit'} placeholder="登录用户名" />
+          <Input disabled={mode === 'edit'} placeholder="登录工号" />
         </Form.Item>
 
         <Form.Item
