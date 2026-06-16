@@ -13,8 +13,8 @@
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
-| **上位文档** | ARCH-LABOPS-001 V1.4 |
-| **关联文档** | DM-LABOPS-001 V1.4、URD-LABOPS-001 V1.4 |
+| **上位文档** | ARCH-LABOPS-001 V1.5 |
+| **关联文档** | DM-LABOPS-001 V1.5、URD-LABOPS-001 V1.6 |
 | **UI 框架** | React 18 + Ant Design 5 |
 
 # 修订记录
