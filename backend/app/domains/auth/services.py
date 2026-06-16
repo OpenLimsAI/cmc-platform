@@ -235,7 +235,7 @@ class AuthService:
 
         access_token = create_access_token(
             subject=user.user_id,
-            extra_claims={"username": user.username, "roles": roles},
+            extra_claims={"username": user.username, "full_name": user.full_name, "roles": roles},
         )
 
         refresh_token = await self._issue_refresh_token(user.user_id, ip, ua)
@@ -379,7 +379,7 @@ class AuthService:
         roles = [r.role_code for r in user.roles]
         new_access = create_access_token(
             subject=user.user_id,
-            extra_claims={"username": user.username, "roles": roles},
+            extra_claims={"username": user.username, "full_name": user.full_name, "roles": roles},
         )
 
         # 强一致：refresh 端点必须 commit 后才返回（避免 yield 依赖 commit 时机坑）
