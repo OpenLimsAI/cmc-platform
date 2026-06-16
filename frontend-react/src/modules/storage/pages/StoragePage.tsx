@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Card, Tree, Button, Space, Modal, Form, Input, InputNumber, Select,
   Tag, message, Typography, Descriptions, Empty, Alert,
@@ -110,13 +110,23 @@ export default function StoragePage() {
     (fzWatch?.rack_count ?? 0) * (fzWatch?.layers_per_rack ?? 0) *
     (fzWatch?.boxes_per_layer ?? 0) * (fzWatch?.cells_per_box ?? 0);
 
-  const reloadRoot = async () => {
-    const rooms = await listNodes().then((r) => r.data);
-    setTreeData(rooms.map(toTNode));
+  // 根节点(房间)列表走 react-query;仅在显式失效(创建后)时重取,不随窗口聚焦刷新
+  const { data: rootNodes } = useQuery({
+    queryKey: ["storage", "roots"],
+    queryFn: () => listNodes().then((r) => r.data),
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
+  });
+  // 根数据变化时同步进可变树(挂载首取 + 创建后重取):react 官方"存上次值"模式,避免 effect 内 setState
+  const [rootSeen, setRootSeen] = useState<StorageNode[]>();
+  if (rootNodes && rootNodes !== rootSeen) {
+    setRootSeen(rootNodes);
+    setTreeData(rootNodes.map(toTNode));
     setExpanded([]);
     setSelected(null);
-  };
-  useEffect(() => { reloadRoot(); }, []);
+  }
+  // 创建试剂柜/冰箱后刷新根树(失效重取 → 上面的同步生效)
+  const reloadRoot = () => qc.invalidateQueries({ queryKey: ["storage", "roots"] });
 
   const onLoadData = async (node: { key: React.Key }) => {
     const kids = await listNodes(Number(node.key)).then((r) => r.data);

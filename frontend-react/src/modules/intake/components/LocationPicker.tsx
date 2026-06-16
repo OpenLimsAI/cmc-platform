@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Select, Space, Tag } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { listNodes, type StorageNode } from "../../../api/storage";
@@ -25,19 +25,13 @@ const FRIDGE_COLOR: Record<string, string> = {
   normal: "default",
 };
 
-export default function LocationPicker({ value, onChange, onFreezerSelect, labeled }: Props) {
+export default function LocationPicker({ onChange, onFreezerSelect, labeled }: Props) {
   const [roomId, setRoomId] = useState<number>();
   const [midId, setMidId] = useState<number>();   // 柜 / 冰箱
   const [leafId, setLeafId] = useState<number>(); // 板层 / 隔板 节点 id
 
-  // 外部把 value 清空(如 form.resetFields)时, 同步清空内部三级选择
-  useEffect(() => {
-    if (value === undefined) {
-      setRoomId(undefined);
-      setMidId(undefined);
-      setLeafId(undefined);
-    }
-  }, [value]);
+  // 注:外部整体重置(入库成功)时,父级会以新的 position key 重新挂载本组件,
+  //     级联状态随之清空,无需在 effect 内同步 setState。
 
   const { data: rooms = [] } = useQuery({
     queryKey: ["storage", "nodes", "root"],

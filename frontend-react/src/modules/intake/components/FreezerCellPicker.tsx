@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Select, Space, Segmented, InputNumber, Button, Tag, Alert, message } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -14,7 +14,7 @@ export type FreezerSelection =
 interface Props {
   freezer: StorageNode;
   onChange?: (sel: FreezerSelection) => void;
-  resetKey?: number;        // 变化即清空(入库成功后)
+  // 注:切冰箱 / 入库成功后的整体重置由父组件用 key 触发重新挂载实现(避免 effect 内 setState)。
 }
 
 /**
@@ -23,7 +23,7 @@ interface Props {
  *   起始填充 — 选起始孔 + N,从起始孔起连续 N 个(后端校验须全空);
  *   手动选孔 — 架→层→盒级联 + 热力图点选。
  */
-export default function FreezerCellPicker({ freezer, onChange, resetKey }: Props) {
+export default function FreezerCellPicker({ freezer, onChange }: Props) {
   const [mode, setMode] = useState<"auto" | "from" | "manual">("auto");
   const [autoN, setAutoN] = useState(1);
   const [fromN, setFromN] = useState(1);
@@ -37,8 +37,15 @@ export default function FreezerCellPicker({ freezer, onChange, resetKey }: Props
     setStartCell(undefined); setPicked(new Map());
     setRackId(undefined); setLayerId(undefined); setBoxId(undefined);
   };
-  // 切冰箱 / 外部重置
-  useEffect(() => { clearAll(); setMode("auto"); setAutoN(1); setFromN(1); }, [freezer.node_id, resetKey]);
+
+  // 切换取位方式:清空已选并上抛空(原先放在 effect 里,改为事件回调,避免 effect 内同步 setState)
+  const changeMode = (m: typeof mode) => {
+    setMode(m);
+    clearAll();
+    if (m === "auto") onChange?.({ mode: "auto", cellIds: [], addresses: [] });
+    if (m === "manual") onChange?.({ mode: "manual", cellIds: [], addresses: [] });
+    if (m === "from") onChange?.({ mode: "from", count: fromN });
+  };
 
   const { data: racks = [] } = useQuery({
     queryKey: ["fz", freezer.node_id, "racks"],
@@ -65,15 +72,6 @@ export default function FreezerCellPicker({ freezer, onChange, resetKey }: Props
   const box = boxes.find((b) => b.node_id === boxId);
   const fname = freezer.label || freezer.code;
   const addrOf = (code: string) => `${fname} ${rack?.code}${layer?.code}:${box?.code},${code}`;
-
-  // 切换方式时清空已选并上抛空
-  useEffect(() => {
-    if (mode === "auto") onChange?.({ mode: "auto", cellIds: [], addresses: [] });
-    if (mode === "manual") onChange?.({ mode: "manual", cellIds: [], addresses: [] });
-    if (mode === "from") onChange?.({ mode: "from", count: fromN });
-    clearAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
 
   const autoAssign = async () => {
     const { data } = await findFreeCells(freezer.node_id, autoN);
@@ -120,7 +118,7 @@ export default function FreezerCellPicker({ freezer, onChange, resetKey }: Props
     <div>
       <Segmented
         value={mode}
-        onChange={(v) => setMode(v as typeof mode)}
+        onChange={(v) => changeMode(v as typeof mode)}
         options={[
           { label: "自动分配", value: "auto" },
           { label: "起始填充", value: "from" },

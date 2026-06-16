@@ -621,7 +621,8 @@ function IntakeForm() {
                   {p.freezer && (
                     <div style={{ marginTop: 12 }}>
                       <FreezerCellPicker
-                        freezer={p.freezer} resetKey={resetKey}
+                        key={`${p.freezer.node_id}-${resetKey}`}
+                        freezer={p.freezer}
                         onChange={(sel) => patchPos(g.key, p.key, { freezerSel: sel })}
                       />
                     </div>
