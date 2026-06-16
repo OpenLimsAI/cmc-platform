@@ -10,10 +10,10 @@
 
 | 文档 | 编号 | 版本 | 内容 |
 |---|---|---|---|
-| [用户需求文档](CMC_LabOps_Portal_用户需求文档_V1_0.md) | URD-LABOPS-001 | V1.6 | 物料库存 / 仪器设备 / 统一平台三大模块需求（FR 条目 + 验收依据） |
-| [架构设计文档](CMC_LabOps_Portal_架构设计文档_V1_0.md) | ARCH-LABOPS-001 | V1.6 | 系统边界、技术选型、Schema 划分、统一认证/权限/审计、部署架构 |
-| [数据模型设计文档](CMC_LabOps_Portal_数据模型设计文档_V1_0.md) | DM-LABOPS-001 | V1.5 | 表结构 / DDL / 约束 / 索引（含位置树 storage_node、孔位 cell_occupancy） |
-| [UI 信息架构与线框图](CMC_LabOps_Portal_UI信息架构与线框图_V1_0.md) | UI-LABOPS-001 | V1.6 | 导航、布局、各页面线框、组件规范 |
+| [用户需求文档](CMC_LabOps_Portal_用户需求文档_V1_0.md) | URD-LABOPS-001 | V1.7 | 物料库存 / 仪器设备 / 统一平台三大模块需求（FR 条目 + 验收依据） |
+| [架构设计文档](CMC_LabOps_Portal_架构设计文档_V1_0.md) | ARCH-LABOPS-001 | V1.7 | 系统边界、技术选型、Schema 划分、统一认证/权限/审计、部署架构 |
+| [数据模型设计文档](CMC_LabOps_Portal_数据模型设计文档_V1_0.md) | DM-LABOPS-001 | V1.6 | 表结构 / DDL / 约束 / 索引（含位置树 storage_node、孔位 cell_occupancy） |
+| [UI 信息架构与线框图](CMC_LabOps_Portal_UI信息架构与线框图_V1_0.md) | UI-LABOPS-001 | V1.7 | 导航、布局、各页面线框、组件规范 |
 
 引用关系：URD（最上位）→ ARCH → DM / UI。四件套头部互标"上位/关联文档"版本号。
 
