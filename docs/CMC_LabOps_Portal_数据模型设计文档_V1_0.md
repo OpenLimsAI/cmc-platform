@@ -88,10 +88,9 @@
 | cell_occupancy | -80℃ 孔位单占用（**V1.5 新增**，一孔一管） | 随 -80 样品增长 |
 | unit_dict | 单位字典 | ~20 |
 | category_dict | 分类字典 | ~30 |
-| import_log | 导入日志 | ~100 |
 | audit_log | 审计日志（继续使用；labops_audit 升级为 Phase 4 可选项） | ~10000 |
 
-> 原 `app_user` / `auth_session` 两表随认证移交 MDM 后停用，并由迁移 `08941b314a8f` 实际删除，不再列为现存表。
+> 原 `app_user` / `auth_session` 两表随认证移交 MDM 后停用，并由迁移 `08941b314a8f` 实际删除，不再列为现存表；`import_log` 当前代码与 sql/init.sql 无对应表（历史遗留），亦不列入。
 
 关键设计：
 - 库存数量不落表，实时由 inventory_txn 聚合计算（不变）
