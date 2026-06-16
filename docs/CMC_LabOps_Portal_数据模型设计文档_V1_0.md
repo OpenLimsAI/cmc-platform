@@ -9,11 +9,11 @@
 | | |
 |---|---|
 | **文档编号** | DM-LABOPS-001 |
-| **版本** | V1.5（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.6（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
-| **上位文档** | ARCH-LABOPS-001 V1.6 |
+| **上位文档** | ARCH-LABOPS-001 V1.7 |
 | **数据库** | PostgreSQL 16 |
 | **分类** | 内部技术文档 |
 
@@ -27,6 +27,7 @@
 | V1.3 | 2026-06-04 | CMC IT | 无表结构变更。明确同步语义：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照（"用时拉取"）；data_source='local' 仅产生于后端 API 兜底，前端已无本地新增入口（§7 更新） |
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：equipment 表扩充 MDM 快照列（equipment_no / fixed_asset_no / name_en / rated_power / origin / supplier / has_workstation / workstation_info / mdm_status / mdm_synced_at）；purchase_date、asset_value 归属由"本地运营"改为"MDM 快照"（此前为本地运营字段）；设备分类对齐 MDM 5 值体系；新增快照刷新（sync-mdm）与批量引用建档（batch-from-mdm，台账初始化）机制说明（§4.2、§7 更新） |
 | V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（结构以 backend/models.py + sql/init.sql 现状为准）：§3 改写为"物料库存表"，新增位置树 `storage_node`（§3.2）、-80℃ 孔位占用 `cell_occupancy`（§3.3）两表；补 location 与位置树关系（§3.4，含 -80 冰箱在 FRIDGE 节点挂锚点 location_id、CELL 不进 location）；material/batch 增列（material_type / intake_type 及标准品·色谱柱专属字段、入库人姓名快照 intake_operator_name，§3.5）；移除已删表 app_user / auth_session（迁移 08941b314a8f） |
+| V1.6 | 2026-06-16 | CMC IT | 物料 Excel 导入功能已从代码移除，文档同步：§3 表清单注脚去除 import_log 说明；§5 labops_auth（已废弃）权限种子示例去"导入"；上位文档版本号同步 ARCH V1.7 |
 
 ## 适用范围
 
@@ -90,7 +91,7 @@
 | category_dict | 分类字典 | ~30 |
 | audit_log | 审计日志（继续使用；labops_audit 升级为 Phase 4 可选项） | ~10000 |
 
-> 原 `app_user` / `auth_session` 两表随认证移交 MDM 后停用，并由迁移 `08941b314a8f` 实际删除，不再列为现存表；`import_log` 当前代码与 sql/init.sql 无对应表（历史遗留），亦不列入。
+> 原 `app_user` / `auth_session` 两表随认证移交 MDM 后停用，并由迁移 `08941b314a8f` 实际删除，不再列为现存表。
 
 关键设计：
 - 库存数量不落表，实时由 inventory_txn 聚合计算（不变）
@@ -623,7 +624,7 @@ INSERT INTO labops_auth.role (role_code, role_name, description, is_system) VALU
 ```sql
 INSERT INTO labops_auth.permission (permission_code, module, action, description) VALUES
     ('material:access',   'material',  'access',  '访问物料模块'),
-    ('material:create',   'material',  'create',  '新增物料/入库/导入'),
+    ('material:create',   'material',  'create',  '新增物料/入库'),
     ('material:update',   'material',  'update',  '编辑物料/出库/盘点/移库'),
     ('material:delete',   'material',  'delete',  '停用物料'),
     ('equipment:access',  'equipment', 'access',  '访问设备模块'),

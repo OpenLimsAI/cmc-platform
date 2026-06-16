@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **文档编号** | ARCH-LABOPS-001 |
-| **版本** | V1.6（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.7（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
@@ -28,6 +28,7 @@
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：设备快照承接三标识体系（equipment_no/fixed_asset_no）、5 值分类、工作站配置、额定功率等新增主数据字段；purchase_date/asset_value 归属改为 MDM 快照；新增手动快照刷新端点 sync-mdm 与 mdm_status/mdm_synced_at 追踪；新增批量引用建档端点 batch-from-mdm（台账初始化/增量同步）；修正 MDM_BASE_URL 开发默认值为 18000（§4.2 更新） |
 | V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（以代码现状为准）：§4.1 Schema 主要表补 storage_node / cell_occupancy，并注明 app_user/auth_session 已删（迁移 08941b314a8f）；§2.3 后端模块 ORM 注释补两表；§5.1 统一认证补「无感自动续期」（refresh token 经 LabOps 中转为 HttpOnly Cookie、/api/auth/refresh 端点、前端主动续期+401 重放+并发去重），更正"登出/会话过期"旧表述，并声明空闲登出/编辑防丢尚未实现 |
 | V1.6 | 2026-06-16 | CMC IT | 清理迁移期遗留 drift（以代码现状为准）：§2.3 后端模块结构改为实际扁平结构（分包重组未实施）；§6.1 部署图去除 Streamlit 框、端口校正 8010、Nginx 必备；§6.2 改为"迁移已完成"最终部署形态（React 5110 + 后端 8010 + Nginx）；§7.1 路线图标注已全部完成；修正 §4.1 Schema 隔离原则中 Streamlit 现在时表述 |
+| V1.7 | 2026-06-16 | CMC IT | 物料 Excel 导入功能已从代码移除，文档同步：§1.1 背景去"物料导入"；§4.1 Schema 表移除 import_log；§5.2 RBAC 写权限去"导入"；§7.1 路线图 Phase2 去"导入" |
 
 ## 适用范围
 
@@ -40,7 +41,7 @@
 
 ## 1.1 背景
 
-CMC 部门当前运行 cmc-labops v1.2 物料库存管理系统，基于 Streamlit + FastAPI + PostgreSQL 16 构建，运行于 material_mgmt schema 中。系统已实现物料导入、批次级入出库、移库、盘点、库存预警等完整闭环。
+CMC 部门当前运行 cmc-labops v1.2 物料库存管理系统，基于 Streamlit + FastAPI + PostgreSQL 16 构建，运行于 material_mgmt schema 中。系统已实现批次级入出库、移库、盘点、库存预警等完整闭环。
 
 部门同时面临仪器设备管理的系统化需求。大量分析仪器和实验设备目前依靠 Excel 和纸质台账管理，缺少系统化的计量校验跟踪、维护记录管理、到期提醒等能力。
 
@@ -319,7 +320,7 @@ LabOps Portal 在同一 PostgreSQL 实例中使用独立 schema：
 
 | **Schema** | **用途** | **来源** | **主要表** |
 |---|---|---|---|
-| material_mgmt | 物料库存 + 审计 | 现有，保留 | material, batch, inventory_txn, location, storage_node, cell_occupancy, unit_dict, category_dict, import_log, audit_log |
+| material_mgmt | 物料库存 + 审计 | 现有，保留 | material, batch, inventory_txn, location, storage_node, cell_occupancy, unit_dict, category_dict, audit_log |
 | equipment_mgmt | 仪器设备 | 新增 | equipment, calibration, maintenance, repair, warranty, attachment, reminder |
 | ~~labops_auth~~ | ~~认证与权限~~ | **已取消（V1.1）** | 认证由 MDM Portal 的 auth schema 提供，LabOps 不建用户/角色表 |
 | labops_audit | 审计日志 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log；如需 module/reason 字段再升级 |
@@ -391,7 +392,7 @@ MDM User ──→ MDM Role ──(JWT roles claim)──→ LabOps 权限守卫
 
 角色映射（MDM role_code → LabOps 权限）：
   - SYS_ADMIN           : 全权限（含审计查询）→ require_admin
-  - CMC_WAREHOUSE_ADMIN : 物料模块写权限（入出库/移库/盘点/导入）→ require_warehouse
+  - CMC_WAREHOUSE_ADMIN : 物料模块写权限（入出库/移库/盘点）→ require_warehouse
   - CMC_EQUIPMENT_ADMIN : 设备模块写权限（台账/校验/维护/维修）→ require_equipment
   - 其他登录用户         : 只读（库存/预警/物料/设备查询）
 
@@ -464,7 +465,7 @@ MDM User ──→ MDM Role ──(JWT roles claim)──→ LabOps 权限守卫
 |---|---|---|
 | Phase 0: 设计与规划 | 第 1-2 周 | 本文档 + 数据模型 + UI 线框 + 迁移方案 |
 | Phase 1: React 脚手架 + 核心页面 | 第 3-6 周 | React 项目初始化、登录页、布局、物料查询/入库/出库 |
-| Phase 2: 物料模块完整迁移 | 第 7-10 周 | 物料管理、导入、盘点、移库、预警全部迁移到 React |
+| Phase 2: 物料模块完整迁移 | 第 7-10 周 | 物料查询、盘点、移库、预警全部迁移到 React |
 | Phase 3: 设备管理模块 | 第 11-16 周 | 设备表设计、后端 API、React 前端（台账+校验+维护+维修+附件） |
 | Phase 4: 统一门户 + 收尾 | 第 17-20 周 | Dashboard、预警中心、RBAC 升级、Streamlit 退役 |
 
