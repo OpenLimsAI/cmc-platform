@@ -50,7 +50,7 @@
 
 | **Schema** | **用途** | **来源** | **主要表** | **数据规模预估** |
 |---|---|---|---|---|
-| material_mgmt | 物料库存 + 审计 | 现有保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log, audit_log | 物料 ~2000，批次 ~10000 |
+| material_mgmt | 物料库存 + 审计 | 现有保留 | material, batch, inventory_txn, location, storage_node, cell_occupancy, unit_dict, category_dict, audit_log | 物料 ~2000，批次 ~10000 |
 | equipment_mgmt | 仪器设备 | 新增 | equipment, equipment_calibration, equipment_maintenance, equipment_repair, equipment_warranty, equipment_attachment, equipment_reminder | 设备 ~200 |
 | ~~labops_auth~~ | ~~认证与权限~~ | **已取消（V1.1）** | 认证对接 MDM Portal（JWT），用户/角色在 MDM auth schema 维护 | — |
 | labops_audit | 审计追踪 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log | 高速增长 |
