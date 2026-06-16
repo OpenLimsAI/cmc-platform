@@ -9,11 +9,11 @@
 | | |
 |---|---|
 | **文档编号** | DM-LABOPS-001 |
-| **版本** | V1.4（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.5（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
-| **上位文档** | ARCH-LABOPS-001 V1.4 |
+| **上位文档** | ARCH-LABOPS-001 V1.5 |
 | **数据库** | PostgreSQL 16 |
 | **分类** | 内部技术文档 |
 
@@ -26,6 +26,7 @@
 | V1.2 | 2026-06-04 | CMC IT | 设备主数据移交 MDM eqp 域（eqp.equipment）；equipment_mgmt.equipment 增加 mdm_equipment_id / data_source 列，身份字段从 MDM 按需拉取（§4.2、§7 更新） |
 | V1.3 | 2026-06-04 | CMC IT | 无表结构变更。明确同步语义：MDM 登记后无后台同步任务，首次入库/建档时实时拉取落快照（"用时拉取"）；data_source='local' 仅产生于后端 API 兜底，前端已无本地新增入口（§7 更新） |
 | V1.4 | 2026-06-06 | CMC IT | 适配 MDM eqp 域 V1.2（迁移 0040~0044）：equipment 表扩充 MDM 快照列（equipment_no / fixed_asset_no / name_en / rated_power / origin / supplier / has_workstation / workstation_info / mdm_status / mdm_synced_at）；purchase_date、asset_value 归属由"本地运营"改为"MDM 快照"（此前为本地运营字段）；设备分类对齐 MDM 5 值体系；新增快照刷新（sync-mdm）与批量引用建档（batch-from-mdm，台账初始化）机制说明（§4.2、§7 更新） |
+| V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（结构以 backend/models.py + sql/init.sql 现状为准）：§3 改写为"物料库存表"，新增位置树 `storage_node`（§3.2）、-80℃ 孔位占用 `cell_occupancy`（§3.3）两表；补 location 与位置树关系（§3.4，含 -80 冰箱在 FRIDGE 节点挂锚点 location_id、CELL 不进 location）；material/batch 增列（material_type / intake_type 及标准品·色谱柱专属字段、入库人姓名快照 intake_operator_name，§3.5）；移除已删表 app_user / auth_session（迁移 08941b314a8f） |
 
 ## 适用范围
 
@@ -49,7 +50,7 @@
 
 | **Schema** | **用途** | **来源** | **主要表** | **数据规模预估** |
 |---|---|---|---|---|
-| material_mgmt | 物料库存 + 审计 | 现有保留 | material, batch, inventory_txn, location, unit_dict, category_dict, import_log, audit_log | 物料 ~2000，批次 ~10000 |
+| material_mgmt | 物料库存 + 审计 | 现有保留 | material, batch, inventory_txn, location, storage_node, cell_occupancy, unit_dict, category_dict, audit_log | 物料 ~2000，批次 ~10000 |
 | equipment_mgmt | 仪器设备 | 新增 | equipment, equipment_calibration, equipment_maintenance, equipment_repair, equipment_warranty, equipment_attachment, equipment_reminder | 设备 ~200 |
 | ~~labops_auth~~ | ~~认证与权限~~ | **已取消（V1.1）** | 认证对接 MDM Portal（JWT），用户/角色在 MDM auth schema 维护 | — |
 | labops_audit | 审计追踪 | 规划中（Phase 4 可选） | 当前沿用 material_mgmt.audit_log | 高速增长 |
@@ -71,28 +72,110 @@
   2. equipment_mgmt (新增)
 ```
 
-# 3. 现有物料库存表（保留不变）
+# 3. 物料库存表（material_mgmt）
 
-> 以下 10 张表位于 material_mgmt schema，原样保留。详细字段定义参见 cmc-labops README §四。
+> 物料库存核心表自 v1.2 沿用；**V1.5 起**新增「位置树 `storage_node`」与「孔位占用 `cell_occupancy`」两张表，并对 `material` / `batch` 增列（入库分类与类型专属字段、入库人姓名快照）。库存核心逻辑（数量由 `inventory_txn` 聚合）保持不变。基础表字段参见 cmc-labops README §四；本章给出 V1.5 新增/变更部分的完整定义。
+
+## 3.1 表清单
 
 | **表名** | **用途** | **记录数预估** |
 |---|---|---|
 | material | 物料主数据 | ~2000 |
 | batch | 批次 | ~10000 |
 | inventory_txn | 出入库流水（库存计算唯一来源） | ~50000 |
-| location | 储存位置 | ~100 |
+| location | 储存位置（扁平三元组，作位置树 bulk 叶子的回链目标） | ~100 |
+| storage_node | 存放位置层级树（**V1.5 新增**，location 的上层覆盖结构） | ~数百 |
+| cell_occupancy | -80℃ 孔位单占用（**V1.5 新增**，一孔一管） | 随 -80 样品增长 |
 | unit_dict | 单位字典 | ~20 |
 | category_dict | 分类字典 | ~30 |
-| import_log | 导入日志 | ~100 |
-| app_user | 应用账号（已停用 — 认证移交 MDM Portal，确认无引用后可删除） | ~20 |
-| auth_session | 登录会话（已停用 — JWT 无状态，确认无引用后可删除） | ~50 |
 | audit_log | 审计日志（继续使用；labops_audit 升级为 Phase 4 可选项） | ~10000 |
 
-关键设计不变：
-- 库存数量不落表，实时由 inventory_txn 聚合计算
-- material_code 部分唯一（'TT内部物料' 例外）
-- (material_id, batch_no, location_id) 联合唯一
-- location.name 为生成列
+> 原 `app_user` / `auth_session` 两表随认证移交 MDM 后停用，并由迁移 `08941b314a8f` 实际删除，不再列为现存表；`import_log` 当前代码与 sql/init.sql 无对应表（历史遗留），亦不列入。
+
+关键设计：
+- 库存数量不落表，实时由 inventory_txn 聚合计算（不变）
+- material_code 部分唯一（'TT内部物料' 例外，对应无编码物料）（不变）
+- (material_id, batch_no, location_id) 联合唯一（不变）
+- location.name 为生成列（不变）
+- **散放批次仍只挂 location_id**；位置树作 location 的上层覆盖结构，不改批次/库存/移库逻辑
+
+## 3.2 storage_node（存放位置层级树，V1.5 新增）
+
+一张自引用层级树表达所有储位形态，试剂柜与 -80℃ 冰箱共用同一结构、深度可变：
+- 试剂柜：`ROOM → CABINET → CABINET_LAYER(bulk)`
+- 普通冰箱：`ROOM → FRIDGE(2-8/-20) → FRIDGE_SHELF(bulk)`
+- -80℃ 冰箱：`ROOM → FRIDGE(-80) → RACK → RACK_LAYER → BOX → CELL(cell)`
+
+| **字段** | **类型** | **约束** | **说明** |
+|---|---|---|---|
+| node_id | SERIAL | PK | 节点主键 |
+| parent_id | INT | FK→storage_node(node_id) ON DELETE CASCADE | 父节点，根为空 |
+| node_type | VARCHAR(20) | NOT NULL | 节点类型，见下方 9 值约束 |
+| code | VARCHAR(40) | NOT NULL | 该级编号（'2251'/'A01'/'B'/'3'/'A'/'23'） |
+| label | VARCHAR(80) | | 展示名（缺省=code），冰箱可填别名如 'TT3' |
+| path | VARCHAR(255) | | 全路径，如 '2251 / TT3 / B / 3 / A / 23' |
+| depth | SMALLINT | NOT NULL DEFAULT 0 | 层深，根=0 |
+| sort_order | INT | NOT NULL DEFAULT 0 | 同级稳定排序（字母 A=1,B=2…） |
+| capacity_kind | VARCHAR(10) | bulk/cell | 叶子类型；非叶为空 |
+| location_id | INT | FK→location | bulk 叶子回链 location；否则空 |
+| temp_category | VARCHAR(20) | | 仅 FRIDGE：normal/2-8/-20/-80 |
+| temp_text | VARCHAR(50) | | 温区可读文本，如 '-20~-40℃' |
+| is_active | BOOLEAN | NOT NULL DEFAULT TRUE | 软删除标记 |
+| remark | TEXT | | 备注 |
+| created_at | TIMESTAMP | NOT NULL DEFAULT NOW() | 创建时间（裸上海墙钟） |
+
+- **node_type 9 值**（`ck_storage_node_type`）：ROOM / CABINET / CABINET_LAYER / FRIDGE / FRIDGE_SHELF / RACK / RACK_LAYER / BOX / CELL
+- **capacity_kind 约束**（`ck_storage_capacity_kind`）：NULL 或 bulk / cell
+- 索引：`uq_storage_sibling` UNIQUE(COALESCE(parent_id,0), code)（同父下编号唯一）、`ix_storage_parent`、`ix_storage_type`、`ix_storage_loc`
+
+## 3.3 cell_occupancy（-80℃ 孔位单占用，V1.5 新增）
+
+| **字段** | **类型** | **约束** | **说明** |
+|---|---|---|---|
+| occupancy_id | SERIAL | PK | 主键 |
+| cell_node_id | INT | NOT NULL, FK→storage_node ON DELETE CASCADE | 所在 CELL 节点 |
+| batch_id | INT | NOT NULL, FK→batch | 复用现有批次（锚在 -80 冰箱 location 上） |
+| sample_label | VARCHAR(100) | | 管标签/样品号，选填 |
+| status | VARCHAR(10) | NOT NULL DEFAULT 'stored' | stored / removed（留痕软删，`ck_cell_occ_status`） |
+| stored_at | TIMESTAMP | NOT NULL DEFAULT NOW() | 入孔时间 |
+| stored_by | VARCHAR(50) | | 入孔操作人 |
+| removed_at | TIMESTAMP | | 取出时间 |
+| remark | TEXT | | 备注 |
+
+- **一孔一管**：部分唯一索引 `uq_cell_occupied` ON (cell_node_id) **WHERE status='stored'** —— 一个孔最多一条在存记录；空孔 = 无 stored 行。
+- 索引：`ix_cell_occ_batch`、`ix_cell_occ_label`
+- 对账：`SUM(inventory_txn.qty for batch) = 该批次 stored 行数`
+
+## 3.4 location 与位置树的关系
+
+- **散放叶子**（CABINET_LAYER / FRIDGE_SHELF）：通过 storage_node.location_id 1:1 回链 location；散放批次照旧挂 location_id，库存/出入库/移库零改动。
+- **-80℃ 冰箱**：在 **FRIDGE 节点**挂一个锚点 location_id，-80 批次挂这个冰箱级 location（孔位明细另由 cell_occupancy 记录）。
+- **CELL 节点**：location_id 为空，本身不进 location 表。
+
+## 3.5 material / batch 入库相关增列（V1.5）
+
+入库登记重构后，入库大类、类型专属字段、入库人姓名快照落在 material / batch（老数据相应列为空，入库时回退普通表单）：
+
+**material 新增：**
+
+| **字段** | **类型** | **说明** |
+|---|---|---|
+| material_type | VARCHAR(20) | 入库大类：reagent / consumable / standard / column；老物料可空 |
+
+**batch 新增：**
+
+| **字段** | **类型** | **说明** |
+|---|---|---|
+| intake_type | VARCHAR(20) | 入库时所在 tab 类型（同上 4 值）；老批次可空 |
+| concentration | VARCHAR(50) | 标准物质 浓度 |
+| extinction_coefficient | NUMERIC(12,2) | 标准物质 消光系数 |
+| serial_no | VARCHAR(100) | 色谱柱 序列号 |
+| asset_no | VARCHAR(100) | 色谱柱 编号 |
+| responsible_person | VARCHAR(50) | 色谱柱 负责人 |
+| project_no | VARCHAR(100) | 标准品 项目编号 |
+| originator_batch_no | VARCHAR(100) | 标准品 原研药批号 |
+| aliquot_date | DATE | 标准品 分装日期 |
+| intake_operator_name | VARCHAR(128) | 入库操作人姓名快照（入库时从 MDM 令牌 full_name 取，与 operator 工号互补） |
 
 # 4. Schema: equipment_mgmt（仪器设备管理）
 

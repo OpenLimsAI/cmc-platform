@@ -54,7 +54,7 @@ const TYPE_META: Record<IntakeType, {
 }> = {
   reagent:    { label: "试剂",   color: "#1677ff", icon: <ExperimentOutlined />,  hint: "常规试剂入库",            extra: "无额外专属字段" },
   consumable: { label: "耗材",   color: "#52c41a", icon: <InboxOutlined />,       hint: "耗材入库",                extra: "无额外专属字段" },
-  standard:   { label: "标准品", color: "#722ed1", icon: <Icon component={BalanceSvg} />, hint: "标准品 / 对照品 / 参比品", extra: "浓度、消光系数" },
+  standard:   { label: "标准品", color: "#722ed1", icon: <Icon component={BalanceSvg} />, hint: "标准品 / 对照品 / 参比品", extra: "浓度、项目编号、原研药批号、分装日期" },
   column:     { label: "色谱柱", color: "#fa8c16", icon: <Icon component={ColumnSvg} />,  hint: "色谱柱入库",              extra: "序列号、资产编号、负责人" },
 };
 
