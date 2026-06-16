@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     id           BIGSERIAL PRIMARY KEY,
     user_id      INT,                                            -- v2.0 起为 MDM user_id,不再外键 app_user
     username     VARCHAR(50),                                    -- 冗余,user 删除后仍可查
+    full_name    VARCHAR(128),                                   -- 操作人姓名快照(可读性)
     action       VARCHAR(50) NOT NULL,                           -- 例: material.create / inventory.in
     entity_type  VARCHAR(50),                                    -- 例: material / batch / inventory_txn
     entity_id    VARCHAR(50),                                    -- 用 string,既能放 SERIAL 整数也能放 material_code
@@ -303,6 +304,7 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_operator_name    VARCHAR(128);
 -- audit_log: v2.0 认证对接 MDM 后,user_id 为 MDM user_id,
 -- 必须解除指向旧 app_user 的外键,否则 MDM 新用户的所有写操作都会失败
 ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_user_id_fkey;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS full_name VARCHAR(128);
 
 -- -----------------------------------------------------------------------------
 -- storage_node: v1.5 存放位置层级树(覆盖层)

@@ -136,7 +136,12 @@ export default function AuditLogPage() {
         columns={[
           { title: "ID", dataIndex: "id", width: 80 },
           { title: "时间", dataIndex: "created_at", width: 170 },
-          { title: "用户", dataIndex: "username", width: 110 },
+          {
+            title: "用户",
+            dataIndex: "full_name",
+            width: 120,
+            render: (v: string | null, r: AuditLogItem) => v || r.username || "—",
+          },
           {
             title: "操作",
             dataIndex: "action",

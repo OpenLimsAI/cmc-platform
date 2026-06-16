@@ -573,6 +573,7 @@ class AuditLogOut(ORMBase):
     id: int
     user_id: Optional[int] = None
     username: Optional[str] = None
+    full_name: Optional[str] = None
     action: str
     entity_type: Optional[str] = None
     entity_id: Optional[str] = None

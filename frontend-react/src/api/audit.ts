@@ -4,6 +4,7 @@ export interface AuditLogItem {
   id: number;
   user_id: number | null;
   username: string | null;
+  full_name: string | null;
   action: string;
   entity_type: string | null;
   entity_id: string | null;

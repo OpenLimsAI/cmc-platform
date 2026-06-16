@@ -263,6 +263,7 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[Optional[int]] = mapped_column(Integer)
     username: Mapped[Optional[str]] = mapped_column(String(50))
+    full_name: Mapped[Optional[str]] = mapped_column(String(128))    # 操作人姓名快照(可读性)
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_type: Mapped[Optional[str]] = mapped_column(String(50))
     entity_id: Mapped[Optional[str]] = mapped_column(String(50))

@@ -74,6 +74,7 @@ def write_audit(
         entry = AuditLog(
             user_id=user.user_id if user else None,
             username=user.username if user else fallback_username,
+            full_name=(user.full_name or None) if user else None,
             action=action,
             entity_type=entity_type,
             entity_id=str(entity_id) if entity_id is not None else None,
