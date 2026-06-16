@@ -170,19 +170,19 @@ export default function BatchEditModal({
           <Divider>复核签名(第二位库管员)</Divider>
           <Alert
             type="info" showIcon style={{ marginBottom: 16 }}
-            message="修改样品信息需第二位库管员/管理员当场复核确认。请其输入本人账号密码完成电子签名(不能与修改人相同)。"
+            message="修改样品信息需第二位库管员/管理员当场复核确认。请其输入本人工号和密码完成电子签名(不能与修改人相同)。"
           />
           <Form.Item
-            name="reviewer_username" label="复核人账号"
-            rules={[{ required: true, message: "请输入复核人账号" }]}
+            name="reviewer_username" label="复核人工号"
+            rules={[{ required: true, message: "请输入复核人工号" }]}
           >
-            <Input autoComplete="off" placeholder="第二位库管员的登录账号" />
+            <Input autoComplete="off" placeholder="第二位库管员的工号" />
           </Form.Item>
           <Form.Item
             name="reviewer_password" label="复核人密码"
             rules={[{ required: true, message: "请输入复核人密码" }]}
           >
-            <Input.Password autoComplete="new-password" placeholder="第二位库管员的登录密码" />
+            <Input.Password autoComplete="new-password" placeholder="第二位库管员的密码" />
           </Form.Item>
         </Form>
       )}

@@ -61,7 +61,7 @@ export default function LoginPage() {
 
       <Card style={{ width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
         <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: "center" }}>
-          账号登录
+          工号登录
         </Title>
 
         {errorMessage && (
@@ -78,10 +78,10 @@ export default function LoginPage() {
         <Form name="login" onFinish={onFinish} autoComplete="off" size="large" layout="vertical">
           <Form.Item
             name="username"
-            label="用户名"
-            rules={[{ required: true, message: "请输入用户名" }]}
+            label="工号"
+            rules={[{ required: true, message: "请输入工号" }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" autoFocus />
+            <Input prefix={<UserOutlined />} placeholder="工号" autoFocus />
           </Form.Item>
 
           <Form.Item
@@ -99,7 +99,7 @@ export default function LoginPage() {
           </Form.Item>
 
           <div style={{ textAlign: "center", color: "#8c8c8c", fontSize: 13 }}>
-            账号与密码统一在 MDM Portal 维护,忘记密码请联系系统管理员
+            工号与密码统一在 MDM Portal 维护,忘记密码请联系系统管理员
           </div>
         </Form>
       </Card>
