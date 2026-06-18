@@ -101,6 +101,12 @@ export default function MaterialDetailModal({ materialId, open, onClose }: Props
             }}
             columns={[
               { title: "批号", dataIndex: "batch_no", width: 160 },
+              {
+                title: "原研药批号",
+                dataIndex: "originator_batch_no",
+                width: 140,
+                render: (v: string | null) => v || "—",
+              },
               { title: "位置", dataIndex: "location_name", width: 180 },
               {
                 title: "当前库存",
