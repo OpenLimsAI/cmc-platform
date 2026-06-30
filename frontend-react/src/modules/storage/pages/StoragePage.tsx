@@ -25,7 +25,7 @@ import { getErrorDetail } from "../../../shared/errors";
 function EquipmentNoInput({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [nameByNo, setNameByNo] = useState<Record<string, string>>({});
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const doSearch = (kw: string) => {
     const q = kw.trim();
