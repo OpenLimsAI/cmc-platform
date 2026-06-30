@@ -306,6 +306,10 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_operator_name    VARCHAR(128);
 ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_user_id_fkey;
 ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS full_name VARCHAR(128);
 
+-- storage_node: 冰箱(FRIDGE)绑定 MDM 设备(业务编号 + MDM 内部码快照)
+ALTER TABLE storage_node ADD COLUMN IF NOT EXISTS equipment_no   VARCHAR(64);
+ALTER TABLE storage_node ADD COLUMN IF NOT EXISTS equipment_code VARCHAR(32);
+
 -- -----------------------------------------------------------------------------
 -- storage_node: v1.5 存放位置层级树(覆盖层)
 --   - 试剂柜:   ROOM → CABINET → CABINET_LAYER(bulk)
@@ -327,6 +331,8 @@ CREATE TABLE IF NOT EXISTS storage_node (
     location_id    INT REFERENCES location(location_id), -- bulk 叶子回链 location; 否则 NULL
     temp_category  VARCHAR(20),                          -- 仅 FRIDGE: normal/2-8/-20/-80
     temp_text      VARCHAR(50),                          -- 温区可读文本 '-20~-40℃'
+    equipment_no   VARCHAR(64),                          -- 仅 FRIDGE: 绑定 MDM 设备业务编号(显示 join 键)
+    equipment_code VARCHAR(32),                          -- 仅 FRIDGE: MDM 内部码 EQP-... 快照
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     remark         TEXT,
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

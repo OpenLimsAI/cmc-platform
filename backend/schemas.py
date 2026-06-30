@@ -81,6 +81,9 @@ class StorageNodeOut(ORMBase):
     location_id: Optional[int] = None
     temp_category: Optional[str] = None
     temp_text: Optional[str] = None
+    equipment_no: Optional[str] = None       # 仅 FRIDGE: 绑定的 MDM 设备业务编号
+    equipment_code: Optional[str] = None     # 仅 FRIDGE: MDM 内部码快照
+    equipment_name: Optional[str] = None     # 仅 FRIDGE: 本地已同步设备表 join 出的设备名(显示用)
     is_active: bool
     remark: Optional[str] = None
     has_children: bool = False  # 由路由按需填充
@@ -96,9 +99,10 @@ class CabinetCreate(BaseModel):
 
 
 class FridgeCreate(BaseModel):
-    """普通冰箱模板新增(2~8/-20): 房间 + 冰箱名 + 温区 + 隔板数 → FRIDGE + N 个 bulk 隔板。"""
+    """普通冰箱模板新增(2~8/-20): 房间 + MDM 设备编号 + 温区 + 隔板数 → FRIDGE + N 个 bulk 隔板。
+    冰箱身份归 MDM,equipment_no 为业务编号(如 TT-SC-009),后端实时校验并绑定。"""
     room_no: str = Field(..., min_length=1, max_length=20)
-    fridge_name: str = Field(..., min_length=1, max_length=20)
+    equipment_no: str = Field(..., min_length=1, max_length=64)
     temp_category: str = Field(..., pattern=r"^(normal|2-8|-20)$")
     shelf_count: int = Field(..., ge=1, le=60)
     storage_condition: Optional[str] = None
@@ -126,9 +130,9 @@ class AddChildrenRequest(BaseModel):
 
 class FreezerCreate(BaseModel):
     """-80℃ 冰箱模板(期2): 房间 + 冰箱名 + 架/层/盒/孔参数 → 一次性展开整棵子树。
-    架/盒用字母 A.. 编号(上限 26);层/孔用数字 1.. 编号。"""
+    架/盒用字母 A.. 编号(上限 26);层/孔用数字 1.. 编号。冰箱身份归 MDM,按业务编号绑定。"""
     room_no: str = Field(..., min_length=1, max_length=20)
-    fridge_name: str = Field(..., min_length=1, max_length=20)
+    equipment_no: str = Field(..., min_length=1, max_length=64)
     rack_count: int = Field(..., ge=1, le=26)        # 架 A~(A+n)
     layers_per_rack: int = Field(..., ge=1, le=20)   # 每架层 1~N
     boxes_per_layer: int = Field(..., ge=1, le=26)   # 每层盒区 A~(A+n)

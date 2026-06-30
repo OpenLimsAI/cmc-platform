@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Card, Tree, Button, Space, Modal, Form, Input, InputNumber, Select,
-  Tag, message, Typography, Descriptions, Empty, Alert,
+  Tag, message, Typography, Descriptions, Empty, Alert, AutoComplete,
 } from "antd";
 import {
   PlusOutlined, InboxOutlined, EditOutlined, DeleteOutlined, ExperimentOutlined,
@@ -16,8 +16,62 @@ import {
   type Cell, type AddChildrenRequest,
 } from "../../../api/storage";
 import CellGrid from "../components/CellGrid";
+import { searchMdmEquipments } from "../../../api/equipment";
 import { useAuthStore } from "../../../stores/authStore";
 import { getErrorDetail } from "../../../shared/errors";
+
+// 冰箱设备编号输入:按 MDM 业务编号实时搜索/选择/填写,显示设备名;
+// 最终绑定由后端实时校验 MDM(查不到则拒绝),此处仅做即时反馈。
+function EquipmentNoInput({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
+  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [nameByNo, setNameByNo] = useState<Record<string, string>>({});
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+
+  const doSearch = (kw: string) => {
+    const q = kw.trim();
+    if (!q) { setOptions([]); return; }
+    searchMdmEquipments(q, 1, 20)
+      .then((r) => {
+        const items = (r.data.data || []).filter((e) => e.equipment_no);
+        const names: Record<string, string> = {};
+        const opts = items.map((e) => {
+          names[e.equipment_no!] = e.equipment_name;
+          return { value: e.equipment_no!, label: `${e.equipment_no} · ${e.equipment_name}` };
+        });
+        setNameByNo((m) => ({ ...m, ...names }));
+        setOptions(opts);
+      })
+      .catch(() => setOptions([]));
+  };
+
+  const onSearch = (kw: string) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => doSearch(kw), 300);
+  };
+
+  const matchedName = value ? nameByNo[value] : undefined;
+  return (
+    <>
+      <AutoComplete
+        value={value}
+        options={options}
+        onSearch={onSearch}
+        onChange={(v) => onChange?.(v)}
+        placeholder="输入 MDM 设备编号搜索,如 TT-SC-009"
+        filterOption={false}
+        allowClear
+        style={{ width: "100%" }}
+      />
+      {value ? (
+        matchedName ? (
+          <Typography.Text type="success" style={{ fontSize: 12 }}>✓ {matchedName}</Typography.Text>
+        ) : (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>提交时将实时校验 MDM 是否存在该编号</Typography.Text>
+        )
+      ) : null}
+    </>
+  );
+}
 
 type TNode = DataNode & { raw: StorageNode };
 type ChildField = "count" | "storage_condition" | "layers_per_rack" | "boxes_per_layer" | "cells_per_box";
@@ -272,6 +326,18 @@ export default function StoragePage() {
                 {selected.temp_text && (
                   <Descriptions.Item label="温区">{selected.temp_text}</Descriptions.Item>
                 )}
+                {selected.node_type === "FRIDGE" && (
+                  <Descriptions.Item label="绑定设备(MDM)">
+                    {selected.equipment_no ? (
+                      <Space size={4} wrap>
+                        <Tag color="blue">{selected.equipment_no}</Tag>
+                        <span>{selected.equipment_name ?? "(本地未同步设备名)"}</span>
+                      </Space>
+                    ) : (
+                      <Typography.Text type="warning">未绑定 MDM 设备(历史数据)</Typography.Text>
+                    )}
+                  </Descriptions.Item>
+                )}
                 <Descriptions.Item label="状态">
                   {selected.is_active ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>}
                 </Descriptions.Item>
@@ -375,8 +441,13 @@ export default function StoragePage() {
           <Form.Item name="room_no" label="房间号" rules={[{ required: true }]}>
             <Input placeholder="如 2251" />
           </Form.Item>
-          <Form.Item name="fridge_name" label="冰箱名/编号" rules={[{ required: true }]}>
-            <Input placeholder="如 RF-01" maxLength={20} />
+          <Form.Item
+            name="equipment_no"
+            label="MDM 设备编号"
+            rules={[{ required: true, message: "请输入并选择 MDM 设备编号" }]}
+            tooltip="冰箱身份归 MDM,须先在 MDM 建档;此处只能选择/填写其设备编号"
+          >
+            <EquipmentNoInput />
           </Form.Item>
           <Form.Item name="temp_category" label="温区" rules={[{ required: true }]}>
             <Select
@@ -410,8 +481,13 @@ export default function StoragePage() {
           <Form.Item name="room_no" label="房间号" rules={[{ required: true }]}>
             <Input placeholder="如 2251" />
           </Form.Item>
-          <Form.Item name="fridge_name" label="冰箱名/编号" rules={[{ required: true }]}>
-            <Input placeholder="如 TT3" maxLength={20} />
+          <Form.Item
+            name="equipment_no"
+            label="MDM 设备编号"
+            rules={[{ required: true, message: "请输入并选择 MDM 设备编号" }]}
+            tooltip="冰箱身份归 MDM,须先在 MDM 建档;此处只能选择/填写其设备编号"
+          >
+            <EquipmentNoInput />
           </Form.Item>
           <Space size="large" wrap>
             <Form.Item name="rack_count" label="冻存架数(A~)" rules={[{ required: true }]} initialValue={16}>

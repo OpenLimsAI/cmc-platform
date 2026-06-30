@@ -109,6 +109,10 @@ class StorageNode(Base):
     )
     temp_category: Mapped[Optional[str]] = mapped_column(String(20))  # normal/2-8/-20/-80
     temp_text: Mapped[Optional[str]] = mapped_column(String(50))
+    # 冰箱(FRIDGE)绑定 MDM 设备:equipment_no 业务编号(绑定/显示 join 键),
+    # equipment_code MDM 内部码(EQP-...)快照;其余节点为 NULL。
+    equipment_no: Mapped[Optional[str]] = mapped_column(String(64))
+    equipment_code: Mapped[Optional[str]] = mapped_column(String(32))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     remark: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())

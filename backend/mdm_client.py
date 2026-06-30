@@ -96,6 +96,20 @@ def search_equipments(
     return _search("equipments", keyword, page, page_size, token)
 
 
+def resolve_equipment_by_no(no: str, token: Optional[str] = None) -> Optional[dict]:
+    """按业务编号(equipment_no, 如 TT-SC-009)实时解析 MDM 设备。
+    MDM 详情接口 /equipments/{code} 只认 equipment_code(EQP-...),业务编号须走搜索;
+    在搜索结果中取 equipment_no 精确(忽略大小写/首尾空格)相等的唯一一条,否则 None。"""
+    no = (no or "").strip()
+    if not no:
+        return None
+    result = search_equipments(no, page=1, page_size=50, token=token)
+    items = result.get("data") or []
+    matched = [it for it in items
+               if (it.get("equipment_no") or "").strip().lower() == no.lower()]
+    return matched[0] if len(matched) == 1 else None
+
+
 def extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
     """从 Authorization header 中提取 Bearer token，便于路由层透传到 MDM。"""
     if not authorization:

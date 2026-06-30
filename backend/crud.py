@@ -264,6 +264,28 @@ def create_location(
 _TEMP_TEXT = {"normal": "常温", "2-8": "2~8℃", "-20": "-20~-40℃", "-80": "-80℃"}
 
 
+def assert_equipment_no_unused(db: Session, equipment_no: str) -> None:
+    """一台物理设备只能绑定一个冰箱节点:若已有(任意房间的)FRIDGE 节点绑了该业务编号,拒绝。"""
+    dup = db.execute(select(StorageNode).where(
+        StorageNode.node_type == "FRIDGE",
+        StorageNode.equipment_no == equipment_no,
+    )).scalar_one_or_none()
+    if dup is not None:
+        raise ValueError(f"设备 {equipment_no} 已绑定到位置「{dup.path or dup.label or dup.code}」,不可重复绑定")
+
+
+def equipment_names_by_no(db: Session, nos: Sequence[str]) -> dict:
+    """按业务编号批量取本地已同步设备的中文名(显示用 join);未同步的编号缺省不在结果里。"""
+    nos = [n for n in set(nos) if n]
+    if not nos:
+        return {}
+    rows = db.execute(text(
+        "SELECT equipment_no, name FROM equipment_mgmt.equipment "
+        "WHERE equipment_no = ANY(:nos) AND is_active = TRUE"
+    ), {"nos": nos}).all()
+    return {r[0]: r[1] for r in rows}
+
+
 def list_child_nodes(
     db: Session, parent_id: Optional[int] = None, node_type: Optional[str] = None,
 ) -> List[StorageNode]:
@@ -350,36 +372,40 @@ def create_cabinet(
 
 
 def create_fridge(
-    db: Session, room_no: str, fridge_name: str, temp_category: str,
-    shelf_count: int, storage_condition: Optional[str], remark: Optional[str],
+    db: Session, room_no: str, equipment_no: str, equipment_code: Optional[str],
+    temp_category: str, shelf_count: int,
+    storage_condition: Optional[str], remark: Optional[str],
 ) -> StorageNode:
-    """普通冰箱模板(2~8/-20): 房间 + 1 冰箱(带温区) + N 个 bulk 隔板(回链 location)。"""
+    """普通冰箱模板(2~8/-20): 房间 + 1 冰箱(绑 MDM 设备编号) + N 个 bulk 隔板(回链 location)。
+    冰箱以 MDM 业务编号(equipment_no)作 code/label,身份归 MDM。"""
+    assert_equipment_no_unused(db, equipment_no)
     room = get_or_create_room(db, room_no)
     dup = db.execute(select(StorageNode).where(
         StorageNode.parent_id == room.node_id,
         StorageNode.node_type == "FRIDGE",
-        StorageNode.code == fridge_name,
+        StorageNode.code == equipment_no,
     )).scalar_one_or_none()
     if dup is not None:
-        raise ValueError(f"房间 {room_no} 下冰箱 {fridge_name} 已存在")
+        raise ValueError(f"房间 {room_no} 下冰箱 {equipment_no} 已存在")
 
     fridge = StorageNode(
-        parent_id=room.node_id, node_type="FRIDGE", code=fridge_name,
-        label=fridge_name, path=f"{room_no} / {fridge_name}", depth=1, sort_order=0,
-        temp_category=temp_category, temp_text=_TEMP_TEXT.get(temp_category), remark=remark,
+        parent_id=room.node_id, node_type="FRIDGE", code=equipment_no,
+        label=equipment_no, path=f"{room_no} / {equipment_no}", depth=1, sort_order=0,
+        temp_category=temp_category, temp_text=_TEMP_TEXT.get(temp_category),
+        equipment_no=equipment_no, equipment_code=equipment_code, remark=remark,
     )
     db.add(fridge)
     db.flush()
     for i in range(1, shelf_count + 1):
         loc = Location(
-            room_no=room_no, cabinet_no=fridge_name, layer_no=i,
+            room_no=room_no, cabinet_no=equipment_no, layer_no=i,
             storage_condition=storage_condition or _TEMP_TEXT.get(temp_category), remark=remark,
         )
         db.add(loc)
         db.flush()
         db.add(StorageNode(
             parent_id=fridge.node_id, node_type="FRIDGE_SHELF", code=str(i),
-            label=f"层{i}", path=f"{room_no} / {fridge_name} / 层{i}", depth=2,
+            label=f"层{i}", path=f"{room_no} / {equipment_no} / 层{i}", depth=2,
             sort_order=i, capacity_kind="bulk", location_id=loc.location_id,
         ))
     db.flush()
@@ -443,34 +469,36 @@ def delete_node(db: Session, node_id: int) -> str:
 # -80℃ 冰箱模板 + 孔位占用(期2)
 # ---------------------------------------------------------------------------
 def create_freezer(
-    db: Session, room_no: str, fridge_name: str,
+    db: Session, room_no: str, equipment_no: str, equipment_code: Optional[str],
     rack_count: int, layers_per_rack: int, boxes_per_layer: int, cells_per_box: int,
     remark: Optional[str],
 ) -> StorageNode:
-    """-80℃ 冰箱: 房间 + FRIDGE(temp=-80, 锚一条 location) +
+    """-80℃ 冰箱: 房间 + FRIDGE(绑 MDM 设备编号, temp=-80, 锚一条 location) +
     架(A..) → 层(1..) → 盒区(A..) → 孔(1..) 整棵子树。孔位为 cell 叶子(不进 location)。"""
     total = rack_count * layers_per_rack * boxes_per_layer * cells_per_box
     if total > 60000:
         raise ValueError(f"将生成 {total} 个孔位,超过 60000 上限,请减少规模")
 
+    assert_equipment_no_unused(db, equipment_no)
     room = get_or_create_room(db, room_no)
     dup = db.execute(select(StorageNode).where(
         StorageNode.parent_id == room.node_id,
         StorageNode.node_type == "FRIDGE",
-        StorageNode.code == fridge_name,
+        StorageNode.code == equipment_no,
     )).scalar_one_or_none()
     if dup is not None:
-        raise ValueError(f"房间 {room_no} 下冰箱 {fridge_name} 已存在")
+        raise ValueError(f"房间 {room_no} 下冰箱 {equipment_no} 已存在")
 
     # 冰箱级锚 location(批次挂这里;细位置由 cell_occupancy 表达)
-    loc = Location(room_no=room_no, cabinet_no=fridge_name, layer_no=1,
+    loc = Location(room_no=room_no, cabinet_no=equipment_no, layer_no=1,
                    storage_condition="-80℃", remark=remark)
     db.add(loc)
     db.flush()
     fridge = StorageNode(
-        parent_id=room.node_id, node_type="FRIDGE", code=fridge_name, label=fridge_name,
-        path=f"{room_no} / {fridge_name}", depth=1, sort_order=0,
-        temp_category="-80", temp_text="-80℃", location_id=loc.location_id, remark=remark,
+        parent_id=room.node_id, node_type="FRIDGE", code=equipment_no, label=equipment_no,
+        path=f"{room_no} / {equipment_no}", depth=1, sort_order=0,
+        temp_category="-80", temp_text="-80℃", location_id=loc.location_id,
+        equipment_no=equipment_no, equipment_code=equipment_code, remark=remark,
     )
     db.add(fridge)
     db.flush()
@@ -480,14 +508,14 @@ def create_freezer(
         rc = chr(65 + ri)  # A, B, ...
         rack = StorageNode(
             parent_id=fridge.node_id, node_type="RACK", code=rc, label=rc,
-            path=f"{room_no} / {fridge_name} / {rc}", depth=2, sort_order=ri,
+            path=f"{room_no} / {equipment_no} / {rc}", depth=2, sort_order=ri,
         )
         db.add(rack)
         db.flush()
         for li in range(1, layers_per_rack + 1):
             layer = StorageNode(
                 parent_id=rack.node_id, node_type="RACK_LAYER", code=str(li), label=str(li),
-                path=f"{room_no} / {fridge_name} / {rc} / {li}", depth=3, sort_order=li,
+                path=f"{room_no} / {equipment_no} / {rc} / {li}", depth=3, sort_order=li,
             )
             db.add(layer)
             db.flush()
@@ -495,7 +523,7 @@ def create_freezer(
                 bc = chr(65 + bi)
                 box = StorageNode(
                     parent_id=layer.node_id, node_type="BOX", code=bc, label=bc,
-                    path=f"{room_no} / {fridge_name} / {rc} / {li} / {bc}", depth=4, sort_order=bi,
+                    path=f"{room_no} / {equipment_no} / {rc} / {li} / {bc}", depth=4, sort_order=bi,
                 )
                 db.add(box)
                 db.flush()

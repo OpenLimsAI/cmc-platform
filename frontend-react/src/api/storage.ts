@@ -15,6 +15,9 @@ export interface StorageNode {
   location_id: number | null;
   temp_category: string | null;
   temp_text: string | null;
+  equipment_no: string | null;     // 仅 FRIDGE: 绑定的 MDM 设备业务编号
+  equipment_code: string | null;   // 仅 FRIDGE: MDM 内部码快照
+  equipment_name: string | null;   // 仅 FRIDGE: 本地已同步设备名(显示用)
   is_active: boolean;
   remark: string | null;
   has_children: boolean;
@@ -30,7 +33,7 @@ export interface CabinetCreate {
 
 export interface FridgeCreate {
   room_no: string;
-  fridge_name: string;
+  equipment_no: string;   // MDM 设备业务编号(如 TT-SC-009),后端实时校验
   temp_category: "normal" | "2-8" | "-20";
   shelf_count: number;
   storage_condition?: string | null;
@@ -46,7 +49,7 @@ export interface NodeUpdate {
 // -80℃ 冰箱模板(期2)
 export interface FreezerCreate {
   room_no: string;
-  fridge_name: string;
+  equipment_no: string;     // MDM 设备业务编号,后端实时校验
   rack_count: number;       // 架 A~(A+n), ≤26
   layers_per_rack: number;  // 每架层 1~N
   boxes_per_layer: number;  // 每层盒区 A~(A+n), ≤26

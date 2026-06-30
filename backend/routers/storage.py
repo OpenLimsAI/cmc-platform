@@ -13,11 +13,12 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import crud
+import mdm_client
 from audit import get_request_ip, model_snapshot, write_audit
 from database import get_db
 from auth import CurrentUser, require_warehouse, require_admin
@@ -30,7 +31,7 @@ from schemas import (
 router = APIRouter(prefix="/api/storage", tags=["storage"])
 
 
-def _to_out(node, has_children: bool) -> dict:
+def _to_out(node, has_children: bool, equipment_name: Optional[str] = None) -> dict:
     return {
         "node_id": node.node_id,
         "parent_id": node.parent_id,
@@ -44,10 +45,25 @@ def _to_out(node, has_children: bool) -> dict:
         "location_id": node.location_id,
         "temp_category": node.temp_category,
         "temp_text": node.temp_text,
+        "equipment_no": node.equipment_no,
+        "equipment_code": node.equipment_code,
+        "equipment_name": equipment_name,
         "is_active": node.is_active,
         "remark": node.remark,
         "has_children": has_children,
     }
+
+
+def _resolve_mdm_equipment(equipment_no: str, authorization: Optional[str]) -> dict:
+    """按业务编号实时解析 MDM 设备;查不到/MDM 不可用则报错(杜绝黑户冰箱)。"""
+    token = mdm_client.extract_bearer_token(authorization)
+    eq = mdm_client.resolve_equipment_by_no(equipment_no, token=token)
+    if eq is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"MDM 中未找到设备编号 {equipment_no},请先在 MDM 建档后再绑定",
+        )
+    return eq
 
 
 @router.get("/nodes", response_model=List[StorageNodeOut])
@@ -59,7 +75,8 @@ def list_nodes(
     """取某节点的直接下级;parent_id 省略 → 根节点(房间)。"""
     nodes = crud.list_child_nodes(db, parent_id=parent_id, node_type=node_type)
     child_set = crud.node_ids_with_children(db, [n.node_id for n in nodes])
-    return [_to_out(n, n.node_id in child_set) for n in nodes]
+    names = crud.equipment_names_by_no(db, [n.equipment_no for n in nodes if n.equipment_no])
+    return [_to_out(n, n.node_id in child_set, names.get(n.equipment_no)) for n in nodes]
 
 
 @router.get("/nodes/{node_id}/ancestors", response_model=List[StorageNodeOut])
@@ -68,7 +85,8 @@ def list_ancestors(node_id: int, db: Session = Depends(get_db)):
     chain = crud.get_node_ancestors(db, node_id)
     if not chain:
         raise HTTPException(status_code=404, detail=f"节点 {node_id} 不存在")
-    return [_to_out(n, False) for n in chain]
+    names = crud.equipment_names_by_no(db, [n.equipment_no for n in chain if n.equipment_no])
+    return [_to_out(n, False, names.get(n.equipment_no)) for n in chain]
 
 
 @router.post("/cabinets", response_model=StorageNodeOut)
@@ -110,13 +128,17 @@ def create_fridge(
     request: Request,
     current: CurrentUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
 ):
-    """普通冰箱模板新增(2~8/-20): 房间 + 1 冰箱 + N 个 bulk 隔板。"""
+    """普通冰箱模板新增(2~8/-20): 实时校验 MDM 设备编号 + 房间 + 1 冰箱 + N 个 bulk 隔板。"""
+    equipment_no = payload.equipment_no.strip()
+    eq = _resolve_mdm_equipment(equipment_no, authorization)
     try:
         fridge = crud.create_fridge(
             db,
             room_no=payload.room_no.strip(),
-            fridge_name=payload.fridge_name.strip(),
+            equipment_no=equipment_no,
+            equipment_code=eq.get("equipment_code"),
             temp_category=payload.temp_category,
             shelf_count=payload.shelf_count,
             storage_condition=payload.storage_condition,
@@ -135,7 +157,7 @@ def create_fridge(
         source_ip=get_request_ip(request),
     )
     db.commit()
-    return _to_out(fridge, True)
+    return _to_out(fridge, True, eq.get("equipment_name"))
 
 
 @router.post("/freezers", response_model=StorageNodeOut)
@@ -144,13 +166,17 @@ def create_freezer(
     request: Request,
     current: CurrentUser = Depends(require_warehouse),
     db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(default=None),
 ):
-    """-80℃ 冰箱模板新增: 房间 + 1 冰箱 + 架/层/盒/孔整棵子树。"""
+    """-80℃ 冰箱模板新增: 实时校验 MDM 设备编号 + 房间 + 1 冰箱 + 架/层/盒/孔整棵子树。"""
+    equipment_no = payload.equipment_no.strip()
+    eq = _resolve_mdm_equipment(equipment_no, authorization)
     try:
         fridge = crud.create_freezer(
             db,
             room_no=payload.room_no.strip(),
-            fridge_name=payload.fridge_name.strip(),
+            equipment_no=equipment_no,
+            equipment_code=eq.get("equipment_code"),
             rack_count=payload.rack_count,
             layers_per_rack=payload.layers_per_rack,
             boxes_per_layer=payload.boxes_per_layer,
@@ -170,7 +196,7 @@ def create_freezer(
         source_ip=get_request_ip(request),
     )
     db.commit()
-    return _to_out(fridge, True)
+    return _to_out(fridge, True, eq.get("equipment_name"))
 
 
 @router.get("/cells", response_model=List[CellOut])
@@ -371,7 +397,8 @@ def update_node(
     )
     db.commit()
     child_set = crud.node_ids_with_children(db, [node.node_id])
-    return _to_out(node, node.node_id in child_set)
+    names = crud.equipment_names_by_no(db, [node.equipment_no] if node.equipment_no else [])
+    return _to_out(node, node.node_id in child_set, names.get(node.equipment_no))
 
 
 @router.post("/nodes/{node_id}/children")
