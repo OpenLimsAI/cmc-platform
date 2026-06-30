@@ -259,3 +259,62 @@ async def test_signature_failure_persists_audit_independently(admin_client, uniq
     await _db_exec(
         "UPDATE auth.user SET failed_login_count=0, status='active', locked_at=NULL WHERE username='admin'"
     )
+
+
+# ============== 登录/登出审计 ==============
+async def _latest_audit(action, username):
+    return await _db_exec(
+        """
+        SELECT log_id, action, username, reason, ip_address
+          FROM audit.audit_log
+         WHERE action=$1 AND username=$2
+         ORDER BY log_id DESC LIMIT 1
+        """,
+        action,
+        username,
+    )
+
+
+@pytest.mark.asyncio
+async def test_login_success_writes_audit(http_client, admin_client, unique_suffix):
+    """登录成功 → 全局审计日志写入一条 LOGIN"""
+    username, password = await _create_throwaway_user(admin_client, http_client, unique_suffix)
+
+    r = await _login(http_client, username, password)
+    assert r.status_code == 200, r.text
+
+    audit = await _latest_audit("LOGIN", username)
+    assert audit is not None, "登录成功应写入 LOGIN 审计"
+    assert audit["reason"] == "登录成功"
+
+
+@pytest.mark.asyncio
+async def test_login_failure_writes_audit_independently(
+    http_client, admin_client, unique_suffix
+):
+    """错密码登录 → 主事务 rollback，但 LOGIN_FAILED 审计应旁路持久化"""
+    username, _ = await _create_throwaway_user(admin_client, http_client, unique_suffix)
+
+    r = await _login(http_client, username, "WRONG_PASSWORD")
+    assert r.status_code == 401
+
+    audit = await _latest_audit("LOGIN_FAILED", username)
+    assert audit is not None, "登录失败应旁路写入 LOGIN_FAILED 审计"
+    assert "wrong_password" in audit["reason"]
+
+
+@pytest.mark.asyncio
+async def test_logout_writes_audit(http_client, admin_client, unique_suffix):
+    """登出 → 撤销 refresh token + 写入一条 LOGOUT 审计"""
+    username, password = await _create_throwaway_user(admin_client, http_client, unique_suffix)
+
+    # 登录设置 HttpOnly refresh cookie（httpx 客户端自动持有）
+    r = await _login(http_client, username, password)
+    assert r.status_code == 200, r.text
+
+    out = await http_client.post("/api/v1/auth/logout")
+    assert out.status_code == 204, out.text
+
+    audit = await _latest_audit("LOGOUT", username)
+    assert audit is not None, "登出应写入 LOGOUT 审计"
+    assert audit["reason"] == "登出"

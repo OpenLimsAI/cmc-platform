@@ -102,7 +102,11 @@ async def logout(
 ):
     """V1.1 §2.2：204 No Content。即使没带 cookie 也返回 204（幂等登出）。"""
     service = AuthService(db)
-    await service.logout(cmab_refresh_token)
+    await service.logout(
+        cmab_refresh_token,
+        ip=getattr(request.state, "ip_address", None),
+        ua=getattr(request.state, "user_agent", None),
+    )
     _clear_refresh_cookie(response)
     response.status_code = status.HTTP_204_NO_CONTENT
     return None

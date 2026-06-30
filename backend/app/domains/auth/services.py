@@ -26,7 +26,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.domains.audit.models import ESignature
+from app.domains.audit.models import AuditLog, ESignature
 from app.domains.audit.schemas import ESignatureItem
 from app.domains.auth.models import (
     LoginHistory,
@@ -41,6 +41,7 @@ from app.domains.auth.schemas import (
     LoginResponseUser,
     RefreshTokenResponse,
 )
+from app.shared.audit_context import audit_request_id
 
 
 class AuthService:
@@ -111,6 +112,19 @@ class AuthService:
                     failure_reason=failure_reason,
                     ip_address=ip,
                     user_agent=ua,
+                )
+            )
+            # 旁路写一条 LOGIN_FAILED 审计：登录失败属安全事件，须在全局审计日志可见，
+            # 且与 login_history 一样独立 commit，避免外层 raise 触发的 rollback 丢失。
+            side.add(
+                AuditLog(
+                    user_id=user_id,
+                    username=username,
+                    action="LOGIN_FAILED",
+                    ip_address=ip,
+                    user_agent=ua,
+                    request_id=audit_request_id.get(),
+                    reason=f"登录失败：{failure_reason}",
                 )
             )
             if increment_count_for_user_id is not None:
@@ -227,6 +241,18 @@ class AuthService:
         user.locked_at = None
         user.last_login_at = datetime.now(UTC)
         await self._record_login(username, True, ip, ua, user.user_id)
+        # LOGIN 成功审计：随主登录事务一起 commit（get_db 在 response 后提交）。
+        self.db.add(
+            AuditLog(
+                user_id=user.user_id,
+                username=user.username,
+                action="LOGIN",
+                ip_address=ip,
+                user_agent=ua,
+                request_id=audit_request_id.get(),
+                reason="登录成功",
+            )
+        )
         await self.db.flush()
 
         # 加载权限并构造 token
@@ -394,7 +420,12 @@ class AuthService:
             new_refresh,
         )
 
-    async def logout(self, refresh_token: str | None) -> None:
+    async def logout(
+        self,
+        refresh_token: str | None,
+        ip: str | None = None,
+        ua: str | None = None,
+    ) -> None:
         """登出：撤销 cookie 中携带的 refresh token（如果有效则 revoke；无则静默）"""
         if not refresh_token:
             return
@@ -418,6 +449,31 @@ class AuthService:
                 revoked_reason="logout",
             )
         )
+        # LOGOUT 审计：logout 路由不走 get_current_user，操作人身份从 refresh token 的
+        # sub 解析后再查 username（audit_log.username 非空）；解析不出则跳过审计但仍登出。
+        sub_raw = payload.get("sub")
+        try:
+            user_id_int = int(sub_raw) if sub_raw is not None else None
+        except (TypeError, ValueError):
+            user_id_int = None
+        if user_id_int is not None:
+            uname = (
+                await self.db.execute(
+                    select(User.username).where(User.user_id == user_id_int)
+                )
+            ).scalar_one_or_none()
+            if uname is not None:
+                self.db.add(
+                    AuditLog(
+                        user_id=user_id_int,
+                        username=uname,
+                        action="LOGOUT",
+                        ip_address=ip,
+                        user_agent=ua,
+                        request_id=audit_request_id.get(),
+                        reason="登出",
+                    )
+                )
         await self.db.flush()
         await self.db.commit()
 
