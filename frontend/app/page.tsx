@@ -1,0 +1,293 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
+import {
+  fetchBatches,
+  fetchChannels,
+  fetchSeries,
+  workstationLabel,
+  type Batch,
+  type Channel,
+} from "@/lib/api";
+import {
+  SeriesChart,
+  type ChartSeries,
+  type ViewWindow,
+} from "@/components/SeriesChart";
+
+const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
+
+function fmtDate(s: string | null): string {
+  if (!s) return "—";
+  return s.slice(0, 10);
+}
+
+function batchKey(b: Batch) {
+  return `${b.source_instance}#${b.procid}`;
+}
+
+export default function Home() {
+  const [selected, setSelected] = useState<Batch | null>(null);
+  const [channels, setChannels] = useState<string[]>([]);
+  // 当前可见时间窗口（放大后按此窗口向后端要更精细的数据）；null = 全览
+  const [viewWindow, setViewWindow] = useState<ViewWindow | null>(null);
+
+  const batchesQ = useQuery({ queryKey: ["batches"], queryFn: fetchBatches });
+
+  const channelsQ = useQuery({
+    queryKey: ["channels", selected?.source_instance, selected?.procid],
+    queryFn: () => fetchChannels(selected!.source_instance, selected!.procid),
+    enabled: !!selected,
+  });
+
+  // 选新批次后，自动勾选默认通道（存在的话）
+  useEffect(() => {
+    if (!channelsQ.data) return;
+    const codes = new Set(channelsQ.data.map((c) => c.channel_code));
+    setChannels((prev) => {
+      const stillValid = prev.filter((c) => codes.has(c));
+      if (stillValid.length) return stillValid;
+      const defaults = DEFAULT_CHANNELS.filter((c) => codes.has(c));
+      return defaults.length
+        ? defaults
+        : channelsQ.data!.slice(0, 1).map((c) => c.channel_code);
+    });
+  }, [channelsQ.data]);
+
+  // 该批次通道的完整时间范围（小时），把缩放百分比换算成时间窗口时要用
+  const fullRange = useMemo<ViewWindow | null>(() => {
+    const data = channelsQ.data;
+    if (!data?.length) return null;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const c of data) {
+      if (c.t_min_h != null && c.t_min_h < min) min = c.t_min_h;
+      if (c.t_max_h != null && c.t_max_h > max) max = c.t_max_h;
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return null;
+    return { min, max };
+  }, [channelsQ.data]);
+
+  // 窗口 key：变了就按新窗口重新取数（放大→取该段更精细的点）
+  const winKey = viewWindow
+    ? `${viewWindow.min.toFixed(3)}_${viewWindow.max.toFixed(3)}`
+    : "full";
+
+  const seriesQs = useQueries({
+    queries: channels.map((ch) => ({
+      queryKey: ["series", selected?.source_instance, selected?.procid, ch, winKey],
+      queryFn: () =>
+        fetchSeries(
+          selected!.source_instance,
+          selected!.procid,
+          ch,
+          2000,
+          viewWindow?.min,
+          viewWindow?.max
+        ),
+      enabled: !!selected,
+      // 取新窗口数据时先保留旧数据，避免图闪空
+      placeholderData: keepPreviousData,
+    })),
+  });
+
+  const chMeta = useMemo(() => {
+    const m = new Map<string, Channel>();
+    channelsQ.data?.forEach((c) => m.set(c.channel_code, c));
+    return m;
+  }, [channelsQ.data]);
+
+  const chartSeries: ChartSeries[] = useMemo(() => {
+    const out: ChartSeries[] = [];
+    channels.forEach((ch, i) => {
+      const data = seriesQs[i]?.data;
+      if (!data) return;
+      const meta = chMeta.get(ch);
+      out.push({
+        code: ch,
+        name: meta?.channel_name || ch,
+        unit: meta?.unitsymbol ?? null,
+        points: data.points,
+      });
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channels, seriesQs.map((q) => q.dataUpdatedAt).join(","), chMeta]);
+
+  const chartLoading = seriesQs.some((q) => q.isFetching);
+
+  // 原始采集点数 / 抽稀后显示点数（让用户知道图上不是全量点）
+  const counts = useMemo(() => {
+    let raw = 0;
+    let shown = 0;
+    for (const q of seriesQs) {
+      if (q.data) {
+        raw += q.data.raw_count;
+        shown += q.data.returned;
+      }
+    }
+    return { raw, shown };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesQs.map((q) => q.dataUpdatedAt).join(",")]);
+
+  function pickBatch(b: Batch) {
+    setSelected(b);
+    setChannels([]);
+    setViewWindow(null);
+  }
+
+  function toggleChannel(code: string) {
+    setChannels((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  }
+
+  return (
+    <div className="flex h-screen flex-col">
+      {/* 顶栏 */}
+      <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3">
+        <h1 className="text-lg font-semibold">Lucullus USP 时序看板</h1>
+        <span className="text-sm text-slate-400">
+          生物反应器上游工艺 · 时序曲线
+        </span>
+        <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+          本地测试环境 · 样本批次
+        </span>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {/* 左侧：批次列表 */}
+        <aside className="flex w-72 flex-col border-r border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-4 py-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+            批次 {batchesQ.data ? `(${batchesQ.data.length})` : ""}
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {batchesQ.isLoading && (
+              <div className="p-4 text-sm text-slate-400">加载批次中…</div>
+            )}
+            {batchesQ.isError && (
+              <div className="p-4 text-sm text-red-500">
+                连不上后端。确认后端在 http://localhost:8040 运行。
+              </div>
+            )}
+            {batchesQ.data?.map((b) => {
+              const active = selected && batchKey(selected) === batchKey(b);
+              return (
+                <button
+                  key={batchKey(b)}
+                  onClick={() => pickBatch(b)}
+                  className={`block w-full border-b border-slate-100 px-4 py-2.5 text-left transition ${
+                    active ? "bg-blue-50" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`truncate text-sm font-medium ${
+                        active ? "text-blue-700" : "text-slate-800"
+                      }`}
+                    >
+                      {b.procname || `批次 ${b.procid}`}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">
+                      {workstationLabel(b.source_instance)}
+                    </span>
+                    {b.reactor_name && <span>反应器 {b.reactor_name}</span>}
+                    <span className="ml-auto">{fmtDate(b.starttime)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* 右侧：通道选择 + 图表 */}
+        <main className="flex min-w-0 flex-1 flex-col bg-slate-50">
+          {!selected ? (
+            <div className="flex flex-1 items-center justify-center text-slate-400">
+              ← 先从左边选一个批次
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-slate-200 bg-white px-5 py-3">
+                <div className="mb-2 flex items-baseline gap-2">
+                  <span className="font-medium">
+                    {selected.procname || `批次 ${selected.procid}`}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    选通道（可多选，不同单位自动分坐标轴）
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {channelsQ.isLoading && (
+                    <span className="text-sm text-slate-400">加载通道中…</span>
+                  )}
+                  {channelsQ.data
+                    ?.slice()
+                    .sort((a, b) => a.channel_code.localeCompare(b.channel_code))
+                    .map((c) => {
+                      const on = channels.includes(c.channel_code);
+                      return (
+                        <button
+                          key={c.channel_code}
+                          onClick={() => toggleChannel(c.channel_code)}
+                          title={`${c.channel_name ?? ""} · ${c.n_points} 点`}
+                          className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                            on
+                              ? "border-blue-500 bg-blue-500 text-white"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          }`}
+                        >
+                          {c.channel_code}
+                          {c.unitsymbol ? (
+                            <span
+                              className={on ? "opacity-80" : "text-slate-400"}
+                            >
+                              {" "}
+                              {c.unitsymbol}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 px-5 pt-2 text-xs text-slate-400">
+                {counts.raw > 0 && (
+                  <span>
+                    原始 {counts.raw.toLocaleString()} 点 · 显示{" "}
+                    {counts.shown.toLocaleString()} 点（按可见范围抽稀）
+                  </span>
+                )}
+                {viewWindow ? (
+                  <button
+                    onClick={() => setViewWindow(null)}
+                    className="rounded border border-slate-200 px-2 py-0.5 text-slate-600 hover:bg-slate-50"
+                  >
+                    ↺ 全览
+                  </button>
+                ) : (
+                  <span className="text-slate-300">滚轮 / 拖底部滑块放大，自动加载更精细数据</span>
+                )}
+              </div>
+              <div className="min-h-0 flex-1 px-4 pb-4 pt-2">
+                <div className="h-full rounded-lg border border-slate-200 bg-white p-3">
+                  <SeriesChart
+                    series={chartSeries}
+                    loading={chartLoading}
+                    fullRange={fullRange}
+                    viewWindow={viewWindow}
+                    onWindowChange={setViewWindow}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
