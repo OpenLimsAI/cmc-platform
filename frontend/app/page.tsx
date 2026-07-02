@@ -168,7 +168,7 @@ export default function Home() {
             )}
             {batchesQ.isError && (
               <div className="p-4 text-sm text-red-500">
-                连不上后端。确认后端在 http://localhost:8040 运行。
+                连不上后端。确认后端在 http://localhost:8070 运行。
               </div>
             )}
             {batchesQ.data?.map((b) => {

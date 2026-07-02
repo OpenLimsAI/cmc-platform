@@ -19,7 +19,7 @@ app = FastAPI(title="CMC R&D USP Dashboard API", version="0.1.0", lifespan=lifes
 
 origins = [o.strip() for o in settings.dev_extra_origins.split(",") if o.strip()]
 if not origins:
-    origins = ["http://localhost:3000", "http://localhost:5140"]
+    origins = ["http://localhost:3000", "http://localhost:5170"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

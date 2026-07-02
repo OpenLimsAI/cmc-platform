@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     raw_database_url: str = ""
 
     app_env: str = "dev"
-    # 前端开发地址，逗号分隔，用于 CORS（如 http://localhost:5140）
+    # 前端开发地址，逗号分隔，用于 CORS（如 http://localhost:5170）
     dev_extra_origins: str = ""
 
 

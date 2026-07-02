@@ -63,8 +63,8 @@
 ```bash
 cd backend
 uv sync
-uv run uvicorn app.main:app --reload --port 8040
-# 打开 http://localhost:8040/docs 看接口
+uv run uvicorn app.main:app --reload --port 8070
+# 打开 http://localhost:8070/docs 看接口
 ```
 
 先复制 `.env.example` 为 `.env` 并填好 `RAW_DATABASE_URL`（走 SSH 隧道或 Linux 本机）。
