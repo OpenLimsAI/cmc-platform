@@ -3,10 +3,10 @@
 把 cmc_rd.raw_rd_usp_vicell 里每次测样解析成规整字段（项目/批号/罐号/培养天数）
 写入 staging.stg_vicell_run（每次测样一行），供与工艺曲线结合分析。
 
-样品号拆解规则（由 ETL 落数时执行，随日期切换）：
-  - legacy（<=2026-07-01）：sample_id = 项目-批号-[罐号]_D天数，项目取首段；
-  - v2（>=2026-07-02）：sample_id 不含项目 = 批号-罐号_D天数，项目取自 cell_type。
-  末段永远是 D<天数>，倒数第二段是罐号，罐号前一段是批号。
+样品号拆解规则（由 ETL 落数时执行，按字段数判断格式，不按日期）：
+  - 4 段（legacy，如 R2602-B3-B3_D8）：项目=首段、批号=第2段、罐号=第3段、天数=末段；
+  - 3 段（v2，如 B5-A2_D12）：无项目段，项目取自 cell_type；批号=首段、罐号=倒二段、天数=末段。
+  末段永远是 D<天数>，倒数第二段是罐号，罐号前一段是批号，R/B 打头是批号。
 
 命名与 staging.stg_batch 对齐：project_code(保留前导零)/batch_number/bioreactor_code/
 batch_key(=项目_批号_罐)/parse_status。batch_key 用于 join mart.dim_batch 拿权威批次维度。
