@@ -3,10 +3,10 @@
 把 cmc_rd.raw_rd_usp_vicell 里每次测样解析成规整字段（项目/批号/罐号/培养天数）
 写入 staging.stg_vicell_run（每次测样一行），供与工艺曲线结合分析。
 
-样品号拆解规则（由 ETL 落数时执行，按字段数判断格式，不按日期）：
-  - 4 段（legacy，如 R2602-B3-B3_D8）：项目=首段、批号=第2段、罐号=第3段、天数=末段；
-  - 3 段（v2，如 B5-A2_D12）：无项目段，项目取自 cell_type；批号=首段、罐号=倒二段、天数=末段。
-  末段永远是 D<天数>，倒数第二段是罐号，罐号前一段是批号，R/B 打头是批号。
+样品号拆解规则（由 ETL 落数时执行，按「日期+位置+格式」，不数字段总数）：
+  - 天数=最后一段（DX/DXX）；罐号=天数前一段（A1~A10/B1~B8/C1/R1~R4）；批号格式恒为 R/B+4位数字。
+  - 按 log_date 判 legacy/v2：< 2026-07-02（legacy）项目=首段、批号=第2段；
+    >= 2026-07-02（v2）项目=cell_type、批号=首段。中间多余段忽略。
 
 命名与 staging.stg_batch 对齐：project_code(保留前导零)/batch_number/bioreactor_code/
 batch_key(=项目_批号_罐)/parse_status。batch_key 用于 join mart.dim_batch 拿权威批次维度。
@@ -46,7 +46,7 @@ def upgrade() -> None:
             culture_day      integer,                 -- 培养天数（D8 -> 8）
             cell_type        text,                    -- 原始 cell_type（v2 下 = 项目编号），审计
             sample_id_scheme text,                    -- 'legacy'(含项目) | 'v2'(不含项目)
-            parse_status     text        NOT NULL,    -- ok / ok_project_from_cell_type / unparseable
+            parse_status     text        NOT NULL,    -- ok / suspect(格式不符) / unparseable
 
             run_date         timestamptz,             -- 上机时间（与工艺曲线按时间对齐）
             log_date         timestamptz,
@@ -74,7 +74,7 @@ def upgrade() -> None:
         COMMENT ON COLUMN staging.stg_vicell_run.bioreactor_code IS
             '罐号，从 sample_id 倒数第二段解析；应与 stg_batch.bioreactor_code 一致方能 join。';
         COMMENT ON COLUMN staging.stg_vicell_run.parse_status IS
-            'ok / ok_project_from_cell_type / unparseable';
+            'ok / suspect(拆出但格式不符) / unparseable(缺末段等硬伤)';
         """
     )
 
