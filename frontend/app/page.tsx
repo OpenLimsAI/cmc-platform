@@ -18,6 +18,11 @@ import {
 
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
+// 项目编号解析不出的批次归入这个桶
+const PROJ_NONE = "__none__";
+const projValue = (b: Batch) => b.project_code ?? PROJ_NONE;
+const projLabel = (v: string) => (v === PROJ_NONE ? "未识别" : v);
+
 function fmtDate(s: string | null): string {
   if (!s) return "—";
   return s.slice(0, 10);
@@ -27,11 +32,37 @@ function batchKey(b: Batch) {
   return `${b.source_instance}#${b.procid}`;
 }
 
+// 项目编号排序：按数字大小升序，"未识别" 垫底
+function sortProject(a: string, b: string): number {
+  if (a === PROJ_NONE) return 1;
+  if (b === PROJ_NONE) return -1;
+  const na = parseInt(a, 10);
+  const nb = parseInt(b, 10);
+  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+  return a.localeCompare(b);
+}
+
+// 罐号自然排序：先按字母（A/B/R/C），再按数字（A2 在 A10 前）
+function sortReactor(a: string, b: string): number {
+  const ma = /^([A-Za-z]+)(\d+)$/.exec(a);
+  const mb = /^([A-Za-z]+)(\d+)$/.exec(b);
+  if (ma && mb) {
+    if (ma[1] !== mb[1]) return ma[1].localeCompare(mb[1]);
+    return parseInt(ma[2], 10) - parseInt(mb[2], 10);
+  }
+  return a.localeCompare(b);
+}
+
 export default function Home() {
   const [selected, setSelected] = useState<Batch | null>(null);
   const [channels, setChannels] = useState<string[]>([]);
   // 当前可见时间窗口（放大后按此窗口向后端要更精细的数据）；null = 全览
   const [viewWindow, setViewWindow] = useState<ViewWindow | null>(null);
+
+  // 三个级联筛选：项目编号 / 批次年份 / 罐号（"" = 全部）
+  const [fProject, setFProject] = useState<string>("");
+  const [fYear, setFYear] = useState<string>("");
+  const [fReactor, setFReactor] = useState<string>("");
 
   const batchesQ = useQuery({ queryKey: ["batches"], queryFn: fetchBatches });
 
@@ -131,6 +162,66 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seriesQs.map((q) => q.dataUpdatedAt).join(",")]);
 
+  // ---- 级联筛选：项目编号 → 批次年份 → 罐号 ----
+  const allBatches = batchesQ.data ?? [];
+
+  // 项目下拉：全部批次里的不同项目编号
+  const projectOptions = useMemo(() => {
+    const s = new Set<string>();
+    allBatches.forEach((b) => s.add(projValue(b)));
+    return [...s].sort(sortProject);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchesQ.data]);
+
+  // 年份下拉：只显示当前项目下有的年份
+  const yearOptions = useMemo(() => {
+    const s = new Set<number>();
+    allBatches.forEach((b) => {
+      if (fProject && projValue(b) !== fProject) return;
+      if (b.batch_year != null) s.add(b.batch_year);
+    });
+    return [...s].sort((a, b) => b - a);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchesQ.data, fProject]);
+
+  // 罐号下拉：只显示当前项目+年份下有的罐号
+  const reactorOptions = useMemo(() => {
+    const s = new Set<string>();
+    allBatches.forEach((b) => {
+      if (fProject && projValue(b) !== fProject) return;
+      if (fYear && String(b.batch_year) !== fYear) return;
+      if (b.reactor) s.add(b.reactor);
+    });
+    return [...s].sort(sortReactor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchesQ.data, fProject, fYear]);
+
+  // 三个筛选都应用后，剩下的批次
+  const filteredBatches = useMemo(() => {
+    return allBatches.filter((b) => {
+      if (fProject && projValue(b) !== fProject) return false;
+      if (fYear && String(b.batch_year) !== fYear) return false;
+      if (fReactor && b.reactor !== fReactor) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchesQ.data, fProject, fYear, fReactor]);
+
+  // 上层筛选变了 → 下层若已失效则自动清空（保证级联一致）
+  useEffect(() => {
+    if (fYear && !yearOptions.map(String).includes(fYear)) setFYear("");
+  }, [yearOptions, fYear]);
+  useEffect(() => {
+    if (fReactor && !reactorOptions.includes(fReactor)) setFReactor("");
+  }, [reactorOptions, fReactor]);
+
+  const hasFilter = !!(fProject || fYear || fReactor);
+  function clearFilters() {
+    setFProject("");
+    setFYear("");
+    setFReactor("");
+  }
+
   function pickBatch(b: Batch) {
     setSelected(b);
     setChannels([]);
@@ -159,8 +250,72 @@ export default function Home() {
       <div className="flex min-h-0 flex-1">
         {/* 左侧：批次列表 */}
         <aside className="flex w-72 flex-col border-r border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-4 py-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-            批次 {batchesQ.data ? `(${batchesQ.data.length})` : ""}
+          {/* 级联筛选：项目编号 → 批次年份 → 罐号 */}
+          <div className="space-y-2 border-b border-slate-200 px-4 py-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">
+                项目编号
+              </span>
+              <select
+                value={fProject}
+                onChange={(e) => setFProject(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">全部项目</option>
+                {projectOptions.map((p) => (
+                  <option key={p} value={p}>
+                    {projLabel(p)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">
+                批次年份
+              </span>
+              <select
+                value={fYear}
+                onChange={(e) => setFYear(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">全部年份</option>
+                {yearOptions.map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">
+                罐号
+              </span>
+              <select
+                value={fReactor}
+                onChange={(e) => setFReactor(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">全部罐号</option>
+                {reactorOptions.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-xs font-medium text-slate-400">
+            <span className="uppercase tracking-wide">
+              批次 {batchesQ.data ? `(${filteredBatches.length})` : ""}
+            </span>
+            {hasFilter && (
+              <button
+                onClick={clearFilters}
+                className="rounded border border-slate-200 px-1.5 py-0.5 text-slate-500 hover:bg-slate-50"
+              >
+                清除筛选
+              </button>
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {batchesQ.isLoading && (
@@ -171,7 +326,12 @@ export default function Home() {
                 连不上后端。确认后端在 http://localhost:8070 运行。
               </div>
             )}
-            {batchesQ.data?.map((b) => {
+            {batchesQ.data && filteredBatches.length === 0 && (
+              <div className="p-4 text-sm text-slate-400">
+                没有符合筛选的批次。
+              </div>
+            )}
+            {filteredBatches.map((b) => {
               const active = selected && batchKey(selected) === batchKey(b);
               return (
                 <button
