@@ -30,6 +30,7 @@ export function SeriesChart({
   fullRange,
   viewWindow,
   onWindowChange,
+  xName = "培养时间 (h)",
 }: {
   series: ChartSeries[];
   loading?: boolean;
@@ -39,6 +40,8 @@ export function SeriesChart({
   viewWindow?: ViewWindow | null;
   // 缩放停稳后回调，null 表示回到全览
   onWindowChange?: (win: ViewWindow | null) => void;
+  // 横轴名。工艺曲线用「培养时间 (h)」，细胞生长曲线用「培养天 (day)」
+  xName?: string;
 }) {
   const instRef = useRef<echartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,7 +126,7 @@ export function SeriesChart({
       },
       xAxis: {
         type: "value" as const,
-        name: "培养时间 (h)",
+        name: xName,
         nameLocation: "middle" as const,
         nameGap: 28,
         min: fullRange ? fullRange.min : 0,
@@ -161,7 +164,7 @@ export function SeriesChart({
       })),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow]);
+  }, [series, fullRange, viewWindow, xName]);
 
   function handleDataZoom() {
     const inst = instRef.current;

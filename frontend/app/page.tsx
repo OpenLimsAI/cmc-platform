@@ -15,6 +15,9 @@ import {
   type ChartSeries,
   type ViewWindow,
 } from "@/components/SeriesChart";
+import { CellGrowthView } from "@/components/CellGrowthView";
+
+type ViewMode = "process" | "cell";
 
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
@@ -54,6 +57,8 @@ function sortReactor(a: string, b: string): number {
 }
 
 export default function Home() {
+  // 顶部视图切换：工艺曲线（Lucullus）/ 细胞生长曲线（Vi-CELL）
+  const [view, setView] = useState<ViewMode>("process");
   const [selected, setSelected] = useState<Batch | null>(null);
   const [channels, setChannels] = useState<string[]>([]);
   // 当前可见时间窗口（放大后按此窗口向后端要更精细的数据）；null = 全览
@@ -238,16 +243,41 @@ export default function Home() {
     <div className="flex h-screen flex-col">
       {/* 顶栏 */}
       <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3">
-        <h1 className="text-lg font-semibold">Lucullus USP 时序看板</h1>
+        <h1 className="text-lg font-semibold">USP 上游分析看板</h1>
+        {/* 视图切换：工艺曲线 / 细胞生长曲线 */}
+        <div className="flex rounded-md border border-slate-200 p-0.5">
+          {(
+            [
+              ["process", "工艺曲线"],
+              ["cell", "细胞生长曲线"],
+            ] as [ViewMode, string][]
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`rounded px-3 py-1 text-sm transition ${
+                view === v
+                  ? "bg-blue-500 text-white"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <span className="text-sm text-slate-400">
-          生物反应器上游工艺 · 时序曲线
+          {view === "process"
+            ? "Lucullus 生物反应器 · 工艺时序曲线"
+            : "Vi-CELL 细胞计数 · 生长曲线"}
         </span>
         <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
           本地测试环境 · 样本批次
         </span>
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      {view === "cell" && <CellGrowthView />}
+
+      <div className={`${view === "process" ? "flex" : "hidden"} min-h-0 flex-1`}>
         {/* 左侧：批次列表 */}
         <aside className="flex w-72 flex-col border-r border-slate-200 bg-white">
           {/* 级联筛选：项目编号 → 批次年份 → 罐号 */}

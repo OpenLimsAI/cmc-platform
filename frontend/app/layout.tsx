@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lucullus USP 时序看板",
-  description: "生物反应器上游工艺时序数据看板",
+  title: "USP 上游分析看板",
+  description: "USP 上游多源分析看板：Lucullus 工艺曲线 + Vi-CELL 细胞生长曲线",
 };
 
 export default function RootLayout({

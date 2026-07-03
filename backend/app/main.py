@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import dispose_engine, init_engine
-from .routers import signals
+from .routers import signals, vicell
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(signals.router)
+app.include_router(vicell.router)
 
 
 @app.get("/health")

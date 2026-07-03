@@ -76,6 +76,51 @@ export async function fetchSeries(
   return data;
 }
 
+// ============ Vi-CELL 细胞计数生长曲线 ============
+
+export interface VicellBatch {
+  batch_key: string; // 项目_批号_罐，如 0071_R2601_B2
+  project_id: string | null;
+  batch_number: string | null;
+  bioreactor_id: string | null;
+  batch_year: number | null; // 批号解析，如 R2601 -> 2026
+  n_samples: number;
+  day_min: number | null;
+  day_max: number | null;
+  first_run_date: string | null;
+  has_process_link: boolean; // 是否已关联到工艺批次（Phase 2 叠图用）
+}
+
+export interface GrowthPoint {
+  culture_day: number;
+  viable_per_ml: number | null; // 活细胞密度 ×10⁶/ml
+  viability_pct: number | null; // 活率 %
+  total_per_ml: number | null;
+  avg_diameter_um: number | null;
+  n: number; // 该培养天取样次数（>1 表示已取平均）
+}
+
+export interface Growth {
+  batch_key: string;
+  project_id: string | null;
+  batch_number: string | null;
+  bioreactor_id: string | null;
+  n_samples: number;
+  points: GrowthPoint[];
+}
+
+export async function fetchVicellBatches(): Promise<VicellBatch[]> {
+  const { data } = await http.get<VicellBatch[]>("/api/vicell/batches");
+  return data;
+}
+
+export async function fetchGrowth(batchKey: string): Promise<Growth> {
+  const { data } = await http.get<Growth>("/api/vicell/growth", {
+    params: { batch_key: batchKey },
+  });
+  return data;
+}
+
 /** 把工作站编码变成人话，如 rd_ws01_usp_lucullus_01 -> WS01 */
 export function workstationLabel(sourceInstance: string): string {
   const m = sourceInstance.match(/ws(\d+)/i);
