@@ -38,7 +38,7 @@
 - **两个连接、同一只读账号 `lims_reader`**（别用写账号 `lucullus_etl`/`vicell_etl`）：
   - 读 `cmc_rd` → 配置项 `RAW_DATABASE_URL`。
   - 读 `cmc_analytics` → 配置项 `ANALYTICS_DATABASE_URL`（留空则细胞视图不可用，工艺曲线不受影响）。
-  - ⚠️ 授权走 `cmc-schema-migrations`（alembic），别裸 SQL 授到生产。基线 `deploy/linux-native/scripts/04_grants.sql` 已给 `lims_reader` 授 `cmc_analytics` 各 schema 读权，新视图 `mart.fact_vicell` 的显式补授见迁移 `cmc_analytics_vicell_reader_grant`（上线前 `alembic upgrade` 并确认 `has_table_privilege('lims_reader','mart.fact_vicell','SELECT')=t`）。
+  - ⚠️ 授权走 `cmc-schema-migrations`（alembic），别裸 SQL 授到生产。基线 `deploy/linux-native/scripts/04_grants.sql` 已给 `lims_reader` 授 `cmc_analytics` 各 schema 读权，新视图 `mart.fact_vicell` 的显式补授见迁移 `cmc_analytics_vicell_read_grant`（上线前 `alembic upgrade` 并确认 `has_table_privilege('lims_reader','mart.fact_vicell','SELECT')=t`）。
 
 ## 治理规矩（架构白皮书 V0.3，务必遵守）
 
