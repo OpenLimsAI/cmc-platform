@@ -7,16 +7,18 @@ mart.fact_vicell 是后建的视图，未自动带上授权（实测 has_table_p
 
 只读账号，绝不给写权限；写入点仍是 vicell_etl（见 cmc_analytics_vicell_grant）。
 
-Revision ID: cmc_analytics_vicell_reader_grant
+Revision ID: cmc_analytics_vicell_read_grant
 Revises: cmc_analytics_process_daily
 Create Date: 2026-07-04
+
+注：revision id 保持 ≤32 字符，否则超 alembic_version.version_num varchar(32) 会落库失败。
 """
 
 from __future__ import annotations
 
 from alembic import op
 
-revision = "cmc_analytics_vicell_reader_grant"
+revision = "cmc_analytics_vicell_read_grant"
 down_revision = "cmc_analytics_process_daily"
 branch_labels = None
 depends_on = None
