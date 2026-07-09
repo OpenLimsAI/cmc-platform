@@ -70,7 +70,7 @@ export default function AttachmentTab({
           type="primary"
           icon={<UploadOutlined />}
           style={{ marginBottom: 12 }}
-          onClick={() => setOpen(true)}
+          onClick={() => { form.resetFields(); setFile(null); setOpen(true); }}
         >
           上传附件
         </Button>

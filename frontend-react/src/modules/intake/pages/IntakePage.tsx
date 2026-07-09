@@ -249,103 +249,121 @@ function IntakeForm() {
     | { kind: "cells"; count: number };
 
   const submit = async () => {
-    let v;
-    try { v = await form.validateFields(); } catch { return; }
-    const materialId = await ensureMaterialId();
-    if (materialId == null) return;
+    // 双击/连点防护:必须在任何 await 之前挡掉,否则两次点击都会跑完请求构建
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      let v;
+      try { v = await form.validateFields(); } catch { return; }
+      const remark = v.remark;
 
-    const remark = v.remark;
+      // ---- 第一遍:只校验 + 收集"任务构造器",不发任何请求 ----
+      // 边校验边发请求会造成"前面的组已入库、后面的组被拦",用户补完再提交就重复入库
+      const builders: Array<(materialId: number) => Promise<TaskResult>> = [];
+      let anyPos = false;
 
-    const tasks: Promise<TaskResult>[] = [];
-    let anyPos = false;
+      for (const g of groups) {
+        if (!g.batchNo.trim()) { message.warning("请填写批号"); return; }
+        if (!g.received) { message.warning("请填写入库日期"); return; }
+        const received = g.received.format("YYYY-MM-DD");
+        const expiry = g.expiry?.format("YYYY-MM-DD") ?? null;
 
-    for (const g of groups) {
-      if (!g.batchNo.trim()) { message.warning("请填写批号"); return; }
-      if (!g.received) { message.warning("请填写入库日期"); return; }
-      const received = g.received.format("YYYY-MM-DD");
-      const expiry = g.expiry?.format("YYYY-MM-DD") ?? null;
-
-      // 类型专属字段(每组各自):标准品=浓度/活性(数值+单位合成字符串);色谱柱=序列号/编号/负责人
-      const conc = activeTab === "standard" && g.concValue != null
-        ? `${g.concValue}${g.concUnit ? ` ${g.concUnit}` : ""}` : undefined;
-      // 标准品专属(项目编号为表单级,所有批次共用;原研药批号/分装日期为每批次)
-      const std = activeTab === "standard"
-        ? {
-            project_no: projectNo.trim() || undefined,
-            originator_batch_no: g.originatorBatchNo?.trim() || undefined,
-            aliquot_date: g.aliquotDate?.format("YYYY-MM-DD") ?? undefined,
-          }
-        : {};
-      const tf = activeTab === "column"
-        ? { serial_no: g.serialNo || undefined, asset_no: g.assetNo || undefined, responsible_person: g.responsiblePerson || undefined }
-        : activeTab === "standard"
-          ? { concentration: conc, ...std }
+        // 类型专属字段(每组各自):标准品=浓度/活性(数值+单位合成字符串);色谱柱=序列号/编号/负责人
+        const conc = activeTab === "standard" && g.concValue != null
+          ? `${g.concValue}${g.concUnit ? ` ${g.concUnit}` : ""}` : undefined;
+        // 标准品专属(项目编号为表单级,所有批次共用;原研药批号/分装日期为每批次)
+        const std = activeTab === "standard"
+          ? {
+              project_no: projectNo.trim() || undefined,
+              originator_batch_no: g.originatorBatchNo?.trim() || undefined,
+              aliquot_date: g.aliquotDate?.format("YYYY-MM-DD") ?? undefined,
+            }
           : {};
+        const tf = activeTab === "column"
+          ? { serial_no: g.serialNo || undefined, asset_no: g.assetNo || undefined, responsible_person: g.responsiblePerson || undefined }
+          : activeTab === "standard"
+            ? { concentration: conc, ...std }
+            : {};
 
-      const bulkRows: BulkIntakeRow[] = [];
-      for (const p of g.positions) {
-        if (p.freezer) {
-          if (!p.freezerSel) { message.warning(`批次「${g.batchNo}」的 -80℃ 冰箱尚未选孔`); return; }
-          anyPos = true;
-          const base = {
-            material_id: materialId, batch_no: g.batchNo, expiry_date: expiry, received_date: received,
-            intake_type: activeTab, concentration: conc, ...std, remark,
-          };
-          if (p.freezerSel.mode === "from") {
-            if (!p.freezerSel.startCellId) { message.warning("请点选起始孔"); return; }
-            tasks.push(occupyFrom({
-              ...base, start_cell_node_id: p.freezerSel.startCellId, count: p.freezerSel.count,
-            }).then((r) => ({ kind: "cells", count: r.data.count })));
-          } else {
-            if (!p.freezerSel.cellIds.length) { message.warning("请选择孔位"); return; }
-            tasks.push(occupyCells({
-              ...base, cell_node_ids: p.freezerSel.cellIds,
-            }).then((r) => ({ kind: "cells", count: r.data.count })));
+        const bulkRows: Omit<BulkIntakeRow, "material_id">[] = [];
+        for (const p of g.positions) {
+          if (p.freezer) {
+            if (!p.freezerSel) { message.warning(`批次「${g.batchNo}」的 -80℃ 冰箱尚未选孔`); return; }
+            anyPos = true;
+            const sel = p.freezerSel;
+            const base = {
+              batch_no: g.batchNo, expiry_date: expiry, received_date: received,
+              intake_type: activeTab, concentration: conc, ...std, remark,
+            };
+            if (sel.mode === "from") {
+              if (!sel.startCellId) { message.warning("请点选起始孔"); return; }
+              builders.push((materialId) => occupyFrom({
+                ...base, material_id: materialId,
+                start_cell_node_id: sel.startCellId!, count: sel.count,
+              }).then((r) => ({ kind: "cells", count: r.data.count })));
+            } else {
+              if (!sel.cellIds.length) { message.warning("请选择孔位"); return; }
+              builders.push((materialId) => occupyCells({
+                ...base, material_id: materialId, cell_node_ids: sel.cellIds,
+              }).then((r) => ({ kind: "cells", count: r.data.count })));
+            }
+          } else if (p.locationId && (p.qty ?? 0) > 0) {
+            anyPos = true;
+            bulkRows.push({
+              batch_no: g.batchNo, expiry_date: expiry,
+              location_id: p.locationId, qty: p.qty!, remark, ...tf,
+            });
           }
-        } else if (p.locationId && (p.qty ?? 0) > 0) {
-          anyPos = true;
-          bulkRows.push({
-            material_id: materialId, batch_no: g.batchNo, expiry_date: expiry,
-            location_id: p.locationId, qty: p.qty!, remark, ...tf,
-          });
         }
-      }
-      if (bulkRows.length) {
-        tasks.push(bulkIntake({ received_date: received, intake_type: activeTab, rows: bulkRows })
-          .then((r) => ({
+        if (bulkRows.length) {
+          builders.push((materialId) => bulkIntake({
+            received_date: received, intake_type: activeTab,
+            rows: bulkRows.map((r) => ({ ...r, material_id: materialId })),
+          }).then((r) => ({
             kind: "bulk", ok: r.data.ok, created: r.data.created, appended: r.data.appended,
             error: r.data.ok ? undefined : (r.data.results.find((x) => x.status === "error")?.message ?? "入库失败"),
           })));
+        }
       }
-    }
 
-    if (!anyPos) { message.warning("请至少填写一个存放位置与数量(或 -80℃ 孔位)"); return; }
+      if (!anyPos) { message.warning("请至少填写一个存放位置与数量(或 -80℃ 孔位)"); return; }
 
-    setSubmitting(true);
-    const settled = await Promise.allSettled(tasks);
-    setSubmitting(false);
-
-    let created = 0, appended = 0, cells = 0;
-    const errors: string[] = [];
-    for (const s of settled) {
-      if (s.status === "rejected") { errors.push(getErrorDetail(s.reason, "入库失败")); continue; }
-      const d = s.value;
-      if (d.kind === "bulk") {
-        if (!d.ok) errors.push(d.error ?? "入库失败");
-        created += d.created; appended += d.appended;
-      } else {
-        cells += d.count;
+      // ---- 全部校验通过,才解析/新建物料并统一发请求 ----
+      let materialId: number | null = null;
+      try {
+        materialId = await ensureMaterialId();
+      } catch (e) {
+        message.error(getErrorDetail(e, "物料解析/建档失败"));
+        return;
       }
-    }
+      if (materialId == null) return;
 
-    if (errors.length) {
-      message.error(errors.join("；"));
-      return;
+      const settled = await Promise.allSettled(builders.map((b) => b(materialId!)));
+
+      let created = 0, appended = 0, cells = 0;
+      const errors: string[] = [];
+      for (const s of settled) {
+        if (s.status === "rejected") { errors.push(getErrorDetail(s.reason, "入库失败")); continue; }
+        const d = s.value;
+        if (d.kind === "bulk") {
+          if (!d.ok) errors.push(d.error ?? "入库失败");
+          created += d.created; appended += d.appended;
+        } else {
+          cells += d.count;
+        }
+      }
+
+      if (errors.length) {
+        message.error(errors.join("；"));
+        return;
+      }
+      const parts = [`新建 ${created} 条`, `追加 ${appended} 条`];
+      if (cells) parts.push(`冻存 ${cells} 管`);
+      message.success(`入库成功:${parts.join("、")}`);
+      reset();
+    } finally {
+      setSubmitting(false);
     }
-    const parts = [`新建 ${created} 条`, `追加 ${appended} 条`];
-    if (cells) parts.push(`冻存 ${cells} 管`);
-    message.success(`入库成功:${parts.join("、")}`);
-    reset();
   };
 
   return (

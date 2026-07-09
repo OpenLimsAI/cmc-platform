@@ -41,11 +41,12 @@ export default function AdjustPage() {
     },
   });
 
+  // 后端 Decimal 序列化到前端是字符串,直接用 + 会变成字符串拼接(页面崩溃/校验失效),必须先 Number()
+  const bookQty = Number(selectedBatch?.current_qty ?? 0);
+
   // 按实际盘点数: delta = 实际数 - 当前库存;按调整量: delta = 输入值
   const computeDelta = (value: number): number =>
-    mode === "actual"
-      ? Number((value - (selectedBatch?.current_qty ?? 0)).toFixed(2))
-      : value;
+    mode === "actual" ? Number((value - bookQty).toFixed(2)) : value;
 
   const handleSubmit = async () => {
     if (!selectedBatch) return;
@@ -141,8 +142,7 @@ export default function AdjustPage() {
                 { required: true, message: "请输入数量" },
                 {
                   validator: (_, v) =>
-                    typeof v === "number" &&
-                    selectedBatch.current_qty + computeDelta(v) < 0
+                    typeof v === "number" && bookQty + computeDelta(v) < 0
                       ? Promise.reject(new Error("调整后库存不得为负"))
                       : Promise.resolve(),
                 },
@@ -157,7 +157,7 @@ export default function AdjustPage() {
               <Alert
                 style={{ marginBottom: 16 }}
                 type={previewDelta === 0 ? "info" : previewDelta > 0 ? "success" : "warning"}
-                message={`调整量: ${previewDelta > 0 ? "+" : ""}${previewDelta} ${selectedBatch.unit} → 调整后库存: ${Number((selectedBatch.current_qty + previewDelta).toFixed(2))} ${selectedBatch.unit}`}
+                message={`调整量: ${previewDelta > 0 ? "+" : ""}${previewDelta} ${selectedBatch.unit} → 调整后库存: ${Number((bookQty + previewDelta).toFixed(2))} ${selectedBatch.unit}`}
               />
             )}
             <Form.Item name="txn_date" label="盘点日期" rules={[{ required: true }]}>

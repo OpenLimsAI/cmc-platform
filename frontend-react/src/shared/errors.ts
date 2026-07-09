@@ -3,8 +3,15 @@
  * 此前各页面内联重复同一段类型断言(12+ 处),收拢到这里。
  */
 export function getErrorDetail(err: unknown, fallback: string): string {
-  return (
-    (err as { response?: { data?: { detail?: string } } })?.response?.data
-      ?.detail ?? fallback
-  );
+  const detail = (err as { response?: { data?: { detail?: unknown } } })
+    ?.response?.data?.detail;
+  if (typeof detail === "string" && detail) return detail;
+  // FastAPI 422 校验错误的 detail 是对象数组,直接丢给 message.error 渲染会崩页面
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (d && typeof d === "object" && "msg" in d ? String((d as { msg: unknown }).msg) : ""))
+      .filter(Boolean);
+    if (msgs.length) return msgs.join("；");
+  }
+  return fallback;
 }

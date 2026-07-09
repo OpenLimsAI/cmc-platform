@@ -86,7 +86,7 @@ export default function RepairTab({
           type="primary"
           icon={<PlusOutlined />}
           style={{ marginBottom: 12 }}
-          onClick={() => setOpen(true)}
+          onClick={() => { form.resetFields(); setOpen(true); }}
         >
           登记报修
         </Button>
@@ -136,6 +136,8 @@ export default function RepairTab({
                       size="small"
                       onClick={() => {
                         setCompleting(r);
+                        // 先重置:上次"取消"关闭时填的费用/结论会残留,不清会串写到这条维修单
+                        completeForm.resetFields();
                         completeForm.setFieldsValue({ completion_date: dayjs() });
                       }}
                     >

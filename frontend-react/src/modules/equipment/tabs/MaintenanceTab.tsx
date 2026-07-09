@@ -58,7 +58,7 @@ export default function MaintenanceTab({
           type="primary"
           icon={<PlusOutlined />}
           style={{ marginBottom: 12 }}
-          onClick={() => setOpen(true)}
+          onClick={() => { form.resetFields(); setOpen(true); }}
         >
           新增维护记录
         </Button>
@@ -85,7 +85,7 @@ export default function MaintenanceTab({
             width: 120,
             render: (v: string | null) => {
               if (!v) return "-";
-              const d = dayjs(v).diff(dayjs(), "day");
+              const d = dayjs(v).diff(dayjs().startOf("day"), "day");
               return <Tag color={d < 0 ? "red" : d <= 7 ? "red" : d <= 30 ? "gold" : "default"}>{v}</Tag>;
             },
           },

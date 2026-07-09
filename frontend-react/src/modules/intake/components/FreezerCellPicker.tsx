@@ -26,6 +26,7 @@ interface Props {
 export default function FreezerCellPicker({ freezer, onChange }: Props) {
   const [mode, setMode] = useState<"auto" | "from" | "manual">("auto");
   const [autoN, setAutoN] = useState(1);
+  const [autoAssigned, setAutoAssigned] = useState<string[]>([]);
   const [fromN, setFromN] = useState(1);
   const [startCell, setStartCell] = useState<{ id: number; addr: string }>();
   const [picked, setPicked] = useState<Map<number, string>>(new Map());
@@ -34,7 +35,7 @@ export default function FreezerCellPicker({ freezer, onChange }: Props) {
   const [boxId, setBoxId] = useState<number>();
 
   const clearAll = () => {
-    setStartCell(undefined); setPicked(new Map());
+    setStartCell(undefined); setPicked(new Map()); setAutoAssigned([]);
     setRackId(undefined); setLayerId(undefined); setBoxId(undefined);
   };
 
@@ -76,8 +77,18 @@ export default function FreezerCellPicker({ freezer, onChange }: Props) {
   const autoAssign = async () => {
     const { data } = await findFreeCells(freezer.node_id, autoN);
     if (data.count < autoN) message.warning(`该冰箱仅剩 ${data.count} 个空孔`);
+    setAutoAssigned(data.addresses);
     onChange?.({ mode: "auto", cellIds: data.cell_node_ids, addresses: data.addresses });
     message.success(`已分配 ${data.count} 个空孔`);
+  };
+
+  // 分配后再改数量:作废已分配的孔并上抛空选,强制重新分配(否则提交的孔数还是旧的)
+  const changeAutoN = (n: number) => {
+    setAutoN(n);
+    if (autoAssigned.length) {
+      setAutoAssigned([]);
+      onChange?.({ mode: "auto", cellIds: [], addresses: [] });
+    }
   };
 
   const onCellClick = (cellId: number, code: string, occupied: boolean) => {
@@ -128,11 +139,19 @@ export default function FreezerCellPicker({ freezer, onChange }: Props) {
       />
 
       {mode === "auto" && (
-        <Space>
-          <span>数量</span>
-          <InputNumber min={1} max={5000} value={autoN} onChange={(v) => setAutoN(v ?? 1)} />
-          <Button onClick={autoAssign}>自动分配空孔</Button>
-        </Space>
+        <>
+          <Space>
+            <span>数量</span>
+            <InputNumber min={1} max={5000} value={autoN} onChange={(v) => changeAutoN(v ?? 1)} />
+            <Button onClick={autoAssign}>自动分配空孔</Button>
+          </Space>
+          {autoAssigned.length > 0 && (
+            <Alert
+              type="success" showIcon style={{ marginTop: 12 }}
+              message={`已分配 ${autoAssigned.length} 个空孔:${autoAssigned.slice(0, 5).join("、")}${autoAssigned.length > 5 ? " …" : ""}`}
+            />
+          )}
+        </>
       )}
 
       {mode === "from" && (

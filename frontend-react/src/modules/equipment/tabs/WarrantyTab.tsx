@@ -59,7 +59,7 @@ export default function WarrantyTab({
     });
   };
 
-  const daysLeft = warranty ? dayjs(warranty.warranty_end).diff(dayjs(), "day") : null;
+  const daysLeft = warranty ? dayjs(warranty.warranty_end).diff(dayjs().startOf("day"), "day") : null;
 
   return (
     <>
