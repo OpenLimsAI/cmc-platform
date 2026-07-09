@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import pathlib
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # 把 backend/ 加到 sys.path,让 `import crud / models / database` 能直接走通
 BACKEND_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -54,7 +54,8 @@ def mint_token(
         "username": username,
         "roles": roles,
         "type": token_type,
-        "exp": datetime.utcnow() + timedelta(minutes=expires_minutes),
+        # JWT exp 语义上就是 UTC,用显式带时区写法;项目"禁 utcnow"约定是针对落库的墙钟时间
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
     }
     return jwt.encode(payload, MDM_SECRET_KEY, algorithm=MDM_JWT_ALGORITHM)
 

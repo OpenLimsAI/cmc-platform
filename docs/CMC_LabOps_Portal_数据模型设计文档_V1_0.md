@@ -9,7 +9,7 @@
 | | |
 |---|---|
 | **文档编号** | DM-LABOPS-001 |
-| **版本** | V1.7（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
+| **版本** | V1.8（修订历史见下表；文件名沿用 V1_0 不随版本改名） |
 | **状态** | Draft |
 | **发布日期** | 2026-05-19 |
 | **编制** | CMC IT |
@@ -29,6 +29,7 @@
 | V1.5 | 2026-06-16 | CMC IT | 回填后期增量特性（结构以 backend/models.py + sql/init.sql 现状为准）：§3 改写为"物料库存表"，新增位置树 `storage_node`（§3.2）、-80℃ 孔位占用 `cell_occupancy`（§3.3）两表；补 location 与位置树关系（§3.4，含 -80 冰箱在 FRIDGE 节点挂锚点 location_id、CELL 不进 location）；material/batch 增列（material_type / intake_type 及标准品·色谱柱专属字段、入库人姓名快照 intake_operator_name，§3.5）；移除已删表 app_user / auth_session（迁移 08941b314a8f） |
 | V1.6 | 2026-06-16 | CMC IT | 物料 Excel 导入功能已从代码移除，文档同步：§3 表清单注脚去除 import_log 说明；§5 labops_auth（已废弃）权限种子示例去"导入"；§7 data_source 来源说明移除"Excel 批量导入"分支；上位文档版本号同步 ARCH V1.7 |
 | V1.7 | 2026-06-16 | CMC IT | codex 复核勘误：§7 data_source='local' 补回"无编码入库就地建本地物料（TT内部物料）"来源（此前误写为仅后端兜底） |
+| V1.8 | 2026-07-09 | CMC IT | 全量核对代码/生产库现状勘误：§1 去除'10 张表/Streamlit'迁移期表述（现为 9 表、Streamlit 已删）；§3.2 storage_node 字段表补 equipment_no/equipment_code（冰箱绑定 MDM 设备，生产已有）；§3.5 material 补 name_en 列 |
 
 ## 适用范围
 
@@ -39,7 +40,7 @@
 
 # 1. 设计原则
 
-1. **保留现有表**：material_mgmt schema 中的 10 张表原样保留，确保 Streamlit 前端在迁移期间继续正常工作
+1. **保留现有表**：material_mgmt schema 现有 9 张表（见 §2 总览）原样保留并演进；Streamlit 前端已于 React 迁移完成后删除（V1.8 勘误：原文'10 张表…Streamlit'为迁移期表述）
 2. **新模块新 schema**：设备管理使用独立 schema equipment_mgmt
 3. **认证对接 MDM（V1.1 变更）**：不建本地用户/角色表，信任 MDM Portal 签发的 JWT；material_mgmt.app_user / auth_session 已停用
 4. **审计沿用现有表（V1.1 变更）**：继续使用 material_mgmt.audit_log；labops_audit（module/reason 字段）降级为 Phase 4 可选项
@@ -122,6 +123,8 @@
 | location_id | INT | FK→location | bulk 叶子回链 location；否则空 |
 | temp_category | VARCHAR(20) | | 仅 FRIDGE：normal/2-8/-20/-80 |
 | temp_text | VARCHAR(50) | | 温区可读文本，如 '-20~-40℃' |
+| equipment_no | VARCHAR(64) | | 仅 FRIDGE：绑定的 MDM 设备业务编号（显示 join 键，如 TT-SC-009） |
+| equipment_code | VARCHAR(32) | | 仅 FRIDGE：MDM 内部码（EQP-…）快照 |
 | is_active | BOOLEAN | NOT NULL DEFAULT TRUE | 软删除标记 |
 | remark | TEXT | | 备注 |
 | created_at | TIMESTAMP | NOT NULL DEFAULT NOW() | 创建时间（裸上海墙钟） |
@@ -163,6 +166,7 @@
 | **字段** | **类型** | **说明** |
 |---|---|---|
 | material_type | VARCHAR(20) | 入库大类：reagent / consumable / standard / column；老物料可空 |
+| name_en | VARCHAR(255) | 英文名（MDM mm.material_name_en 快照，V1.6 加列） |
 
 **batch 新增：**
 

@@ -276,6 +276,24 @@ cmc-labops/
 | `source_ip` | VARCHAR(45) | 来源IP | 来源 IP |
 | `created_at` | TIMESTAMP | 操作时间 | 操作发生时间 |
 
+### 4.11 `storage_node` — 存放位置层级树(v1.5)
+
+自引用树,一张表表达全部储位形态:试剂柜 `ROOM→CABINET→CABINET_LAYER(bulk)`、
+普通冰箱 `ROOM→FRIDGE→FRIDGE_SHELF(bulk)`、-80℃ 冰箱 `ROOM→FRIDGE→RACK→RACK_LAYER→BOX→CELL(cell)`。
+bulk 叶子经 `location_id` 回链 location(批次仍挂 location,老逻辑零改动);FRIDGE 节点带
+`equipment_no`/`equipment_code` 绑定 MDM 设备;-80 冰箱另在 FRIDGE 节点挂整机锚定 location。
+完整字段见 `models.py` StorageNode 与数据模型文档 §3.2。
+
+### 4.12 `cell_occupancy` — -80℃ 孔位占用(v1.5 期2)
+
+一孔一管:`cell_node_id`(CELL 节点) + `batch_id` + `status(stored/removed)` + 样品标签/存取时间。
+空孔 = 无 `status='stored'` 行;部分唯一索引 `uq_cell_occupied` 保证单占用。
+完整字段见 `models.py` CellOccupancy 与数据模型文档 §3.3。
+
+> 📌 material/batch 在 v1.2~v1.6 间增列(material_type/name_en/data_source、intake_type
+> 及标准品/色谱柱专属字段、intake_operator_name 等),上面 4.1/4.2 的字段表未逐项回填,
+> **以 `models.py` 为准**。
+
 ---
 
 ## 五、核心业务逻辑
@@ -455,6 +473,7 @@ GROUP BY m.material_id, m.material_code, m.name_cn;
 | GET | `/api/batches` | 查询(支持 `material_id` 过滤) |
 | POST | `/api/batches` | 创建批次(同时创建首次入库 txn) |
 | GET | `/api/batches/{batch_id}` | 详情 |
+| PATCH | `/api/batches/{batch_id}` | 编辑批次元信息(白名单字段:效期/备注/浓度等;批号数量位置不可改) |
 
 ### 7.3 出入库 `/api/inventory`
 

@@ -884,7 +884,21 @@ def occupy_cells(
         raise ValueError("选中的节点不是孔位")
     assert_cells_active(db, cell_node_ids)
 
-    # 同一冰箱?取任一孔的 FRIDGE 祖先作为批次锚
+    # 全部孔必须在同一台冰箱:批次锚在冰箱的 location 上,跨冰箱会把 B 冰箱的样品记到 A 冰箱账下
+    fridge_ids = db.execute(text(
+        """
+        WITH RECURSIVE up AS (
+            SELECT node_id, parent_id, node_type
+            FROM material_mgmt.storage_node WHERE node_id = ANY(:ids)
+            UNION ALL
+            SELECT p.node_id, p.parent_id, p.node_type
+            FROM material_mgmt.storage_node p JOIN up ON p.node_id = up.parent_id
+        )
+        SELECT DISTINCT node_id FROM up WHERE node_type = 'FRIDGE'
+        """
+    ), {"ids": list(cell_node_ids)}).scalars().all()
+    if len(fridge_ids) > 1:
+        raise ValueError("所选孔位分属多台冰箱,一次入库只能选同一台冰箱的孔位")
     fridge = next((n for n in get_node_ancestors(db, cells[0].node_id) if n.node_type == "FRIDGE"), None)
     if fridge is None or fridge.location_id is None:
         raise ValueError("孔位未挂在 -80℃ 冰箱下")

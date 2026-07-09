@@ -251,12 +251,17 @@ def create_from_mdm(
     authorization: Optional[str] = Header(default=None),
 ):
     """从 MDM 拉取设备主数据(身份字段)，在本地建台账(data_source='mdm')，
-    运营字段(位置/负责人/状态等)由请求体补充。本地已存在该编码则直接返回已有记录。"""
+    运营字段(位置/负责人/状态等)由请求体补充。本地已存在该编码则 409。"""
     existing = db.execute(
         select(Equipment).where(Equipment.equipment_code == code)
     ).scalar_one_or_none()
     if existing:
-        return existing
+        # 原先静默返回旧记录(还带 201),请求体里填的位置/负责人被无声丢弃,
+        # 调用方误以为保存成功 —— 改为明确报冲突
+        raise HTTPException(
+            status_code=409,
+            detail=f"设备 {code} 已在本地台账({existing.name}),请直接打开该设备编辑运营信息",
+        )
 
     token = mdm_client.extract_bearer_token(authorization)
     mdm_data = mdm_client.get_equipment_by_code(code, token=token)
@@ -312,47 +317,60 @@ def batch_create_from_mdm(
     failed: List[str] = []
 
     page = 1
-    while page <= 100:  # 防御上限: 100 页 x 100 条
-        resp = mdm_client.search_equipments("", page=page, page_size=100, token=token)
-        items = resp.get("data") or []
-        if not items:
-            break
-        for it in items:
-            code = it.get("equipment_code")
-            if not code:
-                continue
-            if code in existing:
-                skipped_existing += 1
-                continue
-            if payload.categories and it.get("category") not in payload.categories:
-                skipped_filtered += 1
-                continue
-            if not payload.include_retired and it.get("status") == "retired":
-                skipped_filtered += 1
-                continue
-            detail = mdm_client.get_equipment_by_code(code, token=token)
-            if detail is None:
-                failed.append(code)
-                continue
-            obj = Equipment(
-                equipment_code=code,
-                name=detail.get("equipment_name", code),
-                category=detail.get("category", "其他"),
-                status="in_use",
-                created_by=current.username,
-                updated_by=current.username,
+    try:
+        while page <= 100:  # 防御上限: 100 页 x 100 条
+            # raise_unavailable:MDM 中途挂掉要明确报错中止——
+            # 默认的降级(返回空列表)会被当成"没有下一页",批量同步误报成功且 created 偏少
+            resp = mdm_client.search_equipments(
+                "", page=page, page_size=100, token=token, raise_unavailable=True,
             )
-            _apply_mdm_snapshot(obj, detail)
-            db.add(obj)
-            existing.add(code)
-            created += 1
-        pagination = (resp.get("meta") or {}).get("pagination") or resp.get("pagination") or {}
-        total_pages = pagination.get("total_pages")
-        if total_pages is not None and page >= total_pages:
-            break
-        if total_pages is None and len(items) < 100:
-            break
-        page += 1
+            items = resp.get("data") or []
+            if not items:
+                break
+            for it in items:
+                code = it.get("equipment_code")
+                if not code:
+                    continue
+                if code in existing:
+                    skipped_existing += 1
+                    continue
+                if payload.categories and it.get("category") not in payload.categories:
+                    skipped_filtered += 1
+                    continue
+                if not payload.include_retired and it.get("status") == "retired":
+                    skipped_filtered += 1
+                    continue
+                detail = mdm_client.get_equipment_by_code(
+                    code, token=token, raise_unavailable=True,
+                )
+                if detail is None:
+                    failed.append(code)
+                    continue
+                obj = Equipment(
+                    equipment_code=code,
+                    name=detail.get("equipment_name", code),
+                    category=detail.get("category", "其他"),
+                    status="in_use",
+                    created_by=current.username,
+                    updated_by=current.username,
+                )
+                _apply_mdm_snapshot(obj, detail)
+                db.add(obj)
+                existing.add(code)
+                created += 1
+            pagination = (resp.get("meta") or {}).get("pagination") or resp.get("pagination") or {}
+            total_pages = pagination.get("total_pages")
+            if total_pages is not None and page >= total_pages:
+                break
+            if total_pages is None and len(items) < 100:
+                break
+            page += 1
+    except mdm_client.MdmUnavailableError as e:
+        db.rollback()  # 本次同步不落任何数据;恢复后重跑,已存在的会自动跳过
+        raise HTTPException(
+            status_code=502,
+            detail=f"MDM 服务中断,批量同步已中止且未写入(中止前已处理 {created} 台): {e}",
+        )
 
     db.flush()
     write_audit(
