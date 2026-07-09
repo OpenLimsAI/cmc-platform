@@ -676,7 +676,9 @@ def list_batch_cells(db: Session, batch_id: int) -> List[dict]:
         }
         for o, code, box_id in rows
     ]
-    out.sort(key=lambda x: x["address"])
+    # 孔号是数字串,直接按地址整串排会把 10 排到 2 前面;
+    # 按 (盒地址, 孔号长度, 孔号) 排 = 盒内自然数字序(同库里 ORDER BY length(code), code 的套路)
+    out.sort(key=lambda x: (x["address"].rsplit(",", 1)[0], len(x["code"]), x["code"]))
     return out
 
 
