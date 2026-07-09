@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, List, Tuple, Sequence
@@ -505,6 +506,22 @@ def delete_node(db: Session, node_id: int) -> str:
         ).scalar_one()
         if used:
             raise ValueError("该位置下存在批次/库存记录,不能删除,请改为停用")
+    # 架/层/盒/孔没有回链 location,上面的批次守卫拦不住它们;
+    # 而 cell_occupancy 对 CELL 是 ON DELETE CASCADE,直接删会静默抹掉在存样品的孔位记录
+    stored = db.execute(text(
+        """
+        WITH RECURSIVE sub AS (
+            SELECT node_id FROM material_mgmt.storage_node WHERE node_id = :nid
+            UNION ALL
+            SELECT c.node_id FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+        )
+        SELECT count(*) FROM material_mgmt.cell_occupancy o
+        JOIN sub ON sub.node_id = o.cell_node_id
+        WHERE o.status = 'stored'
+        """
+    ), {"nid": node_id}).scalar_one()
+    if stored:
+        raise ValueError(f"该位置下有 {stored} 个孔位存放着样品,不能删除,请先出库或改为停用")
     db.delete(node)        # storage_node 自引用 ON DELETE CASCADE 清子树
     db.flush()
     if loc_ids:            # 清掉回链的孤儿 location 行
@@ -676,10 +693,16 @@ def list_batch_cells(db: Session, batch_id: int) -> List[dict]:
         }
         for o, code, box_id in rows
     ]
-    # 孔号是数字串,直接按地址整串排会把 10 排到 2 前面;
-    # 按 (盒地址, 孔号长度, 孔号) 排 = 盒内自然数字序(同库里 ORDER BY length(code), code 的套路)
-    out.sort(key=lambda x: (x["address"].rsplit(",", 1)[0], len(x["code"]), x["code"]))
+    # 地址里层号/孔号是数字串,按整串文字排会把 10 排到 2 前面;
+    # 自然序 key:把地址拆成 文字/数字 段,数字段按数值比较(盒地址如 'TT3 A10:B')
+    out.sort(key=lambda x: (_natural_key(x["address"].rsplit(",", 1)[0]),
+                            len(x["code"]), x["code"]))
     return out
+
+
+def _natural_key(s: str) -> tuple:
+    """'A10:B' → ('A', 10, ':B') 式的自然排序 key,数字段按数值比。"""
+    return tuple(int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s or ""))
 
 
 def batch_stored_cell_count(db: Session, batch_id: int) -> int:
@@ -712,7 +735,7 @@ def batch_cell_location_names(db: Session, batch_ids: Sequence[int]) -> dict:
         JOIN material_mgmt.storage_node fr ON fr.node_id = rk.parent_id
         WHERE o.status = 'stored' AND o.batch_id = ANY(:ids)
         GROUP BY o.batch_id, COALESCE(fr.label, fr.code), rk.code, ly.code, bx.code
-        ORDER BY o.batch_id, rk.code, ly.code, bx.code
+        ORDER BY o.batch_id, rk.code, length(ly.code), ly.code, bx.code
         """
     ), {"ids": ids}).all()
     boxes: dict = {}
@@ -737,11 +760,13 @@ def release_cells(
     if not cell_node_ids:
         raise ValueError("未选择任何孔位")
     txn_date = txn_date or date.today()
+    # FOR UPDATE:并发/重复提交时第二笔会等锁后重读,发现已 removed → 走下面的"孔位为空"报错,
+    # 不加锁则两笔都读到 stored,一支管扣两次库存
     occ_rows = list(db.execute(
         select(CellOccupancy).where(
             CellOccupancy.cell_node_id.in_(list(cell_node_ids)),
             CellOccupancy.status == "stored",
-        )
+        ).with_for_update()
     ).scalars().all())
     found = {o.cell_node_id for o in occ_rows}
     missing = [cid for cid in cell_node_ids if cid not in found]
@@ -769,27 +794,70 @@ def release_cells(
     }
 
 
-def find_free_cells(db: Session, freezer_id: int, count: int) -> List[int]:
-    """冰箱内最多 count 个空孔(盒内连续优先)。"""
+def assert_location_active(db: Session, location_id: int) -> None:
+    """位置回链的树节点或其任一祖先已停用则拒绝写入(ValueError)。
+    停用状态记录在 storage_node.is_active,location 行本身没有;未挂树的历史 location 视为可用。"""
+    row = db.execute(text(
+        """
+        WITH RECURSIVE up AS (
+            SELECT node_id, parent_id, is_active
+            FROM material_mgmt.storage_node WHERE location_id = :lid
+            UNION ALL
+            SELECT p.node_id, p.parent_id, p.is_active
+            FROM material_mgmt.storage_node p JOIN up ON p.node_id = up.parent_id
+        )
+        SELECT 1 FROM up WHERE NOT is_active LIMIT 1
+        """
+    ), {"lid": location_id}).first()
+    if row is not None:
+        raise ValueError("该位置已停用,不能入库/移入;如需使用请先在「位置管理」启用")
+
+
+def assert_cells_active(db: Session, cell_node_ids: Sequence[int]) -> None:
+    """任一孔位自身或其盒/层/架/冰箱/房间已停用则拒绝占用(ValueError)。"""
     rows = db.execute(text(
         """
-        WITH RECURSIVE sub AS (
-            SELECT node_id, node_type, code, parent_id FROM material_mgmt.storage_node WHERE node_id = :fid
+        WITH RECURSIVE up AS (
+            SELECT node_id AS leaf, node_id, parent_id, is_active
+            FROM material_mgmt.storage_node WHERE node_id = ANY(:ids)
             UNION ALL
-            SELECT c.node_id, c.node_type, c.code, c.parent_id
-            FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+            SELECT up.leaf, p.node_id, p.parent_id, p.is_active
+            FROM material_mgmt.storage_node p JOIN up ON p.node_id = up.parent_id
         )
-        SELECT s.node_id
-        FROM sub s
-        JOIN material_mgmt.storage_node p ON p.node_id = s.parent_id
-        LEFT JOIN material_mgmt.cell_occupancy o
-               ON o.cell_node_id = s.node_id AND o.status = 'stored'
-        WHERE s.node_type = 'CELL' AND o.occupancy_id IS NULL
-        ORDER BY p.path, length(s.code), s.code
-        LIMIT :cnt
+        SELECT DISTINCT leaf FROM up WHERE NOT is_active
         """
-    ), {"fid": freezer_id, "cnt": count}).all()
-    return [r[0] for r in rows]
+    ), {"ids": list(cell_node_ids)}).scalars().all()
+    if rows:
+        addrs = ", ".join(cell_address(db, cid) for cid in list(rows)[:5])
+        raise ValueError(f"以下孔位所在位置已停用,不能入库: {addrs}")
+
+
+# 空孔遍历顺序:架(字母) → 层(数字,按长度+字面即自然序) → 盒(字母) → 孔号(数字)。
+# 不能 ORDER BY path:层号是数字串,按整串文字排会把 10 层排到 2 层前面。
+_CELL_WALK_SQL = """
+    WITH RECURSIVE sub AS (
+        SELECT node_id, node_type, code, parent_id, is_active AS active
+        FROM material_mgmt.storage_node WHERE node_id = :fid
+        UNION ALL
+        SELECT c.node_id, c.node_type, c.code, c.parent_id, (sub.active AND c.is_active) AS active
+        FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+    )
+    SELECT s.node_id, (o.occupancy_id IS NOT NULL) AS occupied
+    FROM sub s
+    JOIN material_mgmt.storage_node bx ON bx.node_id = s.parent_id
+    JOIN material_mgmt.storage_node ly ON ly.node_id = bx.parent_id
+    JOIN material_mgmt.storage_node rk ON rk.node_id = ly.parent_id
+    LEFT JOIN material_mgmt.cell_occupancy o
+           ON o.cell_node_id = s.node_id AND o.status = 'stored'
+    WHERE s.node_type = 'CELL' AND s.active
+    ORDER BY rk.code, length(ly.code), ly.code, bx.code, length(s.code), s.code
+"""
+
+
+def find_free_cells(db: Session, freezer_id: int, count: int) -> List[int]:
+    """冰箱内最多 count 个空孔(盒内连续优先);停用的盒/架/孔不参与推荐。"""
+    rows = db.execute(text(_CELL_WALK_SQL), {"fid": freezer_id}).all()
+    return [r[0] for r in rows if not r[1]][:count]
 
 
 def occupy_cells(
@@ -814,6 +882,7 @@ def occupy_cells(
         raise ValueError("存在无效的孔位")
     if any(c.node_type != "CELL" for c in cells):
         raise ValueError("选中的节点不是孔位")
+    assert_cells_active(db, cell_node_ids)
 
     # 同一冰箱?取任一孔的 FRIDGE 祖先作为批次锚
     fridge = next((n for n in get_node_ancestors(db, cells[0].node_id) if n.node_type == "FRIDGE"), None)
@@ -888,24 +957,8 @@ def occupy_from_start(
     if fridge is None or fridge.location_id is None:
         raise ValueError("起始孔未挂在 -80℃ 冰箱下")
 
-    # 冰箱内全部孔位,按地址顺序(盒 path → 孔号),带占用标记
-    rows = db.execute(text(
-        """
-        WITH RECURSIVE sub AS (
-            SELECT node_id, node_type, code, parent_id FROM material_mgmt.storage_node WHERE node_id = :fid
-            UNION ALL
-            SELECT c.node_id, c.node_type, c.code, c.parent_id
-            FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
-        )
-        SELECT s.node_id, (o.occupancy_id IS NOT NULL) AS occupied
-        FROM sub s
-        JOIN material_mgmt.storage_node p ON p.node_id = s.parent_id
-        LEFT JOIN material_mgmt.cell_occupancy o
-               ON o.cell_node_id = s.node_id AND o.status = 'stored'
-        WHERE s.node_type = 'CELL'
-        ORDER BY p.path, length(s.code), s.code
-        """
-    ), {"fid": fridge.node_id}).all()
+    # 冰箱内全部可用孔位,按 架/层/盒/孔 自然顺序,带占用标记(与 find_free_cells 同一遍历)
+    rows = db.execute(text(_CELL_WALK_SQL), {"fid": fridge.node_id}).all()
     ids = [r[0] for r in rows]
     occupied = {r[0]: r[1] for r in rows}
     try:
@@ -938,7 +991,7 @@ def release_cell(db: Session, cell_node_id: int, operator: str, remark: Optional
         select(CellOccupancy).where(
             CellOccupancy.cell_node_id == cell_node_id,
             CellOccupancy.status == "stored",
-        )
+        ).with_for_update()  # 防重复释放双倍扣账,同 release_cells
     ).scalar_one_or_none()
     if occ is None:
         raise ValueError("该孔位当前为空")
@@ -1148,6 +1201,12 @@ def get_batch(db: Session, batch_id: int) -> Optional[Batch]:
     return db.get(Batch, batch_id)
 
 
+def lock_batch(db: Session, batch_id: int) -> None:
+    """锁批次行(SELECT FOR UPDATE),把同批次的「读库存→写流水」串行化。
+    出库/调整/移库都是先查现有库存再落账,不锁的话并发两笔各自通过校验,库存会被打成负数。"""
+    db.execute(select(Batch.batch_id).where(Batch.batch_id == batch_id).with_for_update())
+
+
 # 批次"元信息"白名单:可经双人复核修改的字段。
 # 不含 batch_no(身份)/数量(走盘点)/location_id(走移库)/material_id/intake_type(分类权威)。
 BATCH_EDITABLE_FIELDS = {
@@ -1276,6 +1335,11 @@ def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Op
             msg = "数量必须 > 0"
         elif db.get(Location, r.location_id) is None:
             msg = "存放位置不存在"
+        else:
+            try:
+                assert_location_active(db, r.location_id)
+            except ValueError as e:
+                msg = str(e)
         if msg:
             has_error = True
         results.append({"index": i, "status": "error" if msg else "ok",
@@ -1363,14 +1427,27 @@ def transfer_batch(
     返回 (source_out_txn, dest_in_txn, dest_batch)。
     业务异常以 ValueError 抛,由 router 转 400。原子事务。
     """
-    src = db.get(Batch, source_batch_id)
+    src = db.execute(
+        select(Batch).where(Batch.batch_id == source_batch_id).with_for_update()
+    ).scalar_one_or_none()
     if not src:
         raise ValueError(f"源批次 {source_batch_id} 不存在")
+    # -80℃ 孔位批次的数量与孔一一对应,按数量搬走会造成 孔数≠库存
+    if batch_stored_cell_count(db, source_batch_id) > 0:
+        raise ValueError("源批次为 -80℃ 孔位存放,不能按数量移库;请通过出库+重新入库迁移")
     if dest_location_id == src.location_id:
         raise ValueError("目的位置与源位置相同,无需移库")
     dest_loc = db.get(Location, dest_location_id)
     if not dest_loc:
         raise ValueError(f"目的位置 {dest_location_id} 不存在")
+    # 目的位置不能是 -80 冰箱的整机锚定位置(那里的批次必须逐孔存放)
+    anchor = db.execute(select(StorageNode).where(
+        StorageNode.location_id == dest_location_id,
+        StorageNode.node_type == "FRIDGE",
+    )).scalar_one_or_none()
+    if anchor is not None:
+        raise ValueError("目的位置是 -80℃ 冰箱,散放数量不能移入;请通过出库+按孔位入库迁移")
+    assert_location_active(db, dest_location_id)
     current = get_batch_qty(db, source_batch_id)
     if qty > current:
         raise ValueError(f"移库数量 {qty} 超过源批次现有库存 {current}")

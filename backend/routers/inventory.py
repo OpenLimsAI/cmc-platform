@@ -40,6 +40,12 @@ def receive_in(
     b = crud.get_batch(db, payload.batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {payload.batch_id} 不存在")
+    # -80℃ 孔位批次的数量必须与孔数一致,追加数量请走「入库登记」按孔位入库
+    if crud.batch_stored_cell_count(db, payload.batch_id) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="该批次为 -80℃ 孔位存放,请在「入库登记」按孔位追加,不能按数量入库",
+        )
     txn = crud.add_in(
         db, payload.batch_id, payload.qty, payload.txn_date, current.username, payload.remark
     )
@@ -70,6 +76,7 @@ def issue_out(
             status_code=400,
             detail="该批次为 -80℃ 孔位存放,请在「出库登记」选中后按孔位出库,不能按数量出库",
         )
+    crud.lock_batch(db, payload.batch_id)
     current_qty = crud.get_batch_qty(db, payload.batch_id)
     if payload.qty > current_qty:
         raise HTTPException(
@@ -101,6 +108,13 @@ def adjust(
     b = crud.get_batch(db, payload.batch_id)
     if not b:
         raise HTTPException(status_code=404, detail=f"批次 {payload.batch_id} 不存在")
+    # -80℃ 孔位批次改数量会造成 孔数≠库存,盘点差异请按孔位出库/入库处理
+    if crud.batch_stored_cell_count(db, payload.batch_id) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="该批次为 -80℃ 孔位存放,不能按数量盘点调整;差异请按孔位出库或入库处理",
+        )
+    crud.lock_batch(db, payload.batch_id)
     current_qty = crud.get_batch_qty(db, payload.batch_id)
     if current_qty + payload.qty < 0:
         raise HTTPException(

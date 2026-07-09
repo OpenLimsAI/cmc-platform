@@ -91,6 +91,10 @@ def create_batch(
         )
     if payload.initial_qty <= 0:
         raise HTTPException(status_code=400, detail="入库数量必须 > 0")
+    try:
+        crud.assert_location_active(db, payload.location_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     existing = crud.find_batch_at_location(
         db, payload.material_id, payload.batch_no, payload.location_id
