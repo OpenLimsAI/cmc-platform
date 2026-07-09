@@ -329,6 +329,15 @@ JOIN inventory_txn t ON t.batch_id = b.batch_id
 GROUP BY m.material_id, m.material_code, m.name_cn;
 ```
 
+**库存查询两个视图的口径不同(设计如此,不是 bug):**
+
+| 视图 | 口径 | 规则 |
+|------|------|------|
+| 按物料汇总 | **可用库存** | 已过期批次不计入总库存;且默认只显示总库存 > 0 的物料。某物料只剩过期批次时,在此视图查不到,属正常 |
+| 按批次明细 | **实物账** | 只要实物还在库,批次就显示,含已过期(效期红色标记),用于定位实物做出库/处置 |
+
+> 后端对应 `stock_by_material(exclude_expired=True, only_positive=True)` 与 `stock_by_batch(include_expired=True)` 的默认值。
+
 ### 5.5 预警规则
 
 | 类型 | 规则 | 颜色 |
