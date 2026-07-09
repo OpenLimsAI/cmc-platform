@@ -3,7 +3,7 @@
 -- 用途: CMC 物料管理系统数据库初始化脚本
 --   1) 在 material_mgmt schema 中创建当前版本所需的 9 张表
 --      (material / batch / inventory_txn / location / unit_dict /
---       category_dict / audit_log)
+--       category_dict / audit_log / storage_node / cell_occupancy)
 --   2) 预置单位字典初始值
 --   3) 创建必要索引
 --
@@ -175,8 +175,9 @@ CREATE TABLE IF NOT EXISTS batch (
     received_date  DATE NOT NULL,
     initial_qty    NUMERIC(12,2) NOT NULL,
     remark         TEXT,
-    -- 入库时所在 tab 的类型, 老批次留 NULL
-    intake_type    VARCHAR(20) CHECK (intake_type IS NULL OR intake_type IN ('reagent','consumable','standard','column')),
+    -- 入库时所在 tab 的类型, 老批次留 NULL(约束名与生产一致,见文件末尾迁移段)
+    intake_type    VARCHAR(20) CONSTRAINT ck_batch_intake_type
+        CHECK (intake_type IS NULL OR intake_type IN ('reagent','consumable','standard','column')),
     -- 入库表单"类型特定"字段, 都是 nullable; 哪类不用就留空
     concentration          VARCHAR(50),     -- 标准物质浓度(数值+单位, 例 "10 mg/mL")
     extinction_coefficient NUMERIC(12, 2),  -- 标准物质消光系数(2 位小数)
@@ -291,6 +292,14 @@ ALTER TABLE material
 
 -- batch: v1.2 加入入库类型及标准物质/色谱柱专属字段
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_type             VARCHAR(20);
+-- 老库补约束(与建表内联的 ck_batch_intake_type 同名同义,保持各环境一致)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_batch_intake_type') THEN
+        ALTER TABLE batch ADD CONSTRAINT ck_batch_intake_type
+            CHECK (intake_type IS NULL OR intake_type IN ('reagent','consumable','standard','column'));
+    END IF;
+END$$;
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS concentration           VARCHAR(50);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS extinction_coefficient  NUMERIC(12,2);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS serial_no               VARCHAR(100);
@@ -305,10 +314,6 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_operator_name    VARCHAR(128);
 -- 必须解除指向旧 app_user 的外键,否则 MDM 新用户的所有写操作都会失败
 ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_user_id_fkey;
 ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS full_name VARCHAR(128);
-
--- storage_node: 冰箱(FRIDGE)绑定 MDM 设备(业务编号 + MDM 内部码快照)
-ALTER TABLE storage_node ADD COLUMN IF NOT EXISTS equipment_no   VARCHAR(64);
-ALTER TABLE storage_node ADD COLUMN IF NOT EXISTS equipment_code VARCHAR(32);
 
 -- -----------------------------------------------------------------------------
 -- storage_node: v1.5 存放位置层级树(覆盖层)
@@ -346,6 +351,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_storage_sibling
 CREATE INDEX IF NOT EXISTS ix_storage_parent ON storage_node (parent_id);
 CREATE INDEX IF NOT EXISTS ix_storage_type   ON storage_node (node_type);
 CREATE INDEX IF NOT EXISTS ix_storage_loc    ON storage_node (location_id);
+
+-- 老库补列: 冰箱(FRIDGE)绑定 MDM 设备(业务编号 + MDM 内部码快照)。
+-- 必须放在 CREATE TABLE 之后:全新库先建表(已含这两列),老库走这里补列
+ALTER TABLE storage_node ADD COLUMN IF NOT EXISTS equipment_no   VARCHAR(64);
+ALTER TABLE storage_node ADD COLUMN IF NOT EXISTS equipment_code VARCHAR(32);
 
 -- 回填: 从现有 location 三元组生成 ROOM/CABINET/CABINET_LAYER 树(幂等: 已有数据则跳过)
 DO $$
