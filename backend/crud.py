@@ -419,14 +419,61 @@ def update_node(
     node = db.get(StorageNode, node_id)
     if node is None:
         return None
-    if label is not None:
-        node.label = label
+    if label is not None and label != node.label:
+        _rename_node(db, node, label)
     if remark is not None:
         node.remark = remark
     if is_active is not None:
         node.is_active = is_active
     db.flush()
     return node
+
+
+# 改名需要同步 location 编号字段的节点类型(库存查询按 room_no/cabinet_no 显示位置)
+_RENAME_LOC_FIELD = {"ROOM": "room_no", "CABINET": "cabinet_no", "FRIDGE": "cabinet_no"}
+
+
+def _rename_node(db: Session, node: StorageNode, new_label: str) -> None:
+    """改名三处同步:本节点 label+path、全部子孙的 path 前缀、子树回链 location 的编号字段。
+    path 是建树时写死的展示串,不重建会一直显示旧名(曾发生 F007→TT-SC-009 改名后路径不变)。"""
+    old_path = node.path
+    parent = db.get(StorageNode, node.parent_id) if node.parent_id is not None else None
+    new_path = f"{parent.path} / {new_label}" if parent is not None and parent.path else new_label
+    node.label = new_label
+    node.path = new_path
+    db.flush()
+    if old_path and old_path != new_path:
+        db.execute(text(
+            """
+            WITH RECURSIVE sub AS (
+                SELECT node_id FROM material_mgmt.storage_node WHERE parent_id = :nid
+                UNION ALL
+                SELECT c.node_id
+                FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+            )
+            UPDATE material_mgmt.storage_node s
+            SET path = :new_path || substr(s.path, length(:old_path) + 1)
+            FROM sub
+            WHERE s.node_id = sub.node_id
+              AND left(s.path, length(:old_path) + 3) = :old_path || ' / '
+            """
+        ), {"nid": node.node_id, "new_path": new_path, "old_path": old_path})
+    loc_field = _RENAME_LOC_FIELD.get(node.node_type)
+    if loc_field:
+        db.execute(text(
+            f"""
+            WITH RECURSIVE sub AS (
+                SELECT node_id, location_id FROM material_mgmt.storage_node WHERE node_id = :nid
+                UNION ALL
+                SELECT c.node_id, c.location_id
+                FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
+            )
+            UPDATE material_mgmt.location l
+            SET {loc_field} = :new_label
+            FROM sub
+            WHERE l.location_id = sub.location_id
+            """
+        ), {"nid": node.node_id, "new_label": new_label})
 
 
 def _subtree_location_ids(db: Session, node_id: int) -> List[int]:

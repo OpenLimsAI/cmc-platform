@@ -383,10 +383,14 @@ def update_node(
     """改名 / 停用 / 备注(结构性字段不可改)。"""
     existing = db.get(crud.StorageNode, node_id)
     before = model_snapshot(existing) if existing else None
-    node = crud.update_node(
-        db, node_id,
-        label=payload.label, remark=payload.remark, is_active=payload.is_active,
-    )
+    try:
+        node = crud.update_node(
+            db, node_id,
+            label=payload.label, remark=payload.remark, is_active=payload.is_active,
+        )
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="同房间下已有同名位置,改名冲突")
     if node is None:
         raise HTTPException(status_code=404, detail=f"节点 {node_id} 不存在")
     write_audit(
