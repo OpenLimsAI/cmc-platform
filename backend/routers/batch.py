@@ -196,7 +196,8 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
         "aliquot_date": b.aliquot_date,
         "created_at": b.created_at,
         "current_qty": qty,
-        "location_name": b.location.name if b.location else None,
+        "location_name": crud.batch_cell_location_names(db, [b.batch_id]).get(b.batch_id)
+        or (b.location.name if b.location else None),
         "material_code": b.material.material_code if b.material else None,
         "material_name": b.material.name_cn if b.material else None,
         "unit": b.material.unit if b.material else None,
@@ -275,7 +276,8 @@ def update_batch(
         "aliquot_date": b.aliquot_date,
         "created_at": b.created_at,
         "current_qty": qty,
-        "location_name": b.location.name if b.location else None,
+        "location_name": crud.batch_cell_location_names(db, [b.batch_id]).get(b.batch_id)
+        or (b.location.name if b.location else None),
         "material_code": b.material.material_code if b.material else None,
         "material_name": b.material.name_cn if b.material else None,
         "unit": b.material.unit if b.material else None,

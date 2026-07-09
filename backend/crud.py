@@ -690,6 +690,42 @@ def batch_stored_cell_count(db: Session, batch_id: int) -> int:
     ).scalar_one()
 
 
+def batch_cell_location_names(db: Session, batch_ids: Sequence[int]) -> dict:
+    """孔位批次的真实位置文本(批量): {batch_id: 'TT-SC-002 A架1层A盒'(跨盒加 ' 等N盒')}。
+    批次挂的 location 是整台 -80 冰箱的锚定行(名字固定带 -L1,不代表真实层),
+    列表展示必须改用孔位占用聚合出的 冰箱/架/层/盒;非孔位批次不在返回里。"""
+    ids = [i for i in set(batch_ids) if i is not None]
+    if not ids:
+        return {}
+    rows = db.execute(text(
+        """
+        SELECT o.batch_id,
+               COALESCE(fr.label, fr.code) AS fridge,
+               rk.code AS rack, ly.code AS layer, bx.code AS box
+        FROM material_mgmt.cell_occupancy o
+        JOIN material_mgmt.storage_node c  ON c.node_id  = o.cell_node_id
+        JOIN material_mgmt.storage_node bx ON bx.node_id = c.parent_id
+        JOIN material_mgmt.storage_node ly ON ly.node_id = bx.parent_id
+        JOIN material_mgmt.storage_node rk ON rk.node_id = ly.parent_id
+        JOIN material_mgmt.storage_node fr ON fr.node_id = rk.parent_id
+        WHERE o.status = 'stored' AND o.batch_id = ANY(:ids)
+        GROUP BY o.batch_id, COALESCE(fr.label, fr.code), rk.code, ly.code, bx.code
+        ORDER BY o.batch_id, rk.code, ly.code, bx.code
+        """
+    ), {"ids": ids}).all()
+    boxes: dict = {}
+    for bid, fridge, rack, layer, box in rows:
+        boxes.setdefault(bid, []).append((fridge, rack, layer, box))
+    out = {}
+    for bid, bs in boxes.items():
+        fridge, rack, layer, box = bs[0]
+        name = f"{fridge} {rack}架{layer}层{box}盒"
+        if len(bs) > 1:
+            name += f" 等{len(bs)}盒"
+        out[bid] = name
+    return out
+
+
 def release_cells(
     db: Session, cell_node_ids: Sequence[int], operator: str,
     txn_date=None, purpose: Optional[str] = None, remark: Optional[str] = None,
@@ -1098,7 +1134,12 @@ def list_batches(
         Batch.expiry_date.asc().nullslast(),
         Batch.batch_id,
     )
-    return [tuple(r) for r in db.execute(stmt).all()]
+    rows = [tuple(r) for r in db.execute(stmt).all()]
+    cell_names = batch_cell_location_names(db, [r[0].batch_id for r in rows])
+    return [
+        (b, qty, cell_names.get(b.batch_id, loc), code, name, unit)
+        for b, qty, loc, code, name, unit in rows
+    ]
 
 
 def get_batch(db: Session, batch_id: int) -> Optional[Batch]:
@@ -1574,8 +1615,10 @@ def stock_by_batch(
     )
 
     today = date.today()
+    rows = db.execute(stmt).all()
+    cell_names = batch_cell_location_names(db, [r.batch_id for r in rows])
     out = []
-    for r in db.execute(stmt).all():
+    for r in rows:
         days = (r.expiry_date - today).days if r.expiry_date else None
         out.append({
             "batch_id": r.batch_id,
@@ -1594,7 +1637,7 @@ def stock_by_batch(
             "intake_operator_name": r.intake_operator_name,
             "expiry_date": r.expiry_date,
             "location_id": r.location_id,
-            "location_name": r.location_name,
+            "location_name": cell_names.get(r.batch_id, r.location_name),
             "received_date": r.received_date,
             "current_qty": Decimal(r.current_qty),
             "days_to_expiry": days,
@@ -1635,8 +1678,10 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
         )
         .order_by(Batch.expiry_date.asc())
     )
+    rows = db.execute(stmt).all()
+    cell_names = batch_cell_location_names(db, [r.batch_id for r in rows])
     out = []
-    for r in db.execute(stmt).all():
+    for r in rows:
         d = (r.expiry_date - today).days
         sev = severity_of(d, warning_threshold=days)
         if sev is None:
@@ -1651,7 +1696,7 @@ def expiry_alerts(db: Session, days: int = 90) -> List[dict]:
             "expiry_date": r.expiry_date,
             "days_to_expiry": d,
             "current_qty": Decimal(r.current_qty),
-            "location_name": r.location_name,
+            "location_name": cell_names.get(r.batch_id, r.location_name),
             "severity": sev,
         })
     return out
