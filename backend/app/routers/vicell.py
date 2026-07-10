@@ -132,29 +132,33 @@ async def get_growth(batch_key: str = Query(..., description="批次身份，如
 
 @router.get("/growth-by-procid")
 async def get_growth_by_procid(
-    source_instance: str = Query(..., description="工作站编码，如 rd_ws01_usp_lucullus_01"),
+    source_instance: str = Query(..., description="Lucullus 工作站编码，如 rd_ws01_usp_lucullus_01"),
     procid: int = Query(..., description="工艺批次编号（Lucullus procid）"),
 ):
-    """按工艺批次（source_instance + procid）取该批次关联的细胞生长曲线。
+    """按工艺批次（Lucullus 工作站 + procid）取该批次关联的细胞生长曲线。
 
     用于工艺曲线视图里把细胞指标叠到工艺趋势图上。
-    关联键 = fact_vicell.lucullus_procid（= 工艺批次 procid），带 source_instance 消歧。
+    关联链：dim_batch 按 batch_key 关联 fact_vicell，dim_batch 里记着工艺侧的
+    (source_instance, procid)。⚠️ procid 会跨工作站撞号（ws01 / ws02 都有 procid 1,2,3…），
+    所以必须带 Lucullus 工作站 source_instance 消歧——注意这是工艺侧编码，
+    不是 fact_vicell.source_instance（那是 Vi-CELL 仪器编码，恒为 rd_ws01_usp_vicell_01）。
     没关联到细胞数据时返回空 points（前端做空态提示），不报错。
     """
     sql = text(f"""
         SELECT
-            culture_day,
-            avg(viable_per_ml)   AS viable_per_ml,
-            avg(viability_pct)   AS viability_pct,
-            avg(total_per_ml)    AS total_per_ml,
-            avg(avg_diameter_um) AS avg_diameter_um,
-            count(*)             AS n
-        FROM {VIEW}
-        WHERE lucullus_procid = :procid
-          AND source_instance = :si
-          AND culture_day IS NOT NULL
-        GROUP BY culture_day
-        ORDER BY culture_day
+            fv.culture_day,
+            avg(fv.viable_per_ml)   AS viable_per_ml,
+            avg(fv.viability_pct)   AS viability_pct,
+            avg(fv.total_per_ml)    AS total_per_ml,
+            avg(fv.avg_diameter_um) AS avg_diameter_um,
+            count(*)                AS n
+        FROM {VIEW} fv
+        JOIN {SCHEMA}.dim_batch b ON b.batch_key = fv.batch_key
+        WHERE b.procid = :procid
+          AND b.source_instance = :si
+          AND fv.culture_day IS NOT NULL
+        GROUP BY fv.culture_day
+        ORDER BY fv.culture_day
     """)
     async with analytics_engine().connect() as conn:
         rows = (await conn.execute(sql, {"procid": procid, "si": source_instance})).mappings().all()
