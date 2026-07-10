@@ -622,6 +622,7 @@ export default function Home() {
                     fullRange={fullRange}
                     viewWindow={viewWindow}
                     onWindowChange={setViewWindow}
+                    xTickInterval={24}
                   />
                 </div>
               </div>

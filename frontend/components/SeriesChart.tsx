@@ -31,6 +31,7 @@ export function SeriesChart({
   viewWindow,
   onWindowChange,
   xName = "培养时间 (h)",
+  xTickInterval,
 }: {
   series: ChartSeries[];
   loading?: boolean;
@@ -42,6 +43,8 @@ export function SeriesChart({
   onWindowChange?: (win: ViewWindow | null) => void;
   // 横轴名。工艺曲线用「培养时间 (h)」，细胞生长曲线用「培养天 (day)」
   xName?: string;
+  // 横轴刻度固定间隔（工艺曲线传 24 = 每 24 小时一格；不传则 echarts 自动定刻度）
+  xTickInterval?: number;
 }) {
   const instRef = useRef<echartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -131,6 +134,8 @@ export function SeriesChart({
         nameGap: 28,
         min: fullRange ? fullRange.min : 0,
         max: fullRange ? fullRange.max : undefined,
+        // 传了固定间隔（如 24h）就每格对齐，否则让 echarts 自动定
+        interval: xTickInterval,
         axisLabel: {
           formatter: (v: number) => (Math.round(v * 10) / 10).toString(),
         },
@@ -164,7 +169,7 @@ export function SeriesChart({
       })),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow, xName]);
+  }, [series, fullRange, viewWindow, xName, xTickInterval]);
 
   function handleDataZoom() {
     const inst = instRef.current;
