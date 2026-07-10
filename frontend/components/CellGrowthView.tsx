@@ -63,9 +63,10 @@ export function CellGrowthView() {
     );
   }
 
-  // 三个级联筛选：项目编号 / 批次年份 / 罐号（"" = 全部）
+  // 四个级联筛选：项目编号 / 批次年份 / 批号 / 罐号（"" = 全部）
   const [fProject, setFProject] = useState<string>("");
   const [fYear, setFYear] = useState<string>("");
+  const [fBatch, setFBatch] = useState<string>("");
   const [fReactor, setFReactor] = useState<string>("");
 
   const batchesQ = useQuery({
@@ -99,39 +100,56 @@ export function CellGrowthView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchesQ.data, fProject]);
 
+  const batchOptions = useMemo(() => {
+    const s = new Set<string>();
+    allBatches.forEach((b) => {
+      if (fProject && projValue(b) !== fProject) return;
+      if (fYear && String(b.batch_year) !== fYear) return;
+      if (b.batch_number) s.add(b.batch_number);
+    });
+    return [...s].sort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchesQ.data, fProject, fYear]);
+
   const reactorOptions = useMemo(() => {
     const s = new Set<string>();
     allBatches.forEach((b) => {
       if (fProject && projValue(b) !== fProject) return;
       if (fYear && String(b.batch_year) !== fYear) return;
+      if (fBatch && b.batch_number !== fBatch) return;
       if (b.bioreactor_id) s.add(b.bioreactor_id);
     });
     return [...s].sort(sortReactor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchesQ.data, fProject, fYear]);
+  }, [batchesQ.data, fProject, fYear, fBatch]);
 
   const filteredBatches = useMemo(() => {
     return allBatches.filter((b) => {
       if (fProject && projValue(b) !== fProject) return false;
       if (fYear && String(b.batch_year) !== fYear) return false;
+      if (fBatch && b.batch_number !== fBatch) return false;
       if (fReactor && b.bioreactor_id !== fReactor) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchesQ.data, fProject, fYear, fReactor]);
+  }, [batchesQ.data, fProject, fYear, fBatch, fReactor]);
 
   // 上层筛选变了 → 下层若已失效则自动清空（保证级联一致）
   useEffect(() => {
     if (fYear && !yearOptions.map(String).includes(fYear)) setFYear("");
   }, [yearOptions, fYear]);
   useEffect(() => {
+    if (fBatch && !batchOptions.includes(fBatch)) setFBatch("");
+  }, [batchOptions, fBatch]);
+  useEffect(() => {
     if (fReactor && !reactorOptions.includes(fReactor)) setFReactor("");
   }, [reactorOptions, fReactor]);
 
-  const hasFilter = !!(fProject || fYear || fReactor);
+  const hasFilter = !!(fProject || fYear || fBatch || fReactor);
   function clearFilters() {
     setFProject("");
     setFYear("");
+    setFBatch("");
     setFReactor("");
   }
 
@@ -188,6 +206,23 @@ export function CellGrowthView() {
               {yearOptions.map((y) => (
                 <option key={y} value={String(y)}>
                   {y}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-500">
+              批号
+            </span>
+            <select
+              value={fBatch}
+              onChange={(e) => setFBatch(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">全部批号</option>
+              {batchOptions.map((bn) => (
+                <option key={bn} value={bn}>
+                  {bn}
                 </option>
               ))}
             </select>

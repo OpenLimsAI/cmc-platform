@@ -106,9 +106,10 @@ export default function Home() {
   // 当前可见时间窗口（放大后按此窗口向后端要更精细的数据）；null = 全览
   const [viewWindow, setViewWindow] = useState<ViewWindow | null>(null);
 
-  // 三个级联筛选：项目编号 / 批次年份 / 罐号（"" = 全部）
+  // 四个级联筛选：项目编号 / 批次年份 / 批号 / 罐号（"" = 全部）
   const [fProject, setFProject] = useState<string>("");
   const [fYear, setFYear] = useState<string>("");
+  const [fBatch, setFBatch] = useState<string>("");
   const [fReactor, setFReactor] = useState<string>("");
 
   const batchesQ = useQuery({ queryKey: ["batches"], queryFn: fetchBatches });
@@ -263,41 +264,59 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchesQ.data, fProject]);
 
-  // 罐号下拉：只显示当前项目+年份下有的罐号
+  // 批号下拉：只显示当前项目+年份下有的批号
+  const batchOptions = useMemo(() => {
+    const s = new Set<string>();
+    allBatches.forEach((b) => {
+      if (fProject && projValue(b) !== fProject) return;
+      if (fYear && String(b.batch_year) !== fYear) return;
+      if (b.batch_number) s.add(b.batch_number);
+    });
+    return [...s].sort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchesQ.data, fProject, fYear]);
+
+  // 罐号下拉：只显示当前项目+年份+批号下有的罐号
   const reactorOptions = useMemo(() => {
     const s = new Set<string>();
     allBatches.forEach((b) => {
       if (fProject && projValue(b) !== fProject) return;
       if (fYear && String(b.batch_year) !== fYear) return;
+      if (fBatch && b.batch_number !== fBatch) return;
       if (b.reactor) s.add(b.reactor);
     });
     return [...s].sort(sortReactor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchesQ.data, fProject, fYear]);
+  }, [batchesQ.data, fProject, fYear, fBatch]);
 
-  // 三个筛选都应用后，剩下的批次
+  // 四个筛选都应用后，剩下的批次
   const filteredBatches = useMemo(() => {
     return allBatches.filter((b) => {
       if (fProject && projValue(b) !== fProject) return false;
       if (fYear && String(b.batch_year) !== fYear) return false;
+      if (fBatch && b.batch_number !== fBatch) return false;
       if (fReactor && b.reactor !== fReactor) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchesQ.data, fProject, fYear, fReactor]);
+  }, [batchesQ.data, fProject, fYear, fBatch, fReactor]);
 
   // 上层筛选变了 → 下层若已失效则自动清空（保证级联一致）
   useEffect(() => {
     if (fYear && !yearOptions.map(String).includes(fYear)) setFYear("");
   }, [yearOptions, fYear]);
   useEffect(() => {
+    if (fBatch && !batchOptions.includes(fBatch)) setFBatch("");
+  }, [batchOptions, fBatch]);
+  useEffect(() => {
     if (fReactor && !reactorOptions.includes(fReactor)) setFReactor("");
   }, [reactorOptions, fReactor]);
 
-  const hasFilter = !!(fProject || fYear || fReactor);
+  const hasFilter = !!(fProject || fYear || fBatch || fReactor);
   function clearFilters() {
     setFProject("");
     setFYear("");
+    setFBatch("");
     setFReactor("");
   }
 
@@ -393,6 +412,23 @@ export default function Home() {
                 {yearOptions.map((y) => (
                   <option key={y} value={String(y)}>
                     {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">
+                批号
+              </span>
+              <select
+                value={fBatch}
+                onChange={(e) => setFBatch(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">全部批号</option>
+                {batchOptions.map((bn) => (
+                  <option key={bn} value={bn}>
+                    {bn}
                   </option>
                 ))}
               </select>

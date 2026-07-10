@@ -13,6 +13,7 @@ export interface Batch {
   reactor_name: string | null;
   project_code: string | null; // 项目编号（解析自批次名，保留前导零；解析不出为 null）
   batch_year: number | null; // 批次年份（R2605→2026，无则用开始日期年份）
+  batch_number: string | null; // 批号（解析自批次名，R+4位大写；解析不出为 null）
   reactor: string | null; // 罐号（= reactor_name，权威列）
 }
 

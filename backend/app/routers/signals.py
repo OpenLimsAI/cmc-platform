@@ -21,15 +21,19 @@ _TOKEN_SPLIT = re.compile(r"[_\s]+")
 _BATCH_NUMBER = re.compile(r"^R(\d{2})(\d{2})$", re.IGNORECASE)  # R2605 -> 年26 流水05
 
 
-def parse_batch_name(procname: str | None, starttime) -> tuple[str | None, int | None]:
-    """从批次名解析 (项目编号, 批次年份)。
+def parse_batch_name(
+    procname: str | None, starttime
+) -> tuple[str | None, int | None, str | None]:
+    """从批次名解析 (项目编号, 批次年份, 批号)。
 
     - 项目编号：批次名第一段，纯数字才算，保留前导零当字符串（"016"≠"16"）；否则 None。
+    - 批号：批次名里 R+4位 的那段（R2605），统一大写；没有则 None。
     - 批次年份：批号 R2605 的前两位 → 2026；批次名里没有 R+4位时，回退用开始时间的年份。
-    解析不出来的批次（如 test610）项目编号为 None，前端归入"未识别"。
+    解析不出来的批次（如 test610）项目编号 / 批号为 None，前端归入"未识别"。
     """
     project_code: str | None = None
     batch_year: int | None = None
+    batch_number: str | None = None
     if procname:
         tokens = [t for t in _TOKEN_SPLIT.split(procname.strip()) if t]
         if tokens and tokens[0].isdigit():
@@ -37,11 +41,12 @@ def parse_batch_name(procname: str | None, starttime) -> tuple[str | None, int |
         for t in tokens:
             m = _BATCH_NUMBER.match(t)
             if m:
+                batch_number = t.upper()
                 batch_year = 2000 + int(m.group(1))
                 break
     if batch_year is None and starttime is not None:
         batch_year = starttime.year
-    return project_code, batch_year
+    return project_code, batch_year, batch_number
 
 
 @router.get("/batches")
@@ -76,9 +81,12 @@ async def list_batches(
     out = []
     for r in rows:
         d = dict(r)
-        project_code, batch_year = parse_batch_name(d.get("procname"), d.get("starttime"))
+        project_code, batch_year, batch_number = parse_batch_name(
+            d.get("procname"), d.get("starttime")
+        )
         d["project_code"] = project_code      # 项目编号（字符串，保留前导零），解析不出为 None
         d["batch_year"] = batch_year          # 批次年份（int）
+        d["batch_number"] = batch_number      # 批号（R+4位，大写），解析不出为 None
         d["reactor"] = d.get("reactor_name")  # 罐号（以 reactor_name 列为权威）
         out.append(d)
     return out
