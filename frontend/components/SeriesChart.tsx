@@ -144,7 +144,7 @@ export function SeriesChart({
             if (!params.length) return "";
             const hours = Number(params[0].axisValue);
             const day = Math.floor(hours / 24);
-            let head = `培养 ${hours.toFixed(2)} h · 第 ${day} 天`;
+            let head = `第 ${day} 天 · ${hours.toFixed(2)} h`;
             if (Number.isFinite(baseMs)) {
               head += ` · 北京时间 ${fmtBeijing(baseMs + hours * 3600_000)}`;
             }
