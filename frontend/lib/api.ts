@@ -121,6 +121,23 @@ export async function fetchGrowth(batchKey: string): Promise<Growth> {
   return data;
 }
 
+// 按工艺批次（source_instance + procid）取关联的细胞生长曲线，用于工艺图叠加
+export interface GrowthByProcid {
+  source_instance: string;
+  procid: number;
+  points: GrowthPoint[];
+}
+
+export async function fetchGrowthByProcid(
+  sourceInstance: string,
+  procid: number
+): Promise<GrowthByProcid> {
+  const { data } = await http.get<GrowthByProcid>("/api/vicell/growth-by-procid", {
+    params: { source_instance: sourceInstance, procid },
+  });
+  return data;
+}
+
 /** 把工作站编码变成人话，如 rd_ws01_usp_lucullus_01 -> WS01 */
 export function workstationLabel(sourceInstance: string): string {
   const m = sourceInstance.match(/ws(\d+)/i);

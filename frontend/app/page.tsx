@@ -6,9 +6,11 @@ import {
   fetchBatches,
   fetchChannels,
   fetchSeries,
+  fetchGrowthByProcid,
   workstationLabel,
   type Batch,
   type Channel,
+  type GrowthPoint,
 } from "@/lib/api";
 import {
   SeriesChart,
@@ -21,6 +23,19 @@ type ViewMode = "process" | "cell";
 
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
+// 工艺图里可叠加的细胞指标（虚拟通道，数据来自 Vi-CELL 按 procid 关联）
+// 横轴用培养小时 = culture_day × 24，好和工艺时序对齐叠画
+const CELL_OVERLAYS: {
+  code: string;
+  name: string;
+  unit: string;
+  pick: (p: GrowthPoint) => number | null;
+}[] = [
+  { code: "total_per_ml", name: "总细胞密度", unit: "×10⁶/ml", pick: (p) => p.total_per_ml },
+  { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", pick: (p) => p.viable_per_ml },
+  { code: "viability_pct", name: "活率", unit: "%", pick: (p) => p.viability_pct },
+];
+
 // 项目编号解析不出的批次归入这个桶
 const PROJ_NONE = "__none__";
 const projValue = (b: Batch) => b.project_code ?? PROJ_NONE;
@@ -29,6 +44,31 @@ const projLabel = (v: string) => (v === PROJ_NONE ? "未识别" : v);
 function fmtDate(s: string | null): string {
   if (!s) return "—";
   return s.slice(0, 10);
+}
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+// 按 UTC 格式化为「YYYY-MM-DD HH:mm」（与批次时间的 UTC 存储/显示一致）
+function fmtDateTime(d: Date): string {
+  return (
+    `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ` +
+    `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`
+  );
+}
+
+// 批次数据起止时间 = 开始时刻 + fullRange（培养小时）的 min/max。缺数据返回 null。
+function dataRangeLabel(
+  start: string | null,
+  range: ViewWindow | null
+): string | null {
+  if (!start || !range) return null;
+  const base = new Date(start);
+  if (isNaN(base.getTime())) return null;
+  const from = new Date(base.getTime() + range.min * 3600_000);
+  const to = new Date(base.getTime() + range.max * 3600_000);
+  return `数据 ${fmtDateTime(from)} → ${fmtDateTime(to)}`;
 }
 
 function batchKey(b: Batch) {
@@ -61,6 +101,8 @@ export default function Home() {
   const [view, setView] = useState<ViewMode>("process");
   const [selected, setSelected] = useState<Batch | null>(null);
   const [channels, setChannels] = useState<string[]>([]);
+  // 叠加到工艺图上的细胞指标（虚拟通道 code，见 CELL_OVERLAYS）
+  const [cellMetrics, setCellMetrics] = useState<string[]>([]);
   // 当前可见时间窗口（放大后按此窗口向后端要更精细的数据）；null = 全览
   const [viewWindow, setViewWindow] = useState<ViewWindow | null>(null);
 
@@ -75,6 +117,14 @@ export default function Home() {
     queryKey: ["channels", selected?.source_instance, selected?.procid],
     queryFn: () => fetchChannels(selected!.source_instance, selected!.procid),
     enabled: !!selected,
+  });
+
+  // 选中批次关联的细胞生长曲线（按 source_instance + procid 关联），供叠图用
+  const cellGrowthQ = useQuery({
+    queryKey: ["process-cell-growth", selected?.source_instance, selected?.procid],
+    queryFn: () =>
+      fetchGrowthByProcid(selected!.source_instance, selected!.procid),
+    enabled: !!selected && cellMetrics.length > 0,
   });
 
   // 选新批次后，自动勾选默认通道（存在的话）
@@ -147,11 +197,35 @@ export default function Home() {
         points: data.points,
       });
     });
+    // 追加勾选的细胞指标：培养天 ×24 → 培养小时，叠到工艺时序上
+    const cellPts = cellGrowthQ.data?.points ?? [];
+    CELL_OVERLAYS.forEach((m) => {
+      if (!cellMetrics.includes(m.code)) return;
+      out.push({
+        code: m.code,
+        name: m.name,
+        unit: m.unit,
+        points: cellPts
+          .filter((p) => m.pick(p) != null)
+          .map((p) => ({
+            time_hours: p.culture_day * 24,
+            ts: "",
+            value: m.pick(p) as number,
+          })),
+      });
+    });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels, seriesQs.map((q) => q.dataUpdatedAt).join(","), chMeta]);
+  }, [
+    channels,
+    seriesQs.map((q) => q.dataUpdatedAt).join(","),
+    chMeta,
+    cellMetrics,
+    cellGrowthQ.dataUpdatedAt,
+  ]);
 
-  const chartLoading = seriesQs.some((q) => q.isFetching);
+  const chartLoading =
+    seriesQs.some((q) => q.isFetching) || cellGrowthQ.isFetching;
 
   // 原始采集点数 / 抽稀后显示点数（让用户知道图上不是全量点）
   const counts = useMemo(() => {
@@ -230,11 +304,18 @@ export default function Home() {
   function pickBatch(b: Batch) {
     setSelected(b);
     setChannels([]);
+    setCellMetrics([]);
     setViewWindow(null);
   }
 
   function toggleChannel(code: string) {
     setChannels((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  }
+
+  function toggleCellMetric(code: string) {
+    setCellMetrics((prev) =>
       prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
     );
   }
@@ -407,7 +488,7 @@ export default function Home() {
                     {selected.procname || `批次 ${selected.procid}`}
                   </span>
                   <span className="text-xs text-slate-400">
-                    选通道（可多选，不同单位自动分坐标轴）
+                    {dataRangeLabel(selected.starttime, fullRange) ?? "数据 —"}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -442,7 +523,41 @@ export default function Home() {
                         </button>
                       );
                     })}
+                  {/* 细胞指标虚拟通道：叠到工艺趋势图上一起看 */}
+                  {!channelsQ.isLoading && (
+                    <span className="mx-1 self-center text-xs text-slate-300">
+                      细胞
+                    </span>
+                  )}
+                  {CELL_OVERLAYS.map((m) => {
+                    const on = cellMetrics.includes(m.code);
+                    return (
+                      <button
+                        key={m.code}
+                        onClick={() => toggleCellMetric(m.code)}
+                        title={`Vi-CELL 细胞指标 · ${m.name}`}
+                        className={`rounded-full border border-dashed px-2.5 py-1 text-xs transition ${
+                          on
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-emerald-300 bg-white text-emerald-700 hover:border-emerald-400"
+                        }`}
+                      >
+                        {m.name}
+                        <span className={on ? "opacity-80" : "text-emerald-400"}>
+                          {" "}
+                          {m.unit}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
+                {cellMetrics.length > 0 &&
+                  cellGrowthQ.isSuccess &&
+                  (cellGrowthQ.data?.points.length ?? 0) === 0 && (
+                    <div className="mt-1.5 text-xs text-amber-600">
+                      该批次暂无关联的细胞数据（生产环境有关联时自动叠加显示）
+                    </div>
+                  )}
               </div>
 
               <div className="flex items-center gap-3 px-5 pt-2 text-xs text-slate-400">

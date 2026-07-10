@@ -6,8 +6,25 @@ import {
   fetchVicellBatches,
   fetchGrowth,
   type VicellBatch,
+  type GrowthPoint,
 } from "@/lib/api";
 import { SeriesChart, type ChartSeries } from "@/components/SeriesChart";
+
+// 可选细胞指标（chip 勾选）。不同单位 SeriesChart 会自动左右分坐标轴。
+const CELL_METRICS: {
+  code: string;
+  name: string;
+  unit: string;
+  pick: (p: GrowthPoint) => number | null;
+}[] = [
+  { code: "total_per_ml", name: "总细胞密度", unit: "×10⁶/ml", pick: (p) => p.total_per_ml },
+  { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", pick: (p) => p.viable_per_ml },
+  { code: "viability_pct", name: "活率", unit: "%", pick: (p) => p.viability_pct },
+  { code: "avg_diameter_um", name: "平均直径", unit: "µm", pick: (p) => p.avg_diameter_um },
+];
+
+// 默认勾选：活细胞密度 + 活率（保持原有行为）
+const DEFAULT_METRICS = ["viable_per_ml", "viability_pct"];
 
 // 项目编号解析不出的批次归入这个桶
 const PROJ_NONE = "__none__";
@@ -37,6 +54,14 @@ function sortReactor(a: string, b: string): number {
 
 export function CellGrowthView() {
   const [selected, setSelected] = useState<VicellBatch | null>(null);
+  // 勾选要看的细胞指标（code 见 CELL_METRICS）
+  const [metrics, setMetrics] = useState<string[]>(DEFAULT_METRICS);
+
+  function toggleMetric(code: string) {
+    setMetrics((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  }
 
   // 三个级联筛选：项目编号 / 批次年份 / 罐号（"" = 全部）
   const [fProject, setFProject] = useState<string>("");
@@ -110,32 +135,23 @@ export function CellGrowthView() {
     setFReactor("");
   }
 
-  // 生长曲线两条：活细胞密度（×10⁶/ml）+ 活率（%），不同单位自动分左右两轴
+  // 生长曲线：按勾选的指标各画一条，不同单位自动分左右坐标轴
   const chartSeries: ChartSeries[] = useMemo(() => {
     const pts = growthQ.data?.points ?? [];
     if (!pts.length) return [];
-    const mk = (
-      code: string,
-      name: string,
-      unit: string,
-      pick: (p: (typeof pts)[number]) => number | null
-    ): ChartSeries => ({
-      code,
-      name,
-      unit,
+    return CELL_METRICS.filter((m) => metrics.includes(m.code)).map((m) => ({
+      code: m.code,
+      name: m.name,
+      unit: m.unit,
       points: pts
-        .filter((p) => pick(p) != null)
+        .filter((p) => m.pick(p) != null)
         .map((p) => ({
           time_hours: p.culture_day, // 复用 SeriesChart：横轴此处是培养天
           ts: "",
-          value: pick(p) as number,
+          value: m.pick(p) as number,
         })),
-    });
-    return [
-      mk("vcd", "活细胞密度", "×10⁶/ml", (p) => p.viable_per_ml),
-      mk("via", "活率", "%", (p) => p.viability_pct),
-    ];
-  }, [growthQ.data]);
+    }));
+  }, [growthQ.data, metrics]);
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -264,11 +280,34 @@ export function CellGrowthView() {
         ) : (
           <>
             <div className="border-b border-slate-200 bg-white px-5 py-3">
-              <div className="flex items-baseline gap-2">
+              <div className="mb-2 flex items-baseline gap-2">
                 <span className="font-medium">{selected.batch_key}</span>
                 <span className="text-xs text-slate-400">
-                  细胞生长曲线 · 横轴培养天 · 活细胞密度 + 活率（双轴）
+                  细胞生长曲线 · 横轴培养天 · 选指标（不同单位自动分坐标轴）
                 </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {CELL_METRICS.map((m) => {
+                  const on = metrics.includes(m.code);
+                  return (
+                    <button
+                      key={m.code}
+                      onClick={() => toggleMetric(m.code)}
+                      title={m.name}
+                      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                        on
+                          ? "border-blue-500 bg-blue-500 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      {m.name}
+                      <span className={on ? "opacity-80" : "text-slate-400"}>
+                        {" "}
+                        {m.unit}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="min-h-0 flex-1 px-4 pb-4 pt-2">
