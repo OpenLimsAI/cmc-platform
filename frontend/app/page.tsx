@@ -68,7 +68,10 @@ function dataRangeLabel(
   if (isNaN(base.getTime())) return null;
   const from = new Date(base.getTime() + range.min * 3600_000);
   const to = new Date(base.getTime() + range.max * 3600_000);
-  return `数据 ${fmtDateTime(from)} → ${fmtDateTime(to)}`;
+  // 共多少天 = 数据跨度小时数 / 24（整数不带小数，否则留一位）
+  const days = (range.max - range.min) / 24;
+  const dayStr = Number.isInteger(days) ? String(days) : days.toFixed(1);
+  return `数据 ${fmtDateTime(from)} → ${fmtDateTime(to)} · 共 ${dayStr} 天`;
 }
 
 function batchKey(b: Batch) {
@@ -623,6 +626,7 @@ export default function Home() {
                     viewWindow={viewWindow}
                     onWindowChange={setViewWindow}
                     xTickInterval={24}
+                    startTime={selected.starttime}
                   />
                 </div>
               </div>

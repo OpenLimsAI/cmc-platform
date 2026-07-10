@@ -24,6 +24,25 @@ const COLORS = [
   "#0891b2", "#db2777", "#65a30d", "#ea580c", "#4f46e5",
 ];
 
+const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
+
+// 把 UTC 毫秒转成北京时间（UTC+8）「YYYY-MM-DD HH:mm」
+function fmtBeijing(ms: number): string {
+  const d = new Date(ms + 8 * 3600_000);
+  return (
+    `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ` +
+    `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`
+  );
+}
+
+// echarts tooltip（trigger:axis）回调拿到的单条 series 参数（只用到这几个字段）
+interface TooltipParam {
+  axisValue: number;
+  marker: string;
+  seriesName: string;
+  value: number | number[];
+}
+
 export function SeriesChart({
   series,
   loading,
@@ -32,6 +51,7 @@ export function SeriesChart({
   onWindowChange,
   xName = "培养时间 (h)",
   xTickInterval,
+  startTime,
 }: {
   series: ChartSeries[];
   loading?: boolean;
@@ -45,6 +65,8 @@ export function SeriesChart({
   xName?: string;
   // 横轴刻度固定间隔（工艺曲线传 24 = 每 24 小时一格；不传则 echarts 自动定刻度）
   xTickInterval?: number;
+  // 批次开始时刻（ISO）。传了 = 横轴是培养小时：tooltip 顶部补「第 N 天」+ 北京时间
+  startTime?: string | null;
 }) {
   const instRef = useRef<echartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,15 +132,43 @@ export function SeriesChart({
       zEnd = ((viewWindow.max - fullRange.min) / span) * 100;
     }
     const z = { start: zStart, end: zEnd };
+
+    // 横轴是培养小时时（工艺曲线），tooltip 顶部除小时外再补「第 N 天」+ 北京时间。
+    // 天数规则：0h=第0天，满 24h 进第 1 天 → floor(小时/24)。
+    const baseMs = startTime ? new Date(startTime).getTime() : NaN;
+    const tooltip = startTime
+      ? {
+          trigger: "axis" as const,
+          axisPointer: { type: "cross" as const },
+          formatter: (params: TooltipParam[]) => {
+            if (!params.length) return "";
+            const hours = Number(params[0].axisValue);
+            const day = Math.floor(hours / 24);
+            let head = `培养 ${hours.toFixed(2)} h · 第 ${day} 天`;
+            if (Number.isFinite(baseMs)) {
+              head += ` · 北京时间 ${fmtBeijing(baseMs + hours * 3600_000)}`;
+            }
+            const rows = params
+              .map((p) => {
+                const y = Array.isArray(p.value) ? p.value[1] : p.value;
+                const vs = typeof y === "number" ? y.toFixed(3) : y;
+                return `<div>${p.marker}${p.seriesName}: <b>${vs}</b></div>`;
+              })
+              .join("");
+            return `<div style="font-weight:600;margin-bottom:4px">${head}</div>${rows}`;
+          },
+        }
+      : {
+          trigger: "axis" as const,
+          axisPointer: { type: "cross" as const },
+          valueFormatter: (v: number) =>
+            typeof v === "number" ? v.toFixed(3) : v,
+        };
+
     return {
       animation: false,
       color: COLORS,
-      tooltip: {
-        trigger: "axis" as const,
-        axisPointer: { type: "cross" as const },
-        valueFormatter: (v: number) =>
-          typeof v === "number" ? v.toFixed(3) : v,
-      },
+      tooltip,
       legend: { top: 0, type: "scroll" as const },
       grid: {
         top: 44,
@@ -169,7 +219,7 @@ export function SeriesChart({
       })),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow, xName, xTickInterval]);
+  }, [series, fullRange, viewWindow, xName, xTickInterval, startTime]);
 
   function handleDataZoom() {
     const inst = instRef.current;
