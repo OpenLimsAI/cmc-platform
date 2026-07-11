@@ -90,14 +90,20 @@ async def get_growth(batch_key: str = Query(..., description="批次身份，如
         GROUP BY culture_day
         ORDER BY culture_day
     """)
+    # LEFT JOIN 研发批号登记系统的权威维度 batch.v_batch_dim（rd-batch-registry），
+    # 拿到看板原本没有的「代次 generation」与「父容器 seeded_from_stages（谁分自谁）」。
+    # 键：新格式样品的 batch_key（007_2601_A1）与 v_batch_dim.batch_key 一致；旧格式无匹配则为空。
     meta_sql = text(f"""
         SELECT
-            min(project_id)    AS project_id,
-            min(batch_number)  AS batch_number,
-            min(bioreactor_id) AS bioreactor_id,
-            count(*)           AS n_samples
-        FROM {VIEW}
-        WHERE batch_key = :bk
+            min(fv.project_id)         AS project_id,
+            min(fv.batch_number)       AS batch_number,
+            min(fv.bioreactor_id)      AS bioreactor_id,
+            count(*)                   AS n_samples,
+            min(d.generation)          AS generation,
+            min(d.seeded_from_stages)  AS seeded_from_stages
+        FROM {VIEW} fv
+        LEFT JOIN batch.v_batch_dim d ON d.batch_key = fv.batch_key
+        WHERE fv.batch_key = :bk
     """)
     async with analytics_engine().connect() as conn:
         rows = (await conn.execute(sql, {"bk": batch_key})).mappings().all()
@@ -126,6 +132,9 @@ async def get_growth(batch_key: str = Query(..., description="批次身份，如
         "batch_number": meta["batch_number"] if meta else None,
         "bioreactor_id": meta["bioreactor_id"] if meta else None,
         "n_samples": int(meta["n_samples"]) if meta else 0,
+        # 来自 rd-batch-registry 登记表（新格式批次才有；旧格式为 None）
+        "generation": meta["generation"] if meta else None,
+        "seeded_from_stages": meta["seeded_from_stages"] if meta else None,
         "points": points,
     }
 
