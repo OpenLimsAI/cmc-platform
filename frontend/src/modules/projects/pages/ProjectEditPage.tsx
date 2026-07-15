@@ -5,6 +5,7 @@ import {
   Form,
   Input,
   Select,
+  Switch,
   DatePicker,
   Space,
   Typography,
@@ -26,7 +27,10 @@ import {
   PROJECT_NATURE_OPTIONS,
   PROJECT_PHASE_OPTIONS,
   PROJECT_TYPE_OPTIONS,
+  REGULATORY_CHANGE_LEVEL_OPTIONS,
 } from '../constants';
+
+const POST_APPROVAL_NATURES = ['cmc_change', 'lcm'];
 
 const { Title } = Typography;
 
@@ -39,6 +43,10 @@ interface FormValues {
   project_nature?: ProjectUpdatePayload['project_nature'];
   owning_function?: ProjectUpdatePayload['owning_function'];
   asset_id?: number;
+  regulatory_change_level?: ProjectUpdatePayload['regulatory_change_level'];
+  pre_approval_required?: boolean;
+  comparability_study_ref?: string;
+  legacy_project_id?: string;
   program_name?: string;
   department?: string;
   objective?: string;
@@ -57,6 +65,8 @@ export function ProjectEditPage() {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FormValues>();
   const category = Form.useWatch('project_category', form);
+  const nature = Form.useWatch('project_nature', form);
+  const showRegulatory = POST_APPROVAL_NATURES.includes(nature ?? '');
 
   const {
     data: proj,
@@ -89,6 +99,10 @@ export function ProjectEditPage() {
         project_nature: proj.project_nature,
         owning_function: proj.owning_function,
         asset_id: proj.asset_id ?? undefined,
+        regulatory_change_level: proj.regulatory_change_level ?? undefined,
+        pre_approval_required: proj.pre_approval_required ?? undefined,
+        comparability_study_ref: proj.comparability_study_ref ?? undefined,
+        legacy_project_id: proj.legacy_project_id ?? undefined,
         program_name: proj.program_name ?? undefined,
         department: proj.department ?? undefined,
         objective: proj.objective ?? undefined,
@@ -134,6 +148,10 @@ export function ProjectEditPage() {
       project_nature: values.project_nature,
       owning_function: values.owning_function,
       asset_id: values.project_category === 'asset_related' ? values.asset_id : undefined,
+      regulatory_change_level: showRegulatory ? values.regulatory_change_level : undefined,
+      pre_approval_required: showRegulatory ? values.pre_approval_required : undefined,
+      comparability_study_ref: showRegulatory ? values.comparability_study_ref : undefined,
+      legacy_project_id: values.legacy_project_id,
       program_name: values.program_name,
       department: values.department,
       objective: values.objective,
@@ -258,6 +276,36 @@ export function ProjectEditPage() {
               />
             </Form.Item>
           )}
+
+          {showRegulatory && (
+            <Space size="large" style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <Form.Item
+                label="变更级别"
+                name="regulatory_change_level"
+                rules={[{ required: true, message: 'CMC 变更 / LCM 项目须选变更级别' }]}
+                style={{ flex: 1 }}
+                extra="SMP §7A.4 / CDE 变更指导原则"
+              >
+                <Select options={REGULATORY_CHANGE_LEVEL_OPTIONS} />
+              </Form.Item>
+              <Form.Item
+                label="需预先获批"
+                name="pre_approval_required"
+                valuePropName="checked"
+                style={{ flex: 1 }}
+                extra="major 级由系统强制为是"
+              >
+                <Switch />
+              </Form.Item>
+              <Form.Item label="可比性研究编号" name="comparability_study_ref" style={{ flex: 1 }}>
+                <Input maxLength={50} placeholder="ICH Q5E Study ID（可选）" />
+              </Form.Item>
+            </Space>
+          )}
+
+          <Form.Item label="历史遗留编号" name="legacy_project_id">
+            <Input maxLength={32} placeholder="可选，如 PRJ-2024-011" />
+          </Form.Item>
 
           <Space size="large" style={{ display: 'flex' }}>
             <Form.Item label="所属 Program" name="program_name" style={{ flex: 1 }}>

@@ -150,6 +150,7 @@ async def test_filter_by_category_and_nature(admin_client, unique_suffix):
             "project_type": "cmc",
             "project_category": "asset_related",
             "project_nature": "cmc_change",
+            "regulatory_change_level": "moderate",
             "asset_id": aid,
         },
     )

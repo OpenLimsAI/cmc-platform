@@ -9,6 +9,8 @@ import type {
   ProjectMilestone,
   ProjectMilestoneCreatePayload,
   ProjectMilestoneUpdatePayload,
+  ProjectRelationshipCreatePayload,
+  ProjectRelationshipItem,
   ProjectStatusChangePayload,
   ProjectAssetLink,
   ProjectAssetLinkFromProjectPayload,
@@ -97,6 +99,20 @@ export const projectsApi = {
     api.delete(`/projects/${encodeURIComponent(code)}/team/${team_id}`, {
       data: { change_reason },
     }),
+
+  // SMP §11.4-11.6 项目关系（合并/拆分/衍生）
+  listRelationships: (code: string) =>
+    unwrap<ProjectRelationshipItem[]>(
+      api.get(`/projects/${encodeURIComponent(code)}/relationships`)
+    ),
+
+  addRelationship: (code: string, payload: ProjectRelationshipCreatePayload) =>
+    unwrap<ProjectRelationshipItem>(
+      api.post(`/projects/${encodeURIComponent(code)}/relationships`, payload)
+    ),
+
+  deleteRelationship: (code: string, relationship_id: number) =>
+    api.delete(`/projects/${encodeURIComponent(code)}/relationships/${relationship_id}`),
 
   // ref.project_substance link/unlink (DM-MDM-001 §11.2 复合 PK)
   listSubstances: (code: string, include_deleted = false) =>

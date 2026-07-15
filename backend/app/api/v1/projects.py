@@ -19,6 +19,7 @@ from app.domains.prs.schemas import (
     ProjectMilestoneCreate,
     ProjectMilestoneDelete,
     ProjectMilestoneUpdate,
+    ProjectRelationshipCreate,
     ProjectStatusChange,
     ProjectTeamMemberCreate,
     ProjectTeamMemberRemove,
@@ -532,6 +533,59 @@ async def unlink_asset_from_project(
 ):
     service = ProjectAssetLinkService(db)
     await service.unlink(code, asset_code, user, reason=payload.change_reason)
+    return None
+
+
+# ============== 项目关系子资源（SMP §11.4-11.6 合并/拆分/衍生）==============
+@router.get("/{code}/relationships", summary="项目关系列表（含 in/out 方向）")
+async def list_project_relationships(
+    code: str,
+    request: Request,
+    user: User = Depends(require_permission("project:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ProjectService(db)
+    items = await service.list_relationships(code)
+    return success(
+        data=[i.model_dump(mode="json") for i in items],
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.post(
+    "/{code}/relationships",
+    status_code=status.HTTP_201_CREATED,
+    summary="新建项目关系（merged_into/split_from/derived_from/depends_on/blocks）",
+)
+async def add_project_relationship(
+    code: str,
+    payload: ProjectRelationshipCreate,
+    request: Request,
+    user: User = Depends(require_permission("project:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ProjectService(db)
+    item = await service.add_relationship(code, payload, user)
+    return success(
+        data=item.model_dump(mode="json"),
+        message="关系已建立",
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.delete(
+    "/{code}/relationships/{relationship_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除项目关系",
+)
+async def delete_project_relationship(
+    code: str,
+    relationship_id: int,
+    user: User = Depends(require_permission("project:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ProjectService(db)
+    await service.delete_relationship(code, relationship_id, user)
     return None
 
 

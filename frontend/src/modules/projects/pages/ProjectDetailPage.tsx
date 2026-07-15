@@ -36,6 +36,7 @@ import { MilestoneTable } from '../components/MilestoneTable';
 import { TeamTable } from '../components/TeamTable';
 import { ProjectAssetTab } from '../components/ProjectAssetTab';
 import { ProjectSubstanceTab } from '../components/ProjectSubstanceTab';
+import { ProjectRelationshipTab } from '../components/ProjectRelationshipTab';
 import type { ProjectDetail } from '@/api/types';
 import {
   AVAILABLE_PROJECT_ACTIONS,
@@ -46,6 +47,7 @@ import {
   PROJECT_PHASE_OPTIONS,
   PROJECT_STATUS_COLOR,
   PROJECT_TYPE_OPTIONS,
+  REGULATORY_CHANGE_LEVEL_OPTIONS,
 } from '../constants';
 
 const { Title, Paragraph } = Typography;
@@ -219,6 +221,35 @@ export function ProjectDetailPage() {
                 label: 'DGC 批准号',
                 children: proj.governance_approval_ref ?? '—',
               },
+              {
+                key: 'regulatory_change_level',
+                label: '变更级别',
+                children: proj.regulatory_change_level
+                  ? REGULATORY_CHANGE_LEVEL_OPTIONS.find(
+                      (o) => o.value === proj.regulatory_change_level,
+                    )?.label ?? proj.regulatory_change_level
+                  : '—',
+              },
+              {
+                key: 'pre_approval_required',
+                label: '需预先获批',
+                children:
+                  proj.pre_approval_required == null
+                    ? '—'
+                    : proj.pre_approval_required
+                      ? '是'
+                      : '否',
+              },
+              {
+                key: 'comparability_study_ref',
+                label: '可比性研究编号',
+                children: proj.comparability_study_ref ?? '—',
+              },
+              {
+                key: 'legacy_project_id',
+                label: '历史遗留编号',
+                children: proj.legacy_project_id ?? '—',
+              },
               { key: 'program_name', label: '所属 Program', children: proj.program_name ?? '—' },
               { key: 'department', label: '主责部门（自由文本）', children: proj.department ?? '—' },
               { key: 'priority', label: '优先级', children: proj.priority ?? '—' },
@@ -313,6 +344,11 @@ export function ProjectDetailPage() {
       key: 'assets',
       label: '关联资产',
       children: <ProjectAssetTab projectCode={proj.project_code} />,
+    },
+    {
+      key: 'relationships',
+      label: '项目关系',
+      children: <ProjectRelationshipTab projectCode={proj.project_code} />,
     },
     {
       key: 'history',

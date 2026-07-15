@@ -600,6 +600,33 @@ export type OwningFunction =
   | 'pmo'
   | 'other';
 
+// SMP V2.1 §7A 上市后变更级别
+export type RegulatoryChangeLevel = 'minor' | 'moderate' | 'major';
+
+// SMP V2.1 §11.4-11.6 项目关系类型
+export type ProjectRelationshipType =
+  | 'merged_into'
+  | 'split_from'
+  | 'derived_from'
+  | 'depends_on'
+  | 'blocks';
+
+export interface ProjectRelationshipItem {
+  relationship_id: number;
+  relationship_type: ProjectRelationshipType;
+  direction: 'outgoing' | 'incoming';
+  other_project_code: string;
+  other_project_name: string;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface ProjectRelationshipCreatePayload {
+  to_project_code: string;
+  relationship_type: ProjectRelationshipType;
+  notes?: string;
+}
+
 export type ProjectStatus =
   | 'proposed'
   | 'initiated'
@@ -667,6 +694,11 @@ export interface ProjectDetail {
   sap_wbs_mapping?: string | null;
   external_contract_refs?: string[] | null;
   partner_reference?: string | null;
+  regulatory_change_level?: RegulatoryChangeLevel | null;
+  pre_approval_required?: boolean | null;
+  comparability_study_ref?: string | null;
+  regulatory_submission_refs?: string[] | null;
+  legacy_project_id?: string | null;
   priority?: ProjectPriority | null;
   confidentiality: 'public' | 'internal' | 'restricted';
   description?: string | null;
@@ -728,6 +760,11 @@ export interface ProjectCreatePayload {
   sap_wbs_mapping?: string;
   external_contract_refs?: string[];
   partner_reference?: string;
+  regulatory_change_level?: RegulatoryChangeLevel;
+  pre_approval_required?: boolean;
+  comparability_study_ref?: string;
+  regulatory_submission_refs?: string[];
+  legacy_project_id?: string;
   priority?: ProjectPriority;
   confidentiality?: 'public' | 'internal' | 'restricted';
   description?: string;
@@ -769,6 +806,11 @@ export interface ProjectUpdatePayload {
   sap_wbs_mapping?: string;
   external_contract_refs?: string[];
   partner_reference?: string;
+  regulatory_change_level?: RegulatoryChangeLevel;
+  pre_approval_required?: boolean;
+  comparability_study_ref?: string;
+  regulatory_submission_refs?: string[];
+  legacy_project_id?: string;
   priority?: ProjectPriority;
   confidentiality?: 'public' | 'internal' | 'restricted';
   description?: string;

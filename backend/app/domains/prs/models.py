@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -61,6 +62,12 @@ class Project(Base):
             "project_phase IS NULL OR project_phase IN ('discovery','lead_opt',"
             "'ind_enabling','p1','p2','p3','filed','post_marketing')",
             name="ck_project_phase",
+        ),
+        # SMP V2.1 §7A 上市后变更级别（migration 0049）
+        CheckConstraint(
+            "regulatory_change_level IS NULL OR "
+            "regulatory_change_level IN ('minor','moderate','major')",
+            name="ck_regulatory_change_level",
         ),
         CheckConstraint(
             "confidentiality IN ('public','internal','restricted')",
@@ -138,6 +145,15 @@ class Project(Base):
     sap_wbs_mapping: Mapped[str | None] = mapped_column(String(50))
     external_contract_refs: Mapped[list | None] = mapped_column(JSONB)
     partner_reference: Mapped[str | None] = mapped_column(String(200))
+
+    # SMP V2.1 §7A 上市后变更合规字段（migration 0049）
+    regulatory_change_level: Mapped[str | None] = mapped_column(String(16))
+    pre_approval_required: Mapped[bool | None] = mapped_column(Boolean)
+    comparability_study_ref: Mapped[str | None] = mapped_column(String(50))
+    regulatory_submission_refs: Mapped[list | None] = mapped_column(JSONB)
+
+    # SMP V2.1 §11.8 历史遗留编号（migration 0049）
+    legacy_project_id: Mapped[str | None] = mapped_column(String(32))
 
     # 目标与范围
     objective: Mapped[str | None] = mapped_column(Text)

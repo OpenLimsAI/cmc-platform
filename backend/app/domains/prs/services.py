@@ -27,6 +27,7 @@ from app.domains.auth.models import User
 from app.domains.prs.models import (
     Project,
     ProjectMilestone,
+    ProjectRelationship,
     ProjectStatusHistory,
     ProjectTeam,
 )
@@ -37,6 +38,8 @@ from app.domains.prs.schemas import (
     ProjectFilter,
     ProjectMilestoneCreate,
     ProjectMilestoneUpdate,
+    ProjectRelationshipCreate,
+    ProjectRelationshipItem,
     ProjectTeamMemberCreate,
     ProjectUpdate,
 )
@@ -110,6 +113,21 @@ class ProjectService:
             )
             if result.scalar_one_or_none() is None:
                 raise BadRequestError(f"asset_id={asset_id} 不存在或已删除")
+
+    # ----------- SMP §7A 上市后变更条件校验 -----------
+    @staticmethod
+    def _validate_regulatory_change(
+        nature: str | None, level: str | None, pre_approval: bool | None
+    ) -> None:
+        """nature=cmc_change/lcm 必填变更级别；major 级不得显式置 pre_approval=false。"""
+        if nature in ("cmc_change", "lcm") and level is None:
+            raise BadRequestError(
+                "project_nature=cmc_change/lcm 的项目必须填写 regulatory_change_level（SMP §7A.4）"
+            )
+        if level == "major" and pre_approval is False:
+            raise BadRequestError(
+                "major 级变更 pre_approval_required 必须为 true（SMP §7A.4）"
+            )
 
     # ----------- 编码生成（SMP V2.1 §7.1：CMAB-PRJ-YYYY-NNNN）-----------
     async def _next_project_code(self) -> str:
@@ -224,6 +242,16 @@ class ProjectService:
     async def create(self, payload: ProjectCreate, current_user: User) -> ProjectDetail:
         # SMP §7.5：资产相关项目必须绑定存在的资产
         await self._validate_asset_link(payload.project_category, payload.asset_id)
+        # SMP §7A：上市后变更条件校验
+        self._validate_regulatory_change(
+            payload.project_nature,
+            payload.regulatory_change_level,
+            payload.pre_approval_required,
+        )
+        # major 级默认需预先获批
+        pre_approval = payload.pre_approval_required
+        if payload.regulatory_change_level == "major" and pre_approval is None:
+            pre_approval = True
 
         # project_code 由 BEFORE INSERT 触发器兜底；这里显式调一次以便立即拿到返回值
         code = await self._next_project_code()
@@ -252,6 +280,11 @@ class ProjectService:
             sap_wbs_mapping=payload.sap_wbs_mapping,
             external_contract_refs=payload.external_contract_refs,
             partner_reference=payload.partner_reference,
+            regulatory_change_level=payload.regulatory_change_level,
+            pre_approval_required=pre_approval,
+            comparability_study_ref=payload.comparability_study_ref,
+            regulatory_submission_refs=payload.regulatory_submission_refs,
+            legacy_project_id=payload.legacy_project_id,
             parent_project_id=payload.parent_project_id,
             program_name=payload.program_name,
             planned_start_date=payload.planned_start_date,
@@ -308,6 +341,18 @@ class ProjectService:
         eff_asset_id = update_data.get("asset_id", proj.asset_id)
         if "project_category" in update_data or "asset_id" in update_data:
             await self._validate_asset_link(eff_category, eff_asset_id)
+
+        # SMP §7A：按更新后的有效值校验上市后变更
+        touches_reg = {"project_nature", "regulatory_change_level", "pre_approval_required"} & set(
+            update_data
+        )
+        if touches_reg:
+            eff_nature = update_data.get("project_nature", proj.project_nature)
+            eff_level = update_data.get("regulatory_change_level", proj.regulatory_change_level)
+            eff_pre = update_data.get("pre_approval_required", proj.pre_approval_required)
+            self._validate_regulatory_change(eff_nature, eff_level, eff_pre)
+            if eff_level == "major" and eff_pre is None:
+                update_data["pre_approval_required"] = True
 
         for k, v in update_data.items():
             setattr(proj, k, v)
@@ -612,4 +657,116 @@ class ProjectService:
         member.left_at = date.today()
         # current_user 已记录在 audit_log；§9.4 team 表本身无 updated_by 字段
         _ = current_user
+        await self.db.flush()
+
+    # ----------- 项目关系（SMP §11.4-11.6：合并/拆分/衍生）-----------
+    async def list_relationships(self, code: str) -> list[ProjectRelationshipItem]:
+        proj = await self._get_project_or_404(code)
+        result = await self.db.execute(
+            select(ProjectRelationship).where(
+                or_(
+                    ProjectRelationship.from_project_id == proj.project_id,
+                    ProjectRelationship.to_project_id == proj.project_id,
+                )
+            ).order_by(ProjectRelationship.relationship_id.asc())
+        )
+        rels = list(result.scalars().all())
+        # 收集"对端"项目 id → (code, name)
+        other_ids = {
+            (r.to_project_id if r.from_project_id == proj.project_id else r.from_project_id)
+            for r in rels
+        }
+        code_map: dict[int, tuple[str, str]] = {}
+        if other_ids:
+            rows = await self.db.execute(
+                select(Project.project_id, Project.project_code, Project.project_name).where(
+                    Project.project_id.in_(other_ids)
+                )
+            )
+            code_map = {pid: (c, n) for pid, c, n in rows.all()}
+
+        items: list[ProjectRelationshipItem] = []
+        for r in rels:
+            outgoing = r.from_project_id == proj.project_id
+            other_id = r.to_project_id if outgoing else r.from_project_id
+            other_code, other_name = code_map.get(other_id, (f"#{other_id}", ""))
+            items.append(
+                ProjectRelationshipItem(
+                    relationship_id=r.relationship_id,
+                    relationship_type=r.relationship_type,
+                    direction="outgoing" if outgoing else "incoming",
+                    other_project_code=other_code,
+                    other_project_name=other_name,
+                    notes=r.notes,
+                    created_at=r.created_at,
+                )
+            )
+        return items
+
+    async def add_relationship(
+        self, code: str, payload: ProjectRelationshipCreate, current_user: User
+    ) -> ProjectRelationshipItem:
+        from_proj = await self._get_project_or_404(code)
+        to_proj = await self._get_project_or_404(payload.to_project_code)
+
+        if from_proj.project_id == to_proj.project_id:
+            raise BadRequestError("项目不能与自身建立关系")
+
+        # 预检 (from, to, type) 唯一（DB 亦有 uq_project_relationship 兜底）
+        existing = await self.db.execute(
+            select(ProjectRelationship.relationship_id).where(
+                ProjectRelationship.from_project_id == from_proj.project_id,
+                ProjectRelationship.to_project_id == to_proj.project_id,
+                ProjectRelationship.relationship_type == payload.relationship_type,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise ConflictError(
+                f"{code} → {payload.to_project_code} 的 {payload.relationship_type} 关系已存在"
+            )
+
+        rel = ProjectRelationship(
+            from_project_id=from_proj.project_id,
+            to_project_id=to_proj.project_id,
+            relationship_type=payload.relationship_type,
+            notes=payload.notes,
+            created_by=current_user.user_id,
+        )
+        self.db.add(rel)
+        await self.db.flush()
+        await self.db.refresh(rel)
+        return ProjectRelationshipItem(
+            relationship_id=rel.relationship_id,
+            relationship_type=rel.relationship_type,
+            direction="outgoing",
+            other_project_code=to_proj.project_code,
+            other_project_name=to_proj.project_name,
+            notes=rel.notes,
+            created_at=rel.created_at,
+        )
+
+    async def delete_relationship(
+        self, code: str, relationship_id: int, current_user: User, reason: str | None = None
+    ) -> None:
+        if reason:
+            await self.db.execute(
+                text("SELECT set_config('app.change_reason', :r, true)"),
+                {"r": reason},
+            )
+        proj = await self._get_project_or_404(code)
+        # 仅允许从属于该项目（任一端）的关系被删
+        result = await self.db.execute(
+            select(ProjectRelationship).where(
+                ProjectRelationship.relationship_id == relationship_id,
+                or_(
+                    ProjectRelationship.from_project_id == proj.project_id,
+                    ProjectRelationship.to_project_id == proj.project_id,
+                ),
+            )
+        )
+        rel = result.scalar_one_or_none()
+        if not rel:
+            raise NotFoundError(f"relationship_id={relationship_id} 不属于 {code}")
+        _ = current_user
+        await self.db.delete(rel)
         await self.db.flush()

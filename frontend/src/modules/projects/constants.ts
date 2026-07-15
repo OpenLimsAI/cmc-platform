@@ -6,8 +6,10 @@ import type {
   ProjectCategory,
   ProjectNature,
   ProjectPhase,
+  ProjectRelationshipType,
   ProjectStatus,
   ProjectType,
+  RegulatoryChangeLevel,
   RelationType,
 } from '@/api/types';
 
@@ -65,6 +67,27 @@ export const OWNING_FUNCTION_OPTIONS: { value: OwningFunction; label: string }[]
   { value: 'finance', label: '财务' },
   { value: 'pmo', label: 'PMO' },
   { value: 'other', label: '其他' },
+];
+
+// SMP V2.1 §7A 上市后变更级别
+export const REGULATORY_CHANGE_LEVEL_OPTIONS: { value: RegulatoryChangeLevel; label: string }[] = [
+  { value: 'minor', label: '微小变更（年报备案）' },
+  { value: 'moderate', label: '中等变更（CBE-30）' },
+  { value: 'major', label: '重大变更（预先获批）' },
+];
+
+// SMP V2.1 §11.4-11.6 项目关系类型（label 分主动/被动两向）
+export const PROJECT_RELATIONSHIP_TYPE_OPTIONS: {
+  value: ProjectRelationshipType;
+  label: string;
+  outLabel: string;
+  inLabel: string;
+}[] = [
+  { value: 'merged_into', label: '合并入', outLabel: '合并入', inLabel: '被合并自' },
+  { value: 'split_from', label: '拆分自', outLabel: '拆分自', inLabel: '被拆分为' },
+  { value: 'derived_from', label: '衍生自', outLabel: '衍生自', inLabel: '被衍生为' },
+  { value: 'depends_on', label: '依赖', outLabel: '依赖', inLabel: '被依赖于' },
+  { value: 'blocks', label: '阻塞', outLabel: '阻塞', inLabel: '被阻塞于' },
 ];
 
 // SMP V2.1 §11.3 status（补 cancelled）

@@ -41,6 +41,9 @@ ProjectPhase = Literal[
     "discovery", "lead_opt", "ind_enabling", "p1", "p2", "p3", "filed", "post_marketing",
 ]
 
+# SMP V2.1 §7A / 附录E 上市后变更级别（migration 0049）
+RegulatoryChangeLevel = Literal["minor", "moderate", "major"]
+
 # §9.2 priority（文档允许任意 VARCHAR(16)；按惯例限三档便于前端展示）
 ProjectPriority = Literal["high", "medium", "low"]
 
@@ -94,6 +97,14 @@ class ProjectBase(BaseModel):
     external_contract_refs: list[str] | None = None
     partner_reference: str | None = Field(None, max_length=200)
 
+    # SMP V2.1 §7A 上市后变更（nature=cmc_change/lcm 时 service 强制变更级别）
+    regulatory_change_level: RegulatoryChangeLevel | None = None
+    pre_approval_required: bool | None = None
+    comparability_study_ref: str | None = Field(None, max_length=50)
+    regulatory_submission_refs: list[str] | None = None
+    # SMP V2.1 §11.8 历史遗留编号
+    legacy_project_id: str | None = Field(None, max_length=32)
+
     priority: ProjectPriority | None = None
     confidentiality: ProjectConfidentiality = "internal"
 
@@ -131,6 +142,11 @@ class ProjectUpdate(BaseModel):
     sap_wbs_mapping: str | None = Field(None, max_length=50)
     external_contract_refs: list[str] | None = None
     partner_reference: str | None = Field(None, max_length=200)
+    regulatory_change_level: RegulatoryChangeLevel | None = None
+    pre_approval_required: bool | None = None
+    comparability_study_ref: str | None = Field(None, max_length=50)
+    regulatory_submission_refs: list[str] | None = None
+    legacy_project_id: str | None = Field(None, max_length=32)
     parent_project_id: int | None = None
     program_name: str | None = Field(None, max_length=128)
     planned_start_date: date | None = None
@@ -287,6 +303,30 @@ class ProjectMilestone(ProjectMilestoneBase):
     created_by: int
     updated_at: datetime
     updated_by: int
+
+
+# ============== 项目关系（§9.5 / SMP §11.4-11.6，migration 0031 建表）==============
+RelationshipType = Literal[
+    "merged_into", "split_from", "derived_from", "depends_on", "blocks",
+]
+
+
+class ProjectRelationshipCreate(BaseModel):
+    to_project_code: str = Field(..., max_length=32)
+    relationship_type: RelationshipType
+    notes: str | None = None
+
+
+class ProjectRelationshipItem(BaseModel):
+    """关系项：direction 标明当前项目在关系中是主动方(out)还是被动方(in)"""
+
+    relationship_id: int
+    relationship_type: RelationshipType
+    direction: Literal["outgoing", "incoming"]
+    other_project_code: str
+    other_project_name: str
+    notes: str | None = None
+    created_at: datetime
 
 
 # ============== 团队（§9.4：role 任意字符串，无 CHECK）==============
