@@ -7,25 +7,28 @@
 
 ## 这是什么项目
 
-`cmc-instrument-ingest` —— 实验室仪器数据采集框架。
+`cmc-instrument-ingest` —— **小仪器原始数据的备份归档中心**（定位于 2026-07-15 确认）。
 
-从仪器侧**只读拉取**数据，归档到 NAS，再入 CMC 数据中台。
-当前只接入 Nova BioProfile FLEX2 一台仪器；框架设计为可扩展到其他仪器（Biacore 待收编），
+**本项目只做一件事：Stage 1 —— 从仪器侧只读拉取数据、SHA256 校验、归档到 NAS。不解析业务字段、不入库。**
+当前只接入 Nova BioProfile FLEX2 一台仪器；设计为可容纳其他小仪器（Biacore 待收编），
 但**现在不要做过度抽象**，只有一个 `flex2/` 目录，第二台来了再加平级目录。
 
-**两阶段解耦，这是架构的核心，不要合并：**
+**ETL 不在本项目。** 每台仪器的解析入库各自独立成 repo（Nova → `rd-nova-etl`，**尚未建**），
+从 NAS 读归档 → 解析 → 入 `cmc_rd`，和 `rd-vicell-etl` / `rd-lucullus-etl` 的做法完全一致。
+
+**两阶段解耦，这是架构的核心，物理上拆成两个 repo：**
 
 ```
 FLEX2 共享（只读挂载）
-    ↓  Stage 1: flex2_ingest.py —— 复制 + SHA256 校验（不解析业务字段）
+    ↓  Stage 1（本项目 flex2/flex2_ingest.py）：复制 + SHA256 校验，不解析业务字段
 NAS 原始归档（底本，永久保留）
-    ↓  Stage 2: flex2_etl.py —— 解析 + 入库（只读 NAS，绝不回连 FLEX2）
+    ↓  Stage 2（独立 repo rd-nova-etl，未建）：解析 + 入库，只读 NAS，绝不回连 FLEX2
 cmc_rd → cmc_analytics
 ```
 
-**为什么必须拆开**：归档是记录保存义务，ETL 是分析。两者验证范围不同。
-合并后改一次 ETL schema 就要重新验证整条归档链路。
-且 ETL 挂掉时，归档必须照常跑——数据先落袋为安。
+**为什么必须拆开**：归档是记录保存义务，ETL 是分析，两者验证范围不同；
+合并后改一次 ETL schema 就要重新验证整条归档链路。且 ETL 挂掉时归档必须照常跑——数据先落袋为安。
+拆成两个 repo 让这道边界更硬。
 
 ---
 
@@ -59,6 +62,12 @@ cmc_rd → cmc_analytics
    本系统定位为**分析数据源 + 业务备份**，**不是** Part 11 原始记录保存系统。
    这个定位能显著降低验证等级。不要在代码或文档里暗示相反的意思。
 
+8. **真库建表走 `cmc-schema-migrations`，本项目 `sql/` 只是本地测试镜像 —— 这是规矩，不能破。**
+   将来 Stage 2 ETL 要往 `cmc_rd` 建表 / 改表，**权威 DDL 一律在独立仓库 `cmc-schema-migrations`**
+   （Alembic 迁移，命令 `dbmig`）里加迁移，和 `rd-vicell-etl` / `rd-lucullus-etl` 完全一致。
+   本项目里的 `sql/001_cmc_rd_flex2.sql`（若创建）**只是本地一次性测试用的镜像副本，不是权威建表脚本**；
+   一旦改结构必须两处同步，且**以 `cmc-schema-migrations` 为准**。**绝不拿本项目的 sql 直接在生产库上跑。**
+
 ---
 
 ## 数据源（已定，不要再改）
@@ -85,19 +94,21 @@ cmc_rd → cmc_analytics
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
 | Stage 1 `flex2_ingest.py` | ✅ v1.0.0 已交付，**尚未实机跑过** |
-| Stage 2 `flex2_etl.py` | ⬜ 未开始 |
-| `sql/` 建表 DDL | ⬜ 未开始 |
+| Stage 2 ETL | ⬜ 未开始，**迁往独立 repo `rd-nova-etl`**（不在本项目） |
+| `sql/` 本地测试镜像 | ⬜ 未开始（真库 DDL 在 `cmc-schema-migrations`，见铁律 8） |
 | 部署（挂载/systemd） | ⬜ 未执行 |
 
 ---
 
 ## 待办
 
-**代码**
+**代码（本项目 = Stage 1 归档；带 → rd-nova-etl 的属 ETL，迁去独立 repo 做）**
 - [ ] Stage 1 首跑：`--dry-run --backfill` → `--backfill` → 日常增量（顺序别跳）
-- [ ] Stage 2 `flex2_etl.py`：按列名映射解析器 + 去重 upsert
+- [ ] → rd-nova-etl：按列名映射解析器 + 去重 upsert
 - [ ] `sql/001_cmc_rd_flex2.sql`：raw + meta only（`source_file` / `sha256` / `ingested_at` / `analyzer_id`），
-      符合"raw 库严格只放 raw+meta，join/分析在 `cmc_analytics`"的既有约定
+      符合"raw 库严格只放 raw+meta，join/分析在 `cmc_analytics`"的既有约定。
+      ⚠️ **权威 DDL 走 `cmc-schema-migrations`（见铁律 8），本文件只是本地测试镜像。**
+      Stage 2 若拆成独立 repo `rd-nova-etl`，此项随之迁走。
 - [ ] `dim.equipment` 增加 FLEX2 设备条目并关联
 - [ ] `--verify-coverage`：核对每条逐次记录是否都在月度文件中
       ⚠️ **"月度是逐次的严格超集"目前只在 1 条样品记录上验证过，不是 280 个文件的证明。**

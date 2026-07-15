@@ -27,7 +27,17 @@ sudo chmod 600 /etc/flex2/flex2.cred
 sudo chown root:root /etc/flex2/flex2.cred
 ```
 
-NAS 凭据同理放 `/etc/flex2/nas.cred`。
+NAS 凭据同理放 `/etc/flex2/nas.cred` —— 用**写账户 `backupuser`**（对 `TTLab_Backups` 有写权限；
+别用 Vi-CELL 那个只读的 `etl_reader`）：
+
+```bash
+sudo tee /etc/flex2/nas.cred >/dev/null <<'EOF'
+username=backupuser
+password=在这里填密码
+EOF
+sudo chmod 600 /etc/flex2/nas.cred
+sudo chown root:root /etc/flex2/nas.cred
+```
 
 ---
 
@@ -37,7 +47,7 @@ NAS 凭据同理放 `/etc/flex2/nas.cred`。
 
 ```bash
 sudo useradd -r -s /usr/sbin/nologin flex2ingest
-sudo mkdir -p /mnt/flex2 /mnt/nas/TTLab_Backups /var/lib/flex2-ingest
+sudo mkdir -p /mnt/flex2 /mnt/ttlab-backups /var/lib/flex2-ingest
 sudo chown flex2ingest:flex2ingest /var/lib/flex2-ingest
 ```
 
@@ -47,13 +57,13 @@ sudo chown flex2ingest:flex2ingest /var/lib/flex2-ingest
 # FLEX2 源 —— ro 不可省略，它是保护仪器数据的第一道锁
 //10.0.13.66/Export  /mnt/flex2  cifs  ro,credentials=/etc/flex2/flex2.cred,vers=3.0,uid=flex2ingest,gid=flex2ingest,file_mode=0440,dir_mode=0550,iocharset=utf8,nofail,_netdev,soft,noserverino  0  0
 
-# NAS 归档区（可写）
-//10.0.6.100/TTLab_Backups  /mnt/nas/TTLab_Backups  cifs  rw,credentials=/etc/flex2/nas.cred,vers=3.0,uid=flex2ingest,gid=flex2ingest,iocharset=utf8,nofail,_netdev,soft  0  0
+# NAS 归档区（可写；写账户 backupuser）。归档落到其下 Daily/<机器名>/
+//10.0.6.100/ttlab_backups  /mnt/ttlab-backups  cifs  rw,credentials=/etc/flex2/nas.cred,vers=3.0,uid=flex2ingest,gid=flex2ingest,iocharset=utf8,nofail,_netdev,soft  0  0
 ```
 
 ```bash
 sudo mount -a
-mountpoint /mnt/flex2 && mountpoint /mnt/nas/TTLab_Backups
+mountpoint /mnt/flex2 && mountpoint /mnt/ttlab-backups
 ```
 
 **验证只读锁真的生效**（别跳过）：
@@ -132,7 +142,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/flex2-ingest /mnt/nas/TTLab_Backups
+ReadWritePaths=/var/lib/flex2-ingest /mnt/ttlab-backups
 ```
 
 `/etc/systemd/system/flex2-ingest.timer`：
@@ -162,19 +172,23 @@ systemctl list-timers flex2-ingest.timer
 ## 6. 产出的目录结构
 
 ```
-/mnt/nas/TTLab_Backups/
-├── Raw/FLEX2_T281240040C/
-│   ├── Monthly/2026-07/SampleResultsT281240040C2026-July__snap_20260716T010000.csv
-│   │                   QcResultsT281240040C2026-July__snap_20260716T010000.csv
+/mnt/ttlab-backups/                          ← NAS 共享根 TTLab_Backups（多设备共用）
+├── Daily/T281240040C_Nova/                  ← 数据（每设备一个目录，内部镜像仪器 Export）
+│   ├── Results/                             ← 对应仪器 Export/Results
+│   │   ├── Monthly/2026-07/SampleResultsT281240040C2026-July__snap_20260716T010000.csv
+│   │   │                   QcResultsT281240040C2026-July__snap_20260716T010000.csv
+│   │   └── PerEvent/2026-07/...             ← 仅 --per-event 时
 │   ├── Database/Backup_2026-07-15_233019/DatabaseBackup.dbb
-│   │                                     Persist.dbb
-│   └── PerEvent/2026-07/...                      ← 仅 --per-event 时
-├── Checksums/FLEX2_T281240040C/FLEX2_T281240040C_manifest.csv   ← 只追加，审计记录
-├── State/FLEX2_T281240040C_ingest_state.json
-└── Logs/FLEX2_T281240040C/Python/*.log
+│   │                                       Persist.dbb
+│   └── Report/                             ← NAS 侧预建，程序不写（人工 PDF，忽略）
+├── Checksums/T281240040C_Nova/T281240040C_Nova_SHA256_Compare_v1_1_0_<ts>.csv  ← 每次运行一个，审计记录
+├── Logs/T281240040C_Nova/T281240040C_Nova_ingest_<ts>.log
+└── State/T281240040C_Nova_backup_state.json
 ```
 
-**Stage 2（ETL）只读 `Raw/.../Monthly/` 下最新的快照，不回连 FLEX2。**
+> 记账目录（Checksums / Logs / State）放 NAS 根级、按机器名分，**与 ViCell / Biacore 等其它设备完全一致**。
+
+**Stage 2（ETL，独立 repo `rd-nova-etl`）只读 `Daily/T281240040C_Nova/Results/Monthly/` 下最新的快照，不回连 FLEX2。**
 
 ---
 

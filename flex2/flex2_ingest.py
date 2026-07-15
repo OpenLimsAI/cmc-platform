@@ -42,7 +42,7 @@ from typing import Dict, Any, List, Optional, Tuple
 # 版本信息（变更控制用，改动逻辑请同步递增）
 # =========================================================
 SCRIPT_NAME = "flex2_ingest"
-SCRIPT_VERSION = "v1.0.0"
+SCRIPT_VERSION = "v1.1.0"
 SCRIPT_RELEASE_DATE = "2026-07-15"
 SCRIPT_OWNER = "TT Lab"
 
@@ -50,10 +50,11 @@ SCRIPT_OWNER = "TT Lab"
 # 配置（全部可用环境变量覆盖，见 flex2-ingest.env）
 # =========================================================
 ANALYZER_ID = os.environ.get("FLEX2_ANALYZER_ID", "T281240040C")
-MACHINE_NAME = os.environ.get("FLEX2_MACHINE_NAME", f"FLEX2_{ANALYZER_ID}")
+MACHINE_NAME = os.environ.get("FLEX2_MACHINE_NAME", f"{ANALYZER_ID}_Nova")
 
 SRC_MOUNT = Path(os.environ.get("FLEX2_SRC_MOUNT", "/mnt/flex2"))
-NAS_MOUNT = Path(os.environ.get("FLEX2_NAS_MOUNT", "/mnt/nas/TTLab_Backups"))
+# NAS 共享根（TTLab_Backups）的挂载点；归档写到其下 Daily/<机器名>/
+NAS_MOUNT = Path(os.environ.get("FLEX2_NAS_MOUNT", "/mnt/ttlab-backups"))
 
 # 月度文件回溯几个月（1 = 当月+上月，跨月边界安全）
 MONTHS_BACK = int(os.environ.get("FLEX2_MONTHS_BACK", "1"))
@@ -94,25 +95,37 @@ DBBACKUP_RE = re.compile(r"^Backup_(?P<ts>\d{4}-\d{2}-\d{2}_\d{6})$")
 SRC_RESULTS = SRC_MOUNT / "Results"
 SRC_DATABASE = SRC_MOUNT / "Database"
 
-RAW_ROOT = NAS_MOUNT / "Raw" / MACHINE_NAME
+# 数据根 = NAS 共享根 / Daily / 机器名（对齐 NAS 既有多设备约定：Daily/<机器名>/）。
+# NAS 侧已建 Daily/T281240040C_Nova/{Results,Database,Report}，文件夹名镜像仪器 Export。
+ARCHIVE_ROOT = NAS_MOUNT / "Daily" / MACHINE_NAME
+RESULTS_ROOT = ARCHIVE_ROOT / "Results"    # 月度快照 + 逐次冷备
+DATABASE_ROOT = ARCHIVE_ROOT / "Database"  # 每晚数据库备份
+# Report 不产出（人工 PDF，按铁律忽略）
+
+# 记账目录：与其它设备完全一致，放 NAS 根级、按机器名分（不塞进 Daily 的数据目录）。
 STATE_DIR = NAS_MOUNT / "State"
 CHECKSUM_DIR = NAS_MOUNT / "Checksums" / MACHINE_NAME
-LOG_DIR = NAS_MOUNT / "Logs" / MACHINE_NAME / "Python"
+LOG_DIR = NAS_MOUNT / "Logs" / MACHINE_NAME
 
-STATE_FILE = STATE_DIR / f"{MACHINE_NAME}_ingest_state.json"
-MANIFEST_FILE = CHECKSUM_DIR / f"{MACHINE_NAME}_manifest.csv"
+# state 文件名沿用既有备份脚本约定：<机器名>_backup_state.json
+STATE_FILE = STATE_DIR / f"{MACHINE_NAME}_backup_state.json"
 
 # 本地状态副本（NAS 不可达时仍留有痕迹）
 LOCAL_STATE_DIR = Path(os.environ.get("FLEX2_LOCAL_STATE_DIR", str(Path(__file__).resolve().parent)))
-LOCAL_STATE_FILE = LOCAL_STATE_DIR / f"{MACHINE_NAME}_ingest_state.json"
+LOCAL_STATE_FILE = LOCAL_STATE_DIR / f"{MACHINE_NAME}_backup_state.json"
 
 RUN_DT = dt.datetime.now()
 RUN_TAG = RUN_DT.strftime("%Y%m%dT%H%M%S")
 NOW_STR = RUN_DT.strftime("%Y-%m-%d %H:%M:%S")
 
-MANIFEST_HEADER = [
-    "archived_at", "machine_name", "kind", "source_rel", "archive_rel",
-    "size", "sha256_source", "sha256_archive", "verify", "data_rows", "script_version",
+# 校验比对文件：对齐 NAS 既有备份约定，每次运行输出一个带时间戳的比对 CSV
+# （文件名与列都与其它设备的 *_SHA256_Compare_*.csv 一致；空跑也留只含表头的文件）
+VERSION_TAG = SCRIPT_VERSION.replace(".", "_")           # v1.1.0 -> v1_1_0
+RUN_TAG_COMPAT = RUN_DT.strftime("%Y%m%d_%H%M%S")        # 既有文件名的时间戳格式
+COMPARE_FILE = CHECKSUM_DIR / f"{MACHINE_NAME}_SHA256_Compare_{VERSION_TAG}_{RUN_TAG_COMPAT}.csv"
+COMPARE_HEADER = [
+    "Relative_Path", "Local_Path", "NAS_Path", "Change_Type",
+    "Local_Size", "Local_MTime", "Local_SHA256", "NAS_SHA256", "match_status",
 ]
 
 logger = logging.getLogger(SCRIPT_NAME)
@@ -167,6 +180,14 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(CHUNK), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def fmt_mtime(path: Path) -> str:
+    """源文件修改时间，格式对齐既有比对文件（按本地时钟）。"""
+    try:
+        return dt.datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return ""
 
 
 def is_mounted(path: Path) -> bool:
@@ -320,20 +341,23 @@ def load_state() -> Dict[str, Any]:
     return {"monthly": {}, "per_event": {}, "database": {}}
 
 
-def append_manifest(rows: List[List[Any]], dry_run: bool) -> None:
-    """归档清单：只追加，是校验的审计记录。"""
-    if dry_run or not rows:
+def write_compare(rows: List[List[Any]], dry_run: bool) -> None:
+    """
+    每次运行输出一个 SHA256 比对文件，对齐 NAS 既有备份约定
+    （Checksums/<机器名>/<机器名>_SHA256_Compare_<版本>_<时间戳>.csv，含 BOM）。
+    即使本轮没有新增/变化文件，也写一个只含表头的文件——留下"当天确实跑过"的证据。
+    """
+    if dry_run:
         return
     try:
-        MANIFEST_FILE.parent.mkdir(parents=True, exist_ok=True)
-        new = not MANIFEST_FILE.exists()
-        with open(MANIFEST_FILE, "a", encoding="utf-8-sig", newline="") as f:
+        COMPARE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(COMPARE_FILE, "w", encoding="utf-8-sig", newline="") as f:
             w = csv.writer(f)
-            if new:
-                w.writerow(MANIFEST_HEADER)
+            w.writerow(COMPARE_HEADER)
             w.writerows(rows)
+        logger.info(f"校验比对文件已写入: {COMPARE_FILE.name}（{len(rows)} 条）")
     except Exception as e:
-        logger.warning(f"归档清单写入失败: {e}")
+        logger.warning(f"校验比对文件写入失败: {e}")
 
 
 # =========================================================
@@ -395,7 +419,7 @@ def ingest_monthly(state: Dict[str, Any], args, manifest: List[List[Any]]) -> Di
             stats["failed"] += 1
             continue
 
-        dest = (RAW_ROOT / "Monthly" / f"{year:04d}-{mon:02d}" /
+        dest = (RESULTS_ROOT / "Monthly" / f"{year:04d}-{mon:02d}" /
                 f"{src.stem}__snap_{RUN_TAG}.csv")
         try:
             h1, h2 = archive_bytes(data, dest, args.dry_run)
@@ -428,8 +452,10 @@ def ingest_monthly(state: Dict[str, Any], args, manifest: List[List[Any]]) -> Di
             "snapshot_count": int(prev.get("snapshot_count", 0)) + 1,
         }
         manifest.append([
-            NOW_STR, MACHINE_NAME, "monthly", src.name,
-            str(dest.relative_to(NAS_MOUNT)), len(data), h1, h2, verify, rows, SCRIPT_VERSION,
+            str(src.relative_to(SRC_MOUNT)), str(src), str(dest),
+            "CHANGED" if prev.get("last_sha256") else "NEW",
+            len(data), fmt_mtime(src), h1, h2,
+            "Match" if verify == "MATCH" else "Mismatch",
         ])
 
     return stats
@@ -486,7 +512,7 @@ def ingest_database(state: Dict[str, Any], args, manifest: List[List[Any]]) -> D
         for src in files:
             try:
                 data = read_source_stable(src)
-                dest = RAW_ROOT / "Database" / bdir.name / src.name
+                dest = DATABASE_ROOT / bdir.name / src.name
                 h1, h2 = archive_bytes(data, dest, args.dry_run)
             except Exception as e:
                 alert("ERROR", f"数据库备份归档失败: {bdir.name}/{src.name} -> {e}")
@@ -501,8 +527,9 @@ def ingest_database(state: Dict[str, Any], args, manifest: List[List[Any]]) -> D
 
             entry_files[src.name] = {"size": len(data), "sha256": h1}
             manifest.append([
-                NOW_STR, MACHINE_NAME, "database", f"{bdir.name}/{src.name}",
-                str(dest.relative_to(NAS_MOUNT)), len(data), h1, h2, verify, "", SCRIPT_VERSION,
+                str(src.relative_to(SRC_MOUNT)), str(src), str(dest),
+                "NEW", len(data), fmt_mtime(src), h1, h2,
+                "Match" if verify == "MATCH" else "Mismatch",
             ])
             logger.info(f"已归档: {bdir.name}/{src.name} ({len(data)/1048576:.1f} MB)")
 
@@ -554,7 +581,7 @@ def ingest_per_event(state: Dict[str, Any], args, manifest: List[List[Any]]) -> 
 
         try:
             data = read_source_stable(src)
-            dest = (RAW_ROOT / "PerEvent" / f"{m.group('year')}-{m.group('mm')}" / src.name)
+            dest = (RESULTS_ROOT / "PerEvent" / f"{m.group('year')}-{m.group('mm')}" / src.name)
             h1, h2 = archive_bytes(data, dest, args.dry_run)
         except Exception as e:
             alert("ERROR", f"逐次文件归档失败: {src.name} -> {e}")
@@ -574,8 +601,9 @@ def ingest_per_event(state: Dict[str, Any], args, manifest: List[List[Any]]) -> 
         reg[src.name] = {"sha256": h1, "size": len(data), "archived_at": NOW_STR}
         stats["new"] += 1
         manifest.append([
-            NOW_STR, MACHINE_NAME, "per_event", src.name,
-            str(dest.relative_to(NAS_MOUNT)), len(data), h1, h2, verify, rows, SCRIPT_VERSION,
+            str(src.relative_to(SRC_MOUNT)), str(src), str(dest),
+            "NEW", len(data), fmt_mtime(src), h1, h2,
+            "Match" if verify == "MATCH" else "Mismatch",
         ])
 
     return stats
@@ -613,7 +641,7 @@ def main() -> int:
     d_stats = ingest_database(state, args, manifest)
     p_stats = ingest_per_event(state, args, manifest)
 
-    append_manifest(manifest, args.dry_run)
+    write_compare(manifest, args.dry_run)
 
     total_failed = m_stats["failed"] + d_stats["failed"] + p_stats["failed"]
     run_status = "SUCCESS" if total_failed == 0 else "FAILED"
@@ -625,7 +653,7 @@ def main() -> int:
         "machine_name": MACHINE_NAME,
         "analyzer_id": ANALYZER_ID,
         "source": str(SRC_MOUNT),
-        "nas_target": str(RAW_ROOT),
+        "nas_target": str(ARCHIVE_ROOT),
         "last_run_time": NOW_STR,
         "last_status": run_status,
         "last_success_time": NOW_STR if run_status == "SUCCESS" else state.get("last_success_time", ""),
