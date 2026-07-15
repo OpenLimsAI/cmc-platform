@@ -10,15 +10,16 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domains.audit.schemas import SignatureBlock
 
-# §9.2 ck_project_type
+# SMP-RD-NUM-001 V2.1 §7.4(c) 执行类型（migration 0047）
 ProjectType = Literal[
-    "cmc", "preclinical", "clinical", "regulatory",
-    "commercial", "platform", "other",
+    "discovery", "nonclinical", "cmc", "clinical",
+    "regulatory", "translational", "mixed",
 ]
 
-# §9.2 status
+# SMP V2.1 §11.3 status（补 cancelled，migration 0047）
 ProjectStatus = Literal[
-    "proposed", "initiated", "active", "on_hold", "completed", "terminated",
+    "proposed", "initiated", "active", "on_hold",
+    "completed", "terminated", "cancelled",
 ]
 
 # §9.2 priority（文档允许任意 VARCHAR(16)；按惯例限三档便于前端展示）

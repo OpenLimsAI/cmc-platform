@@ -30,13 +30,16 @@ class Project(Base):
     __tablename__ = "project"
     __table_args__ = (
         UniqueConstraint("project_code", name="uq_project_code"),
+        # SMP-RD-NUM-001 V2.1 §7.4(c)：执行类型集合（migration 0047）
         CheckConstraint(
-            "project_type IN ('cmc','preclinical','clinical','regulatory',"
-            "'commercial','platform','other')",
+            "project_type IN ('discovery','nonclinical','cmc','clinical',"
+            "'regulatory','translational','mixed')",
             name="ck_project_type",
         ),
+        # SMP V2.1 §11.3：补 cancelled（migration 0047）
         CheckConstraint(
-            "status IN ('proposed','initiated','active','on_hold','completed','terminated')",
+            "status IN ('proposed','initiated','active','on_hold',"
+            "'completed','terminated','cancelled')",
             name="ck_project_status",
         ),
         CheckConstraint(

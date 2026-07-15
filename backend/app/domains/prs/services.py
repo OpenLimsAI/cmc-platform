@@ -47,7 +47,8 @@ from app.domains.prs.schemas import (
 )
 
 # 状态机：action → {当前状态: 下一状态}
-# 依据 DM-MDM-001 §9.2 status 枚举：proposed/initiated/active/on_hold/completed/terminated
+# SMP-RD-NUM-001 V2.1 §11.3 status：proposed/initiated/active/on_hold/
+#   completed/terminated/cancelled；cancel = 立项后未启动即取消（migration 0047）
 STATE_MACHINE: dict[str, dict[str, str]] = {
     "approve":   {"proposed": "initiated"},
     "start":     {"initiated": "active"},
@@ -60,10 +61,16 @@ STATE_MACHINE: dict[str, dict[str, str]] = {
         "active": "terminated",
         "on_hold": "terminated",
     },
+    # SMP §11.3：cancelled 仅适用于尚未启动的项目（planned 语义），
+    # 已启动/进行中项目走 terminate
+    "cancel": {
+        "proposed": "cancelled",
+        "initiated": "cancelled",
+    },
 }
 
 # GxP 关键动作要求电子签名；:start/:hold/:resume 是项目进度跟踪，非合规关键转移
-SIGNATURE_REQUIRED_ACTIONS: set[str] = {"approve", "complete", "terminate"}
+SIGNATURE_REQUIRED_ACTIONS: set[str] = {"approve", "complete", "terminate", "cancel"}
 
 ACTION_TO_MEANING: dict[str, str] = {
     "approve":   "approve",
@@ -72,6 +79,7 @@ ACTION_TO_MEANING: dict[str, str] = {
     "resume":    "review",
     "complete":  "approve",
     "terminate": "reject",
+    "cancel":    "reject",
 }
 
 
@@ -79,13 +87,14 @@ class ProjectService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    # ----------- 编码生成（§9.2：按年 PRJ-YYYY-XXXX）-----------
+    # ----------- 编码生成（SMP V2.1 §7.1：CMAB-PRJ-YYYY-NNNN）-----------
     async def _next_project_code(self) -> str:
         # 用 meta.fn_ensure_year_sequence 拿当前年份序列名，再用 fn_next_code 取号
+        # 前缀须与 prs.fn_project_assign_code 触发器一致（migration 0047）
         result = await self.db.execute(
             text(
                 "SELECT meta.fn_next_code("
-                "meta.fn_ensure_year_sequence('project', 'PRJ-', "
+                "meta.fn_ensure_year_sequence('project', 'CMAB-PRJ-', "
                 "EXTRACT(YEAR FROM NOW())::INT, 4))"
             )
         )

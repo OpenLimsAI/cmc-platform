@@ -24,6 +24,7 @@ const PROJECT_STATUS: Record<string, StatusMapping> = {
   on_hold: { text: '暂停', color: 'warning' },
   completed: { text: '已完成', color: 'success' },
   terminated: { text: '已终止', color: 'error' },
+  cancelled: { text: '已取消', color: 'default' },
 };
 
 // §8.2 asset.status 只有 3 值（管控状态）

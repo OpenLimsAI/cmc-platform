@@ -510,7 +510,7 @@ DEMO_PROJECTS = [
     {
         "name": "[DEMO] CD19xCD3 双抗发现",
         "name_en": "CD19xCD3 Bispecific Discovery",
-        "project_type": "preclinical",  # §9.2 收敛：discovery → preclinical
+        "project_type": "discovery",  # SMP V2.1 §7.4(c)：discovery 类型已启用
         "phase": "discovery",
         "status": "proposed",  # §9.2 draft → proposed
         "therapeutic_area": "血液肿瘤",
@@ -534,7 +534,7 @@ DEMO_PROJECTS = [
     {
         "name": "[DEMO] KRAS G12C 小分子早期发现",
         "name_en": "KRAS G12C Small Molecule Early Discovery",
-        "project_type": "preclinical",
+        "project_type": "discovery",
         "phase": "discovery",
         "status": "initiated",  # planned → initiated
         "therapeutic_area": "肿瘤",

@@ -8,15 +8,15 @@ import type {
   RelationType,
 } from '@/api/types';
 
-// DM-MDM-001 §9.2 ck_project_type
+// SMP-RD-NUM-001 V2.1 §7.4(c) 执行类型
 export const PROJECT_TYPE_OPTIONS: { value: ProjectType; label: string }[] = [
+  { value: 'discovery', label: '发现' },
+  { value: 'nonclinical', label: '非临床' },
   { value: 'cmc', label: 'CMC 开发' },
-  { value: 'preclinical', label: '临床前' },
   { value: 'clinical', label: '临床' },
-  { value: 'regulatory', label: '法规' },
-  { value: 'commercial', label: '商业化' },
-  { value: 'platform', label: '平台' },
-  { value: 'other', label: '其他' },
+  { value: 'regulatory', label: '注册' },
+  { value: 'translational', label: '转化' },
+  { value: 'mixed', label: '混合' },
 ];
 
 // §9.2 project_phase VARCHAR(32) 无 CHECK，前端常用建议值
@@ -33,7 +33,7 @@ export const PROJECT_PHASE_OPTIONS: { value: ProjectPhase; label: string }[] = [
   { value: 'na', label: '不适用' },
 ];
 
-// §9.2 status
+// SMP V2.1 §11.3 status（补 cancelled）
 export const PROJECT_STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: 'proposed', label: '已提议' },
   { value: 'initiated', label: '已立项' },
@@ -41,6 +41,7 @@ export const PROJECT_STATUS_OPTIONS: { value: ProjectStatus; label: string }[] =
   { value: 'on_hold', label: '暂停' },
   { value: 'completed', label: '已完成' },
   { value: 'terminated', label: '已终止' },
+  { value: 'cancelled', label: '已取消' },
 ];
 
 // UI10：V1.1 §7.2 / §9.2 项目优先级 + 保密等级（Batch F 后端已暴露）
@@ -60,12 +61,13 @@ export const PROJECT_CONFIDENTIALITY_OPTIONS: { value: string; label: string }[]
 // ============== 状态机 ==============
 // 与 backend STATE_MACHINE 对齐（prs/services.py）
 export const AVAILABLE_PROJECT_ACTIONS: Record<ProjectStatus, ProjectAction[]> = {
-  proposed:   ['approve', 'terminate'],
-  initiated:  ['start', 'terminate'],
+  proposed:   ['approve', 'cancel', 'terminate'],
+  initiated:  ['start', 'cancel', 'terminate'],
   active:     ['hold', 'complete', 'terminate'],
   on_hold:    ['resume', 'terminate'],
   completed:  [],
   terminated: [],
+  cancelled:  [],
 };
 
 // GxP 关键动作要求电子签名（与 backend SIGNATURE_REQUIRED_ACTIONS 对齐）
@@ -79,6 +81,7 @@ export const PROJECT_ACTION_LABELS: Record<
   resume:    { label: '恢复' },
   complete:  { label: '完成', requiresSignature: true },
   terminate: { label: '终止', danger: true, requiresSignature: true },
+  cancel:    { label: '取消立项', danger: true, requiresSignature: true },
 };
 
 export const PROJECT_STATUS_COLOR: Record<string, string> = {
@@ -88,6 +91,7 @@ export const PROJECT_STATUS_COLOR: Record<string, string> = {
   on_hold: 'orange',
   completed: 'green',
   terminated: 'red',
+  cancelled: 'gray',
 };
 
 // ============== 里程碑 (DM-MDM-001 §9.3) ==============

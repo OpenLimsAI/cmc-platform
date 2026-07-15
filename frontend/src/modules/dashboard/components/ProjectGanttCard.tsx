@@ -13,6 +13,7 @@ const STATUS_COLOR: Record<string, string> = {
   on_hold: '#FAAD14',
   completed: '#13C2C2',
   terminated: '#F5222D',
+  cancelled: '#8c8c8c',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -22,6 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
   on_hold: '暂停',
   completed: '完成',
   terminated: '终止',
+  cancelled: '取消',
 };
 
 interface Props {

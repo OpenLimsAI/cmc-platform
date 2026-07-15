@@ -551,15 +551,15 @@ export interface SubstanceXrefUpdateInput {
   notes?: string;
 }
 
-// ============== Project (DM-MDM-001 §9.2) ==============
+// ============== Project (SMP-RD-NUM-001 V2.1 §7.4c) ==============
 export type ProjectType =
+  | 'discovery'
+  | 'nonclinical'
   | 'cmc'
-  | 'preclinical'
   | 'clinical'
   | 'regulatory'
-  | 'commercial'
-  | 'platform'
-  | 'other';
+  | 'translational'
+  | 'mixed';
 
 // §9.2 project_phase: VARCHAR(32) 无 CHECK 约束，但保留前端常用建议值
 export type ProjectPhase =
@@ -580,7 +580,8 @@ export type ProjectStatus =
   | 'active'
   | 'on_hold'
   | 'completed'
-  | 'terminated';
+  | 'terminated'
+  | 'cancelled';
 
 export type ProjectPriority = 'high' | 'medium' | 'low';
 
@@ -712,7 +713,8 @@ export type ProjectAction =
   | 'hold'
   | 'resume'
   | 'complete'
-  | 'terminate';
+  | 'terminate'
+  | 'cancel';
 
 export interface ProjectStatusChangePayload {
   comment: string;

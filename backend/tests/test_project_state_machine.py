@@ -17,7 +17,7 @@ async def _create_project(client, suffix: str, name_suffix: str = "") -> str:
 
 
 # GxP 关键动作要求电子签名
-SIGNATURE_REQUIRED = {"approve", "complete", "terminate"}
+SIGNATURE_REQUIRED = {"approve", "complete", "terminate", "cancel"}
 ADMIN_PASSWORD = "__REDACTED_SEED_PASSWORD_1__"
 
 
@@ -79,6 +79,38 @@ async def test_terminate_from_any_open_state(admin_client, unique_suffix):
             f"terminate from {from_status} 失败: {resp.text}"
         )
         assert resp.json()["data"]["new_status"] == "terminated"
+
+
+@pytest.mark.asyncio
+async def test_cancel_only_before_start(admin_client, unique_suffix):
+    """SMP V2.1 §11.3：cancel 仅允许 proposed / initiated（未启动）"""
+    # proposed → cancelled
+    code = await _create_project(admin_client, unique_suffix, "cancel_proposed")
+    resp = await _state_post(admin_client, code, "cancel", "pytest cancel from proposed")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["new_status"] == "cancelled"
+
+    # initiated → cancelled
+    code2 = await _create_project(admin_client, unique_suffix, "cancel_initiated")
+    await _state_post(admin_client, code2, "approve", "pytest approve")
+    resp2 = await _state_post(admin_client, code2, "cancel", "pytest cancel from initiated")
+    assert resp2.status_code == 200, resp2.text
+    assert resp2.json()["data"]["new_status"] == "cancelled"
+
+    # active 状态不能 cancel（应走 terminate）
+    code3 = await _create_project(admin_client, unique_suffix, "cancel_active")
+    await _state_post(admin_client, code3, "approve", "pytest approve")
+    await _state_post(admin_client, code3, "start", "pytest start")
+    resp3 = await _state_post(admin_client, code3, "cancel", "pytest cancel from active")
+    assert resp3.status_code == 422
+    assert resp3.json()["meta"]["error"]["type"] == "state_invalid"
+
+
+@pytest.mark.asyncio
+async def test_project_code_has_cmab_prefix(admin_client, unique_suffix):
+    """SMP V2.1 §7.1：新项目编号为 CMAB-PRJ-YYYY-NNNN"""
+    code = await _create_project(admin_client, unique_suffix, "code_fmt")
+    assert code.startswith("CMAB-PRJ-"), f"编号应带 CMAB 前缀，实际 {code}"
 
 
 @pytest.mark.asyncio

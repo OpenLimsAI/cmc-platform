@@ -18,8 +18,8 @@ async def test_create_project_returns_code(admin_client, unique_suffix):
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["code"] == 0
-    # §9.2 编码格式：PRJ-YYYY-XXXX
-    assert body["data"]["project_code"].startswith("PRJ-")
+    # SMP V2.1 §7.1 编码格式：CMAB-PRJ-YYYY-NNNN
+    assert body["data"]["project_code"].startswith("CMAB-PRJ-")
     assert body["data"]["status"] == "proposed"  # §9.2 默认值
     assert body["data"]["version"] == 1
     assert body["data"]["project_type"] == "cmc"
@@ -51,7 +51,7 @@ async def test_get_project_after_create(admin_client, unique_suffix):
 @pytest.mark.asyncio
 async def test_list_projects_filters_and_pagination(admin_client, unique_suffix):
     # 创建 3 个不同类型的 project
-    types = ["cmc", "clinical", "preclinical"]
+    types = ["cmc", "clinical", "nonclinical"]
     for i, t in enumerate(types):
         await admin_client.post(
             "/api/v1/projects",

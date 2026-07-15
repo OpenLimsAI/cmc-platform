@@ -251,6 +251,21 @@ async def terminate_project(
     return await _state_change(code, "terminate", payload, request, user, db)
 
 
+@router.post(
+    "/{code}:cancel",
+    summary="取消 (proposed/initiated → cancelled) — 需电子签名",
+)
+async def cancel_project(
+    code: str,
+    payload: ProjectStatusChange,
+    request: Request,
+    user: User = Depends(require_all_permissions("project:approve", "project:sign")),
+    db: AsyncSession = Depends(get_db),
+):
+    # SMP-RD-NUM-001 V2.1 §11.3：cancelled 仅用于尚未启动的项目
+    return await _state_change(code, "cancel", payload, request, user, db)
+
+
 @router.get("/{code}/status-history", summary="Project 状态变更历史")
 async def get_project_status_history(
     code: str,
