@@ -78,10 +78,17 @@ sudo -u flex2ingest touch /mnt/flex2/x   # 必须报 Read-only file system
 
 ## 3. 安装
 
+放 `/opt`，属主 `prometheus`（与其它项目一致；`prometheus` 有免密 sudo）：
+
 ```bash
-sudo install -m 0755 flex2_ingest.py /usr/local/bin/flex2_ingest.py
-sudo install -m 0640 flex2-ingest.env /etc/flex2-ingest.env
+sudo git clone git@github.com:qingcheng81/cmc-instrument-ingest.git /opt/cmc-instrument-ingest
+sudo chown -R prometheus:prometheus /opt/cmc-instrument-ingest
+sudo cp /opt/cmc-instrument-ingest/flex2/flex2-ingest.env.example /etc/flex2-ingest.env
+sudo chmod 0640 /etc/flex2-ingest.env
+# 默认值已对齐现网（机器名 T281240040C_Nova、挂载点 /mnt/ttlab-backups 等），按需微调
 ```
+
+以后更新：`cd /opt/cmc-instrument-ingest && sudo -u prometheus git pull`。
 
 告警脚本（示例，改成你们的企业微信/邮件通道）：
 
@@ -103,15 +110,15 @@ sudo chmod 755 /usr/local/bin/flex2-alert.sh
 ```bash
 # a. 空跑，只探测和校验，不写 NAS
 sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
-  /usr/local/bin/flex2_ingest.py --dry-run --backfill
+  /opt/cmc-instrument-ingest/flex2/flex2_ingest.py --dry-run --backfill
 
 # b. 确认输出无误后，回填历史（14 个月，几 MB，一次搞定）
 sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
-  /usr/local/bin/flex2_ingest.py --backfill
+  /opt/cmc-instrument-ingest/flex2/flex2_ingest.py --backfill
 
 # c. 之后每日增量（timer 会这么跑）
 sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
-  /usr/local/bin/flex2_ingest.py
+  /opt/cmc-instrument-ingest/flex2/flex2_ingest.py
 ```
 
 冷备逐次文件（可选，一次性，~280 个）：加 `--per-event`。
@@ -133,7 +140,7 @@ Type=oneshot
 User=flex2ingest
 Group=flex2ingest
 EnvironmentFile=/etc/flex2-ingest.env
-ExecStart=/usr/local/bin/flex2_ingest.py
+ExecStart=/opt/cmc-instrument-ingest/flex2/flex2_ingest.py
 TimeoutStartSec=1800
 Nice=10
 
