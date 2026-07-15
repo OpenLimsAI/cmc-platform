@@ -561,18 +561,44 @@ export type ProjectType =
   | 'translational'
   | 'mixed';
 
-// §9.2 project_phase: VARCHAR(32) 无 CHECK 约束，但保留前端常用建议值
+// SMP V2.1 §10.3 project_phase 受控枚举（migration 0048）
 export type ProjectPhase =
   | 'discovery'
-  | 'preclinical'
-  | 'phase_1'
-  | 'phase_2'
-  | 'phase_3'
-  | 'submission'
-  | 'approved'
-  | 'marketed'
-  | 'discontinued'
-  | 'na';
+  | 'lead_opt'
+  | 'ind_enabling'
+  | 'p1'
+  | 'p2'
+  | 'p3'
+  | 'filed'
+  | 'post_marketing';
+
+// SMP V2.1 §7.4(a) 是否关联资产
+export type ProjectCategory = 'asset_related' | 'non_asset';
+
+// SMP V2.1 §7.4(b) portfolio 性质
+export type ProjectNature =
+  | 'nme'
+  | 'indication_expansion'
+  | 'geographic_expansion'
+  | 'lcm'
+  | 'regulatory_commitment'
+  | 'cmc_change'
+  | 'bd_evaluation'
+  | 'platform'
+  | 'discovery';
+
+// SMP V2.1 §10.3 受控归属
+export type OwningFunction =
+  | 'rd'
+  | 'clinical'
+  | 'cmc'
+  | 'regulatory'
+  | 'qa'
+  | 'it'
+  | 'bd'
+  | 'finance'
+  | 'pmo'
+  | 'other';
 
 export type ProjectStatus =
   | 'proposed'
@@ -590,7 +616,11 @@ export interface ProjectBrief {
   project_name: string;
   project_name_en?: string | null;
   project_type: ProjectType;
-  project_phase?: string | null;
+  project_phase?: ProjectPhase | null;
+  project_category: ProjectCategory;
+  project_nature: ProjectNature;
+  owning_function: OwningFunction;
+  asset_id?: number | null;
   department?: string | null;
   priority?: string | null;
   status: ProjectStatus;
@@ -607,7 +637,12 @@ export interface ProjectDetail {
   project_name: string;
   project_name_en?: string | null;
   project_type: ProjectType;
-  project_phase?: string | null;
+  project_phase?: ProjectPhase | null;
+  project_category: ProjectCategory;
+  project_nature: ProjectNature;
+  owning_function: OwningFunction;
+  participating_functions?: OwningFunction[] | null;
+  asset_id?: number | null;
   parent_project_id?: number | null;
   program_name?: string | null;
   planned_start_date?: string | null;
@@ -624,6 +659,14 @@ export interface ProjectDetail {
   scope?: string | null;
   deliverables?: string | null;
   success_criteria?: string | null;
+  approval_date?: string | null;
+  approval_reference?: string | null;
+  approval_year?: number | null;
+  governance_approval_ref?: string | null;
+  status_reason?: string | null;
+  sap_wbs_mapping?: string | null;
+  external_contract_refs?: string[] | null;
+  partner_reference?: string | null;
   priority?: ProjectPriority | null;
   confidentiality: 'public' | 'internal' | 'restricted';
   description?: string | null;
@@ -641,6 +684,10 @@ export interface ProjectListQuery {
   q?: string;
   project_type?: string;
   project_phase?: string;
+  project_category?: string;
+  project_nature?: string;
+  owning_function?: string;
+  asset_id?: number;
   status?: string;
   department?: string;
   project_manager_id?: number;
@@ -653,7 +700,12 @@ export interface ProjectCreatePayload {
   project_name: string;
   project_name_en?: string;
   project_type: ProjectType;
-  project_phase?: string;
+  project_phase?: ProjectPhase;
+  project_category?: ProjectCategory;
+  project_nature?: ProjectNature;
+  owning_function?: OwningFunction;
+  participating_functions?: OwningFunction[];
+  asset_id?: number;
   parent_project_id?: number;
   program_name?: string;
   planned_start_date?: string;
@@ -670,6 +722,12 @@ export interface ProjectCreatePayload {
   scope?: string;
   deliverables?: string;
   success_criteria?: string;
+  approval_reference?: string;
+  governance_approval_ref?: string;
+  status_reason?: string;
+  sap_wbs_mapping?: string;
+  external_contract_refs?: string[];
+  partner_reference?: string;
   priority?: ProjectPriority;
   confidentiality?: 'public' | 'internal' | 'restricted';
   description?: string;
@@ -683,7 +741,12 @@ export interface ProjectUpdatePayload {
   project_name?: string;
   project_name_en?: string;
   project_type?: ProjectType;
-  project_phase?: string;
+  project_phase?: ProjectPhase;
+  project_category?: ProjectCategory;
+  project_nature?: ProjectNature;
+  owning_function?: OwningFunction;
+  participating_functions?: OwningFunction[];
+  asset_id?: number;
   parent_project_id?: number;
   program_name?: string;
   planned_start_date?: string;
@@ -700,6 +763,12 @@ export interface ProjectUpdatePayload {
   scope?: string;
   deliverables?: string;
   success_criteria?: string;
+  approval_reference?: string;
+  governance_approval_ref?: string;
+  status_reason?: string;
+  sap_wbs_mapping?: string;
+  external_contract_refs?: string[];
+  partner_reference?: string;
   priority?: ProjectPriority;
   confidentiality?: 'public' | 'internal' | 'restricted';
   description?: string;
@@ -922,6 +991,7 @@ export type AssetPhase =
 export type AssetStatus = 'active' | 'on_hold' | 'terminated';
 
 export interface AssetBrief {
+  asset_id: number;
   asset_code: string;
   internal_name: string;
   trade_name?: string | null;

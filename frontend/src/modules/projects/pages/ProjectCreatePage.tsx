@@ -11,12 +11,16 @@ import {
   message,
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Dayjs } from 'dayjs';
 import { projectsApi } from '@/api/projects';
+import { assetsApi } from '@/api/assets';
 import { applyFormErrors } from '@/shared/utils/formErrors';
-import type { ProjectCreatePayload } from '@/api/types';
+import type { ProjectCategory, ProjectCreatePayload } from '@/api/types';
 import {
+  OWNING_FUNCTION_OPTIONS,
+  PROJECT_CATEGORY_OPTIONS,
+  PROJECT_NATURE_OPTIONS,
   PROJECT_PHASE_OPTIONS,
   PROJECT_TYPE_OPTIONS,
 } from '../constants';
@@ -27,7 +31,11 @@ interface FormValues {
   project_name: string;
   project_name_en?: string;
   project_type: ProjectCreatePayload['project_type'];
-  project_phase?: string;
+  project_phase?: ProjectCreatePayload['project_phase'];
+  project_category: ProjectCategory;
+  project_nature: ProjectCreatePayload['project_nature'];
+  owning_function: ProjectCreatePayload['owning_function'];
+  asset_id?: number;
   program_name?: string;
   department?: string;
   objective?: string;
@@ -40,6 +48,18 @@ interface FormValues {
 export function ProjectCreatePage() {
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
+  const category = Form.useWatch('project_category', form);
+
+  // 资产下拉：仅在 asset_related 时需要
+  const { data: assetPage } = useQuery({
+    queryKey: ['assets', 'for-project-link'],
+    queryFn: () => assetsApi.list({ page_size: 100, sort: '-updated_at' }),
+    enabled: category === 'asset_related',
+  });
+  const assetOptions = (assetPage?.items ?? []).map((a) => ({
+    value: a.asset_id,
+    label: `${a.asset_code} — ${a.internal_name}`,
+  }));
 
   const createMutation = useMutation({
     mutationFn: (payload: ProjectCreatePayload) => projectsApi.create(payload),
@@ -59,6 +79,10 @@ export function ProjectCreatePage() {
       project_name_en: values.project_name_en,
       project_type: values.project_type,
       project_phase: values.project_phase,
+      project_category: values.project_category,
+      project_nature: values.project_nature,
+      owning_function: values.owning_function,
+      asset_id: values.project_category === 'asset_related' ? values.asset_id : undefined,
       program_name: values.program_name,
       department: values.department,
       objective: values.objective,
@@ -85,7 +109,7 @@ export function ProjectCreatePage() {
           新建项目
         </Title>
         <p style={{ color: '#8c8c8c', marginTop: -8 }}>
-          项目编码 <code>PRJ-YYYY-XXXX</code> 由系统按年自动分配。初始状态为"已提议"，进入"已立项"需走审批流程（电子签名）。
+          项目编码 <code>CMAB-PRJ-YYYY-NNNN</code> 由系统按年自动分配。初始状态为"已提议"，进入"已立项"需走审批流程（电子签名）。
         </p>
 
         <Form<FormValues>
@@ -93,7 +117,12 @@ export function ProjectCreatePage() {
           layout="vertical"
           onFinish={onFinish}
           requiredMark
-          initialValues={{ project_type: 'cmc' }}
+          initialValues={{
+            project_type: 'cmc',
+            project_category: 'non_asset',
+            project_nature: 'discovery',
+            owning_function: 'rd',
+          }}
           style={{ maxWidth: 880 }}
         >
           <Form.Item
@@ -121,6 +150,50 @@ export function ProjectCreatePage() {
               <Select options={PROJECT_PHASE_OPTIONS} allowClear placeholder="可选" />
             </Form.Item>
           </Space>
+
+          {/* SMP V2.1 §7.4 项目分类三维度 */}
+          <Space size="large" style={{ display: 'flex' }}>
+            <Form.Item
+              label="是否关联资产"
+              name="project_category"
+              rules={[{ required: true }]}
+              style={{ flex: 1 }}
+            >
+              <Select options={PROJECT_CATEGORY_OPTIONS} />
+            </Form.Item>
+            <Form.Item
+              label="项目性质"
+              name="project_nature"
+              rules={[{ required: true }]}
+              style={{ flex: 1 }}
+            >
+              <Select options={PROJECT_NATURE_OPTIONS} />
+            </Form.Item>
+            <Form.Item
+              label="主责部门（受控）"
+              name="owning_function"
+              rules={[{ required: true }]}
+              style={{ flex: 1 }}
+            >
+              <Select options={OWNING_FUNCTION_OPTIONS} />
+            </Form.Item>
+          </Space>
+
+          {category === 'asset_related' && (
+            <Form.Item
+              label="关联资产"
+              name="asset_id"
+              rules={[{ required: true, message: '资产相关项目必须绑定一个资产' }]}
+              extra="SMP §7.5：资产相关项目须绑定唯一权威资产"
+            >
+              <Select
+                options={assetOptions}
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择资产（按编码 / 名称搜索）"
+              />
+            </Form.Item>
+          )}
 
           <Space size="large" style={{ display: 'flex' }}>
             <Form.Item label="所属 Program" name="program_name" style={{ flex: 1 }}>

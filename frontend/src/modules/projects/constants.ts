@@ -1,7 +1,10 @@
 import type {
   MilestoneStatus,
   MilestoneType,
+  OwningFunction,
   ProjectAction,
+  ProjectCategory,
+  ProjectNature,
   ProjectPhase,
   ProjectStatus,
   ProjectType,
@@ -19,18 +22,49 @@ export const PROJECT_TYPE_OPTIONS: { value: ProjectType; label: string }[] = [
   { value: 'mixed', label: '混合' },
 ];
 
-// §9.2 project_phase VARCHAR(32) 无 CHECK，前端常用建议值
+// SMP V2.1 §10.3 project_phase 受控枚举
 export const PROJECT_PHASE_OPTIONS: { value: ProjectPhase; label: string }[] = [
   { value: 'discovery', label: '发现' },
-  { value: 'preclinical', label: '临床前' },
-  { value: 'phase_1', label: 'I 期' },
-  { value: 'phase_2', label: 'II 期' },
-  { value: 'phase_3', label: 'III 期' },
-  { value: 'submission', label: '申报中' },
-  { value: 'approved', label: '已批准' },
-  { value: 'marketed', label: '已上市' },
-  { value: 'discontinued', label: '已终止' },
-  { value: 'na', label: '不适用' },
+  { value: 'lead_opt', label: '先导优化' },
+  { value: 'ind_enabling', label: 'IND 使能' },
+  { value: 'p1', label: 'I 期' },
+  { value: 'p2', label: 'II 期' },
+  { value: 'p3', label: 'III 期' },
+  { value: 'filed', label: '已申报' },
+  { value: 'post_marketing', label: '上市后' },
+];
+
+// SMP V2.1 §7.4(a) 是否关联资产
+export const PROJECT_CATEGORY_OPTIONS: { value: ProjectCategory; label: string }[] = [
+  { value: 'asset_related', label: '资产相关' },
+  { value: 'non_asset', label: '非资产' },
+];
+
+// SMP V2.1 §7.4(b) portfolio 性质
+export const PROJECT_NATURE_OPTIONS: { value: ProjectNature; label: string }[] = [
+  { value: 'nme', label: '新分子实体' },
+  { value: 'indication_expansion', label: '适应症拓展' },
+  { value: 'geographic_expansion', label: '地区拓展' },
+  { value: 'lcm', label: '生命周期管理' },
+  { value: 'regulatory_commitment', label: '监管承诺' },
+  { value: 'cmc_change', label: 'CMC 变更' },
+  { value: 'bd_evaluation', label: 'BD 评估' },
+  { value: 'platform', label: '平台能力' },
+  { value: 'discovery', label: '发现' },
+];
+
+// SMP V2.1 §10.3 受控归属
+export const OWNING_FUNCTION_OPTIONS: { value: OwningFunction; label: string }[] = [
+  { value: 'rd', label: '研发' },
+  { value: 'clinical', label: '临床' },
+  { value: 'cmc', label: 'CMC' },
+  { value: 'regulatory', label: '注册' },
+  { value: 'qa', label: '质量' },
+  { value: 'it', label: 'IT' },
+  { value: 'bd', label: '商务拓展' },
+  { value: 'finance', label: '财务' },
+  { value: 'pmo', label: 'PMO' },
+  { value: 'other', label: '其他' },
 ];
 
 // SMP V2.1 §11.3 status（补 cancelled）

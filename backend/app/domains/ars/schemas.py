@@ -82,6 +82,7 @@ class AssetBrief(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    asset_id: int
     asset_code: str
     internal_name: str
     trade_name: str | None = None

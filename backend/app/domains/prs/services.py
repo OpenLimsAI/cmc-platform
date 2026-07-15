@@ -20,6 +20,7 @@ from app.core.exceptions import (
     StateInvalidError,
     VersionConflictError,
 )
+from app.domains.ars.models import Asset
 from app.domains.audit.schemas import StatusHistoryItem
 from app.domains.audit.signature_service import ESignatureService
 from app.domains.auth.models import User
@@ -87,6 +88,29 @@ class ProjectService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # ----------- SMP §7.5 资产绑定校验 -----------
+    async def _validate_asset_link(
+        self, category: str | None, asset_id: int | None
+    ) -> None:
+        """asset_related 项目必须绑定一个存在的资产；non_asset 不得绑定。"""
+        if category == "asset_related" and asset_id is None:
+            raise BadRequestError(
+                "project_category=asset_related 的项目必须指定 asset_id（SMP §7.5）"
+            )
+        if category == "non_asset" and asset_id is not None:
+            raise BadRequestError(
+                "project_category=non_asset 的项目不应绑定 asset_id（SMP §8）"
+            )
+        if asset_id is not None:
+            result = await self.db.execute(
+                select(Asset.asset_id).where(
+                    Asset.asset_id == asset_id,
+                    Asset.deleted_at.is_(None),
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                raise BadRequestError(f"asset_id={asset_id} 不存在或已删除")
+
     # ----------- 编码生成（SMP V2.1 §7.1：CMAB-PRJ-YYYY-NNNN）-----------
     async def _next_project_code(self) -> str:
         # 用 meta.fn_ensure_year_sequence 拿当前年份序列名，再用 fn_next_code 取号
@@ -130,6 +154,17 @@ class ProjectService:
         if filter.status:
             statuses = [s.strip() for s in filter.status.split(",")]
             stmt = stmt.where(Project.status.in_(statuses))
+        if filter.project_category:
+            cats = [c.strip() for c in filter.project_category.split(",")]
+            stmt = stmt.where(Project.project_category.in_(cats))
+        if filter.project_nature:
+            natures = [n.strip() for n in filter.project_nature.split(",")]
+            stmt = stmt.where(Project.project_nature.in_(natures))
+        if filter.owning_function:
+            funcs = [f.strip() for f in filter.owning_function.split(",")]
+            stmt = stmt.where(Project.owning_function.in_(funcs))
+        if filter.asset_id is not None:
+            stmt = stmt.where(Project.asset_id == filter.asset_id)
         if filter.department:
             stmt = stmt.where(Project.department.ilike(f"%{filter.department}%"))
         if filter.project_manager_id is not None:
@@ -187,6 +222,9 @@ class ProjectService:
 
     # ----------- 创建 -----------
     async def create(self, payload: ProjectCreate, current_user: User) -> ProjectDetail:
+        # SMP §7.5：资产相关项目必须绑定存在的资产
+        await self._validate_asset_link(payload.project_category, payload.asset_id)
+
         # project_code 由 BEFORE INSERT 触发器兜底；这里显式调一次以便立即拿到返回值
         code = await self._next_project_code()
 
@@ -203,6 +241,17 @@ class ProjectService:
             project_name_en=payload.project_name_en,
             project_type=payload.project_type,
             project_phase=payload.project_phase,
+            project_category=payload.project_category,
+            project_nature=payload.project_nature,
+            owning_function=payload.owning_function,
+            participating_functions=payload.participating_functions,
+            asset_id=payload.asset_id,
+            approval_reference=payload.approval_reference,
+            governance_approval_ref=payload.governance_approval_ref,
+            status_reason=payload.status_reason,
+            sap_wbs_mapping=payload.sap_wbs_mapping,
+            external_contract_refs=payload.external_contract_refs,
+            partner_reference=payload.partner_reference,
             parent_project_id=payload.parent_project_id,
             program_name=payload.program_name,
             planned_start_date=payload.planned_start_date,
@@ -253,6 +302,13 @@ class ProjectService:
         update_data = payload.model_dump(
             exclude_unset=True, exclude={"version", "change_reason"}
         )
+
+        # SMP §7.5：按更新后的有效值校验资产绑定
+        eff_category = update_data.get("project_category", proj.project_category)
+        eff_asset_id = update_data.get("asset_id", proj.asset_id)
+        if "project_category" in update_data or "asset_id" in update_data:
+            await self._validate_asset_link(eff_category, eff_asset_id)
+
         for k, v in update_data.items():
             setattr(proj, k, v)
         proj.updated_by = current_user.user_id
@@ -339,8 +395,12 @@ class ProjectService:
 
         proj.status = next_status
         proj.updated_by = current_user.user_id
+        proj.status_reason = comment
         today = date.today()
-        # M3.0.2：approved_at/by 字段已移除；审批时间从 status_history 推断
+        # SMP §10.3：approve 回填立项批准日期与年份（approval_year 对齐编号年份）
+        if action == "approve" and proj.approval_date is None:
+            proj.approval_date = today
+            proj.approval_year = today.year
         if action == "start" and proj.actual_start_date is None:
             proj.actual_start_date = today
         elif action == "complete" and proj.actual_end_date is None:

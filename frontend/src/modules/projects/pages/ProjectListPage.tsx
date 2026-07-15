@@ -19,7 +19,9 @@ import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { EntityCodeLink } from '@/shared/components/EntityCodeLink';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
+  PROJECT_CATEGORY_OPTIONS,
   PROJECT_CONFIDENTIALITY_OPTIONS,
+  PROJECT_NATURE_OPTIONS,
   PROJECT_PHASE_OPTIONS,
   PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
@@ -36,6 +38,8 @@ export function ProjectListPage() {
     q?: string;
     project_type?: string;
     project_phase?: string;
+    project_category?: string;
+    project_nature?: string;
     status?: string;
     priority?: string;
     program_name?: string;
@@ -85,6 +89,13 @@ export function ProjectListPage() {
       width: 100,
       render: (p: string | null) =>
         p ? PROJECT_PHASE_OPTIONS.find((o) => o.value === p)?.label ?? p : '—',
+    },
+    {
+      title: '性质',
+      dataIndex: 'project_nature',
+      key: 'project_nature',
+      width: 110,
+      render: (n: string) => PROJECT_NATURE_OPTIONS.find((o) => o.value === n)?.label ?? n,
     },
     {
       title: '部门',
@@ -175,6 +186,28 @@ export function ProjectListPage() {
               setFilters((f) => ({ ...f, project_phase: v }));
             }}
             options={PROJECT_PHASE_OPTIONS}
+          />
+          <Select
+            placeholder="是否关联资产"
+            allowClear
+            style={{ width: 150 }}
+            value={filters.project_category}
+            onChange={(v) => {
+              setPage(1);
+              setFilters((f) => ({ ...f, project_category: v }));
+            }}
+            options={PROJECT_CATEGORY_OPTIONS}
+          />
+          <Select
+            placeholder="项目性质"
+            allowClear
+            style={{ width: 150 }}
+            value={filters.project_nature}
+            onChange={(v) => {
+              setPage(1);
+              setFilters((f) => ({ ...f, project_nature: v }));
+            }}
+            options={PROJECT_NATURE_OPTIONS}
           />
           <Select
             placeholder="状态"

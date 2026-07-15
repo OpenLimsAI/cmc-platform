@@ -39,7 +39,10 @@ import { ProjectSubstanceTab } from '../components/ProjectSubstanceTab';
 import type { ProjectDetail } from '@/api/types';
 import {
   AVAILABLE_PROJECT_ACTIONS,
+  OWNING_FUNCTION_OPTIONS,
   PROJECT_ACTION_LABELS,
+  PROJECT_CATEGORY_OPTIONS,
+  PROJECT_NATURE_OPTIONS,
   PROJECT_PHASE_OPTIONS,
   PROJECT_STATUS_COLOR,
   PROJECT_TYPE_OPTIONS,
@@ -103,6 +106,12 @@ export function ProjectDetailPage() {
   const phaseLabel = proj.project_phase
     ? PROJECT_PHASE_OPTIONS.find((o) => o.value === proj.project_phase)?.label ?? proj.project_phase
     : '—';
+  const categoryLabel =
+    PROJECT_CATEGORY_OPTIONS.find((o) => o.value === proj.project_category)?.label ?? proj.project_category;
+  const natureLabel =
+    PROJECT_NATURE_OPTIONS.find((o) => o.value === proj.project_nature)?.label ?? proj.project_nature;
+  const owningLabel =
+    OWNING_FUNCTION_OPTIONS.find((o) => o.value === proj.owning_function)?.label ?? proj.owning_function;
 
   // UI7（V1.1 §7.2.1 行 859-887 / V1.2 评审 UI7:A 决议）：概览 Tab 1
   // = 进度条 + 团队/关联预览统计 + 详细字段表（甘特图保持 Phase 5 推迟）
@@ -187,8 +196,31 @@ export function ProjectDetailPage() {
               { key: 'project_name_en', label: '英文名', children: proj.project_name_en ?? '—' },
               { key: 'project_type', label: '项目类型', children: typeLabel },
               { key: 'phase', label: '阶段', children: phaseLabel },
+              { key: 'project_category', label: '是否关联资产', children: categoryLabel },
+              { key: 'project_nature', label: '项目性质', children: natureLabel },
+              { key: 'owning_function', label: '主责部门（受控）', children: owningLabel },
+              {
+                key: 'asset_id',
+                label: '关联资产',
+                children: proj.asset_id ? `#${proj.asset_id}` : '—',
+              },
+              {
+                key: 'approval_date',
+                label: '立项批准日期',
+                children: proj.approval_date ?? '—',
+              },
+              {
+                key: 'approval_reference',
+                label: '批准会议编号',
+                children: proj.approval_reference ?? '—',
+              },
+              {
+                key: 'governance_approval_ref',
+                label: 'DGC 批准号',
+                children: proj.governance_approval_ref ?? '—',
+              },
               { key: 'program_name', label: '所属 Program', children: proj.program_name ?? '—' },
-              { key: 'department', label: '主责部门', children: proj.department ?? '—' },
+              { key: 'department', label: '主责部门（自由文本）', children: proj.department ?? '—' },
               { key: 'priority', label: '优先级', children: proj.priority ?? '—' },
               {
                 key: 'planned_start_date',

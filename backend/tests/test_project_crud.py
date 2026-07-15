@@ -11,7 +11,7 @@ async def test_create_project_returns_code(admin_client, unique_suffix):
         json={
             "project_name": f"pytest project {unique_suffix}",
             "project_type": "cmc",
-            "project_phase": "phase_2",
+            "project_phase": "p2",
             "department": "CMC R&D",
         },
     )
@@ -32,7 +32,7 @@ async def test_get_project_after_create(admin_client, unique_suffix):
         json={
             "project_name": f"pytest get project {unique_suffix}",
             "project_type": "clinical",
-            "project_phase": "phase_1",
+            "project_phase": "p1",
             "objective": "Build clinical Ph1 dossier",
         },
     )
@@ -44,7 +44,7 @@ async def test_get_project_after_create(admin_client, unique_suffix):
     assert data["project_code"] == code
     assert data["project_name"] == f"pytest get project {unique_suffix}"
     assert data["project_type"] == "clinical"
-    assert data["project_phase"] == "phase_1"
+    assert data["project_phase"] == "p1"
     assert data["objective"] == "Build clinical Ph1 dossier"
 
 

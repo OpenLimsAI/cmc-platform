@@ -42,6 +42,26 @@ class Project(Base):
             "'completed','terminated','cancelled')",
             name="ck_project_status",
         ),
+        # SMP V2.1 §7.4 项目分类三维度 + §10.3 归属/阶段（migration 0048）
+        CheckConstraint(
+            "project_category IN ('asset_related','non_asset')",
+            name="ck_project_category",
+        ),
+        CheckConstraint(
+            "project_nature IN ('nme','indication_expansion','geographic_expansion',"
+            "'lcm','regulatory_commitment','cmc_change','bd_evaluation','platform','discovery')",
+            name="ck_project_nature",
+        ),
+        CheckConstraint(
+            "owning_function IN ('rd','clinical','cmc','regulatory','qa','it',"
+            "'bd','finance','pmo','other')",
+            name="ck_owning_function",
+        ),
+        CheckConstraint(
+            "project_phase IS NULL OR project_phase IN ('discovery','lead_opt',"
+            "'ind_enabling','p1','p2','p3','filed','post_marketing')",
+            name="ck_project_phase",
+        ),
         CheckConstraint(
             "confidentiality IN ('public','internal','restricted')",
             name="ck_project_conf",
@@ -63,6 +83,19 @@ class Project(Base):
     project_type: Mapped[str] = mapped_column(String(32), nullable=False)
     project_phase: Mapped[str | None] = mapped_column(String(32))
 
+    # SMP V2.1 §7.4 项目分类三维度（migration 0048）
+    project_category: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="non_asset"
+    )
+    project_nature: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="discovery"
+    )
+
+    # SMP V2.1 §7.5 项目→资产 1:N 权威绑定（asset_related 时 service 层强制必填）
+    asset_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("ars.asset.asset_id")
+    )
+
     # 层级
     parent_project_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("prs.project.project_id")
@@ -83,11 +116,28 @@ class Project(Base):
         BigInteger, ForeignKey("auth.user.user_id")
     )
     department: Mapped[str | None] = mapped_column(String(64))
+    # SMP V2.1 §10.3 受控归属（department 降级为可选自由文本）+ 参与部门（migration 0048）
+    owning_function: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="rd"
+    )
+    participating_functions: Mapped[list | None] = mapped_column(JSONB)
 
     # 预算
     budget_total: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     budget_currency: Mapped[str | None] = mapped_column(String(8), default="CNY")
     budget_actual: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
+
+    # SMP V2.1 §10.3 审批与治理（approve 动作回填 date/year；ref 由前端提交）（migration 0048）
+    approval_date: Mapped[date | None] = mapped_column(Date)
+    approval_reference: Mapped[str | None] = mapped_column(String(50))
+    approval_year: Mapped[int | None] = mapped_column(Integer)
+    governance_approval_ref: Mapped[str | None] = mapped_column(String(50))
+    status_reason: Mapped[str | None] = mapped_column(Text)
+
+    # SMP V2.1 §10.3 外部对接（migration 0048）
+    sap_wbs_mapping: Mapped[str | None] = mapped_column(String(50))
+    external_contract_refs: Mapped[list | None] = mapped_column(JSONB)
+    partner_reference: Mapped[str | None] = mapped_column(String(200))
 
     # 目标与范围
     objective: Mapped[str | None] = mapped_column(Text)
