@@ -1,0 +1,11 @@
+# 凭据，绝不入库
+*.cred
+*.env
+!*.env.example
+
+# 运行时状态
+*_state.json
+*.log
+__pycache__/
+*.pyc
+.venv/
