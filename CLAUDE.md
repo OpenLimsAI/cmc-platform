@@ -93,7 +93,7 @@ cmc_rd → cmc_analytics
 | | |
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
-| Stage 1 `flex2_ingest.py` | ✅ v1.0.0 已交付，**尚未实机跑过** |
+| Stage 1 `flex2/flex2_ingest.py` | ✅ v1.1.0（归档布局已对齐 NAS 既有多设备约定），**尚未实机跑过** |
 | Stage 2 ETL | ⬜ 未开始，**迁往独立 repo `rd-nova-etl`**（不在本项目） |
 | `sql/` 本地测试镜像 | ⬜ 未开始（真库 DDL 在 `cmc-schema-migrations`，见铁律 8） |
 | 部署（挂载/systemd） | ⬜ 未执行 |
