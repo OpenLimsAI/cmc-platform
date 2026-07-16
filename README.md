@@ -103,8 +103,8 @@ flex2/flex2_ingest.py                        # c. 日常增量（systemd timer �
 | | |
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
-| Stage 1 `flex2/flex2_ingest.py` | ✅ v1.1.0，**尚未实机跑过** |
-| 部署（挂载 / systemd） | ⬜ 未执行 |
+| Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0（校验放宽：多行宽只告警不拒收） |
+| 部署（挂载 / systemd） | 🔧 部署中（挂载/首跑已验，systemd 待装） |
 | Stage 2 ETL | ⬜ 未开始，迁往独立 repo `rd-nova-etl`（不在本项目） |
 
 ---

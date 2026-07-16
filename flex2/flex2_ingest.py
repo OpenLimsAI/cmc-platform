@@ -35,6 +35,7 @@ import argparse
 import subprocess
 import datetime as dt
 from io import StringIO
+from collections import Counter
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -42,8 +43,8 @@ from typing import Dict, Any, List, Optional, Tuple
 # 版本信息（变更控制用，改动逻辑请同步递增）
 # =========================================================
 SCRIPT_NAME = "flex2_ingest"
-SCRIPT_VERSION = "v1.1.0"
-SCRIPT_RELEASE_DATE = "2026-07-15"
+SCRIPT_VERSION = "v1.2.0"
+SCRIPT_RELEASE_DATE = "2026-07-16"
 SCRIPT_OWNER = "TT Lab"
 
 # =========================================================
@@ -254,38 +255,61 @@ def read_source_stable(path: Path) -> bytes:
     raise IOError(f"源文件读取不稳定或失败: {path} ({last_err})")
 
 
-def validate_csv(data: bytes, name: str) -> Tuple[bool, int, str]:
+def validate_csv(data: bytes, name: str) -> Tuple[bool, int, str, Optional[str]]:
     """
-    结构校验，不解析业务字段。
-    返回 (是否通过, 数据行数, 说明)
+    归档层结构校验：只判断"文件是否完整、可读"，不要求业务结构规整。
+    返回 (可否归档, 数据行数, 说明, 告警消息或None)
+
+    设计原则（2026-07-16 定，见 CLAUDE.md 铁律 1/5）：
+    归档的天职是忠实保存底本。FLEX2 月度文件实测存在"同一文件内多种行宽"——
+    某些样品未测的通道不留空占位、直接省略，使该行变短（套餐化，非损坏）。
+    这类是完好数据，必须照常归档；只在检测到多行宽 / 行宽≠表头 / BOM 时**告警**
+    （守铁律 1：变化必告警、不静默吞），交由 Stage 2 按套餐解析。
+    只有真正损坏（非 UTF-8、无法解析、空文件、只有表头）才拒绝归档（铁律 5）。
 
     注意：FLEX2 每行尾部都有一个多余逗号，会产生一个空列，属正常现象。
     """
     try:
         text = data.decode("utf-8", errors="strict")
     except UnicodeDecodeError as e:
-        return False, 0, f"UTF-8 解码失败: {e}"
+        return False, 0, f"UTF-8 解码失败（疑似损坏）: {e}", None
 
     if text.startswith("\ufeff"):
-        # 实测无 BOM；出现即视为 Nova 改了导出行为，值得知道
-        return False, 0, "出现了 BOM，导出行为可能已变更，请人工确认"
+        had_bom = True
+    else:
+        had_bom = False
 
     try:
         rows = list(csv.reader(StringIO(text)))
     except Exception as e:
-        return False, 0, f"CSV 解析失败: {e}"
+        return False, 0, f"CSV 无法解析（疑似损坏）: {e}", None
 
     if not rows:
-        return False, 0, "空文件"
+        return False, 0, "空文件", None
 
     header_len = len(rows[0])
     data_rows = [r for r in rows[1:] if any(c.strip() for c in r)]
+    if not data_rows:
+        return False, 0, "只有表头、无数据行", None
 
-    bad = [i for i, r in enumerate(data_rows, start=2) if len(r) != header_len]
-    if bad:
-        return False, len(data_rows), f"列数不一致的行: {bad[:5]}（表头 {header_len} 列）"
+    # 行宽分布：不再据此拒绝归档，只在异常时告警（守铁律 1，忠实保存底本）
+    widths = Counter(len(r) for r in data_rows)
+    notes: List[str] = []
+    warn: Optional[str] = None
+    if len(widths) > 1:
+        dist = ", ".join(f"{w}列×{n}" for w, n in sorted(widths.items()))
+        notes.append("多行宽")
+        warn = (f"文件内存在多种行宽（{dist}；表头 {header_len} 列）——"
+                f"疑为未测通道未留空占位的套餐化数据；已归档，ETL 需按行宽分套餐解析")
+    elif next(iter(widths)) != header_len:
+        w = next(iter(widths))
+        notes.append("行宽≠表头")
+        warn = f"数据行宽 {w} 与表头 {header_len} 不一致（单一套餐）；已归档，ETL 需注意"
+    if had_bom:
+        notes.append("BOM")
+        warn = ((warn + "；") if warn else "") + "文件带 BOM（导出行为可能变更，请留意）"
 
-    return True, len(data_rows), "OK"
+    return True, len(data_rows), ("OK" if not notes else "; ".join(notes)), warn
 
 
 def archive_bytes(data: bytes, dest: Path, dry_run: bool) -> Tuple[str, str]:
@@ -412,12 +436,15 @@ def ingest_monthly(state: Dict[str, Any], args, manifest: List[List[Any]]) -> Di
             logger.info(f"未变化，跳过: {src.name}")
             continue
 
-        ok, rows, note = validate_csv(data, src.name)
+        ok, rows, note, warn = validate_csv(data, src.name)
         if not ok:
-            # 校验不过就不归档，避免把坏数据写进"底本"
-            alert("ERROR", f"月度文件结构校验失败，未归档: {src.name} -> {note}")
+            # 只有真损坏（非 UTF-8/无法解析/空）才不归档（铁律 5）
+            alert("ERROR", f"月度文件疑似损坏，未归档: {src.name} -> {note}")
             stats["failed"] += 1
             continue
+        if warn:
+            # 结构异常但完好（多行宽/BOM 等）：照常归档，只告警（铁律 1，不静默吞）
+            alert("WARNING", f"月度文件结构提示（已归档）: {src.name} -> {warn}")
 
         dest = (RESULTS_ROOT / "Monthly" / f"{year:04d}-{mon:02d}" /
                 f"{src.stem}__snap_{RUN_TAG}.csv")
@@ -594,9 +621,11 @@ def ingest_per_event(state: Dict[str, Any], args, manifest: List[List[Any]]) -> 
             stats["failed"] += 1
             continue
 
-        ok, rows, note = validate_csv(data, src.name)
+        ok, rows, note, warn = validate_csv(data, src.name)
         if not ok:
-            logger.warning(f"逐次文件结构异常（已归档，仅记录）: {src.name} -> {note}")
+            logger.warning(f"逐次文件疑似损坏（已归档，仅记录）: {src.name} -> {note}")
+        elif warn:
+            logger.info(f"逐次文件结构提示: {src.name} -> {warn}")
 
         reg[src.name] = {"sha256": h1, "size": len(data), "archived_at": NOW_STR}
         stats["new"] += 1
