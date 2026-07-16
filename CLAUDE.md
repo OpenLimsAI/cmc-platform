@@ -85,7 +85,7 @@ cmc_rd → cmc_analytics
 | `Results/SampleResults{AID}<YYYY>-<Month>.csv` | **✅ 唯一主数据源** | 月度累积，整月持续追加 |
 | `Results/QcResults{AID}<YYYY>-<Month>.csv` | ✅ 一并采集 | 同上 |
 | `Database/Backup_<ts>/` | ⚠️ 每日归档（保险） | 每晚覆盖，只留一份，不抓就永久丢失 |
-| `Results/SampleResults{AID}<YYYY-MM-DD_HHMMSS>.csv` | ⬜ 冷归档一次后弃用 | 同事手动导的，已告知停止 |
+| `Results/SampleResults{AID}<YYYY-MM-DD_HHMMSS>.csv` | ✅ 已冷备（311 个，2026-07-16，`PerEvent/`） | 同事手动导的，已告知停止；**弃用前须 `--verify-coverage` 核对是否真被月度覆盖** |
 | `Report/*.pdf` | ❌ 忽略 | 人工导的报告 |
 
 `{AID}` = Analyzer ID = `T281240040C`（出现在每个文件名里，是多机区分的唯一标识）
