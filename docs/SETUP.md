@@ -83,7 +83,13 @@ sudo -u flex2ingest touch /mnt/flex2/x   # 必须报 Read-only file system
 ```bash
 sudo git clone git@github.com:qingcheng81/cmc-instrument-ingest.git /opt/cmc-instrument-ingest
 sudo chown -R prometheus:prometheus /opt/cmc-instrument-ingest
+sudo chmod 0755 /opt/cmc-instrument-ingest/flex2/flex2_ingest.py
+# ⚠️ 忽略文件权限位变化，否则 chmod 后 git pull 会因 mode change 冲突而 Aborting
+git -C /opt/cmc-instrument-ingest config core.fileMode false
+
+# 配置文件：设为 root:flex2ingest 640，运行用户（flex2ingest）才读得到；systemd EnvironmentFile 也靠它
 sudo cp /opt/cmc-instrument-ingest/flex2/flex2-ingest.env.example /etc/flex2-ingest.env
+sudo chown root:flex2ingest /etc/flex2-ingest.env
 sudo chmod 0640 /etc/flex2-ingest.env
 # 默认值已对齐现网（机器名 T281240040C_Nova、挂载点 /mnt/ttlab-backups 等），按需微调
 ```
@@ -107,19 +113,18 @@ sudo chmod 755 /usr/local/bin/flex2-alert.sh
 
 ## 4. 首跑（按顺序，别跳步）
 
+用运行用户 flex2ingest 跑、source 配置、python3 显式调用（不依赖脚本 x 位/shebang）：
+
 ```bash
-# a. 空跑，只探测和校验，不写 NAS
-sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
-  /opt/cmc-instrument-ingest/flex2/flex2_ingest.py --dry-run --backfill
+run() { sudo -u flex2ingest bash -c "set -a; source /etc/flex2-ingest.env; set +a; python3 /opt/cmc-instrument-ingest/flex2/flex2_ingest.py $*"; }
 
-# b. 确认输出无误后，回填历史（14 个月，几 MB，一次搞定）
-sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
-  /opt/cmc-instrument-ingest/flex2/flex2_ingest.py --backfill
-
-# c. 之后每日增量（timer 会这么跑）
-sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
-  /opt/cmc-instrument-ingest/flex2/flex2_ingest.py
+run --dry-run --backfill   # a. 空跑，只探测和校验，不写 NAS
+run --backfill             # b. 确认输出无误后回填历史（一次搞定）
+run                        # c. 之后每日增量（timer 会这么跑）
 ```
+
+首跑 `--dry-run --backfill` 应看到 `status: SUCCESS`；月度文件若有"多行宽"会打 `WARNING` 但照常归档
+（v1.2.0 起，见 CLAUDE.md 铁律 1/5），只有真损坏才 `ERROR` 不归档。
 
 冷备逐次文件（可选，一次性，~280 个）：加 `--per-event`。
 
@@ -134,13 +139,14 @@ sudo -u flex2ingest env $(grep -v '^#' /etc/flex2-ingest.env | xargs) \
 Description=FLEX2 Stage 1 ingest and verify
 After=network-online.target remote-fs.target
 Wants=network-online.target
+RequiresMountsFor=/mnt/flex2 /mnt/ttlab-backups
 
 [Service]
 Type=oneshot
 User=flex2ingest
 Group=flex2ingest
 EnvironmentFile=/etc/flex2-ingest.env
-ExecStart=/opt/cmc-instrument-ingest/flex2/flex2_ingest.py
+ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/flex2/flex2_ingest.py
 TimeoutStartSec=1800
 Nice=10
 
