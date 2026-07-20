@@ -1,60 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import api from "@/lib/api"
+import api, { logout } from "@/lib/api"
+import { getToken, getUser, isAdmin, type AuthUser } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Pencil, Check, X, Upload, Plus } from "lucide-react"
 
 // ---------- types ----------
 interface MethodItem { method_code: string; method_name: string | null; std_minutes: number | null; target_days: number | null }
 interface EmployeeItem { employee_id: string; employee_name: string | null; department: string | null }
-
-// ---------- token helpers ----------
-const TOKEN_KEY = "lims_admin_token"
-const getToken = () => (typeof window !== "undefined" ? sessionStorage.getItem(TOKEN_KEY) : null)
-const authHeaders = () => ({ "x-admin-token": getToken() ?? "" })
-
-// ---------- sub-components ----------
-
-function LoginForm({ onLogin }: { onLogin: () => void }) {
-  const [pw, setPw] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-
-  const submit = async () => {
-    setLoading(true)
-    setError("")
-    try {
-      const { data } = await api.post<{ token: string }>("/api/v1/admin/auth", { password: pw })
-      sessionStorage.setItem(TOKEN_KEY, data.token)
-      onLogin()
-    } catch {
-      setError("密码错误")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-xl shadow p-8 w-80 space-y-4">
-        <h1 className="text-lg font-semibold text-gray-800">管理员登录</h1>
-        <input
-          type="password"
-          placeholder="请输入管理员密码"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <Button onClick={submit} disabled={loading} className="w-full">
-          {loading ? "验证中…" : "登录"}
-        </Button>
-      </div>
-    </div>
-  )
-}
 
 // --- inline-editable cell ---
 function EditableCell({
@@ -120,7 +74,7 @@ function UploadButton({ url, onDone }: { url: string; onDone: () => void }) {
     form.append("file", file)
     try {
       const { data } = await api.post<{ upserted: number }>(url, form, {
-        headers: { ...authHeaders(), "Content-Type": "multipart/form-data" },
+        headers: { "Content-Type": "multipart/form-data" },
       })
       setStatus(`已更新 ${data.upserted} 条`)
       onDone()
@@ -151,7 +105,7 @@ function MethodsTab() {
 
   const load = async () => {
     setLoading(true)
-    const { data } = await api.get<MethodItem[]>("/api/v1/admin/methods", { headers: authHeaders() })
+    const { data } = await api.get<MethodItem[]>("/api/v1/admin/methods")
     setRows(data)
     setLoading(false)
   }
@@ -162,9 +116,7 @@ function MethodsTab() {
     const payload = field === "std_minutes" ? { std_minutes: parseFloat(val) }
       : field === "target_days" ? { target_days: val ? parseInt(val) : null }
       : { method_name: val }
-    const { data } = await api.put<MethodItem>(`/api/v1/admin/methods/${encodeURIComponent(code)}`, payload, {
-      headers: authHeaders(),
-    })
+    const { data } = await api.put<MethodItem>(`/api/v1/admin/methods/${encodeURIComponent(code)}`, payload)
     setRows((prev) => prev.map((r) => (r.method_code === code ? data : r)))
   }
 
@@ -177,7 +129,7 @@ function MethodsTab() {
         method_name: newRow.method_name.trim() || null,
         std_minutes: newRow.std_minutes ? parseFloat(newRow.std_minutes) : null,
         target_days: newRow.target_days ? parseInt(newRow.target_days) : null,
-      }, { headers: authHeaders() })
+      })
       setRows((prev) => [data, ...prev])
       setAdding(false)
       setNewRow({ method_code: "", method_name: "", std_minutes: "", target_days: "" })
@@ -289,7 +241,7 @@ function EmployeesTab() {
 
   const load = async () => {
     setLoading(true)
-    const { data } = await api.get<EmployeeItem[]>("/api/v1/admin/employees", { headers: authHeaders() })
+    const { data } = await api.get<EmployeeItem[]>("/api/v1/admin/employees")
     setRows(data)
     setLoading(false)
   }
@@ -300,7 +252,6 @@ function EmployeesTab() {
     const { data } = await api.put<EmployeeItem>(
       `/api/v1/admin/employees/${encodeURIComponent(id)}`,
       { [field]: val },
-      { headers: authHeaders() },
     )
     setRows((prev) => prev.map((r) => (r.employee_id === id ? data : r)))
   }
@@ -313,7 +264,7 @@ function EmployeesTab() {
         employee_id: newRow.employee_id.trim(),
         employee_name: newRow.employee_name.trim() || null,
         department: newRow.department.trim() || null,
-      }, { headers: authHeaders() })
+      })
       setRows((prev) => [data, ...prev])
       setAdding(false)
       setNewRow({ employee_id: "", employee_name: "", department: "" })
@@ -401,23 +352,43 @@ function EmployeesTab() {
 }
 
 // ---------- main page ----------
+// 鉴权：复用 MDM 统一登录。管理员角色（CMC_LIMS_ADMIN / SYS_ADMIN）直接进入，无需再输密码；
+// 已登录但无管理员角色 → 提示无权限；未登录 → AuthGuard 已跳 /login。
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [checked, setChecked] = useState(false)
   const [tab, setTab] = useState<"methods" | "employees">("methods")
 
   useEffect(() => {
-    if (getToken()) setAuthed(true)
+    if (getToken()) setUser(getUser())
+    setChecked(true)
   }, [])
 
-  if (!authed) return <LoginForm onLogin={() => setAuthed(true)} />
+  if (!checked) return null
+
+  if (!isAdmin(user)) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow p-8 w-96 space-y-2 text-center">
+          <h1 className="text-lg font-semibold text-gray-800">无管理权限</h1>
+          <p className="text-sm text-gray-500">
+            管理员后台需要「LIMS 管理员」角色，请联系管理员在 MDM Portal 中分配。
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-xl font-semibold text-gray-900">管理员后台</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">管理员后台</h1>
+          <p className="text-xs text-gray-400 mt-0.5">{user!.full_name || user!.username} · 管理员</p>
+        </div>
         <button
           className="text-sm text-gray-400 hover:text-gray-600"
-          onClick={() => { sessionStorage.removeItem(TOKEN_KEY); setAuthed(false) }}
+          onClick={async () => { await logout(); window.location.href = "/login" }}
         >
           退出登录
         </button>

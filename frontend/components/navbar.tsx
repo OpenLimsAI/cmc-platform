@@ -1,7 +1,10 @@
 "use client"
-// 顶部导航栏：各看板页面入口
+// 顶部导航栏：各看板页面入口 + 登录用户信息/退出；Admin 入口仅管理员角色可见
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
+import { logout } from "@/lib/api"
+import { getUser, isAdmin, type AuthUser } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
@@ -17,9 +20,22 @@ export function Navbar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const qs = searchParams.toString()
+  // localStorage 只能在客户端读，挂载后再取用户，避免 SSR 水合不一致
+  const [user, setUser] = useState<AuthUser | null>(null)
+  useEffect(() => {
+    setUser(getUser())
+  }, [pathname])
 
   // dashboard 标签切换时保留 search params（groups、start_date、end_date）
   const dashboardHref = (base: string) => (qs ? `${base}?${qs}` : base)
+
+  // 登录页不显示导航栏
+  if (pathname.startsWith("/login")) return null
+
+  const handleLogout = async () => {
+    await logout()
+    window.location.href = "/login"
+  }
 
   return (
     <header className="border-b bg-white shadow-sm">
@@ -41,15 +57,28 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto">
-          <Link
-            href="/admin"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            Admin
-          </Link>
+        <div className="ml-auto flex items-center gap-2">
+          {isAdmin(user) && (
+            <Link
+              href="/admin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Admin
+            </Link>
+          )}
+          {user && (
+            <>
+              <span className="text-sm text-gray-500">{user.full_name || user.username}</span>
+              <button
+                onClick={handleLogout}
+                className="px-2 py-1.5 rounded text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                退出
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

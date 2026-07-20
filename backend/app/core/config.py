@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     analytics_database_url: str
     mdm_database_url: str = ""
     raw_database_url: str = ""
-    admin_password: str = "change_me"
     app_env: str = "development"
     log_level: str = "INFO"
     # 注：监听 host/port 固定在启动命令（uvicorn --port 8030 / docker-compose），
@@ -34,11 +33,21 @@ class Settings(BaseSettings):
         extras = [o.strip() for o in self.dev_extra_origins.split(",") if o.strip()]
         return base + extras
 
+    # ----------- 鉴权 / JWT 验签（令牌由 MDM 签发，本系统只验签，不发令牌）-----------
+    # 与 MDM 对齐：HS256（dev，共享密钥）/ RS256（prod，MDM 公钥）。
+    # 配了验签密钥 = 所有接口强制携带有效 JWT；没配 = 本地开放模式（方便开发）。
+    auth_required: bool = False  # true 且未配验签密钥 → 启动即报错（防生产漏配裸奔）
+    jwt_algorithm: str = "HS256"
+    jwt_secret_key: str = ""  # HS256：必须与 MDM 的 SECRET_KEY 完全相同
+    jwt_public_key_path: str = ""  # RS256：MDM 公钥 PEM 文件路径
+    mdm_base_url: str = ""  # 例 http://localhost:18000；留空则登录接口报 400
+    cookie_secure: bool = False  # 内网 http 为 false，上 HTTPS 后置 true
+
     @model_validator(mode="after")
-    def _forbid_default_password_in_prod(self) -> "Settings":
-        # 非开发环境不允许沿用占位密码，避免生产忘配 ADMIN_PASSWORD 留空门
-        if self.app_env != "development" and self.admin_password == "change_me":
-            raise ValueError("生产环境必须设置 ADMIN_PASSWORD（当前仍是默认占位值）")
+    def _forbid_unverifiable_auth(self) -> "Settings":
+        # 非开发环境必须配置验签密钥，否则看板对所有人开放
+        if self.app_env != "development" and not (self.jwt_secret_key or self.jwt_public_key_path):
+            raise ValueError("生产环境必须配置 JWT_SECRET_KEY 或 JWT_PUBLIC_KEY_PATH（否则看板无鉴权裸奔）")
         return self
 
 

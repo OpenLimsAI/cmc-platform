@@ -54,8 +54,11 @@ from app.services.lims.stats_service import (
 
 router = APIRouter()
 
+# 健康检查单独一个 router：不挂鉴权（systemd/监控要能匿名探活），其余统计接口在 router.py 统一挂 require_view
+health_router = APIRouter()
 
-@router.get("/health", response_model=HealthResponse, summary="健康检查（含数据库连通性）")
+
+@health_router.get("/health", response_model=HealthResponse, summary="健康检查（含数据库连通性）")
 async def health_check(db: AsyncSession = Depends(get_analytics_db)):
     return await get_health_stats(db)
 
