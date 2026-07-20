@@ -134,9 +134,12 @@ export default function OverduePage() {
   ) => ({
     tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" }, // tooltip 用全称
     legend: {
+      // 单列竖排 + 滚动：检项过多时不再折成多列压到饼图上，超出部分通过上下箭头/滚轮翻看
+      type: "scroll",
       orient: "vertical",
       right: 10,
-      top: "center",
+      top: 20,
+      bottom: 20,
       textStyle: { fontSize: 11 },
       formatter: abbrMethod, // 图例用缩写
     },
