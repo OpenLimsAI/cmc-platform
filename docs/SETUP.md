@@ -183,6 +183,21 @@ sudo systemctl enable --now flex2-ingest.timer
 systemctl list-timers flex2-ingest.timer
 ```
 
+**逐次文件默认不抓，日常任务需显式打开**（2026-07-23 起已启用）。
+用 drop-in 覆盖 ExecStart，不改主 unit：
+
+`/etc/systemd/system/flex2-ingest.service.d/per-event.conf`：
+
+```ini
+[Service]
+ExecStart=
+ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/flex2/flex2_ingest.py --per-event
+```
+
+> 为什么必须开：逐次文件**不是**月度的冗余（见 `source-survey-flex2.md` §8.3），
+> 且今后用「从仪器重新导出」修历史错位数据，产出的文件落在 `Results/` 根下，
+> 不开这个开关就**不会被归档**，只存在于仪器电脑上。
+
 ---
 
 ## 6. 产出的目录结构
