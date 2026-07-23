@@ -110,7 +110,7 @@ cmc_rd → cmc_analytics
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
 | Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0，**已上线**（Linux systemd，每日 01:00 / 12:00 / 16:00 增量） |
-| Stage 2 ETL | ⬜ 未开始，**迁往独立 repo `rd-nova-etl`**（不在本项目） |
+| Stage 2 ETL | ✅ **已建成 `~/code/rd-nova-etl`**（本地已跑通全量入库+幂等；Linux 生产库待部署） |
 | `sql/` 本地测试镜像 | ⬜ 未开始（真库 DDL 在 `cmc-schema-migrations`，见铁律 8） |
 | 部署（挂载/systemd） | ✅ 已完成（/opt clone + fstab 挂载 + systemd timer；backfill 已归档 2024-01→2026-07 全部月度 + Database） |
 
@@ -120,7 +120,7 @@ cmc_rd → cmc_analytics
 
 **代码（本项目 = Stage 1 归档；带 → rd-nova-etl 的属 ETL，迁去独立 repo 做）**
 - [ ] Stage 1 首跑：`--dry-run --backfill` → `--backfill` → 日常增量（顺序别跳）
-- [ ] → rd-nova-etl：按列名映射解析器 + 去重 upsert
+- [x] ~~→ rd-nova-etl：按列名映射解析器 + 去重 upsert~~ **已完成**（2026-07-23，见该仓库）
 - [ ] `sql/001_cmc_rd_flex2.sql`：raw + meta only（`source_file` / `sha256` / `ingested_at` / `analyzer_id`），
       符合"raw 库严格只放 raw+meta，join/分析在 `cmc_analytics`"的既有约定。
       ⚠️ **权威 DDL 走 `cmc-schema-migrations`（见铁律 8），本文件只是本地测试镜像。**
