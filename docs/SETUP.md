@@ -165,8 +165,11 @@ ReadWritePaths=/var/lib/flex2-ingest /mnt/ttlab-backups
 Description=Run FLEX2 ingest daily
 
 [Timer]
-# Nova 23:30 做数据库备份，01:00 跑，避开写入窗口
+# Nova 23:30 做数据库备份，01:00 跑，避开写入窗口（这一趟负责抓 Database 备份）
 OnCalendar=*-*-* 01:00:00
+# 白天两趟补抓月度 CSV，缩短当天数据落到 NAS 的延迟（2026-07-23 加）
+OnCalendar=*-*-* 12:00:00
+OnCalendar=*-*-* 16:00:00
 RandomizedDelaySec=300
 Persistent=true
 
