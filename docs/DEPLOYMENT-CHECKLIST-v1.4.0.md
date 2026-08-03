@@ -7,6 +7,7 @@
 | 对应整改项 | MD-004（Phase 1）、MD-005 |
 | 前置状态 | 代码已提交并推送 GitHub；**尚未 pull 到 `/opt`** |
 | 部署窗口要求 | **等 Vi-CELL 图片回补作业跑完再部署** |
+| 部署前检查 | 见 `docs/PRE-DEPLOYMENT-CHECK-v1.4.0.md`（2026-08-03 已执行，4/5 项通过，回补状态待核实） |
 
 > 为什么要等回补跑完：`alert()` 是 32 处调用的热路径，回补作业每批重新加载脚本，
 > 中途换版本虽已充分测试但没有必要冒险。回补是一次性任务，等它结束几小时不影响任何事。
@@ -147,7 +148,10 @@
 - [ ] 次日 02:30 的采集自动跑过：`journalctl -u vicell-ingest.service --since today`
 - [ ] 心跳 `last_success_time` 已更新为当日
 - [ ] 09:00 巡检已跑过且退出码 0：`journalctl -u heartbeat-check.service --since today`
-- [ ] `Alerts/C4V61257XH_ViCell/alert_YYYYMMDD.jsonl` 内容合理（正常情况下应只有少量 WARNING）
+- [ ] 若存在 `Alerts/C4V61257XH_ViCell/alert_YYYYMMDD.jsonl` 则内容合理；
+      **⚠️ 文件不存在属正常**——告警文件只在"有告警"时才产生，一次完全正常的运行不会生成它。
+      此时以心跳文件中的 `alerts: {"CRITICAL":0,"ERROR":0,"WARNING":n}` 为准
+      （与 `Checksums/` 空跑也写表头的约定不同，详见 `PRE-DEPLOYMENT-CHECK-v1.4.0.md` §5.2）
 - [ ] 备份耗时未因告警明显变长（对比部署前的日志时长）
 
 ---
