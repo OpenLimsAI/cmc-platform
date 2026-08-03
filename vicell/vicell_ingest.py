@@ -46,7 +46,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.2.0"
+SCRIPT_VERSION = "v1.2.1"
 SCRIPT_RELEASE_DATE = "2026-08-03"
 SCRIPT_OWNER = "TT Lab"
 
@@ -262,9 +262,14 @@ def write_atomic(dest: Path, data: bytes, mtime: Optional[float] = None) -> None
     """
     先写临时文件再 rename，避免 ETL 读到半截文件。
 
-    传入 mtime 时把源文件的修改时间一并带过去（在 rename 前设，保证原子）。
-    这很重要：Vi-CELL 的样品文件修改时间 == 文件内部的 FileDate（已抽查核实），
-    是有溯源价值的元数据，归档副本不该被写成"归档那天"。
+    传入 mtime 时把源文件的修改时间一并带过去。这很重要：Vi-CELL 的样品文件
+    修改时间 == 文件内部的 FileDate（已抽查核实），是有溯源价值的元数据，
+    归档副本不该被写成"归档那天"。
+
+    ⚠️ **时间戳必须在 rename 之后设**。实测本 NAS 的 CIFS 上 `rename` 会把
+    修改时间重置成当前时间——先设再改名等于白设（2026-08-03 回补抽查时发现）。
+    这一步放在 rename 后不影响原子性：原子性保的是"内容不会被读到半截"，
+    时间戳晚几毫秒对齐无妨。
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.parent / f".{dest.name}.{os.getpid()}.tmp"
@@ -273,12 +278,16 @@ def write_atomic(dest: Path, data: bytes, mtime: Optional[float] = None) -> None
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
+        os.replace(str(tmp), str(dest))
         if mtime is not None:
             try:
-                os.utime(tmp, (mtime, mtime))
+                os.utime(dest, (mtime, mtime))
+                # 设完立刻回读确认。这个坑（rename 冲掉时间戳）静默发生、
+                # 内容校验完全正常，不主动查就发现不了——所以查。
+                if abs(os.stat(dest).st_mtime - mtime) > 2:
+                    logger.warning(f"修改时间未生效（继续归档，需事后修正）: {dest.name}")
             except Exception as e:
                 logger.warning(f"设置修改时间失败（继续归档）: {dest.name} ({e})")
-        os.replace(str(tmp), str(dest))
     finally:
         if tmp.exists():
             try:
