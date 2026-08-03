@@ -38,8 +38,20 @@
 **已知限制**：`files_processed` 在文件校验失败时会多计（`archive_flat_dir` 中
 `stats["new"]` 自增早于写入尝试，属既有逻辑非本次引入）；`files_failed` 仍准确。
 
-**未完成**：T4（NAS 不可写）因网络中断未执行；测试残留待清理；v1.4.0 尚未部署到 `/opt`。
-详见测试报告 §4。
+**测试**：11 项全部通过。T4（NAS 不可写）与 T10a/T10b（心跳写入失败）在本地 Docker
+Linux 容器中完成（Vi-CELL 网络当时不可达），用 tmpfs 挂载点 + 文件权限忠实复现场景：
+- T4：退出码 1，`CRITICAL`/`NAS_UNWRITABLE`×4，**NAS 完全不可写时本地兜底告警仍生成**，NAS 零残留
+- T10a/T10b：心跳写入失败（含 NAS 与本地都失败的最坏情况）**退出码仍为 0**，归档文件正常
+
+**MD-004 状态：Phase 1 completed — Alert generation + persistent logging.**
+**Residual gap: `ALERT_CMD` notification endpoint not configured.**
+外呼端点接入并确认收件前**不得宣称 MD-004 已关闭**。
+
+**MD-005 残留风险 R-1**：`heartbeat_check.py` 自身未被独立监控——检查者本身也需要被检查。
+后续用 daily positive heartbeat/report 机制解决（依赖 MD-004 Phase 2 的通知端点）。
+
+**未完成**：测试残留待清理；v1.4.0 尚未部署到 `/opt`（等图片回补跑完）。
+部署步骤见 `docs/DEPLOYMENT-CHECKLIST-v1.4.0.md`。
 
 ## vicell_ingest.py — v1.3.0 + smb_metadata.py v1.0.0 (2026-08-03)
 

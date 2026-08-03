@@ -8,9 +8,12 @@
 | 设计依据 | `docs/BACKUP_MONITORING_DESIGN.md` |
 | 测试隔离 | 全部使用独立机器名（`ZZTEST_ViCell` / `ZZT2_ViCell`）与 tmpfs 假源，不触碰生产数据 |
 
-**结论：9 项计划测试中 8 项通过，1 项（T4）因网络中断未能执行。**
+**结论：全部 11 项测试通过。**
 
-> ⚠️ **两项未完成事项见文末 §4，必须在恢复服务器访问后处理**：T4 补测、测试残留清理。
+T4 与新增的 T10a/T10b 于 2026-08-03 在**本地 Docker Linux 容器**中补测完成
+（Vi-CELL 工作站所在网络当时不可达）。容器环境用 tmpfs 挂载点使
+`os.path.ismount()` 判定为真、用文件权限制造真实的写入被拒，
+忠实复现了"NAS 可挂载但不可写"的场景。
 
 ---
 
@@ -21,12 +24,14 @@
 | T1 | 正常运行 → 心跳生成 | ✅ 通过 | 心跳字段完整，`backup_status=SUCCESS`，处理 6 失败 0 |
 | T2 | SHA-256 不一致 | ✅ 通过 | `CRITICAL`，坏副本已删除（归档区 0 文件），心跳 `FAILED` |
 | T3 | 源不可访问 | ✅ 通过 | `CRITICAL` / `MOUNT_ERROR`，心跳 `FAILED` 且 `last_success_time` 保留 |
-| T4 | NAS 不可写 | ⬜ **未执行** | 网络中断，见 §4 |
+| T4 | NAS 不可写 | ✅ 通过 | 退出码 1，`CRITICAL`/`NAS_UNWRITABLE`×4，**本地兜底告警生成**，NAS 零残留 |
 | T5 | metadata 采集失败 | ✅ 通过 | 随 T1 一并覆盖：tmpfs 源 → `stat-only` 6 条，备份照常完成 |
 | T6 | `ALERT_CMD` 执行失败 | ✅ 通过 | 返回非零被记录为 WARNING（**原实现完全静默**） |
 | T7 | 告警风暴限流 | ✅ 通过 | 100 条告警耗时 **0.01 秒**，外呼 5 次，落盘 101 条一条不少 |
 | T8 | 心跳巡检发现异常 | ✅ 通过 | 三类异常全部检出，退出码 1，告警落盘 |
 | T9 | 心跳巡检正常 | ✅ 通过 | 退出码 0，`--quiet` 下无输出 |
+| T10a | 心跳 NAS 写入失败 | ✅ 通过 | 本地兜底生效，**退出码 0**，归档 4 文件正常 |
+| T10b | 心跳 NAS+本地全失败 | ✅ 通过 | 仅 WARNING，**退出码仍为 0**，归档 4 文件正常 |
 
 ---
 
@@ -159,22 +164,77 @@ WARNING | 告警命令返回非零(3)，告警可能未送达: 模拟接口 4xx
 |---|---|---|---|
 | L-1 | **`files_processed` 在失败时会多计** | T2 中文件校验失败但 `新增 1`、`files_processed=1`。原因是 `archive_flat_dir` 里 `stats["new"] += 1` 发生在写入尝试之前——**这是既有逻辑，非本次引入** | 心跳的 `files_failed` 字段仍准确，可据此判断。修正需动归档函数计数，建议单独作为小改动处理 |
 | L-2 | 事件分类依赖关键词 | 误判只影响 `event_type` 字段，`message` 原文始终保留，未命中归 `UNCLASSIFIED` 不丢事件 | 后续可逐个调用点显式传 `event_type` |
-| L-3 | 测试中新增 `RUN_FAILED` 分类 | "本次运行有 N 个失败项"原落入 `UNCLASSIFIED`，已补规则 | 已修复，但**该修复未经服务器验证**（网络中断），见 §4 |
+| L-3 | 测试中新增 `RUN_FAILED` 分类 | "本次运行有 N 个失败项"原落入 `UNCLASSIFIED`，已补规则 | ✅ 已修复并验证——T4 的事件分布中出现 `('WARNING','RUN_FAILED')`，分类正确 |
 | L-4 | 巡检脚本自身不跑则无声 | 监控链条最后一环仍在本机 | 设计文档 §4.5 已登记为残留风险 R-1 |
+
+---
+
+## 3b. T4 / T10 补测证据（Docker Linux 容器）
+
+### T4 — NAS 不可写
+
+环境：`--tmpfs /nas`（`ismount=True`）+ `chmod 555 /nas`，以非 root 用户运行。
+
+```
+NAS 权限: dr-xr-xr-x   ismount: True
+退出码: 1
+ALERT[CRITICAL] 归档写入失败: Data/f1.txt ([Errno 13] Permission denied: '/nas/Daily')
+ALERT[CRITICAL] 归档写入失败: Data/f2.txt (…)
+ALERT[CRITICAL] 归档写入失败: Data/f3.txt (…)
+ALERT[CRITICAL] 归档写入失败: Export/f1.xls (…)
+WARNING | 比对文件写入失败: [Errno 13] Permission denied: '/nas/Checksums'
+--- 本地兜底告警是否生成 ---
+alert_20260803.jsonl
+  事件分布: Counter({('CRITICAL','NAS_UNWRITABLE'): 4, ('WARNING','RUN_FAILED'): 1})
+--- NAS 上是否留下任何文件（应为 0）---
+0
+```
+
+| 验证点 | 结果 |
+|---|---|
+| backup 行为 | 全部归档尝试失败并告警，**NAS 上零残留文件**（无半截产物） |
+| **local alert 是否生成** | ✅ **生成**——NAS 完全不可写时，告警仍完整落在本地 |
+| exit code | ✅ **1**（正确反映失败） |
+| 事件分类 | `NAS_UNWRITABLE` × 4 + `RUN_FAILED` × 1，分类准确 |
+
+> 本地兜底是设计中最关键的一环：**"NAS 不可写"恰恰是最需要告警、却又写不进 NAS 的场景。**
+> 本测试证明该兜底真实有效，而非仅存在于设计文档中。
+
+### T10a / T10b — 心跳写入失败不改变退出码
+
+对应整改要求"heartbeat failure: warning / local log / 不改变 backup exit code"。
+
+**T10a**（只有 NAS 心跳目录不可写）：
+
+```
+退出码: 0  （备份成功，应为 0）
+Data   : 新增 3  跳过 0  变化 0  失败 0
+心跳已写出: SUCCESS  处理 4  失败 0
+归档文件数: 4   本地心跳: 1
+```
+
+**T10b**（NAS 与本地心跳**都**不可写，最坏情况）：
+
+```
+退出码: 0  （备份成功，心跳全写失败，应仍为 0）
+Data   : 新增 3  跳过 0  变化 0  失败 0
+WARNING | 心跳写入失败（NAS 与本地均不可写，不影响备份结果）
+归档文件数: 4
+✅ 心跳写入失败未改变退出码
+```
+
+| 要求 | 结果 |
+|---|---|
+| heartbeat failure → warning | ✅ 记 WARNING |
+| heartbeat failure → local log | ✅ T10a 本地兜底生效；T10b 两处均不可写时仅告警 |
+| **不改变 backup exit code** | ✅ **两种情况退出码均为 0，归档文件 4 个全部正常写入** |
 
 ---
 
 ## 4. ⚠️ 未完成事项（需恢复服务器访问后处理）
 
-2026-08-03 约 21:40，因负责人离开公司网络，SSH 到 `172.19.0.105` 中断。以下两项未完成：
-
-### 4.1 T4（NAS 不可写）未执行
-
-计划方法：以只读 tmpfs 作为 NAS 挂载点运行，验证产生 `NAS_UNWRITABLE` 事件、
-**本地兜底告警文件仍能写出**、备份以失败退出且心跳记为 `FAILED`。
-
-本地兜底路径是设计中的关键一环（"NAS 不可写"恰恰是最需要告警却写不进 NAS 的场景），
-**未经验证不应视为已实现**。
+2026-08-03 约 21:40，因负责人离开公司网络，SSH 到 `172.19.0.105` 中断。
+T4 已在 Docker 中补测完成（§3b）。以下两项仍待处理：
 
 ### 4.2 测试残留未清理
 
@@ -227,5 +287,5 @@ grep -h MISMATCH /mnt/ttlab-backups/Checksums/C4V61257XH_ViCell/*.csv   # 应无
 
 | 整改项 | 状态 | 说明 |
 |---|---|---|
-| **MD-004 告警送达** | 🟡 **部分解决** | 告警已升级为结构化、按天留存、可查询、可统计，并解决了原实现的静默失败与无限流两个缺陷。**但 `ALERT_CMD` 仍未配置外呼目标，仍然没有人会被主动通知。** 在拿到通知渠道之前不应宣称 MD-004 已闭环 |
-| **MD-005 任务未执行检测** | 🟢 **已解决**（待部署） | 心跳 + 独立巡检脚本已实现并验证；残留风险 R-1（巡检自身不跑）已登记 |
+| **MD-004 告警送达** | 🟡 **Phase 1 completed — Alert generation + persistent logging.** | 告警已升级为结构化、按天留存、可查询、可统计，并修复了原实现的静默失败（A-3）与无限流（A-4）两个缺陷。<br>**Residual gap: `ALERT_CMD` notification endpoint not configured.**<br>Phase 2 待通知端点接入并完成收件验证后方可关闭。**不得宣称 MD-004 已完全关闭。** |
+| **MD-005 任务未执行检测** | 🟢 **已解决**（待部署） | 心跳 + 独立巡检脚本已实现并验证（T1/T3/T8/T9/T10）。<br>**残留风险 R-1**：`heartbeat_check.py` 自身未被独立监控——检查者本身也需要被检查。<br>后续可通过 daily positive heartbeat/report 机制解决（每天固定推送结果，"连续两天没收到即视为异常"），该机制依赖 MD-004 Phase 2 的通知端点，建议一并实施 |
