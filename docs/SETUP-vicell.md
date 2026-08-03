@@ -127,14 +127,22 @@ sudo systemd-run --uid=flex2ingest --unit=vicell-backfill \
 
 ## 5. 日常托管（systemd）
 
-照 FLEX2 的 `flex2-ingest.service` / `.timer` 复制一份改名即可。要点：
+单元文件在 `vicell/deploy/`，**回补完成并核对通过后再启用**：
 
-- **每日一趟即可**：这台仪器没有"每晚覆盖、不抓就丢"的数据源（不像 FLEX2 的 Database 备份），
-  所以频次不紧张。
-- `EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env`
-- `User=flex2ingest`、`RequiresMountsFor=/mnt/vicell /mnt/ttlab-backups`
-- 日常参数加 `--no-legacy`（历史目录是一次性的，不必每天重扫）
-- ⚠️ 用别的用户跑会在写入时全部 `Permission denied`（归档区属主是 `flex2ingest`）
+```bash
+sudo cp /opt/cmc-instrument-ingest/vicell/deploy/vicell-ingest.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now vicell-ingest.timer
+systemctl list-timers vicell-ingest.timer
+```
+
+要点：
+
+- **每日一趟即可**（02:30）：这台仪器没有"每晚覆盖、不抓就丢"的数据源（不像 FLEX2 的
+  Database 备份必须赶在覆盖前抓），频次不紧张。排在 FLEX2 的 01:00 之后，两台不抢 NAS 带宽。
+- 日常参数带 `--no-legacy`：历史目录是一次性回补的，不必每天重扫。
+- `RequiresMountsFor` 只列 `/mnt/vicell` 和 `/mnt/ttlab-backups`——历史源断了不该让日常整趟不跑。
+- ⚠️ 用别的用户跑会在写入时全部 `Permission denied`（归档区属主是 `flex2ingest`）。
 
 ---
 

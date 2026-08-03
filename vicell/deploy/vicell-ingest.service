@@ -1,0 +1,25 @@
+[Unit]
+Description=Vi-CELL XR Stage 1 ingest and verify (cmc-instrument-ingest)
+After=network-online.target remote-fs.target
+Wants=network-online.target
+# 只依赖主源与 NAS。历史源（/mnt/vicell-old/*）是一次性回补用的，
+# 日常运行加 --no-legacy 不读它们，所以不列进来——免得那边断了就整个不跑。
+RequiresMountsFor=/mnt/vicell /mnt/ttlab-backups
+
+[Service]
+Type=oneshot
+User=flex2ingest
+Group=flex2ingest
+EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env
+ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/vicell/vicell_ingest.py --no-legacy
+# 日常增量只有当天新增的几个样品，正常几分钟内结束；给足余量防偶发慢速
+TimeoutStartSec=3600
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vicell-ingest /mnt/ttlab-backups
+
+[Install]
+WantedBy=multi-user.target

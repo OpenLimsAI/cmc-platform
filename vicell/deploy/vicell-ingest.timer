@@ -1,0 +1,14 @@
+[Unit]
+Description=Run Vi-CELL XR ingest daily
+
+[Timer]
+# 每天一趟即可：这台仪器没有"每晚覆盖、不抓就丢"的数据源
+# （不像 FLEX2 的 Database 备份必须赶在覆盖前抓），频次不紧张。
+# 排在 02:30，避开 FLEX2 的 01:00 那趟，两台不抢 NAS 带宽。
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=300
+# 关机/休眠错过的补跑（仪器数据不会自己消失，补跑总比漏掉好）
+Persistent=true
+
+[Install]
+WantedBy=timers.target
