@@ -5,6 +5,53 @@
 
 ---
 
+## vicell_ingest.py — v1.3.0 + smb_metadata.py v1.0.0 (2026-08-03)
+
+**整改 MD-001：补充 Windows 原始文件 metadata 采集能力。**
+设计依据 `docs/DATA_INTEGRITY_METADATA_DESIGN.md`；审计来源 `docs/AUDIT-2026-08-03-data-integrity.md`。
+
+- 新增 `vicell/smb_metadata.py`：从 CIFS 扩展属性 `user.cifs.creationtime` 读取
+  **Windows 原始创建时间**（8 字节小端 FILETIME），配合 `os.stat()` 取修改/访问/变更时间。
+  仅标准库，不引入外部依赖。
+- 新增输出 `Metadata/<机器名>/<时间戳>_SMB_Metadata.csv`（12 列，UTF-8 with BOM，
+  时间一律 ISO-8601 带时区）。与 `Checksums/` 的关联键为
+  `relative_path` + `source_path` + `file_size`。
+- 新增 `--metadata-backfill`（只给已归档文件补采，不复制、不改 state）、`--no-metadata`；
+  环境变量 `VICELL_COLLECT_METADATA=0` 可完全关闭，关闭后行为与 v1.2.1 一致。
+- **未改动**：复制逻辑、SHA-256 双向校验流程、NAS 目录结构、`Checksums/` 格式、state 结构。
+  采集调用点一律在"归档成功并记账之后"，且 `collect()` 内部全捕获、绝不抛出。
+- 采集失败不阻断备份，以 WARNING 记录并**按原因聚合**（13 万文件逐条告警会淹没日志）；
+  失败仍写出该行，`metadata_source` 标 `stat-only` / `failed`，缺失字段留空。
+- metadata 在主线程采集，不放进复制线程池——`stats` 累加非原子操作，放进池里会丢计数。
+  每目录 50 个文件约 0.13 秒，相对 8 秒的复制耗时可忽略。
+
+**实测依据**（详见 `docs/METADATA-TEST-REPORT-2026-08-03.md`）
+
+| 项 | 结果 |
+|---|---|
+| xattr 解码与 `smbclient allinfo` 一致性 | 四个时间字段逐秒吻合 |
+| 采集速度（冷读） | **2.6 ms/文件** → 13 万文件约 6 分钟 |
+| 对照 `smbclient allinfo` | 边际 **72 ms/文件** → 约 2.6 小时，且需外部命令依赖 |
+| 属主/ACL（`system.cifs_ntsd`） | 可取但 **201 ms/文件**，本阶段不采集 |
+
+**已知限制（不可消除，见设计文档 §3）**：NAS 归档副本自身**无法携带** Windows 创建时间
+——Linux 无设置该字段的系统调用，换复制方法或换数据源均无效。
+本系统保存的是 **Original Source Creation Time**，作为独立证据记录，
+**不尝试**修改 NAS 副本的创建时间。
+
+## vicell_ingest.py — v1.2.1 (2026-08-03)
+
+**修正：时间戳必须在 rename 之后设，否则被 CIFS 冲掉。**（补记：该版发布时漏登记）
+
+- 实测本 NAS 的 CIFS 上 `os.replace` 会把文件修改时间重置为当前时间，
+  原来"先 utime 再 rename"（为保原子性）等于白设。回补抽查时发现：
+  内容 SHA-256 一致、文件数正确，唯独修改时间是归档时间而非原始拍摄时间。
+- `write_atomic` 改为 rename 之后再 utime；原子性保的是"内容不被读到半截"，
+  时间戳晚几毫秒对齐无妨。
+- 设完立刻回读确认，不一致则告警——这个坑静默发生、内容校验全绿，不主动查发现不了。
+- 影响范围：v1.0.0/v1.1.0/v1.2.0 归档的文件时间戳均为归档时间；
+  Data/Export 已由一次性脚本修正 55712 个，图片已清记账重做。
+
 ## vicell_ingest.py — v1.2.0 (2026-08-03)
 
 **图片复制改为并发，回补耗时从约 21 小时降到约 5 小时。**

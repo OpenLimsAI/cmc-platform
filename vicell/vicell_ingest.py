@@ -24,6 +24,8 @@ vicell_ingest.py — Stage 1：Beckman Vi-CELL XR 数据采集与校验
   - Images/<SampleID>/*.tif，每样品固定 50 张；样品图片目录一旦生成即不再变
       → 增量只比对"目录名单"，不钻进已归档目录（这是日常性能的关键）
       ⚠️ 判断新目录**必须靠目录名，不能靠 mtime**：实测 mtime 被搬文件夹刷掉过
+  - v1.3.0 起附带采集源端原始 metadata（含 Windows 创建时间），见 smb_metadata.py
+      与 docs/DATA_INTEGRITY_METADATA_DESIGN.md。采集失败绝不阻断备份。
 
 依赖：Python 3.8+，仅标准库
 """
@@ -42,11 +44,15 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# 原始文件 metadata 采集（整改项 MD-001）。与本脚本同目录，仅标准库。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from smb_metadata import MetadataCollector, COLLECTOR_TAG  # noqa: E402
+
 # =========================================================
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.2.1"
+SCRIPT_VERSION = "v1.3.0"
 SCRIPT_RELEASE_DATE = "2026-08-03"
 SCRIPT_OWNER = "TT Lab"
 
@@ -74,6 +80,10 @@ EXPECTED_TIF_PER_SAMPLE = int(os.environ.get("VICELL_EXPECTED_TIF", "50"))
 # 1.2 MB 的小文件里延迟占了大头，串行时链路利用率极低（实测仅约 2 MB/s）。
 # 每个文件彼此独立，用线程池并发即可把延迟叠掉。别开太大——对面是台 Win7。
 COPY_WORKERS = int(os.environ.get("VICELL_COPY_WORKERS", "6"))
+
+# 是否采集源端原始文件 metadata（MD-001 整改）。设 0 则行为与整改前完全一致。
+# 采集失败绝不阻断备份——见 docs/DATA_INTEGRITY_METADATA_DESIGN.md §5.7
+COLLECT_METADATA = os.environ.get("VICELL_COLLECT_METADATA", "1").strip() not in ("0", "false", "False", "")
 
 # 告警命令：以 ALERT_CMD "<级别>" "<消息>" 调用，可对接企业微信/邮件
 ALERT_CMD = os.environ.get("VICELL_ALERT_CMD", "").strip()
@@ -124,6 +134,8 @@ CONFIG_SOURCE = Path(os.environ.get("VICELL_CONFIG_SOURCE", "/mnt/vicell-old/app
 STATE_DIR = NAS_MOUNT / "State"
 CHECKSUM_DIR = NAS_MOUNT / "Checksums" / MACHINE_NAME
 LOG_DIR = NAS_MOUNT / "Logs" / MACHINE_NAME
+# 源端原始文件 metadata（新增，不影响上面三个既有目录的结构与格式）
+METADATA_DIR = NAS_MOUNT / "Metadata" / MACHINE_NAME
 
 STATE_FILE = STATE_DIR / f"{MACHINE_NAME}_backup_state.json"
 
@@ -352,6 +364,7 @@ def archive_flat_dir(
     suffixes: Tuple[str, ...],
     dry_run: bool,
     compare_rows: List[List[str]],
+    mc: Optional[MetadataCollector] = None,
 ) -> Dict[str, int]:
     """
     归档一个平铺目录（Data 或 Export）。
@@ -454,6 +467,10 @@ def archive_flat_dir(
 
         known[name] = {"sha256": h_src, "size": len(data), "archived_at": NOW_STR}
 
+        # 归档成功后采集源端原始 metadata。失败不抛、不阻断（MD-001 整改）
+        if mc is not None:
+            mc.collect(src, f"{src_dir.name}/{name}")
+
     return stats
 
 
@@ -469,6 +486,7 @@ def archive_sample_dirs(
     dry_run: bool,
     compare_rows: List[List[str]],
     limit: int,
+    mc: Optional[MetadataCollector] = None,
 ) -> Dict[str, int]:
     """
     归档"一层样品目录、每个目录里是图片"这种结构。
@@ -576,6 +594,12 @@ def archive_sample_dirs(
 
         if dir_ok and copied == len(files):
             # 整个目录都到齐了才记账，半截的下次重来（避免漏图片被永久跳过）
+            # metadata 在主线程采集，不放进线程池——stats 累加不是原子操作，
+            # 放进池里会丢计数。每目录 50 个文件约 0.13 秒，相对 8 秒的复制可忽略。
+            if mc is not None:
+                for fname in files:
+                    mc.collect(sdir / fname, f"{label}/{dname}/{fname}")
+
             known[dname] = {"tif_count": len(files), "source": str(origin[dname]),
                             "archived_at": NOW_STR}
             stats["new_dirs"] += 1
@@ -585,6 +609,67 @@ def archive_sample_dirs(
             logger.warning(f"{label}: 目录未完整归档，本次不记账，下次重试: {dname}")
 
     return stats
+
+
+# =========================================================
+# Metadata 补采（给整改前已归档的文件）
+# =========================================================
+def metadata_backfill(state: Dict[str, Any], mc: MetadataCollector) -> int:
+    """
+    对**已经归档过**的文件补采源端 metadata（MD-001 整改的历史数据部分）。
+
+    只读源端、不复制、不碰归档区、不改 state。源端文件已删除的直接跳过并计入失败统计
+    ——那部分永久不可恢复（见设计文档 §6）。
+
+    ⚠️ 补采得到的是"补采当时源端的值"，不是"归档当时的值"。
+    两者的差别由 metadata_collected_at 字段体现，解读时须与 Checksums 记录联合使用。
+    """
+    n = 0
+
+    def walk_flat(src_dir: Path, keys, label: str):
+        nonlocal n
+        if not src_dir.is_dir():
+            return
+        for name in sorted(keys):
+            mc.collect(src_dir / name, f"{label}/{name}")
+            n += 1
+
+    def walk_samples(src_dirs: List[Path], keys, label: str, recorded):
+        nonlocal n
+        for dname in sorted(keys):
+            # 优先用 state 里记录的实际来源，取不到再按优先级找
+            rec_src = (recorded.get(dname) or {}).get("source")
+            cands = ([Path(rec_src)] if rec_src else []) + list(src_dirs)
+            sdir = next((c / dname for c in cands if (c / dname).is_dir()), None)
+            if sdir is None:
+                mc.collect(Path(str(src_dirs[0] / dname)) if src_dirs else Path(dname),
+                           f"{label}/{dname}")
+                n += 1
+                continue
+            try:
+                files = sorted(p.name for p in sdir.iterdir() if p.is_file())
+            except Exception:
+                files = []
+            for fname in files:
+                mc.collect(sdir / fname, f"{label}/{dname}/{fname}")
+                n += 1
+
+    walk_flat(SRC_DATA, state.get("data_files", {}), "Data")
+    walk_flat(SRC_EXPORT, state.get("export_files", {}), "Export")
+    walk_flat(CONFIG_SOURCE, state.get("config_files", {}), CONFIG_SOURCE.name)
+    walk_samples([IMAGES_ORIGIN, SRC_IMAGES], state.get("image_dirs", {}),
+                 "Images", state.get("image_dirs", {}))
+
+    for mnt, subdir, kind in LEGACY_SOURCES:
+        key = f"legacy::{subdir}"
+        if kind == "samples":
+            walk_samples([mnt], state.get(key, {}), f"legacy/{subdir}", state.get(key, {}))
+            walk_flat(mnt, state.get(key + "::root", {}), f"legacy/{subdir}")
+        else:
+            walk_flat(mnt, state.get(key, {}), f"legacy/{subdir}")
+
+    logger.info(f"Metadata 补采完成，共处理 {n} 个文件")
+    return n
 
 
 # =========================================================
@@ -662,6 +747,10 @@ def main() -> int:
     ap.add_argument("--no-images", action="store_true", help="本次不归档图片（只跑 Data/Export）")
     ap.add_argument("--images-only", action="store_true", help="本次只归档图片")
     ap.add_argument("--no-legacy", action="store_true", help="本次不归档历史遗留目录")
+    ap.add_argument("--no-metadata", action="store_true",
+                    help="本次不采集源端 metadata（行为与整改前一致）")
+    ap.add_argument("--metadata-backfill", action="store_true",
+                    help="只给已归档的文件补采源端 metadata，不复制任何文件")
     ap.add_argument("--image-dir-limit", type=int, default=IMAGE_DIR_LIMIT,
                     help="单次最多归档多少个图片目录（0=不限），用于把首次回补拆成多次")
     ap.add_argument("--version", action="store_true", help="打印版本后退出")
@@ -689,22 +778,39 @@ def main() -> int:
     ds = es = imgs = cfg = None
     legacy_stats: List[Tuple[str, Dict[str, int]]] = []
 
+    mc = MetadataCollector(
+        machine_name=MACHINE_NAME, out_dir=METADATA_DIR, src_root=SRC_MOUNT,
+        enabled=COLLECT_METADATA and not args.no_metadata,
+    )
+
+    # 补采模式：只读源端补 metadata，不复制、不改 state
+    if args.metadata_backfill:
+        logger.info("模式: metadata 补采（不复制任何文件）")
+        metadata_backfill(state, mc)
+        mc.log_summary()
+        mc.flush(args.dry_run, RUN_TAG)
+        logger.info("-" * 70)
+        logger.info(mc.summary_line())
+        logger.info("-" * 70)
+        logger.info("完成")
+        return 0
+
     if not args.images_only:
         ds = archive_flat_dir(SRC_DATA, DATA_ROOT, "data_files", state,
-                              (".txt", ".ctl"), args.dry_run, compare_rows)
+                              (".txt", ".ctl"), args.dry_run, compare_rows, mc)
         es = archive_flat_dir(SRC_EXPORT, EXPORT_ROOT, "export_files", state,
-                              (".xls",), args.dry_run, compare_rows)
+                              (".xls",), args.dry_run, compare_rows, mc)
         # 仪器配置与审计追踪：只取 ViCELLXR 根目录下的文件（几十 KB），不进它的子目录
         if CONFIG_SOURCE.is_dir():
             cfg = archive_flat_dir(CONFIG_SOURCE, CONFIG_ROOT, "config_files", state,
                                    (".txt", ".cfg", ".prf", ".ppr", ".ini", ".pdf", ".xls"),
-                                   args.dry_run, compare_rows)
+                                   args.dry_run, compare_rows, mc)
 
     if ARCHIVE_IMAGES and not args.no_images:
         # 主图片集：D 盘原始位置优先，现用 E 盘补 2026-07 之后的新样品
         imgs = archive_sample_dirs([IMAGES_ORIGIN, SRC_IMAGES], IMAGES_ROOT,
                                    "image_dirs", "Images", state,
-                                   args.dry_run, compare_rows, args.image_dir_limit)
+                                   args.dry_run, compare_rows, args.image_dir_limit, mc)
 
     if not args.no_legacy:
         for mnt, subdir, kind in LEGACY_SOURCES:
@@ -715,21 +821,23 @@ def main() -> int:
             if kind == "samples":
                 st_ = archive_sample_dirs([mnt], LEGACY_ROOT / subdir, key,
                                           f"legacy/{subdir}", state,
-                                          args.dry_run, compare_rows, args.image_dir_limit)
+                                          args.dry_run, compare_rows, args.image_dir_limit, mc)
                 # 这些人工归拢的目录根部偶尔散着零星文件（实测 E:\1111 有 1 个 .xls）。
                 # 只归档目录会把它们静默丢掉，所以补一趟平铺扫描。
                 rs = archive_flat_dir(mnt, LEGACY_ROOT / subdir, key + "::root", state,
-                                      (".txt", ".xls", ".ctl", ".csv"), args.dry_run, compare_rows)
+                                      (".txt", ".xls", ".ctl", ".csv"), args.dry_run, compare_rows, mc)
                 for k2 in ("new", "skip", "error"):
                     st_[k2] = st_.get(k2, 0) + rs[k2]
             else:
                 st_ = archive_flat_dir(mnt, LEGACY_ROOT / subdir, key, state,
-                                       (".txt", ".xls", ".ctl"), args.dry_run, compare_rows)
+                                       (".txt", ".xls", ".ctl"), args.dry_run, compare_rows, mc)
             legacy_stats.append((subdir, st_))
 
     deleted = detect_deleted(state)
 
     write_compare(compare_rows, args.dry_run)
+    mc.log_summary()
+    mc.flush(args.dry_run, RUN_TAG)
     save_state(state, args.dry_run)
 
     logger.info("-" * 70)
@@ -749,6 +857,8 @@ def main() -> int:
                         f"文件 {st_['files']}  失败 {st_['error']}{root}")
         else:
             logger.info(f"legacy/{name}: 新增 {st_['new']}  跳过 {st_['skip']}  失败 {st_['error']}")
+    if mc.enabled:
+        logger.info(mc.summary_line())
     if deleted:
         logger.info(f"源端已消失（归档保留）: {deleted} 项")
     logger.info("-" * 70)
