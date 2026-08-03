@@ -1,0 +1,115 @@
+# Vi-CELL XR Stage 1 部署说明
+
+数据源事实见 [`source-survey-vicell.md`](./source-survey-vicell.md)（2026-08-03 实测）。
+本文只讲怎么在 Linux（172.19.0.105）上把它跑起来。
+
+| 项 | 值 |
+|---|---|
+| 源 | `//10.0.13.36/Vi-Cell$`（**SMB 2.1**，Win7，账户 `instrument_reader`，非管理员） |
+| 机器名 | `C4V61257XH_ViCell`（= 工作站主机名 + 厂商，对齐 NAS `Daily/` 既有目录） |
+| 归档目标 | `/mnt/ttlab-backups/Daily/C4V61257XH_ViCell/{data,export,images}` |
+| 运行用户 | `flex2ingest`（见下方说明） |
+
+---
+
+## 1. 凭据
+
+```bash
+sudo mkdir -p /etc/instrument-ingest
+read -s -p "instrument_reader 密码: " P; echo
+printf 'username=instrument_reader\npassword=%s\n' "$P" | sudo tee /etc/instrument-ingest/vicell.cred >/dev/null
+unset P
+sudo chmod 600 /etc/instrument-ingest/vicell.cred
+sudo chown root:root /etc/instrument-ingest/vicell.cred
+```
+
+> 用 `read -s` 输入，密码不回显、不进 shell 历史。**绝不把密码写进命令行或提交进仓库**（铁律 6）。
+> `instrument_reader` 是所有小仪器共用的统一只读账户，权限收口靠"每台机器只授权那一个共享"。
+
+---
+
+## 2. 挂载
+
+```bash
+sudo mkdir -p /mnt/vicell
+```
+
+`/etc/fstab` 追加 —— **`vers=2.1` 不可改成 3.0**，这台 Win7 不支持，会 `mount error(95)`：
+
+```
+# Vi-CELL XR 源 —— ro 不可省略，它是保护仪器数据的第一道锁
+//10.0.13.36/Vi-Cell$  /mnt/vicell  cifs  ro,credentials=/etc/instrument-ingest/vicell.cred,vers=2.1,uid=flex2ingest,gid=flex2ingest,file_mode=0440,dir_mode=0550,iocharset=utf8,nofail,_netdev,soft,noserverino  0  0
+```
+
+`fstab` 里 `$` 不需要转义。挂载并自检：
+
+```bash
+sudo mount -a
+mount | grep vicell          # 应显示 vers=2.1、ro
+sudo -u flex2ingest touch /mnt/vicell/.probe   # 必须报 Read-only file system
+```
+
+NAS（`/mnt/ttlab-backups`）已由 FLEX2 部署时挂好，无需重复。
+
+---
+
+## 3. 运行用户
+
+**沿用 `flex2ingest`**（uid 999）。理由：NAS 共享是以 `uid=flex2ingest` 挂载的，
+`Daily/` 下所有归档文件的属主都是它；换用户就得重挂 NAS 并改所有属主，收益为零。
+
+> 名字带 `flex2` 有点误导（它现在其实是"仪器归档"这个身份）。
+> 要正名的话得连同 NAS 挂载的 `uid=` 一起改，属独立的运维任务，别顺手做。
+
+⚠️ **用别的用户跑会失败**：以 `prometheus` 直接跑会在写入时全部 `Permission denied`
+（2026-08-03 首跑踩过；好在是写入前失败，不产生半截文件）。
+
+本地状态副本目录：
+
+```bash
+sudo mkdir -p /var/lib/vicell-ingest
+sudo chown flex2ingest:flex2ingest /var/lib/vicell-ingest
+```
+
+---
+
+## 4. 首跑顺序（别跳）
+
+```bash
+cd /opt/cmc-instrument-ingest
+
+# ① 空跑，只看清单不写文件（约 1 分钟）
+sudo -u flex2ingest python3 vicell/vicell_ingest.py --dry-run
+
+# ② 先把 Data/Export 落袋（约 1.1 GB）
+sudo -u flex2ingest python3 vicell/vicell_ingest.py --no-images
+
+# ③ 再补图片（约 115 GB）。建议分批，跑完一批 state 已记账，下次自动接着走
+sudo -u flex2ingest python3 vicell/vicell_ingest.py --images-only --image-dir-limit 200
+```
+
+跑完检查：
+
+- `Daily/C4V61257XH_ViCell/{data,export,images}` 文件数
+- `Checksums/C4V61257XH_ViCell/*_SHA256_Compare_*.csv` 里 `match_status` 是否全 `MATCH`
+- `State/C4V61257XH_ViCell_backup_state.json` 是否已记账
+
+---
+
+## 5. 日常托管（systemd）
+
+照 FLEX2 的 `flex2-ingest.service` / `.timer` 复制一份改名即可。建议：
+
+- 每日一趟即可（这台仪器没有"每晚覆盖、不抓就丢"的数据源，不像 FLEX2 的 Database 备份）
+- `Environment=` 从 `/etc/instrument-ingest/vicell-ingest.env` 读（照 `vicell/vicell-ingest.env.example` 填）
+- `User=flex2ingest`、`RequiresMountsFor=/mnt/vicell /mnt/ttlab-backups`
+
+---
+
+## 6. 已知待办
+
+见 [`source-survey-vicell.md`](./source-survey-vicell.md) §7。其中影响部署的两条：
+
+- 旧图片/旧历史数据（`E:\XR-2025.04.27`、`E:\2025.5.14HEK-293计数图片`、`E:\1111`、
+  `E:\计数仪历史数据`）还在共享外，需在工作站上开只读共享或移进 `E:\Vi-Cell\` 才能接入。
+- `instrument_reader` 密码需轮换（2026-08-03 截图误带出明文）。

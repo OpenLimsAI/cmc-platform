@@ -1,7 +1,18 @@
 # CLAUDE.md
 
 > 本文件供 Claude Code 每次会话自动读取。**先读完再动手。**
-> 详细实测记录见 `docs/source-survey-flex2.md`（所有结论均为 2026-07-15 实机验证，非推测）。
+>
+> **文档分工（找东西先看这张表，别翻遍全仓库）**：
+>
+> | 要找什么 | 看哪个文件 |
+> |---|---|
+> | **通用规范**：新增设备怎么接、命名/目录约定、账号体系、采集策略分类、校验与时间戳规则、接入清单 | **`docs/INGEST-STANDARD.md`** ← 与仪器无关的原则都在这 |
+> | 项目铁律 + 当前状态 + 待办 | 本文件 |
+> | 某台仪器的数据源实测事实 | `docs/source-survey-flex2.md` / `-vicell.md` |
+> | 某台仪器的部署步骤 | `docs/SETUP.md`（FLEX2） / `docs/SETUP-vicell.md` |
+>
+> 下面的铁律里，**2 / 5 / 6 / 7 / 8 是通用的**（已收进 `INGEST-STANDARD.md` §1，两处须保持一致）；
+> **1 / 3 / 4 是 FLEX2 专属**。新增设备时不要照抄 1/3/4。
 
 ---
 
@@ -110,6 +121,7 @@ cmc_rd → cmc_analytics
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
 | Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0，**已上线**（Linux systemd，每日 01:00 / 12:00 / 16:00 增量） |
+| Stage 1 `vicell/vicell_ingest.py` | 🟡 v1.0.0 已写好，**待首跑**（源已实机勘察完，见 `docs/source-survey-vicell.md`） |
 | Stage 2 ETL | ✅ **已建成 `~/code/rd-nova-etl`**（本地已跑通全量入库+幂等；Linux 生产库待部署） |
 | `sql/` 本地测试镜像 | ⬜ 未开始（真库 DDL 在 `cmc-schema-migrations`，见铁律 8） |
 | 部署（挂载/systemd） | ✅ 已完成（/opt clone + fstab 挂载 + systemd timer；backfill 已归档 2024-01→2026-07 全部月度 + Database） |

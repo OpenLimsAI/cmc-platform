@@ -3,9 +3,15 @@
 > **小仪器原始数据备份归档中心。** 从实验室仪器侧**只读拉取**数据，SHA-256 校验后归档到 NAS，作为 CMC 数据中台的底本与业务备份。
 
 本仓库**只做备份归档（Stage 1）**，不解析业务字段、不入库。每台仪器的解析入库（ETL）各自独立成 repo。
-当前只接入一台仪器：Nova Biomedical BioProfile **FLEX2**（生化分析仪，Analyzer ID `T281240040C`）。
+已接入两台仪器：
 
-> ⚠️ 动手前先读 [`CLAUDE.md`](./CLAUDE.md)（铁律）和 [`docs/source-survey-flex2.md`](./docs/source-survey-flex2.md)（数据源实测记录）。
+| 仪器 | 目录 | 源 | 状态 |
+|---|---|---|---|
+| Nova Biomedical BioProfile **FLEX2**（生化分析仪，Analyzer ID `T281240040C`） | `flex2/` | `//10.0.13.66/Export`（SMB 3.0） | ✅ 已上线 |
+| Beckman **Vi-CELL XR**（细胞计数仪，工作站 `C4V61257XH`） | `vicell/` | `//10.0.13.36/Vi-Cell$`（**SMB 2.1**，Win7） | 🟡 待首跑 |
+
+> ⚠️ 动手前先读 [`CLAUDE.md`](./CLAUDE.md)（铁律）和对应的数据源实测记录：
+> [`docs/source-survey-flex2.md`](./docs/source-survey-flex2.md) / [`docs/source-survey-vicell.md`](./docs/source-survey-vicell.md)。
 
 ---
 
