@@ -1,0 +1,28 @@
+[Unit]
+Description=Instrument backup heartbeat check (cmc-instrument-ingest)
+Documentation=file:///opt/cmc-instrument-ingest/docs/BACKUP_MONITORING_DESIGN.md
+After=network-online.target remote-fs.target
+Wants=network-online.target
+RequiresMountsFor=/mnt/ttlab-backups
+
+[Service]
+Type=oneshot
+User=flex2ingest
+Group=flex2ingest
+# 告警渠道配置（与采集程序共用同一个 ALERT_CMD）
+EnvironmentFile=-/etc/instrument-ingest/vicell-ingest.env
+# --expect 列出必须存在心跳的仪器；缺失即告警（新增仪器时在这里加一行）
+ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/tools/heartbeat_check.py \
+    --expect C4V61257XH_ViCell
+TimeoutStartSec=300
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vicell-ingest /mnt/ttlab-backups
+# 巡检发现异常时退出码为 1。这里不让 systemd 判为 failed——
+# 告警已由脚本自己发出，服务反复 failed 反而会掩盖真正的启动问题。
+SuccessExitStatus=0 1
+
+[Install]
+WantedBy=multi-user.target

@@ -47,12 +47,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # 原始文件 metadata 采集（整改项 MD-001）。与本脚本同目录，仅标准库。
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from smb_metadata import MetadataCollector, COLLECTOR_TAG  # noqa: E402
+# 告警与心跳（整改项 MD-004 / MD-005）
+from alerting import AlertSink  # noqa: E402
+from heartbeat import write_heartbeat  # noqa: E402
 
 # =========================================================
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.3.0"
+SCRIPT_VERSION = "v1.4.0"
 SCRIPT_RELEASE_DATE = "2026-08-03"
 SCRIPT_OWNER = "TT Lab"
 
@@ -87,6 +90,15 @@ COLLECT_METADATA = os.environ.get("VICELL_COLLECT_METADATA", "1").strip() not in
 
 # 告警命令：以 ALERT_CMD "<级别>" "<消息>" 调用，可对接企业微信/邮件
 ALERT_CMD = os.environ.get("VICELL_ALERT_CMD", "").strip()
+
+# 告警落盘与心跳（MD-004 / MD-005）。设 0 则退回 v1.3.0 行为。
+ALERTS_ENABLED = os.environ.get("VICELL_ALERTS_ENABLED", "1").strip() not in ("0", "false", "False", "")
+HEARTBEAT_ENABLED = os.environ.get("VICELL_HEARTBEAT_ENABLED", "1").strip() not in ("0", "false", "False", "")
+# 本机正常运行间隔与"静默多久算异常"，写进心跳文件供通用巡检脚本读取
+EXPECTED_INTERVAL_HOURS = float(os.environ.get("VICELL_EXPECTED_INTERVAL_HOURS", "24"))
+MAX_SILENCE_HOURS = float(os.environ.get("VICELL_MAX_SILENCE_HOURS", str(EXPECTED_INTERVAL_HOURS * 3)))
+# 外呼限流：保证告警永远不会拖慢备份（现状无上限，最坏可阻塞 50 分钟）
+ALERT_MAX_EXTERNAL = int(os.environ.get("VICELL_ALERT_MAX_EXTERNAL", "20"))
 
 # 读取源文件时，若 stat 在读取前后变化则重试（防止读到正在写入的半截文件）
 STABLE_RETRIES = int(os.environ.get("VICELL_STABLE_RETRIES", "4"))
@@ -136,6 +148,8 @@ CHECKSUM_DIR = NAS_MOUNT / "Checksums" / MACHINE_NAME
 LOG_DIR = NAS_MOUNT / "Logs" / MACHINE_NAME
 # 源端原始文件 metadata（新增，不影响上面三个既有目录的结构与格式）
 METADATA_DIR = NAS_MOUNT / "Metadata" / MACHINE_NAME
+# 结构化告警事件（新增路径，不影响既有目录）
+ALERTS_DIR = NAS_MOUNT / "Alerts" / MACHINE_NAME
 
 STATE_FILE = STATE_DIR / f"{MACHINE_NAME}_backup_state.json"
 
@@ -183,9 +197,21 @@ def setup_logger(log_file: Optional[Path]) -> None:
             logger.warning(f"日志文件不可写（继续，仅控制台输出）: {e}")
 
 
+# 全局告警槽。main() 早期初始化，使预检阶段的挂载类告警也能被捕获。
+_SINK: Optional[AlertSink] = None
+
+
 def alert(level: str, message: str) -> None:
-    """告警钩子。未配置 ALERT_CMD 时只写日志。"""
+    """
+    告警钩子。**签名与行为对调用方完全不变**——32 处调用点一律不改。
+
+    v1.4.0 起内部改走 AlertSink：severity 归一化、事件分类、结构化落盘、外呼限流。
+    AlertSink 未初始化时（理论上不会发生）退回 v1.3.0 的直接调用行为。
+    """
     logger.error(f"ALERT[{level}] {message}")
+    if _SINK is not None:
+        _SINK.emit(level, message)      # emit 内部全捕获，绝不抛出
+        return
     if not ALERT_CMD:
         return
     try:
@@ -768,7 +794,36 @@ def main() -> int:
     logger.info(f"源 {SRC_MOUNT} -> 归档 {ARCHIVE_ROOT}" + ("  [DRY-RUN]" if args.dry_run else ""))
     logger.info("=" * 70)
 
-    preflight()
+    # 告警槽必须在 preflight 之前初始化——挂载类事故正是最需要留痕的一类
+    global _SINK
+    _SINK = AlertSink(
+        machine_name=MACHINE_NAME, run_tag=RUN_TAG,
+        script_version=f"{SCRIPT_NAME} {SCRIPT_VERSION}",
+        nas_dir=ALERTS_DIR, local_dir=LOCAL_STATE_DIR / "alerts",
+        alert_cmd=ALERT_CMD,
+        enabled=ALERTS_ENABLED and not args.dry_run,
+        max_external=ALERT_MAX_EXTERNAL,
+    )
+
+    # 预检失败也要写心跳：否则"挂载坏了"与"程序根本没跑"在巡检看来完全一样，
+    # 而这两者的处置截然不同——这正是心跳机制存在的意义（设计文档 §4.3）。
+    try:
+        preflight()
+    except SystemExit:
+        if _SINK is not None:
+            _SINK.close()
+        if HEARTBEAT_ENABLED and not args.dry_run:
+            write_heartbeat(
+                machine_name=MACHINE_NAME, script_name=SCRIPT_NAME,
+                software_version=SCRIPT_VERSION, run_tag=RUN_TAG,
+                started_at=RUN_DT.timestamp(), backup_status="FAILED",
+                files_processed=0, files_failed=1,
+                alerts=(_SINK.counts if _SINK is not None else {}),
+                expected_interval_hours=EXPECTED_INTERVAL_HOURS,
+                max_silence_hours=MAX_SILENCE_HOURS,
+                nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+            )
+        raise
 
     state = load_state() or {}
     for k, v in default_state().items():
@@ -865,8 +920,33 @@ def main() -> int:
 
     errors = sum(x["error"] for x in (ds, es, cfg, imgs) if x) \
         + sum(st_["error"] for _, st_ in legacy_stats)
+    processed = (sum(x.get("new", 0) for x in (ds, es, cfg) if x)
+                 + (imgs.get("files", 0) if imgs else 0)
+                 + sum(st_.get("files", 0) + st_.get("new", 0) for _, st_ in legacy_stats))
+
     if errors:
         alert("WARN", f"本次运行有 {errors} 个失败项，详见日志")
+
+    alert_counts = _SINK.close() if _SINK is not None else {}
+    if _SINK is not None and _SINK.enabled:
+        logger.info(_SINK.summary_line())
+
+    # 心跳：dry-run 与 metadata 补采不写——它们不是一次真实备份，
+    # 写了会让巡检误以为"备份成功了"。
+    if HEARTBEAT_ENABLED and not args.dry_run:
+        write_heartbeat(
+            machine_name=MACHINE_NAME, script_name=SCRIPT_NAME,
+            software_version=SCRIPT_VERSION, run_tag=RUN_TAG,
+            started_at=RUN_DT.timestamp(),
+            backup_status="FAILED" if errors else "SUCCESS",
+            files_processed=processed, files_failed=errors,
+            alerts=alert_counts,
+            expected_interval_hours=EXPECTED_INTERVAL_HOURS,
+            max_silence_hours=MAX_SILENCE_HOURS,
+            nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+        )
+
+    if errors:
         return 1
     logger.info("完成")
     return 0

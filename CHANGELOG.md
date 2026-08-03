@@ -5,6 +5,42 @@
 
 ---
 
+## vicell_ingest.py — v1.4.0 + alerting/heartbeat v1.0.0 (2026-08-03)
+
+**整改 MD-004（告警送达）与 MD-005（任务未执行检测）。**
+设计依据 `docs/BACKUP_MONITORING_DESIGN.md`；测试 `docs/MONITORING-TEST-REPORT-2026-08-03.md`。
+
+- 新增 `vicell/alerting.py`：统一异常事件模型。severity 归一化为三级
+  （原有 `CRITICAL`/`ERROR`/`WARN`/`WARNING` 四种拼法），事件按关键词归入九类
+  （`SHA256_MISMATCH` / `MOUNT_ERROR` / `NAS_UNWRITABLE` / `SOURCE_UNAVAILABLE` /
+  `METADATA_FAILED` / `COPY_FAILED` / `SOURCE_DELETED` / `CONTENT_CHANGED` /
+  `STRUCTURE_ANOMALY` / `RUN_FAILED`），未命中归 `UNCLASSIFIED` **绝不丢事件**。
+  落盘 `Alerts/<机器名>/alert_YYYYMMDD.jsonl`，**NAS 与本地双写**
+  ——"NAS 不可写"恰恰是要告警的场景，只写 NAS 等于最重要的那条写不进去。
+- 新增 `vicell/heartbeat.py`：每台仪器一个 `State/<机器名>_heartbeat.json`，
+  **每次运行都写**，`last_success_time` 仅成功时更新。
+  `expected_interval_hours` / `max_silence_hours` 写进文件本身，使巡检脚本通用。
+- 新增 `tools/heartbeat_check.py` + systemd 单元（每日 09:00）：
+  **独立于采集程序**扫描心跳，超时/失败/缺失即告警，退出码 0/1。
+- `alert()` 内部改走 AlertSink，**32 处调用点签名与参数一律不改**。
+
+**修复原实现的两个缺陷（审计 A-3 / A-4）**
+
+| 缺陷 | 原行为 | 现行为 |
+|---|---|---|
+| 告警命令返回非零 | `check=False` 且只捕获异常 → **完全静默** | 检查返回码并记 WARNING（T6 实测） |
+| 无限流 | 每条 `timeout=30` 无上限，100 条最坏阻塞 **50 分钟** | 外呼次数 20 / 同类 5 / 单条 10s / 总计 60s 四重上限。**实测 100 条告警耗时 0.01 秒** |
+
+**测试中发现并修复的设计缺口**：预检失败原本直接 `SystemExit`、**不写心跳**，
+导致"挂载坏了"与"程序根本没跑"在巡检看来完全一样——而这正是心跳要区分的。
+已改为预检失败时先写 `FAILED` 心跳再退出（T3 实测验证）。
+
+**已知限制**：`files_processed` 在文件校验失败时会多计（`archive_flat_dir` 中
+`stats["new"]` 自增早于写入尝试，属既有逻辑非本次引入）；`files_failed` 仍准确。
+
+**未完成**：T4（NAS 不可写）因网络中断未执行；测试残留待清理；v1.4.0 尚未部署到 `/opt`。
+详见测试报告 §4。
+
 ## vicell_ingest.py — v1.3.0 + smb_metadata.py v1.0.0 (2026-08-03)
 
 **整改 MD-001：补充 Windows 原始文件 metadata 采集能力。**
