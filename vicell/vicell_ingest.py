@@ -40,12 +40,13 @@ import subprocess
 import datetime as dt
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # =========================================================
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.1.0"
+SCRIPT_VERSION = "v1.2.0"
 SCRIPT_RELEASE_DATE = "2026-08-03"
 SCRIPT_OWNER = "TT Lab"
 
@@ -66,6 +67,13 @@ IMAGE_DIR_LIMIT = int(os.environ.get("VICELL_IMAGE_DIR_LIMIT", "0"))
 
 # 每个样品图片目录期望的图片数；实测恒为 50。数量对不上只告警、照常归档（对齐 FLEX2 铁律 5）。
 EXPECTED_TIF_PER_SAMPLE = int(os.environ.get("VICELL_EXPECTED_TIF", "50"))
+
+# 图片复制的并发线程数。
+# 实测瓶颈不是带宽（仪器读 14 MB/s、NAS 写 103 MB/s），而是**每个文件的往返延迟**：
+# 一个文件要走"读源 → 写临时 → fsync → 改时间 → rename → 回读校验"，
+# 1.2 MB 的小文件里延迟占了大头，串行时链路利用率极低（实测仅约 2 MB/s）。
+# 每个文件彼此独立，用线程池并发即可把延迟叠掉。别开太大——对面是台 Win7。
+COPY_WORKERS = int(os.environ.get("VICELL_COPY_WORKERS", "6"))
 
 # 告警命令：以 ALERT_CMD "<级别>" "<消息>" 调用，可对接企业微信/邮件
 ALERT_CMD = os.environ.get("VICELL_ALERT_CMD", "").strip()
@@ -517,9 +525,8 @@ def archive_sample_dirs(
             # 只告警、照常归档（铁律 5：结构异常不等于损坏，不能因此丢数据）
             alert("WARN", f"样品图片数异常（期望 {EXPECTED_TIF_PER_SAMPLE}，实际 {len(files)}）: {dname}")
 
-        dir_ok = True
-        copied = 0
-        for fname in files:
+        def _copy_one(fname: str) -> Tuple[str, Optional[List[str]], Optional[str]]:
+            """复制+校验单个文件。返回 (文件名, 比对行 or None, 错误信息 or None)。"""
             src = sdir / fname
             dest = ddir / fname
             try:
@@ -529,26 +536,34 @@ def archive_sample_dirs(
                 write_atomic(dest, data, mtime=src_mtime)
                 h_nas = sha256_file(dest)
             except Exception as e:
-                alert("WARN", f"图片归档失败: {dname}/{fname} ({e})")
-                dir_ok = False
-                stats["error"] += 1
-                break
+                return fname, None, str(e)
 
             if h_nas != h_src:
-                alert("CRITICAL", f"图片 SHA256 不一致，已删除坏副本: {dname}/{fname}")
+                # 校验不过就不算归档（铁律 5）：删掉坏副本，整个目录不记账
                 try:
                     dest.unlink()
                 except Exception:
                     pass
-                dir_ok = False
-                stats["error"] += 1
-                break
+                return fname, None, "SHA256 不一致"
 
-            compare_rows.append([
+            return fname, [
                 f"{label}/{dname}/{fname}", str(src), str(dest), "NEW",
                 str(len(data)), fmt_mtime(src), h_src, h_nas, "MATCH",
-            ])
-            copied += 1
+            ], None
+
+        dir_ok = True
+        copied = 0
+        # 并发复制：每个文件独立，瓶颈是往返延迟不是带宽，线程池能把延迟叠掉
+        with ThreadPoolExecutor(max_workers=COPY_WORKERS) as pool:
+            for fname, row, err in pool.map(_copy_one, files):
+                if err:
+                    lvl = "CRITICAL" if "SHA256" in err else "WARN"
+                    alert(lvl, f"图片归档失败: {dname}/{fname} ({err})")
+                    dir_ok = False
+                    stats["error"] += 1
+                    continue
+                compare_rows.append(row)
+                copied += 1
 
         if dir_ok and copied == len(files):
             # 整个目录都到齐了才记账，半截的下次重来（避免漏图片被永久跳过）
