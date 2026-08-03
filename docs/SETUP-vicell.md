@@ -73,36 +73,68 @@ sudo chown flex2ingest:flex2ingest /var/lib/vicell-ingest
 
 ---
 
+## 3b. 挂载清单（七个共享，2026-08-03 已写入 fstab）
+
+| 挂载点 | 共享 | 用途 |
+|---|---|---|
+| `/mnt/vicell` | `Vi-Cell$` | 主源（`Data` / `Export` / `Images`），日常增量只读这个 |
+| `/mnt/vicell-old/dimg` | `VC-DImg$` | `D:\Vi-Cell 计数图像`，2026-07 之前图片的**原始位置** |
+| `/mnt/vicell-old/img2025` | `VC-Img2025$` | `E:\XR-2025.04.27` |
+| `/mnt/vicell-old/img2024` | `VC-Img2024$` | `E:\2025.5.14HEK-293计数图片` |
+| `/mnt/vicell-old/img2023` | `VC-Img2023$` | `E:\1111` |
+| `/mnt/vicell-old/history` | `VC-History$` | `E:\计数仪历史数据` |
+| `/mnt/vicell-old/app` | `VC-App$` | `E:\ViCELLXR`，只取根目录的配置与审计文件 |
+
+后六个只在一次性回补时需要。回补完成后，日常运行可加 `--no-legacy`；
+挂载留着无妨（`nofail`，断了不影响开机）。
+
+配置文件 `/etc/instrument-ingest/vicell-ingest.env`（不含凭据，样例见 `vicell/vicell-ingest.env.example`）。
+
+---
+
 ## 4. 首跑顺序（别跳）
 
 ```bash
 cd /opt/cmc-instrument-ingest
+ENV="$(grep -v '^#' /etc/instrument-ingest/vicell-ingest.env | grep -v '^$' | xargs)"
 
 # ① 空跑，只看清单不写文件（约 1 分钟）
-sudo -u flex2ingest python3 vicell/vicell_ingest.py --dry-run
+sudo -u flex2ingest env $ENV python3 vicell/vicell_ingest.py --dry-run
 
-# ② 先把 Data/Export 落袋（约 1.1 GB）
-sudo -u flex2ingest python3 vicell/vicell_ingest.py --no-images
+# ② 先把 Data/Export/Config 落袋（约 1.1 GB，十几分钟）
+sudo -u flex2ingest env $ENV python3 vicell/vicell_ingest.py --no-images --no-legacy
 
-# ③ 再补图片（约 115 GB）。建议分批，跑完一批 state 已记账，下次自动接着走
-sudo -u flex2ingest python3 vicell/vicell_ingest.py --images-only --image-dir-limit 200
+# ③ 图片分批回补（约 150 GB）——用回补脚本，跑完一批状态即落盘，无新增自动停
+sudo systemd-run --uid=flex2ingest --unit=vicell-backfill \
+  --setenv=VICELL_BATCH=50 --setenv=VICELL_MAX_BATCHES=80 \
+  /usr/local/sbin/vicell-backfill.sh
 ```
+
+`/usr/local/sbin/vicell-backfill.sh` 每批调用一次采集脚本（`--image-dir-limit`），
+批次之间比对状态文件条目数，**无新增即自动停止**；日志落在 `/var/lib/vicell-ingest/backfill_*.log`。
 
 跑完检查：
 
-- `Daily/C4V61257XH_ViCell/{data,export,images}` 文件数
+- `Daily/C4V61257XH_ViCell/{data,export,images,legacy,config}` 文件数
 - `Checksums/C4V61257XH_ViCell/*_SHA256_Compare_*.csv` 里 `match_status` 是否全 `MATCH`
+- 抽查若干文件的修改时间是否为**原始生成时间**（不是归档时间）
 - `State/C4V61257XH_ViCell_backup_state.json` 是否已记账
+
+> 实际执行记录：2026-08-03 完成 Data 18899 + Export 36814（55713 行校验全 `MATCH`、零失败）；
+> 图片回补排在当晚 20:00 分批执行。
 
 ---
 
 ## 5. 日常托管（systemd）
 
-照 FLEX2 的 `flex2-ingest.service` / `.timer` 复制一份改名即可。建议：
+照 FLEX2 的 `flex2-ingest.service` / `.timer` 复制一份改名即可。要点：
 
-- 每日一趟即可（这台仪器没有"每晚覆盖、不抓就丢"的数据源，不像 FLEX2 的 Database 备份）
-- `Environment=` 从 `/etc/instrument-ingest/vicell-ingest.env` 读（照 `vicell/vicell-ingest.env.example` 填）
+- **每日一趟即可**：这台仪器没有"每晚覆盖、不抓就丢"的数据源（不像 FLEX2 的 Database 备份），
+  所以频次不紧张。
+- `EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env`
 - `User=flex2ingest`、`RequiresMountsFor=/mnt/vicell /mnt/ttlab-backups`
+- 日常参数加 `--no-legacy`（历史目录是一次性的，不必每天重扫）
+- ⚠️ 用别的用户跑会在写入时全部 `Permission denied`（归档区属主是 `flex2ingest`）
 
 ---
 
