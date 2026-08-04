@@ -55,8 +55,8 @@ from heartbeat import write_heartbeat  # noqa: E402
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.4.1"
-SCRIPT_RELEASE_DATE = "2026-08-03"
+SCRIPT_VERSION = "v1.4.2"
+SCRIPT_RELEASE_DATE = "2026-08-05"
 SCRIPT_OWNER = "TT Lab"
 
 # =========================================================
@@ -596,19 +596,32 @@ def archive_sample_dirs(
     for dname in todo:
         sdir = origin[dname] / dname
         ddir = dest_root / dname
+        # 本目录这一轮是否"完整拿全了"。任何一个文件没拿到都必须为 False，
+        # 否则下面会把目录写进 state，缺的那几张**永远补不回来**。
+        dir_ok = True
         try:
             fs, sk = list_entries(sdir, "file")
             files = sorted(p.name for p in fs)
             if sk:
+                # ⚠️ 这里曾是个静默丢数据的缺陷（2026-08-05 修）：
+                # 读不到属性的文件被 list_entries 剔除，不在 files 里，
+                # 于是后面的 `copied == len(files)` 照样成立、dir_ok 仍为 True，
+                # 目录被记账，下次直接跳过——缺的图片永久丢失。
+                # 而这条告警的文字当时就写着"本目录本次不记账"，与代码行为正好相反。
+                # 现在把 dir_ok 置 False，让告警说的和代码做的一致。
+                dir_ok = False
+                stats["error"] += len(sk)
                 alert("WARN", f"{label}/{dname}: {len(sk)} 个文件无法读取属性（仪器正在写入？），"
-                              f"本目录本次不记账，下次重试")
+                              f"本目录本次不记账，下次重试: {', '.join(sk[:5])}")
         except Exception as e:
             alert("WARN", f"列样品图片目录失败，跳过: {dname} ({e})")
             stats["error"] += 1
             continue
 
-        if EXPECTED_TIF_PER_SAMPLE and len(files) != EXPECTED_TIF_PER_SAMPLE:
-            # 只告警、照常归档（铁律 5：结构异常不等于损坏，不能因此丢数据）
+        if EXPECTED_TIF_PER_SAMPLE and len(files) != EXPECTED_TIF_PER_SAMPLE and dir_ok:
+            # 只告警、照常归档（铁律 5：结构异常不等于损坏，不能因此丢数据）。
+            # dir_ok 为假时不再报这条：那种情况下张数少是"读不到"造成的，
+            # 上面已经报过更准确的原因，再来一条"图片数异常"只会让人以为是仪器少拍了。
             alert("WARN", f"样品图片数异常（期望 {EXPECTED_TIF_PER_SAMPLE}，实际 {len(files)}）: {dname}")
 
         def _copy_one(fname: str) -> Tuple[str, Optional[List[str]], Optional[str]]:
@@ -637,9 +650,9 @@ def archive_sample_dirs(
                 str(len(data)), fmt_mtime(src), h_src, h_nas, "MATCH",
             ], None
 
-        dir_ok = True
         copied = 0
-        # 并发复制：每个文件独立，瓶颈是往返延迟不是带宽，线程池能把延迟叠掉
+        # 并发复制：每个文件独立，瓶颈是往返延迟不是带宽，线程池能把延迟叠掉。
+        # 注意 dir_ok 在上面列目录时就可能已经为 False，这里不要重新初始化。
         with ThreadPoolExecutor(max_workers=COPY_WORKERS) as pool:
             for fname, row, err in pool.map(_copy_one, files):
                 if err:

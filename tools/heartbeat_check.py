@@ -37,7 +37,7 @@ try:
 except Exception:      # 采集模块不可用时降级为只打印，不让巡检本身挂掉
     AlertSink = None
 
-SCRIPT_VERSION = "heartbeat_check v1.0.0"
+SCRIPT_VERSION = "heartbeat_check v1.0.1"
 
 NAS_MOUNT = Path(os.environ.get("VICELL_NAS_MOUNT", "/mnt/ttlab-backups"))
 DEFAULT_STATE_DIR = NAS_MOUNT / "State"
@@ -45,11 +45,62 @@ ALERT_CMD = os.environ.get("INGEST_ALERT_CMD", os.environ.get("VICELL_ALERT_CMD"
 LOCAL_ALERT_DIR = Path(os.environ.get("INGEST_LOCAL_ALERT_DIR", "/var/lib/vicell-ingest/alerts"))
 
 
+DEFAULT_MAX_SILENCE_HOURS = 72.0
+
+
 def parse_iso(s):
     try:
         return dt.datetime.fromisoformat(s)
     except Exception:
         return None
+
+
+def parse_hours(value, default: float):
+    """
+    把心跳里的小时阈值解析成正数。取不出合法数值就退回默认值。
+
+    返回 (小时数, 是否用了默认值)。第二个值用来提醒"这个文件的阈值字段坏了"——
+    退默认值可以让巡检继续，但不能让它悄悄发生。
+    """
+    try:
+        h = float(value)
+    except (TypeError, ValueError):
+        return default, True
+    # NaN 与非正数都不是合法阈值：NaN 参与比较恒为 False，会让超时判断永远不触发
+    if h != h or h <= 0:
+        return default, True
+    return h, False
+
+
+def check_one(name: str, hb, now):
+    """检查单台仪器的心跳，返回 findings 列表。异常由调用方兜底。"""
+    findings = []
+    machine = str(hb.get("machine_name") or name)
+
+    max_silence, fell_back = parse_hours(hb.get("max_silence_hours"), DEFAULT_MAX_SILENCE_HOURS)
+    if fell_back:
+        findings.append(("WARNING", machine,
+                         f"心跳里的 max_silence_hours 不是合法数值"
+                         f"（实际 {hb.get('max_silence_hours')!r}），本次按默认 "
+                         f"{DEFAULT_MAX_SILENCE_HOURS:.0f}h 判定，请检查采集程序配置"))
+
+    last_ok = parse_iso(hb.get("last_success_time") or "")
+    if last_ok is None:
+        findings.append(("CRITICAL", machine,
+                         "心跳中没有成功记录（last_success_time 为空）——备份可能从未成功过"))
+    else:
+        silent_h = (now - last_ok).total_seconds() / 3600.0
+        if silent_h > max_silence:
+            findings.append(("CRITICAL", machine,
+                             f"备份已 {silent_h:.1f} 小时未成功（阈值 {max_silence:.0f}h）"
+                             f"，最近一次成功 {hb.get('last_success_time')}——备份可能已停止"))
+
+    if str(hb.get("backup_status", "")).upper() == "FAILED":
+        findings.append(("ERROR", machine,
+                         f"最近一次运行失败（run_tag={hb.get('run_tag')}，"
+                         f"失败 {hb.get('files_failed')} 项）"))
+
+    return findings
 
 
 def check(state_dir: Path, expected):
@@ -69,24 +120,22 @@ def check(state_dir: Path, expected):
             findings.append(("CRITICAL", name, f"心跳文件无法解析: {e}"))
             continue
 
-        machine = hb.get("machine_name", name)
-        max_silence = float(hb.get("max_silence_hours") or 72)
-        last_ok = parse_iso(hb.get("last_success_time") or "")
+        if not isinstance(hb, dict):
+            findings.append(("CRITICAL", name,
+                             f"心跳文件内容不是对象（实际是 {type(hb).__name__}）——文件可能被写坏"))
+            continue
 
-        if last_ok is None:
-            findings.append(("CRITICAL", machine,
-                             "心跳中没有成功记录（last_success_time 为空）——备份可能从未成功过"))
-        else:
-            silent_h = (now - last_ok).total_seconds() / 3600.0
-            if silent_h > max_silence:
-                findings.append(("CRITICAL", machine,
-                                 f"备份已 {silent_h:.1f} 小时未成功（阈值 {max_silence:.0f}h）"
-                                 f"，最近一次成功 {hb.get('last_success_time')}——备份可能已停止"))
-
-        if str(hb.get("backup_status", "")).upper() == "FAILED":
-            findings.append(("ERROR", machine,
-                             f"最近一次运行失败（run_tag={hb.get('run_tag')}，"
-                             f"失败 {hb.get('files_failed')} 项）"))
+        # ⚠️ 巡检自身必须最健壮（2026-08-05 加）：
+        # 原来 float(max_silence_hours) 写在 try 之外，字段被写成字符串就抛 ValueError，
+        # 而这里是 for 循环内部 —— 一台仪器的心跳坏掉会中断整个循环，
+        # **其余仪器一台都检查不到**。监控自己失效是最坏的一类失效，
+        # 所以每台单独兜底：坏的那台照样报警，其余照常检查。
+        try:
+            findings.extend(check_one(name, hb, now))
+        except Exception as e:
+            findings.append(("CRITICAL", name,
+                             f"心跳内容异常、无法判定该仪器状态（其余仪器不受影响，"
+                             f"请人工查看 {Path(f).name}）: {e}"))
 
     for name in expected or []:
         if name not in seen:
