@@ -1,0 +1,29 @@
+[Unit]
+Description=Vi-CELL XR Stage 1 ingest (白天快跑，只归档 Data/Export，不动图片)
+After=network-online.target remote-fs.target
+Wants=network-online.target
+# 与完整版一致：只依赖主源与 NAS。历史源是一次性回补用的，日常 --no-legacy 不读。
+RequiresMountsFor=/mnt/vicell /mnt/ttlab-backups
+
+[Service]
+Type=oneshot
+User=flex2ingest
+Group=flex2ingest
+EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env
+# 与 vicell-ingest.service 的唯一区别是多了 --no-images。
+# 为什么白天要跳过图片：图片段读的是仪器工作站共享，白天仪器在用时会撞上占用
+# （2026-08-04 11:31~11:54 实测：反复 Device or resource busy / Input-output error，
+# 最后跑满超时被 SIGTERM）。而 Data/Export 只需几秒就归档完，不受影响。
+# 图片仍由凌晨 02:30 的 vicell-ingest.service（完整版）负责补齐。
+ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/vicell/vicell_ingest.py --no-legacy --no-images
+# 只跑 Data/Export，实测几秒完成；给 10 分钟余量足够，超时早失败早发现。
+TimeoutStartSec=600
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vicell-ingest /mnt/ttlab-backups
+
+[Install]
+WantedBy=multi-user.target
