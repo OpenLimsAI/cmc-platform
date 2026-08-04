@@ -45,7 +45,7 @@ from typing import Dict, Any, List, Optional, Tuple
 # 版本信息（变更控制用，改动逻辑请同步递增）
 # =========================================================
 SCRIPT_NAME = "flex2_ingest"
-SCRIPT_VERSION = "v1.3.0"
+SCRIPT_VERSION = "v1.4.0"
 SCRIPT_RELEASE_DATE = "2026-08-05"
 SCRIPT_OWNER = "TT Lab"
 
@@ -373,6 +373,28 @@ def archive_bytes(data: bytes, dest: Path, dry_run: bool) -> Tuple[str, str]:
     if dry_run:
         return h1, h1
 
+    # ---- append-only 守卫（2026-08-05 加）----
+    # 归档区 append-only 这条铁律，原来完全靠 state 记账来保证：state 说"没归档过"
+    # 就直接写。可是 state 丢了、回退了、或读到旧副本时，NAS 上明明已有同名文件，
+    # 底本就会被静默覆盖——没有 .rev 快照、没有告警，谁也发现不了。
+    # 这道守卫直接问 NAS 本身，不依赖任何记账，所以 state 出问题也仍然成立。
+    if dest.exists():
+        try:
+            existing = sha256_file(dest)
+        except Exception as e:
+            logger.warning(f"已存在的归档无法回读校验（继续按新文件处理）: {dest} ({e})")
+            existing = None
+        if existing == h1:
+            # 内容完全一样：不必重写，省一次 NAS 往返，也避免无谓改动底本
+            logger.info(f"归档已存在且内容一致，跳过写入: {dest.name}")
+            return h1, existing
+        if existing is not None:
+            stem, ext = os.path.splitext(dest.name)
+            dest = dest.with_name(f"{stem}.rev{RUN_TAG}{ext}")
+            alert("CRITICAL",
+                  f"归档区已有同名文件且内容不同，但记账里没有它——state 可能丢失或回退。"
+                  f"已另存版本快照、原件保留: {dest.name}")
+
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_name(dest.name + f".part.{os.getpid()}.{RUN_TAG}")
 
@@ -575,18 +597,37 @@ def ingest_database(state: Dict[str, Any], args, manifest: List[List[Any]]) -> D
 
         newest_mtime = max(newest_mtime, bdir.stat().st_mtime)
 
-        if bdir.name in reg and reg[bdir.name].get("status") == "ARCHIVED":
-            stats["unchanged"] += 1
-            logger.info(f"已归档过，跳过: {bdir.name}")
-            continue
-
-        # 备份约 23:30 跑，任务 01:00 跑；仍防御性检查是否写完
+        # 备份约 23:30 跑，任务 02:00 跑；仍防御性检查是否写完
         age = time.time() - bdir.stat().st_mtime
         if age < 120:
             logger.info(f"备份目录刚更新（{age:.0f}s），本轮跳过，下轮再抓: {bdir.name}")
             continue
 
-        entry_files = {}
+        # ⚠️ 空目录绝不能记账（2026-08-05 加）。原来 files 为空时下面的 for 循环
+        # 直接不执行，failed 保持 False，于是走到最后写下 status: ARCHIVED、files: {}，
+        # 这个目录从此被永久跳过——哪怕备份程序后来把文件补进去也再不会抓。
+        # 目录建了却是空的，本身就说明备份任务没跑成，该报警而不是记完成。
+        if not files:
+            alert("WARNING", f"备份目录是空的，本次不记账（备份任务可能中途失败）: {bdir.name}")
+            stats["failed"] += 1
+            continue
+
+        prev = reg.get(bdir.name) or {}
+        prev_files: Dict[str, Any] = prev.get("files") or {}
+        if prev.get("status") == "ARCHIVED":
+            # 不再无条件跳过：核对一下源端文件名单，看有没有归档之后才出现的文件。
+            # 备份分两次写完、或上次抓的时候还缺文件，都会落到这里。
+            missing = [p for p in files if p.name not in prev_files]
+            if not missing:
+                stats["unchanged"] += 1
+                logger.info(f"已归档过，跳过: {bdir.name}（{len(prev_files)} 个文件）")
+                continue
+            alert("WARNING",
+                  f"已归档的备份目录又出现 {len(missing)} 个新文件，补抓: {bdir.name} "
+                  f"({', '.join(p.name for p in missing[:5])})")
+            files = missing   # 只补新增的，已归档的不重读、不覆盖
+
+        entry_files = dict(prev_files)   # 保留已归档的记账，补抓时不能丢
         failed = False
         for src in files:
             try:

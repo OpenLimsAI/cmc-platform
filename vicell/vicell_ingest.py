@@ -57,7 +57,7 @@ from heartbeat import write_heartbeat  # noqa: E402
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.4.2"
+SCRIPT_VERSION = "v1.5.0"
 SCRIPT_RELEASE_DATE = "2026-08-05"
 SCRIPT_OWNER = "TT Lab"
 
@@ -451,10 +451,32 @@ def archive_flat_dir(
             stats["error"] += 1
             continue
 
-        # 已归档且大小一致 -> 认定未变，跳过（不读文件）
+        # 已归档、且大小与修改时间都没变 -> 认定未变，跳过（不读文件）。
+        #
+        # 为什么不每次重算哈希：这是 A 类源（一次写死，见 INGEST-STANDARD §5），
+        # 5.5 万个文件每天经 SMB 重读一遍要几十分钟，日常一趟就废了。
+        # 为什么加 mtime（2026-08-05）：原来只比大小，**同大小的内容改动会被静默跳过**
+        # （实测源文件 AAAA 改成 BBBB，归档仍是旧内容）。mtime 在上面的 stat() 里
+        # 已经拿到了，比它不额外花钱，却能挡住绝大多数"改了但大小没变"的情况。
+        # 容差取 1 秒，而且宁紧勿松：判错成"没变"会**静默漏掉内容改动**（正是要修的病），
+        # 判错成"变了"只是多读一次文件重算哈希——慢一点，但不丢数据。
+        # 同一个源文件两次 stat 出来的 mtime 本该完全相同，1 秒纯粹是吸收表示精度差异。
         if rec and rec.get("size") == st.st_size:
-            stats["skip"] += 1
-            continue
+            prev_mtime = rec.get("mtime")
+            if prev_mtime is None:
+                # v1.4.2 及更早的记录没有 mtime 字段。这时退回"只比大小"的旧行为，
+                # 顺手把 mtime 补进记账——下次起就能用上，不必为此重扫全库。
+                rec["mtime"] = st.st_mtime
+                stats["skip"] += 1
+                continue
+            try:
+                unchanged = abs(float(prev_mtime) - st.st_mtime) <= 1
+            except (TypeError, ValueError):
+                unchanged = False   # 记账里的 mtime 坏了，宁可多校验一次
+            if unchanged:
+                stats["skip"] += 1
+                continue
+            logger.info(f"大小未变但修改时间变了，重新校验内容: {src_dir.name}/{name}")
 
         # dry-run 只报清单，不读内容：否则首跑要把上千兆经 SMB 拉一遍才肯出结果
         if dry_run:
@@ -477,8 +499,9 @@ def archive_flat_dir(
         h_src = hashlib.sha256(data).hexdigest()
 
         if rec and rec.get("sha256") == h_src:
-            # 大小变了但内容一样（几乎不可能），当作已归档
-            known[name] = {"sha256": h_src, "size": len(data), "archived_at": rec.get("archived_at", NOW_STR)}
+            # 大小或时间变了但内容一样，当作已归档（顺手把 mtime 记上）
+            known[name] = {"sha256": h_src, "size": len(data), "mtime": st.st_mtime,
+                           "archived_at": rec.get("archived_at", NOW_STR)}
             stats["skip"] += 1
             continue
 
@@ -491,6 +514,33 @@ def archive_flat_dir(
             dest = dest_dir / f"{stem}.rev{RUN_TAG}{ext}"
             alert("WARN", f"历史文件内容发生变化，已另存版本快照: {src_dir.name}/{name} -> {dest.name}")
             stats["changed"] += 1
+        elif dest.exists():
+            # ---- append-only 守卫（2026-08-05 加）----
+            # 记账说"没归档过"，NAS 上却已经有同名文件：state 丢了、回退了，
+            # 或读到了旧副本。原来这里会直接覆盖底本——没有 .rev 快照、没有告警。
+            # append-only 是铁律，这条保证不该依赖 state 文件还在，所以直接问 NAS。
+            try:
+                existing = sha256_file(dest)
+            except Exception as e:
+                logger.warning(f"已存在的归档无法回读校验（按新文件处理）: {dest.name} ({e})")
+                existing = None
+            if existing == h_src:
+                # 内容一致：只把记账补回去，不重写底本
+                logger.info(f"归档已存在且内容一致，仅补记账: {src_dir.name}/{name}")
+                known[name] = {"sha256": h_src, "size": len(data), "mtime": st.st_mtime,
+                               "archived_at": NOW_STR}
+                stats["skip"] += 1
+                continue
+            if existing is not None:
+                change_type = "CHANGED"
+                stem, ext = os.path.splitext(name)
+                dest = dest_dir / f"{stem}.rev{RUN_TAG}{ext}"
+                alert("CRITICAL",
+                      f"归档区已有同名文件且内容不同，但记账里没有它——state 可能丢失或回退。"
+                      f"已另存版本快照、原件保留: {src_dir.name}/{name} -> {dest.name}")
+                stats["changed"] += 1
+            else:
+                stats["new"] += 1
         else:
             stats["new"] += 1
 
@@ -518,7 +568,8 @@ def archive_flat_dir(
             stats["error"] += 1
             continue
 
-        known[name] = {"sha256": h_src, "size": len(data), "archived_at": NOW_STR}
+        known[name] = {"sha256": h_src, "size": len(data), "mtime": st.st_mtime,
+                       "archived_at": NOW_STR}
 
         # 归档成功后采集源端原始 metadata。失败不抛、不阻断（MD-001 整改）
         if mc is not None:
@@ -626,6 +677,10 @@ def archive_sample_dirs(
             # 上面已经报过更准确的原因，再来一条"图片数异常"只会让人以为是仪器少拍了。
             alert("WARN", f"样品图片数异常（期望 {EXPECTED_TIF_PER_SAMPLE}，实际 {len(files)}）: {dname}")
 
+        # 线程里不发告警（alert 会外呼、还会写文件，不适合并发调用）。
+        # 需要告警的事实记在这里，等线程池跑完由主线程统一发。
+        rev_notes: List[str] = []
+
         def _copy_one(fname: str) -> Tuple[str, Optional[List[str]], Optional[str]]:
             """复制+校验单个文件。返回 (文件名, 比对行 or None, 错误信息 or None)。"""
             src = sdir / fname
@@ -634,6 +689,23 @@ def archive_sample_dirs(
                 src_mtime = src.stat().st_mtime
                 data = read_source_stable(src)
                 h_src = hashlib.sha256(data).hexdigest()
+                # ---- append-only 守卫（2026-08-05 加）----
+                # 目录不在记账里但 NAS 上已有这张图：state 丢了或回退了。
+                # 内容一致就不重写（省一次 NAS 往返）；不一致绝不覆盖底本，另存 .rev。
+                if dest.exists():
+                    try:
+                        existing = sha256_file(dest)
+                    except Exception:
+                        existing = None
+                    if existing == h_src:
+                        return fname, [
+                            f"{label}/{dname}/{fname}", str(src), str(dest), "EXISTS",
+                            str(len(data)), fmt_mtime(src), h_src, existing, "MATCH",
+                        ], None
+                    if existing is not None:
+                        stem, ext = os.path.splitext(fname)
+                        dest = ddir / f"{stem}.rev{RUN_TAG}{ext}"
+                        rev_notes.append(fname)   # list.append 是原子的，线程里可用
                 write_atomic(dest, data, mtime=src_mtime)
                 h_nas = sha256_file(dest)
             except Exception as e:
@@ -665,6 +737,12 @@ def archive_sample_dirs(
                     continue
                 compare_rows.append(row)
                 copied += 1
+
+        if rev_notes:
+            alert("CRITICAL",
+                  f"{label}/{dname}: {len(rev_notes)} 张图片在归档区已存在且内容不同，"
+                  f"但记账里没有本目录——state 可能丢失或回退。已另存 .rev 快照、原件保留: "
+                  f"{', '.join(rev_notes[:5])}")
 
         if dir_ok and copied == len(files):
             # 整个目录都到齐了才记账，半截的下次重来（避免漏图片被永久跳过）

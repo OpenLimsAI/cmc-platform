@@ -36,7 +36,7 @@ Vi-CELL → `rd-vicell-etl` 已有），从 NAS 读归档 → 解析 → 入 `cm
 FLEX2 共享（只读挂载）
     ↓  Stage 1（本项目 flex2/flex2_ingest.py）：复制 + SHA256 校验，不解析业务字段
 NAS 原始归档（底本，永久保留）
-    ↓  Stage 2（独立 repo rd-nova-etl，未建）：解析 + 入库，只读 NAS，绝不回连 FLEX2
+    ↓  Stage 2（独立 repo rd-nova-etl，**已建成**）：解析 + 入库，只读 NAS，绝不回连 FLEX2
 cmc_rd → cmc_analytics
 ```
 

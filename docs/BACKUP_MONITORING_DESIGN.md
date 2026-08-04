@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| 文档版本 | v1.1（2026-08-03）**设计已确认，代码已实现并测试，待部署** |
+| 文档版本 | v1.2（2026-08-05）**已部署上线**。Vi-CELL 自 2026-08-04、FLEX2 自 2026-08-05（`flex2_ingest v1.4.0`）起都写心跳，巡检两台都覆盖。**唯一残留缺口：外呼端点未配置**，告警只落盘 |
 | 对应整改项 | `AUDIT-2026-08-03-data-integrity.md` **MD-004**（告警送达）、**MD-005**（任务未执行检测） |
 | 阶段范围 | 只做告警与心跳。**不做**数据库（MD-002）、恢复验证（MD-003）、看板 |
 | 不改动 | SHA-256 流程、metadata 采集流程、NAS 目录结构、`Checksums/` 格式、`Daily/` 结构、state 结构 |
@@ -270,7 +270,7 @@ State/<机器名>_heartbeat.json          # 如 C4V61257XH_ViCell_heartbeat.json
 | `vicell/heartbeat.py` | **新增**：心跳写入 |
 | `tools/heartbeat_check.py` | **新增**：独立巡检脚本 |
 | `vicell/vicell_ingest.py` | `alert()` 内部改为经 `AlertSink`；`main()` 末尾写心跳。**调用点 0 改动** |
-| `vicell/deploy/heartbeat-check.{service,timer}` | **新增** systemd 单元 |
+| `tools/deploy/heartbeat-check.{service,timer}` | **新增** systemd 单元（原文误写成 `vicell/deploy/`，2026-08-05 更正）|
 | `vicell/vicell-ingest.env.example` | 新增配置项 |
 | `docs/` | 本文档 + 测试报告 |
 

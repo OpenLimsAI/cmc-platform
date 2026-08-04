@@ -21,7 +21,7 @@
 | 文件 | 说明 |
 |---|---|
 | `vicell/alerting.py` | 统一异常事件模型 + AlertSink（落盘 / 分类 / 限流 / 外呼） |
-| `vicell/heartbeat.py` | 心跳写入 |
+| `vicell/heartbeat.py` | 心跳写入（**2026-08-05 已挪到 `tools/heartbeat.py`**，两台仪器共用）|
 | `tools/heartbeat_check.py` | **独立**巡检脚本（MD-005 本体） |
 | `tools/deploy/heartbeat-check.service` | systemd 服务单元 |
 | `tools/deploy/heartbeat-check.timer` | systemd 定时器（每日 09:00） |
@@ -134,7 +134,15 @@
   ```
 
 - [ ] **9. 启用日常采集 timer**（此前一直是手工/回补脚本触发）
+
+  > ⚠️ **下面这段已过时**（2026-08-05）。`vicell/deploy/` 已删除，Vi-CELL 不再有
+  > 专属 timer——所有仪器共用 `tools/deploy/instrument-ingest-{day,night}.{service,timer}`。
+  > 现在的装法与权威时刻表见 [`SETUP.md` §5](./SETUP.md) 与
+  > [`INGEST-STANDARD.md` §9.1](./INGEST-STANDARD.md)。本清单是 v1.4.0 那次部署的
+  > **历史执行记录**，保留原文以便追溯，但**不要照着做**。
+
   ```bash
+  # ↓↓↓ 历史记录，已失效，勿执行 ↓↓↓
   sudo cp /opt/cmc-instrument-ingest/vicell/deploy/vicell-ingest.{service,timer} /etc/systemd/system/
   sudo systemctl daemon-reload
   sudo systemctl enable --now vicell-ingest.timer
@@ -145,7 +153,8 @@
 
 ## D. 部署后 24 小时内确认
 
-- [ ] 次日 02:30 的采集自动跑过：`journalctl -u vicell-ingest.service --since today`
+- [ ] 次日凌晨的采集自动跑过：`journalctl -u instrument-ingest-night.service --since today`
+      （原文写的是 `02:30 / vicell-ingest.service`，2026-08-05 起改为 `02:00 / instrument-ingest-night`）
 - [ ] 心跳 `last_success_time` 已更新为当日
 - [ ] 09:00 巡检已跑过且退出码 0：`journalctl -u heartbeat-check.service --since today`
 - [ ] 若存在 `Alerts/C4V61257XH_ViCell/alert_YYYYMMDD.jsonl` 则内容合理；
@@ -162,7 +171,7 @@
 |---|---|---|
 | E-1 | **`ALERT_CMD` 外呼端点未配置** | **MD-004 停留在 Phase 1**：告警产生并留存，但**没有人会被主动通知**。需提供企业微信机器人 / 邮件端点，配置后发测试告警并确认收到，才能进入 Phase 2 |
 | E-2 | `heartbeat_check.py` 自身未被独立监控 | 残留风险 R-1。后续用 daily positive report 机制解决（依赖 E-1 的端点） |
-| E-3 | FLEX2 未接入告警与心跳 | 目前只有 Vi-CELL 有心跳；巡检的 `--expect` 也只列了 Vi-CELL。属 MD-009 一致性问题 |
+| E-3 | ~~FLEX2 未接入告警与心跳~~ | ✅ **已闭环**（2026-08-05，`flex2_ingest v1.4.0`）：正常/预检失败/崩溃三个出口都写心跳，巡检 `--expect` 已加 `T281240040C_Nova` |
 | E-4 | `instrument_reader` 密码未轮换 | 2026-08-03 截图外泄，与本次部署无关但仍未处理 |
 | E-5 | `files_processed` 在失败时会多计 | 既有逻辑缺陷（测试报告 L-1），`files_failed` 仍准确 |
 
@@ -232,7 +241,7 @@ SMB2 用"信用额度"做流控：服务端发放、客户端每次请求消耗�
 
 ```bash
 # 02:34 采集是否跑过、结果如何
-journalctl -u vicell-ingest.service --since today --no-pager | tail -20
+journalctl -u instrument-ingest-night.service --since today --no-pager | tail -20
 cat /mnt/ttlab-backups/State/C4V61257XH_ViCell_heartbeat.json
 
 # 09:00 巡检是否跑过、退出码
