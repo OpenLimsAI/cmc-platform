@@ -3,15 +3,19 @@
 > **小仪器原始数据备份归档中心。** 从实验室仪器侧**只读拉取**数据，SHA-256 校验后归档到 NAS，作为 CMC 数据中台的底本与业务备份。
 
 本仓库**只做备份归档（Stage 1）**，不解析业务字段、不入库。每台仪器的解析入库（ETL）各自独立成 repo。
-已接入两台仪器：
+已接入的源：
 
 | 仪器 | 目录 | 源 | 状态 |
 |---|---|---|---|
 | Nova Biomedical BioProfile **FLEX2**（生化分析仪，Analyzer ID `T281240040C`） | `flex2/` | `//10.0.13.66/Export`（SMB 3.0） | ✅ 已上线 |
 | Beckman **Vi-CELL XR**（细胞计数仪，工作站 `C4V61257XH`） | `vicell/` | `//10.0.13.36/Vi-Cell$`（**SMB 2.1**，Win7） | 🟡 待首跑 |
+| Bioengineering **RALF** 发酵工作站（**数据库型源**，多台） | `ralf/` | MySQL 4.1 `10.0.13.58:3306` 等，`mysqldump` 导出 | 🌱 勘察/设计中（脚本待联网实测） |
 
+> ⚠️ **ralf 是本库第一个「数据库型」源**：用 `mysqldump` 导出整库，而非复制文件；
+> 与文件型仪器的规范差异（不挂 CIFS、走只读 DB 账号、自己的周/月定时器）见 `docs/source-survey-ralf.md` §3。
+>
 > ⚠️ 动手前先读 [`CLAUDE.md`](./CLAUDE.md)（铁律）和对应的数据源实测记录：
-> [`docs/source-survey-flex2.md`](./docs/source-survey-flex2.md) / [`docs/source-survey-vicell.md`](./docs/source-survey-vicell.md)。
+> [`docs/source-survey-flex2.md`](./docs/source-survey-flex2.md) / [`docs/source-survey-vicell.md`](./docs/source-survey-vicell.md) / [`docs/source-survey-ralf.md`](./docs/source-survey-ralf.md)。
 
 ---
 
