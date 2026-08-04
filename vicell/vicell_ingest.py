@@ -46,6 +46,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 原始文件 metadata 采集（整改项 MD-001）。与本脚本同目录，仅标准库。
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 心跳是所有仪器共用的模块，住在 tools/（2026-08-05 从本目录挪过去）。
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from smb_metadata import MetadataCollector, COLLECTOR_TAG  # noqa: E402
 # 告警与心跳（整改项 MD-004 / MD-005）
 from alerting import AlertSink  # noqa: E402
@@ -869,6 +871,7 @@ def main() -> int:
                 expected_interval_hours=EXPECTED_INTERVAL_HOURS,
                 max_silence_hours=MAX_SILENCE_HOURS,
                 nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+                log=logger,
             )
         raise
 
@@ -991,6 +994,7 @@ def main() -> int:
             expected_interval_hours=EXPECTED_INTERVAL_HOURS,
             max_silence_hours=MAX_SILENCE_HOURS,
             nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+            log=logger,
         )
 
     if errors:
@@ -1023,6 +1027,7 @@ if __name__ == "__main__":
                     expected_interval_hours=EXPECTED_INTERVAL_HOURS,
                     max_silence_hours=MAX_SILENCE_HOURS,
                     nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+                    log=logger,
                 )
         except Exception:
             pass

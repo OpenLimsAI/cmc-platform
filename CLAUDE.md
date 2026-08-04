@@ -180,8 +180,9 @@ cmc_rd → cmc_analytics
 - [ ] **提供 `ALERT_CMD` 外呼端点**（企业微信机器人 / 邮件）——这是目前监控链条上最大的缺口，
       不做的话所有 CRITICAL 告警只是安静地写进文件。配置后需发测试告警并**确认收到**才算 Phase 2 完成
 - [ ] `instrument_reader` 密码轮换（2026-08-03 截图外泄）
-- [ ] FLEX2 接入告警与心跳（现在只有 Vi-CELL 有心跳；巡检 `--expect` 也只列了 Vi-CELL，
-      所以"FLEX2 备份停了"目前发现不了）
+- [x] ~~FLEX2 接入告警与心跳~~ **已完成**（2026-08-05，`flex2_ingest v1.3.0`）：
+      正常/预检失败/崩溃三个出口都写心跳，巡检 `--expect` 已加 `T281240040C_Nova`。
+      `heartbeat.py` 随之从 `vicell/` 挪到 `tools/`（两台仪器共用，不该住在某一台的目录下）。
 - [ ] 被 systemd 超时杀掉（SIGTERM）时不写心跳，与"没跑过"无法区分。需捕获 SIGTERM 写 FAILED 心跳
 - [ ] `ViabilityDef.cfg` 是仪器运行时状态文件（含试剂余量），每次运行都会产生 `.rev` 快照 +
       一条 WARNING。量很小（2.4 KB/天），但要决定是保留、排除、还是标记为"预期会变"

@@ -19,6 +19,10 @@ timer 被禁用、服务启动失败、凭据过期、机器重装——这些�
 
 ⚠️ 写入失败只记 warning，绝不影响备份结果与退出码。
 
+**这是所有仪器共用的模块**（2026-08-05 从 `vicell/` 挪到 `tools/`）：
+心跳与仪器无关，Vi-CELL 和 FLEX2 都用它，放在某一台仪器的目录下会让另一台
+"要依赖别人的目录才能写心跳"。改动本文件前先确认两个采集脚本都还能跑。
+
 依赖：仅 Python 标准库。
 """
 
@@ -29,9 +33,11 @@ import datetime as dt
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-MODULE_VERSION = "heartbeat v1.0.0"
+MODULE_VERSION = "heartbeat v1.1.0"
 
-logger = logging.getLogger("vicell_ingest")
+# 兜底 logger。各采集脚本有自己的具名 logger（`vicell_ingest` / `flex2_ingest`），
+# 调用时用 log= 传进来，日志才会落到该脚本自己的日志文件里。
+logger = logging.getLogger("instrument_ingest.heartbeat")
 
 
 def _iso(ts: Optional[float] = None) -> str:
@@ -80,13 +86,17 @@ def write_heartbeat(
     nas_state_dir: Optional[Path] = None,
     local_state_dir: Optional[Path] = None,
     enabled: bool = True,
+    log: Optional[logging.Logger] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     写心跳。返回写出的内容（供日志），失败返回 None。**绝不抛异常。**
 
     expected_interval_hours / max_silence_hours 会写进文件本身，
     这样巡检脚本是通用的——它不需要知道每台仪器的排期，新增仪器零改动。
+
+    log: 调用方自己的 logger。不传则用模块兜底 logger，日志可能不进采集脚本的日志文件。
     """
+    lg = log or logger
     if not enabled:
         return None
     try:
@@ -123,10 +133,10 @@ def write_heartbeat(
             if p is not None and _write_atomic(p, hb):
                 wrote = True
         if not wrote:
-            logger.warning("心跳写入失败（NAS 与本地均不可写，不影响备份结果）")
+            lg.warning("心跳写入失败（NAS 与本地均不可写，不影响备份结果）")
             return None
-        logger.info(f"心跳已写出: {backup_status}  处理 {files_processed}  失败 {files_failed}")
+        lg.info(f"心跳已写出: {backup_status}  处理 {files_processed}  失败 {files_failed}")
         return hb
     except Exception as e:
-        logger.warning(f"心跳写入异常（已忽略，不影响备份）: {e}")
+        lg.warning(f"心跳写入异常（已忽略，不影响备份）: {e}")
         return None

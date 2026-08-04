@@ -14,11 +14,13 @@ flex2_ingest.py — Stage 1：Nova BioProfile FLEX2 数据采集与校验
   - 解耦：本程序不解析业务字段，不入库。ETL 由 Stage 2 从 NAS 读取
   - 原子：先写临时文件再 rename，避免半截文件被 ETL 读到
 
-数据源策略（基于 2026-07-15 实测确认）：
-  - 月度 CSV = 主数据源（是逐次文件的严格超集，且独有试剂批号列）
-    月度文件整月持续追加 → 每次内容变化存一份带时间戳的快照
+数据源策略（2026-07-15 实测建立，2026-07-23 全量核对后修正）：
+  - 月度 CSV = 主数据源，整月持续追加 → 每次内容变化存一份带时间戳的快照
   - Database\\Backup_* = 每晚覆盖，只留一份 → 必须每天抓，否则历史永久丢失
-  - 逐次 CSV = 冷备（immutable，抓一次即可），默认不抓，--per-event 开启
+  - 逐次 CSV = **不是月度的冗余，必须一并归档**（--per-event，日常常开）
+    ⚠️ 早期文档写过"月度是逐次的严格超集"，**那是错的**。7704 行全量核对结论：
+    逐次独有 810 条错位行的中段检测值（月度里因通道省略而丢失、无法还原），
+    月度独有试剂批号列。两者互补，谁也替代不了谁。详见 docs/source-survey-flex2.md §8
 
 依赖：Python 3.8+，仅标准库
 """
@@ -43,8 +45,8 @@ from typing import Dict, Any, List, Optional, Tuple
 # 版本信息（变更控制用，改动逻辑请同步递增）
 # =========================================================
 SCRIPT_NAME = "flex2_ingest"
-SCRIPT_VERSION = "v1.2.0"
-SCRIPT_RELEASE_DATE = "2026-07-16"
+SCRIPT_VERSION = "v1.3.0"
+SCRIPT_RELEASE_DATE = "2026-08-05"
 SCRIPT_OWNER = "TT Lab"
 
 # =========================================================
@@ -69,6 +71,14 @@ ALERT_CMD = os.environ.get("FLEX2_ALERT_CMD", "").strip()
 # 读取源文件时，若 stat 在读取前后发生变化则重试（防止读到正在追加的半截文件）
 STABLE_RETRIES = int(os.environ.get("FLEX2_STABLE_RETRIES", "4"))
 STABLE_WAIT_SEC = float(os.environ.get("FLEX2_STABLE_WAIT_SEC", "3"))
+
+# ---- 心跳（MD-005）----
+# 心跳解决的是"程序根本没跑，而且不会有任何信号"这种失效：timer 被禁、服务启动失败、
+# 凭据过期都不会触发任何告警。有了它，"跑了但失败"与"根本没跑"才能被区分开。
+# 本机排 02:00 / 11:45 / 16:00 一天三趟，最长间隔是 16:00→次日 02:00 的 10 小时，取整 12。
+HEARTBEAT_ENABLED = os.environ.get("FLEX2_HEARTBEAT_ENABLED", "1").strip() not in ("0", "false", "False", "")
+EXPECTED_INTERVAL_HOURS = float(os.environ.get("FLEX2_EXPECTED_INTERVAL_HOURS", "12"))
+MAX_SILENCE_HOURS = float(os.environ.get("FLEX2_MAX_SILENCE_HOURS", str(EXPECTED_INTERVAL_HOURS * 3)))
 
 CHUNK = 1024 * 1024
 
@@ -131,6 +141,40 @@ COMPARE_HEADER = [
 
 logger = logging.getLogger(SCRIPT_NAME)
 
+# 心跳模块是所有仪器共用的，住在 tools/（不在本目录，别去 flex2/ 里找）
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+try:
+    from heartbeat import write_heartbeat  # noqa: E402
+except Exception:  # pragma: no cover - 心跳缺失绝不能让备份跑不起来
+    write_heartbeat = None
+
+# 本次运行各级别告警计数，写进心跳供巡检看（与 Vi-CELL 的 alerts 字段对齐）
+ALERT_COUNTS: Dict[str, int] = {}
+
+
+def emit_heartbeat(status: str, processed: int, failed: int) -> None:
+    """
+    写心跳。**绝不抛异常、绝不改变退出码**——心跳是观测手段，不是业务逻辑。
+
+    dry-run 不写：空跑不代表真备份过，写了会让巡检误以为一切正常。
+    """
+    if not HEARTBEAT_ENABLED or write_heartbeat is None:
+        return
+    try:
+        write_heartbeat(
+            machine_name=MACHINE_NAME, script_name=SCRIPT_NAME,
+            software_version=SCRIPT_VERSION, run_tag=RUN_TAG,
+            started_at=RUN_DT.timestamp(), backup_status=status,
+            files_processed=processed, files_failed=failed,
+            alerts=dict(ALERT_COUNTS),
+            expected_interval_hours=EXPECTED_INTERVAL_HOURS,
+            max_silence_hours=MAX_SILENCE_HOURS,
+            nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+            log=logger,
+        )
+    except Exception as e:
+        logger.warning(f"心跳写入异常（已忽略，不影响备份）: {e}")
+
 
 # =========================================================
 # 基础工具
@@ -161,6 +205,10 @@ def setup_logger(log_file: Optional[Path]) -> None:
 def alert(level: str, message: str) -> None:
     """告警钩子。未配置 ALERT_CMD 时只写日志。"""
     logger.error(f"ALERT[{level}] {message}")
+    # 计数写进心跳，让巡检不用翻日志就知道这一趟出过几条、什么级别的告警。
+    # 级别拼法历史上有 WARN / WARNING 两种，这里归一，免得心跳里出现两个键。
+    key = "WARNING" if str(level).upper() in ("WARN", "WARNING") else str(level).upper()
+    ALERT_COUNTS[key] = ALERT_COUNTS.get(key, 0) + 1
     if not ALERT_CMD:
         return
     try:
@@ -213,6 +261,9 @@ def preflight() -> None:
     if problems:
         msg = "预检失败 -> " + "; ".join(problems)
         alert("CRITICAL", msg)
+        # 预检失败也必须写心跳：否则"挂载坏了"与"程序根本没跑"在巡检看来完全一样，
+        # 而这正是心跳要区分的两件事（Vi-CELL v1.4.0 测试时踩过同一个坑）。
+        emit_heartbeat("FAILED", 0, 1)
         raise SystemExit(2)
 
     # 源必须是只读的。若可写说明 ro 选项没生效，属于配置事故，宁可停也不冒险。
@@ -229,6 +280,7 @@ def preflight() -> None:
         except Exception:
             pass
         alert("CRITICAL", f"源挂载点 {SRC_MOUNT} 可写！ro 选项未生效，已中止以保护仪器数据")
+        emit_heartbeat("FAILED", 0, 1)
         raise SystemExit(3)
 
 
@@ -709,8 +761,15 @@ def main() -> int:
 
     if run_status != "SUCCESS":
         alert("ERROR", f"本轮采集有 {total_failed} 项失败，详见日志 {log_file}")
-        return 1
-    return 0
+
+    # 心跳放在告警之后：这样这一趟的告警计数是完整的。
+    # dry-run 不写——空跑没有真备份，写了会让巡检误以为一切正常。
+    if not args.dry_run:
+        processed = (m_stats.get("new_snapshot", 0) + d_stats.get("new", 0)
+                     + p_stats.get("new", 0))
+        emit_heartbeat(run_status, processed, total_failed)
+
+    return 1 if run_status != "SUCCESS" else 0
 
 
 if __name__ == "__main__":
@@ -724,4 +783,7 @@ if __name__ == "__main__":
         logging.basicConfig()
         logger.exception("未捕获异常")
         alert("CRITICAL", f"{SCRIPT_NAME} 异常终止: {exc}")
+        # 崩溃也要写心跳：否则这次运行在巡检看来等于"从没跑过"，
+        # 而"崩了"与"没跑"的处置完全不同——这正是心跳存在的意义。
+        emit_heartbeat("FAILED", 0, 1)
         sys.exit(4)

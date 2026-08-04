@@ -11,15 +11,18 @@ User=flex2ingest
 Group=flex2ingest
 # 告警渠道配置（与采集程序共用同一个 ALERT_CMD）
 EnvironmentFile=-/etc/instrument-ingest/vicell-ingest.env
-# --expect 列出必须存在心跳的仪器；缺失即告警（新增仪器时在这里加一行）
+# --expect 列出必须存在心跳的仪器；缺失即告警（新增仪器时在这里加一行）。
+# ⚠️ 加之前先确认那台仪器的采集脚本**真的会写心跳**，否则只会天天报"找不到心跳文件"。
+# FLEX2 自 flex2_ingest v1.3.0（2026-08-05）起才写心跳，在那之前它一直是监控盲区。
 ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/tools/heartbeat_check.py \
-    --expect C4V61257XH_ViCell
+    --expect C4V61257XH_ViCell \
+    --expect T281240040C_Nova
 TimeoutStartSec=300
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/vicell-ingest /mnt/ttlab-backups
+ReadWritePaths=/var/lib/vicell-ingest /var/lib/flex2-ingest /mnt/ttlab-backups
 # 巡检发现异常时退出码为 1。这里不让 systemd 判为 failed——
 # 告警已由脚本自己发出，服务反复 failed 反而会掩盖真正的启动问题。
 SuccessExitStatus=0 1
