@@ -5,6 +5,9 @@ Wants=network-online.target
 # 只依赖主源与 NAS。历史源（/mnt/vicell-old/*）是一次性回补用的，
 # 日常运行加 --no-legacy 不读它们，所以不列进来——免得那边断了就整个不跑。
 RequiresMountsFor=/mnt/vicell /mnt/ttlab-backups
+# 本单元失败时触发统一告警出口（现在只写 journald；
+# 配上 /etc/instrument-ingest/alert.env 的 INGEST_ALERT_WEBHOOK 即自动外呼）
+OnFailure=instrument-alert@%n.service
 
 [Service]
 Type=oneshot

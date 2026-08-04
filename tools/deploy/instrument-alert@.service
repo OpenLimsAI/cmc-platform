@@ -1,0 +1,12 @@
+[Unit]
+Description=告警出口（由各单元的 OnFailure= 触发，%%i 是失败的单元名）
+Documentation=file:///opt/cmc-instrument-ingest/docs/BACKUP_MONITORING_DESIGN.md
+
+[Service]
+Type=oneshot
+# 模板单元：OnFailure=instrument-alert@%n.service 会把失败单元名传进 %i。
+# 不设 User=，以 root 运行——这样无论失败的是 flex2ingest 的采集单元
+# 还是 prometheus 的 ETL 单元，都能读到告警配置。
+# 加 "-" 前缀：配置文件不存在也不报错（未配外呼时属正常状态）。
+EnvironmentFile=-/etc/instrument-ingest/alert.env
+ExecStart=/opt/cmc-instrument-ingest/tools/ingest-alert.sh CRITICAL "systemd 单元 %i 运行失败，请查 journalctl -u %i"
