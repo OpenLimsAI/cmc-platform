@@ -41,6 +41,16 @@
 
 不管改哪个库，四步都一样（把 `<库>` 换成实际库名）。
 
+> ⚠️ **动笔前先问一句：这张表有几个使用方？**（2026-08-04 LIMS 断流事故的教训）
+> `meta.*`（etl_watermark / etl_run / etl_job …）、`dim.*`、`staging.*` 这类表往往被
+> **多条管道共用**。改结构前必须把 `~/code` 下所有 `*-etl` / ingest / dashboard 仓库
+> grep 一遍该表名，逐个确认兼容、一起改、一起验证：
+> ```bash
+> grep -rln "etl_watermark" ~/code/*/  --include="*.py" --include="*.sql" | grep -v .venv
+> ```
+> 2026-06-30 改 etl_watermark 只对齐了 lucullus、漏了 rd-lims-etl，后者静默挂了
+> 一个月（cron 失败只进日志、无告警），看板 7 月数据几乎为空才被发现。
+
 ### 1.1 在 Mac 上写迁移
 
 ```bash
