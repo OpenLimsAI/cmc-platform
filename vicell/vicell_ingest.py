@@ -55,7 +55,7 @@ from heartbeat import write_heartbeat  # noqa: E402
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.4.0"
+SCRIPT_VERSION = "v1.4.1"
 SCRIPT_RELEASE_DATE = "2026-08-03"
 SCRIPT_OWNER = "TT Lab"
 
@@ -235,6 +235,29 @@ def fmt_mtime(path: Path) -> str:
         return ""
 
 
+def list_entries(d: Path, want: str) -> Tuple[List[Path], List[str]]:
+    """
+    列目录，**逐条容错**。返回 (可用条目, 因单条出错被跳过的名字)。
+
+    为什么必须逐条容错：仪器正在写的文件会让 `stat()` 抛
+    `[Errno 16] Device or resource busy`。若在生成器里直接调 `p.is_file()`，
+    **一个被占用的文件会让整趟备份崩溃退出、一个文件都归档不了**
+    （2026-08-04 首次生产运行实际发生，源于 v1.0.0 起的既有缺陷）。
+
+    被跳过的条目由调用方告警——跳过意味着"这个文件本次没归档"，绝不能静默。
+    整个目录列不出来仍然抛出：那是真问题，不该当作局部异常吞掉。
+    """
+    skipped: List[str] = []
+    out: List[Path] = []
+    for p in d.iterdir():                      # 目录级失败仍抛给调用方
+        try:
+            if (p.is_file() if want == "file" else p.is_dir()):
+                out.append(p)
+        except OSError as e:
+            skipped.append(f"{p.name}({e.errno})")
+    return out, skipped
+
+
 def is_mounted(path: Path) -> bool:
     try:
         return os.path.ismount(str(path))
@@ -407,10 +430,12 @@ def archive_flat_dir(
         logger.warning(f"源目录不存在，跳过: {src_dir}")
         return stats
 
-    names = sorted(
-        p.name for p in src_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in suffixes
-    )
+    entries, skipped = list_entries(src_dir, "file")
+    names = sorted(p.name for p in entries if p.suffix.lower() in suffixes)
+    if skipped:
+        alert("WARN", f"{src_dir.name}: {len(skipped)} 个文件本次无法读取属性、未归档"
+                      f"（多为仪器正在写入）: {', '.join(skipped[:5])}")
+        stats["error"] += len(skipped)
     logger.info(f"{src_dir.name}: 源端 {len(names)} 个文件，已归档 {len(known)} 个")
 
     for name in names:
@@ -538,9 +563,13 @@ def archive_sample_dirs(
     origin: Dict[str, Path] = {}
     for s in live:
         try:
-            for p in s.iterdir():
-                if p.is_dir() and p.name not in origin:
+            dirs, skipped = list_entries(s, "dir")
+            for p in dirs:
+                if p.name not in origin:
                     origin[p.name] = s
+            if skipped:
+                alert("WARN", f"{label}: {len(skipped)} 个样品目录本次无法读取属性、未归档: "
+                              f"{', '.join(skipped[:5])}")
         except Exception as e:
             alert("WARN", f"{label}: 列目录失败 {s} ({e})")
 
@@ -568,7 +597,11 @@ def archive_sample_dirs(
         sdir = origin[dname] / dname
         ddir = dest_root / dname
         try:
-            files = sorted(p.name for p in sdir.iterdir() if p.is_file())
+            fs, sk = list_entries(sdir, "file")
+            files = sorted(p.name for p in fs)
+            if sk:
+                alert("WARN", f"{label}/{dname}: {len(sk)} 个文件无法读取属性（仪器正在写入？），"
+                              f"本目录本次不记账，下次重试")
         except Exception as e:
             alert("WARN", f"列样品图片目录失败，跳过: {dname} ({e})")
             stats["error"] += 1
@@ -673,7 +706,8 @@ def metadata_backfill(state: Dict[str, Any], mc: MetadataCollector) -> int:
                 n += 1
                 continue
             try:
-                files = sorted(p.name for p in sdir.iterdir() if p.is_file())
+                fs, _sk = list_entries(sdir, "file")   # 补采模式：跳过的条目不影响归档
+                files = sorted(p.name for p in fs)
             except Exception:
                 files = []
             for fname in files:
@@ -963,4 +997,20 @@ if __name__ == "__main__":
     except Exception as e:
         logger.exception(f"未捕获异常: {e}")
         alert("CRITICAL", f"脚本异常退出: {e}")
+        # 崩溃也要写心跳：否则这次运行在巡检看来等于"从没跑过"，
+        # 而"崩了"与"没跑"的处置完全不同——这正是心跳存在的意义。
+        try:
+            if HEARTBEAT_ENABLED:
+                write_heartbeat(
+                    machine_name=MACHINE_NAME, script_name=SCRIPT_NAME,
+                    software_version=SCRIPT_VERSION, run_tag=RUN_TAG,
+                    started_at=RUN_DT.timestamp(), backup_status="FAILED",
+                    files_processed=0, files_failed=1,
+                    alerts=(_SINK.counts if _SINK is not None else {}),
+                    expected_interval_hours=EXPECTED_INTERVAL_HOURS,
+                    max_silence_hours=MAX_SILENCE_HOURS,
+                    nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+                )
+        except Exception:
+            pass
         sys.exit(1)

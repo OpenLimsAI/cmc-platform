@@ -55,6 +55,7 @@ _TYPE_RULES = [
     ("STRUCTURE_ANOMALY",  ("行宽", "图片数异常", "BOM", "结构提示", "疑似损坏", "备份任务可能已停止")),
     ("COPY_FAILED",        ("归档失败", "复制失败", "未完整归档")),
     ("RUN_FAILED",         ("本次运行有", "个失败项")),
+    ("SCRIPT_CRASH",       ("脚本异常退出", "未捕获异常")),
 ]
 UNCLASSIFIED = "UNCLASSIFIED"
 
