@@ -187,3 +187,63 @@ sudo systemctl disable --now heartbeat-check.timer
 
 > 无需回滚数据：`Alerts/` 与 `*_heartbeat.json` 都是新增路径，
 > 不影响 `Daily/` / `Checksums/` / `State/*_backup_state.json` 中的既有内容。
+
+
+---
+
+## G. 执行记录 — 2026-08-04
+
+| 步骤 | 结果 |
+|---|---|
+| 部署前六道关口 | ✅ 全部通过（回补 04:55 结束、187606 行校验全 `MATCH`、测试残留已清、记录回滚点 `e0882d4`） |
+| 1 拉取代码 | ✅ `/opt` 已更新 |
+| 2 补充配置 | ✅ 5 项写入；后追加把 `VICELL_COPY_WORKERS` 由 6 降为 2（见下） |
+| 3 本地告警目录 | ✅ |
+| 4 空跑验证 | ✅ 不产生心跳与告警文件 |
+| **5 首次真跑** | ⚠️ **推迟到 02:34 timer 执行**，原因见下 |
+| 6 核验心跳 | ⏸ 依赖步骤 5 |
+| 7 安装巡检 timer | ✅ 次日 09:00 |
+| 8 手工跑巡检 | ⏸ 依赖步骤 5（此时无心跳文件，跑了只会得到一条正确但误导的 CRITICAL） |
+| 9 启用日常采集 timer | ✅ 次日 02:34 |
+
+**部署过程中发现并修复的缺陷**：`v1.4.1` — 单个被占用文件导致整趟备份崩溃（详见 CHANGELOG）。
+该缺陷自 v1.0.0 存在，因从未在仪器使用中运行而一直未暴露。
+
+### 🔴 步骤 5 推迟的原因：SMB2 信用耗尽
+
+首次真跑（09:22，仪器正被操作员使用）在 Data 阶段挂起 8 分钟无进展。诊断：
+
+```
+线程阻塞点: wait_for_free_credits
+/proc/fs/cifs/DebugData → Number of credits: 0,0,1   Dialect 0x210 (SMB 2.1)
+```
+
+SMB2 用"信用额度"做流控：服务端发放、客户端每次请求消耗。**可用信用降到 0，
+客户端即永久阻塞**。`soft` 挂载对此无效——这不是超时，是流控死锁。
+
+- 触发条件：Win7 的 SMB 2.1 实现 + **仪器自身正在密集读写** + 我们扫描 1.8 万个文件
+- 恢复方式：杀掉阻塞进程后挂载自行恢复（`umount -f` 反而报 target is busy）
+- **推迟的真正理由不是怕失败，而是不该在操作员做样时反复冲击仪器的文件服务**——
+  把信用池耗干可能影响仪器自己的文件操作，有干扰实验的风险
+- 降并发解决不了：挂起发生在 Data 阶段的单线程 `stat` 循环，与 `COPY_WORKERS` 无关。
+  仍将其由 6 降为 2 作为额外保险（回补已结束，日常增量文件极少，并发无收益）
+
+### 次日验证项（2026-08-05）
+
+```bash
+# 02:34 采集是否跑过、结果如何
+journalctl -u vicell-ingest.service --since today --no-pager | tail -20
+cat /mnt/ttlab-backups/State/C4V61257XH_ViCell_heartbeat.json
+
+# 09:00 巡检是否跑过、退出码
+journalctl -u heartbeat-check.service --since today --no-pager | tail -10
+
+# 有无告警（文件不存在属正常，见 D 节）
+ls /mnt/ttlab-backups/Alerts/C4V61257XH_ViCell/ 2>/dev/null
+```
+
+### 顺带发现（非本项目）
+
+`/etc/systemd/system/vicell-etl.timer` 第 6 行把注释写在 `Persistent=true` 同一行，
+systemd 不支持行尾注释，导致该值被忽略（实测 `Persistent=no`），
+**该 ETL 的"断电后补跑"实际失效**。属 `rd-vicell-etl` 项目，改动需走其自身的 git，此处仅登记。
