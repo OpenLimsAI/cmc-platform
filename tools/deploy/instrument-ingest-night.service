@@ -1,0 +1,29 @@
+[Unit]
+Description=仪器数据归档 · 夜班（FLEX2 + Vi-CELL 全量，含图片）
+Documentation=file:///opt/cmc-instrument-ingest/docs/INGEST-STANDARD.md
+After=network-online.target remote-fs.target
+Wants=network-online.target
+# 只把 NAS（所有设备的共同去处）列为硬依赖，理由同白天班。
+RequiresMountsFor=/mnt/ttlab-backups
+OnFailure=instrument-alert@%n.service
+
+[Service]
+Type=oneshot
+User=flex2ingest
+Group=flex2ingest
+EnvironmentFile=/etc/flex2-ingest.env
+EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env
+# 与白天班的唯一区别是 night —— Vi-CELL 不加 --no-images，图片在这一趟补齐。
+ExecStart=/opt/cmc-instrument-ingest/tools/run-ingest.sh night
+# 图片段偶尔会慢（几百个目录 × 50 张 tif）；给 2 小时，02:00 起跑到 04:00 结束，
+# 仍远早于 09:00 的心跳巡检。
+TimeoutStartSec=7200
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/flex2-ingest /var/lib/vicell-ingest /mnt/ttlab-backups
+
+[Install]
+WantedBy=multi-user.target

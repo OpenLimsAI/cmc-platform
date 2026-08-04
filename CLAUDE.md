@@ -62,6 +62,15 @@ cmc_rd → cmc_analytics
 外呼开关：`/etc/instrument-ingest/alert.env` 的 `INGEST_ALERT_WEBHOOK`，
 留空则只写 journald（`journalctl -t instrument-alert`）。样例见 `tools/alert.env.example`。
 
+### ⚠️ 采集时刻与下游 ETL 是硬耦合的（改时刻必须两边一起改）
+
+采集排 `11:45` / `16:00`，下游 `rd-vicell-etl` / `rd-nova-etl` 固定滞后 20 分钟排
+`12:05` / `16:20`，靠这个间隔保证「先备份、后入库」。所以：
+
+- 采集 timer 的 `RandomizedDelaySec` **必须为 0**，一加随机延迟 ETL 就可能跑到备份前面；
+- **改采集时刻 = 同时改那两个仓库的 timer**，只改一边的后果是当天数据入不了库，
+  而且不报错、无人察觉（同总纲「改共用组件前先盘点全部使用方」）。
+
 ---
 
 ## 铁律（不可违反，违反了不是 bug 是事故）
@@ -141,8 +150,9 @@ cmc_rd → cmc_analytics
 | | |
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
-| Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0，**已上线**（Linux systemd，每日 01:00 / 12:00 / 16:00 增量） |
-| Stage 1 `vicell/vicell_ingest.py` | ✅ **v1.4.1 已上线**（每日 02:30 timer + 09:00 心跳巡检）。含 metadata 采集 / 结构化告警 / 心跳。回补已完成：2000 图片目录 + 18.9k txt + 36.8k xls + 4 个历史目录 + 配置审计文件，**187606 行 SHA-256 全 MATCH** |
+| **运行时刻表** | **`02:00` 全量（含图片）/ `11:45` + `16:00` 不含图片 / `09:00` 心跳巡检。所有仪器共用两个采集单元，权威表在 `docs/INGEST-STANDARD.md` §9.1，改时刻先改那里** |
+| Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0，**已上线**（由 `tools/run-ingest.sh` 统一调用，固定带 `--per-event`） |
+| Stage 1 `vicell/vicell_ingest.py` | ✅ **v1.4.1 已上线**（由 `tools/run-ingest.sh` 统一调用，白天加 `--no-images`）。含 metadata 采集 / 结构化告警 / 心跳。回补已完成：2000 图片目录 + 18.9k txt + 36.8k xls + 4 个历史目录 + 配置审计文件，**187606 行 SHA-256 全 MATCH** |
 | 监控（MD-004/005） | 🟡 告警与心跳**已上线**，但 **`ALERT_CMD` 外呼端点未配置 ⇒ 告警只落盘、没有人会被通知**。MD-004 停在 Phase 1 |
 | 数据完整性审计 | ✅ 已完成，见 `docs/AUDIT-2026-08-03-data-integrity.md`（15 项发现，MD-001/004/005 已整改） |
 | Stage 2 ETL | ✅ **已建成 `~/code/rd-nova-etl`**（本地已跑通全量入库+幂等；Linux 生产库待部署） |

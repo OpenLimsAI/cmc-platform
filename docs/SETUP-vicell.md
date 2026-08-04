@@ -127,21 +127,23 @@ sudo systemd-run --uid=flex2ingest --unit=vicell-backfill \
 
 ## 5. 日常托管（systemd）
 
-单元文件在 `vicell/deploy/`，**回补完成并核对通过后再启用**：
+⚠️ **Vi-CELL 没有自己的定时器了**（2026-08-05 起）。本机所有仪器共用两个采集单元
+（`tools/deploy/instrument-ingest-{day,night}.{service,timer}`），
+由 `tools/run-ingest.sh` 逐台调用采集脚本。安装步骤见 [`SETUP.md` §5](./SETUP.md)，
+完整时刻表见 [`INGEST-STANDARD.md` §9.1](./INGEST-STANDARD.md#91-运行时刻表本机唯一权威改时刻先改这里)。
 
-```bash
-sudo cp /opt/cmc-instrument-ingest/vicell/deploy/vicell-ingest.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now vicell-ingest.timer
-systemctl list-timers vicell-ingest.timer
-```
+Vi-CELL 侧只需保证 `/etc/instrument-ingest/vicell-ingest.env` 存在，
+**回补完成并核对通过后再启用定时器**。
 
 要点：
 
-- **每日一趟即可**（02:30）：这台仪器没有"每晚覆盖、不抓就丢"的数据源（不像 FLEX2 的
-  Database 备份必须赶在覆盖前抓），频次不紧张。排在 FLEX2 的 01:00 之后，两台不抢 NAS 带宽。
-- 日常参数带 `--no-legacy`：历史目录是一次性回补的，不必每天重扫。
-- `RequiresMountsFor` 只列 `/mnt/vicell` 和 `/mnt/ttlab-backups`——历史源断了不该让日常整趟不跑。
+- **一天三趟**：`02:00` 全量（含图片）、`11:45` 与 `16:00` 只跑 Data/Export。
+  白天不抓图片是硬性的——图片段读仪器工作站共享，仪器在用时会撞上文件占用
+  （2026-08-04 实测反复 `Device or resource busy`，跑满超时被杀）。
+- 日常参数带 `--no-legacy`（wrapper 已固定加上）：历史目录是一次性回补的，不必每天重扫。
+- 三趟共用同一份 state 文件，幂等，多跑无副作用。
+- 采集单元的 `RequiresMountsFor` **只列 `/mnt/ttlab-backups`**：
+  一台仪器的源共享断了不该连累另一台不跑，源挂载由脚本自己检查并告警。
 - ⚠️ 用别的用户跑会在写入时全部 `Permission denied`（归档区属主是 `flex2ingest`）。
 
 ---

@@ -1,0 +1,16 @@
+[Unit]
+Description=夜间一趟仪器全量归档（02:00，所有设备，含图片）
+
+[Timer]
+# 一天里唯一一趟"全量"：把当天所有设备新增的东西（含 Vi-CELL 图片、
+# FLEX2 的 Database 备份）统一抓一遍。
+# 排 02:00 的两个理由：
+#   ① Nova 23:30 做数据库备份，02:00 早已写完，不会读到半截；
+#   ② 图片段读的是仪器工作站共享，白天仪器在用会撞占用，夜里没人用。
+OnCalendar=*-*-* 02:00:00
+# 保持 0，理由同白天班：本机各 timer 的先后顺序靠固定时刻保证，不靠运气。
+RandomizedDelaySec=0
+Persistent=true
+
+[Install]
+WantedBy=timers.target

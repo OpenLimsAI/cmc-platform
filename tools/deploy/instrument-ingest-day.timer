@@ -1,0 +1,17 @@
+[Unit]
+Description=白天两趟仪器归档（11:45 / 16:00，所有设备，不含图片）
+
+[Timer]
+# 白天两趟，目的是把当天测的样品尽快送到 NAS，让下游 ETL 当天就能入库。
+# 不再按设备错开——两台的数据量都很小（每趟几十个小文件），
+# 一个时间点一起跑完全跑得动，也省得记"几点该跑哪台"。
+OnCalendar=*-*-* 11:45:00
+OnCalendar=*-*-* 16:00:00
+# 必须为 0：下游 rd-vicell-etl / rd-nova-etl 排在 12:05 / 16:20 入库，
+# 靠固定 20 分钟间隔保证"先备份、后入库"。加随机延迟会让 ETL 跑到备份前面。
+RandomizedDelaySec=0
+# 关机/休眠错过的补跑（仪器数据不会自己消失，补跑总比漏掉好）
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,33 @@
+[Unit]
+Description=仪器数据归档 · 白天班（FLEX2 + Vi-CELL，不含图片）
+Documentation=file:///opt/cmc-instrument-ingest/docs/INGEST-STANDARD.md
+After=network-online.target remote-fs.target
+Wants=network-online.target
+# 只把 NAS（所有设备的共同去处）列为硬依赖。
+# 两个仪器源（/mnt/flex2、/mnt/vicell）**故意不写**在这里：
+# 某台仪器的共享断了不该连累另一台不跑——脚本自己会检出并告警。
+RequiresMountsFor=/mnt/ttlab-backups
+# 本单元失败时触发统一告警出口（现在只写 journald；
+# 配上 /etc/instrument-ingest/alert.env 的 INGEST_ALERT_WEBHOOK 即自动外呼）
+OnFailure=instrument-alert@%n.service
+
+[Service]
+Type=oneshot
+User=flex2ingest
+Group=flex2ingest
+# 两台仪器各自的配置。变量名有 FLEX2_ / VICELL_ 前缀，互不冲突。
+EnvironmentFile=/etc/flex2-ingest.env
+EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env
+ExecStart=/opt/cmc-instrument-ingest/tools/run-ingest.sh day
+# 白天只跑 Data/Export 和 CSV，实测两台加起来几十秒；给 15 分钟余量足够，
+# 超时早失败早发现（图片段那种要几十分钟的只在夜班跑）。
+TimeoutStartSec=900
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/flex2-ingest /var/lib/vicell-ingest /mnt/ttlab-backups
+
+[Install]
+WantedBy=multi-user.target

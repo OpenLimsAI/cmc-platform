@@ -132,67 +132,32 @@ run                        # c. 之后每日增量（timer 会这么跑）
 
 ## 5. 定时任务
 
-`/etc/systemd/system/flex2-ingest.service`：
+⚠️ **FLEX2 没有自己的定时器了**（2026-08-05 起）。本机所有仪器共用两个采集单元，
+由 `tools/run-ingest.sh` 逐台调用采集脚本。完整时刻表与排班理由见
+[`INGEST-STANDARD.md` §9.1](./INGEST-STANDARD.md#91-运行时刻表本机唯一权威改时刻先改这里)。
 
-```ini
-[Unit]
-Description=FLEX2 Stage 1 ingest and verify
-After=network-online.target remote-fs.target
-Wants=network-online.target
-RequiresMountsFor=/mnt/flex2 /mnt/ttlab-backups
-
-[Service]
-Type=oneshot
-User=flex2ingest
-Group=flex2ingest
-EnvironmentFile=/etc/flex2-ingest.env
-ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/flex2/flex2_ingest.py
-TimeoutStartSec=1800
-Nice=10
-
-# 最小权限
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/flex2-ingest /mnt/ttlab-backups
-```
-
-`/etc/systemd/system/flex2-ingest.timer`：
-
-```ini
-[Unit]
-Description=Run FLEX2 ingest daily
-
-[Timer]
-# Nova 23:30 做数据库备份，01:00 跑，避开写入窗口（这一趟负责抓 Database 备份）
-OnCalendar=*-*-* 01:00:00
-# 白天两趟补抓月度 CSV，缩短当天数据落到 NAS 的延迟（2026-07-23 加）
-OnCalendar=*-*-* 12:00:00
-OnCalendar=*-*-* 16:00:00
-RandomizedDelaySec=300
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
+安装（两台仪器一次装完，不必按设备分别安装）：
 
 ```bash
+sudo cp /opt/cmc-instrument-ingest/tools/deploy/instrument-ingest-{day,night}.{service,timer} \
+        /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now flex2-ingest.timer
-systemctl list-timers flex2-ingest.timer
+sudo systemctl enable --now instrument-ingest-day.timer instrument-ingest-night.timer
+systemctl list-timers 'instrument-ingest-*'
 ```
 
-**逐次文件默认不抓，日常任务需显式打开**（2026-07-23 起已启用）。
-用 drop-in 覆盖 ExecStart，不改主 unit：
+FLEX2 侧只需保证 `/etc/flex2-ingest.env` 存在——它被两个单元用 `EnvironmentFile=` 读入。
 
-`/etc/systemd/system/flex2-ingest.service.d/per-event.conf`：
+只跑 FLEX2 一台（排障用，不走定时器）：
 
-```ini
-[Service]
-ExecStart=
-ExecStart=/usr/bin/python3 /opt/cmc-instrument-ingest/flex2/flex2_ingest.py --per-event
+```bash
+sudo systemd-run --uid=flex2ingest --gid=flex2ingest --wait --pty \
+  -p EnvironmentFile=/etc/flex2-ingest.env \
+  /opt/cmc-instrument-ingest/tools/run-ingest.sh night flex2
 ```
+
+**逐次文件一直是开的**：`run-ingest.sh` 给 FLEX2 固定加 `--per-event`
+（原先是 `flex2-ingest.service.d/per-event.conf` drop-in，已随旧单元一起删除）。
 
 > 为什么必须开：逐次文件**不是**月度的冗余（见 `source-survey-flex2.md` §8.3），
 > 且今后用「从仪器重新导出」修历史错位数据，产出的文件落在 `Results/` 根下，

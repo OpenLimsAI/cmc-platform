@@ -110,7 +110,7 @@ flex2/flex2_ingest.py                        # c. 日常增量（systemd timer �
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
 | Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0（校验放宽：多行宽只告警不拒收） |
-| 部署（挂载 / systemd） | ✅ 已上线（Linux `/opt`，systemd timer 每日 01:00 / 12:00 / 16:00；历史 backfill 已归档） |
+| 部署（挂载 / systemd） | ✅ 已上线（Linux `/opt`；所有仪器共用两个 timer：`02:00` 全量 / `11:45`+`16:00` 不含图片；历史 backfill 已归档） |
 | Stage 2 ETL | ⬜ 未开始，迁往独立 repo `rd-nova-etl`（不在本项目） |
 
 ---
