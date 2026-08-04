@@ -34,23 +34,13 @@ export function DashboardSidebar() {
     refetchInterval: 5 * 60 * 1000,
   })
 
-  // 初次加载：若 URL 无 groups/dates，写入默认值
+  // 初次加载：若 URL 无 groups，写入默认组。
+  // 日期默认值刻意不落 URL：各页面无参数时自动按"今天"取数，
+  // 一旦写死进 URL，隔夜挂着的看板会永远停在打开当天的日期
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    let changed = false
-    if (params.getAll("groups").length === 0) {
+    if (searchParams.getAll("groups").length === 0) {
+      const params = new URLSearchParams(searchParams.toString())
       params.append("groups", DEFAULT_GROUP)
-      changed = true
-    }
-    if (!params.has("start_date")) {
-      params.set("start_date", defaultStart)
-      changed = true
-    }
-    if (!params.has("end_date")) {
-      params.set("end_date", today)
-      changed = true
-    }
-    if (changed) {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,7 @@
 // API 客户端：封装对后端的请求，所有接口调用从此处导出
 // 认证：请求自动带 MDM JWT（Bearer）；access 快过期时用 HttpOnly refresh Cookie 无感续期（对齐 labops 接法）
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
-import { clearAuth, getToken, setToken } from "@/lib/auth"
+import { clearAuth, decodeJwtPayload, getToken, setToken } from "@/lib/auth"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8030"
 
@@ -32,12 +32,8 @@ const REFRESH_AHEAD_MS = 5 * 60 * 1000 // access 剩余 < 5 分钟时主动续�
 
 /** 解 JWT 的 exp(毫秒)；解析失败返回 0（当作不过期，交给 401 兜底）。 */
 function tokenExpMs(token: string): number {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    return payload?.exp ? payload.exp * 1000 : 0
-  } catch {
-    return 0
-  }
+  const payload = decodeJwtPayload(token)
+  return typeof payload?.exp === "number" ? payload.exp * 1000 : 0
 }
 
 function forceLogout() {

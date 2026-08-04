@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.admin.auth import verify_admin
+from app.core.auth import CurrentUser
 from app.core.database import get_mdm_db
 from app.models.mdm.masters import MethodMaster as DimMethod
 
@@ -49,8 +50,12 @@ async def list_methods(db: AsyncSession = Depends(get_mdm_db)):
     ) for r in result.scalars()]
 
 
-@router.post("", response_model=MethodItem, dependencies=[Depends(verify_admin)])
-async def create_method(body: MethodCreate, db: AsyncSession = Depends(get_mdm_db)):
+@router.post("", response_model=MethodItem)
+async def create_method(
+    body: MethodCreate,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
     existing = await db.execute(select(DimMethod).where(DimMethod.method_code == body.method_code))
     row = existing.scalar_one_or_none()
     if row is not None:
@@ -63,6 +68,7 @@ async def create_method(body: MethodCreate, db: AsyncSession = Depends(get_mdm_d
             row.target_days = body.target_days
         row.deleted_at = None
         row.deleted_by = None
+        row.updated_by = user.username
     else:
         if not body.method_name:
             raise HTTPException(status_code=422, detail="method_name 必填")
@@ -71,6 +77,8 @@ async def create_method(body: MethodCreate, db: AsyncSession = Depends(get_mdm_d
             method_name=body.method_name,
             std_minutes=body.std_minutes,
             target_days=body.target_days,
+            created_by=user.username,
+            updated_by=user.username,
         )
         db.add(row)
     await db.commit()
@@ -78,11 +86,12 @@ async def create_method(body: MethodCreate, db: AsyncSession = Depends(get_mdm_d
     return MethodItem(method_code=row.method_code, method_name=row.method_name, std_minutes=row.std_minutes, target_days=row.target_days)
 
 
-@router.put("/{method_code}", response_model=MethodItem, dependencies=[Depends(verify_admin)])
+@router.put("/{method_code}", response_model=MethodItem)
 async def update_method(
     method_code: str,
     body: MethodUpdate,
     db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
 ):
     result = await db.execute(
         select(DimMethod)
@@ -97,13 +106,18 @@ async def update_method(
         row.std_minutes = body.std_minutes
     if body.target_days is not None:
         row.target_days = body.target_days
+    row.updated_by = user.username
     await db.commit()
     await db.refresh(row)
     return MethodItem(method_code=row.method_code, method_name=row.method_name, std_minutes=row.std_minutes, target_days=row.target_days)
 
 
-@router.post("/upload", dependencies=[Depends(verify_admin)])
-async def upload_methods(file: UploadFile, db: AsyncSession = Depends(get_mdm_db)):
+@router.post("/upload")
+async def upload_methods(
+    file: UploadFile,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
     content = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
 
@@ -143,7 +157,10 @@ async def upload_methods(file: UploadFile, db: AsyncSession = Depends(get_mdm_db
             except (TypeError, ValueError):
                 bad_rows.append(f"第 {idx} 行工时“{mins_raw}”不是数字")
                 continue
-        rows[str(code)] = {"method_code": str(code), "method_name": str(name), "std_minutes": mins}
+        rows[str(code)] = {
+            "method_code": str(code), "method_name": str(name), "std_minutes": mins,
+            "created_by": user.username, "updated_by": user.username,
+        }
 
     if bad_rows:
         shown = "；".join(bad_rows[:5]) + ("…" if len(bad_rows) > 5 else "")
@@ -160,6 +177,9 @@ async def upload_methods(file: UploadFile, db: AsyncSession = Depends(get_mdm_db
             "std_minutes": func.coalesce(stmt.excluded.std_minutes, DimMethod.std_minutes),
             "deleted_at": None,
             "deleted_by": None,
+            # ON CONFLICT 不触发 ORM onupdate，审计字段要显式写
+            "updated_at": func.now(),
+            "updated_by": user.username,
         },
     )
     await db.execute(stmt)

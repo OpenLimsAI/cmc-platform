@@ -9,11 +9,12 @@ interface Props {
 }
 
 export function MonthlyTrendChart({ data }: Props) {
-  // 最后一个月若未结束，标签加"(截至MM-DD)"，与 Streamlit 原版保持一致
-  const xLabels = data.map((d, i) => {
-    if (i === data.length - 1 && d.month_end) {
+  // 数据未覆盖到月底的月份，标签加"(截至MM-DD)"（与该月自身的月末比，
+  // 而不是与"当前月"比：否则月初 ETL 未跑时，完整的上月也会被错标"截至"）
+  const xLabels = data.map((d) => {
+    if (d.month_end) {
       const end = dayjs(d.month_end)
-      if (end.isBefore(dayjs().endOf("month"))) {
+      if (end.isBefore(dayjs(`${d.ym}-01`).endOf("month"), "day")) {
         return `${d.ym} (截至${end.format("MM-DD")})`
       }
     }

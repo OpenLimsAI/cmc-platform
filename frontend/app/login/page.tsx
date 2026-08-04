@@ -17,6 +17,7 @@ function LoginInner() {
   const [loading, setLoading] = useState(false)
 
   const submit = async () => {
+    if (loading) return // 防登录中重复提交（连按 Enter 会发多个请求）
     if (!username.trim() || !password) {
       setError("请输入工号和密码")
       return
@@ -26,7 +27,9 @@ function LoginInner() {
     try {
       const data = await login(username.trim(), password)
       setToken(data.access_token)
-      router.replace(searchParams.get("redirect") || "/dashboard/overview")
+      // redirect 只允许站内相对路径，防开放重定向（"//evil.com" 也要挡）
+      const raw = searchParams.get("redirect") || "/dashboard/overview"
+      router.replace(raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard/overview")
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setError(detail ?? "登录失败，请稍后重试")

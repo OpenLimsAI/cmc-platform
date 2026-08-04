@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
-from app.core import security
+from app.core import database, security
 from app.core.config import settings
 from app.core.exceptions import LIMSException, lims_exception_handler
 from app.core.logging import configure_logging, logger
@@ -19,6 +19,11 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("AUTH_REQUIRED=true 但未配置 JWT_SECRET_KEY / JWT_PUBLIC_KEY_PATH")
     logger.info("CMC R&D LIMS Dashboard 后端启动")
     yield
+    # 优雅关闭时归还连接池
+    await database.analytics_engine.dispose()
+    await database.mdm_engine.dispose()
+    if database.raw_engine is not None:
+        await database.raw_engine.dispose()
     logger.info("CMC R&D LIMS Dashboard 后端关闭")
 
 

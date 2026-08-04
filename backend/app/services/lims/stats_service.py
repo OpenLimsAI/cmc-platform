@@ -996,7 +996,8 @@ async def get_sample_list(
     if status_filter == "completed":
         where_parts.append("authorised_dt IS NOT NULL")
     elif status_filter == "inprogress":
-        where_parts.append("authorised_dt IS NULL AND status NOT IN ('X','U')")
+        # COALESCE 保留状态为空的行、UPPER 兼容小写状态码，与"全部"分支口径一致
+        where_parts.append("authorised_dt IS NULL AND UPPER(COALESCE(status,'')) NOT IN ('X','U')")
     elif status_filter == "unsubmitted":
         where_parts.append("UPPER(COALESCE(status,'')) = 'U'")
     else:

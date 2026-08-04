@@ -15,19 +15,28 @@ export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token
 
 export const clearAuth = () => localStorage.removeItem(TOKEN_KEY)
 
-/** 解 JWT payload（不验签）；解析失败返回 null。 */
+/** 解 JWT payload（不验签）；解析失败返回 null。
+ * JWT 是 base64url（-/_、无填充），atob 只认标准 base64，必须先转换；
+ * 再按 UTF-8 解码，防 payload 含非转义中文时乱码。 */
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
+    const bin = atob(b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), "="))
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))))
+  } catch {
+    return null
+  }
+}
+
 export function getUser(): AuthUser | null {
   const token = getToken()
   if (!token) return null
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
-    return {
-      username: payload.username ?? String(payload.sub ?? ""),
-      full_name: payload.full_name ?? null,
-      roles: Array.isArray(payload.roles) ? payload.roles : [],
-    }
-  } catch {
-    return null
+  const payload = decodeJwtPayload(token)
+  if (!payload) return null
+  return {
+    username: String(payload.username ?? payload.sub ?? ""),
+    full_name: (payload.full_name as string | null) ?? null,
+    roles: Array.isArray(payload.roles) ? (payload.roles as string[]) : [],
   }
 }
 

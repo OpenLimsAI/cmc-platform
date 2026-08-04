@@ -3,11 +3,12 @@ import io
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.admin.auth import verify_admin
+from app.core.auth import CurrentUser
 from app.core.database import get_mdm_db
 from app.models.mdm.masters import EmployeeMaster as DimEmployee
 
@@ -45,8 +46,12 @@ async def list_employees(db: AsyncSession = Depends(get_mdm_db)):
     ) for r in result.scalars()]
 
 
-@router.post("", response_model=EmployeeItem, dependencies=[Depends(verify_admin)])
-async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_mdm_db)):
+@router.post("", response_model=EmployeeItem)
+async def create_employee(
+    body: EmployeeCreate,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
     existing = await db.execute(select(DimEmployee).where(DimEmployee.employee_id == body.employee_id))
     row = existing.scalar_one_or_none()
     if row is not None:
@@ -58,11 +63,14 @@ async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_m
             row.department = body.department
         row.deleted_at = None
         row.deleted_by = None
+        row.updated_by = user.username
     else:
         row = DimEmployee(
             employee_id=body.employee_id,
             employee_name=body.employee_name,
             department=body.department or "药学及技术转移部",
+            created_by=user.username,
+            updated_by=user.username,
         )
         db.add(row)
     await db.commit()
@@ -70,11 +78,12 @@ async def create_employee(body: EmployeeCreate, db: AsyncSession = Depends(get_m
     return EmployeeItem(employee_id=row.employee_id, employee_name=row.employee_name, department=row.department)
 
 
-@router.put("/{employee_id}", response_model=EmployeeItem, dependencies=[Depends(verify_admin)])
+@router.put("/{employee_id}", response_model=EmployeeItem)
 async def update_employee(
     employee_id: str,
     body: EmployeeUpdate,
     db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
 ):
     result = await db.execute(
         select(DimEmployee)
@@ -87,13 +96,18 @@ async def update_employee(
         row.employee_name = body.employee_name
     if body.department is not None:
         row.department = body.department
+    row.updated_by = user.username
     await db.commit()
     await db.refresh(row)
     return EmployeeItem(employee_id=row.employee_id, employee_name=row.employee_name, department=row.department)
 
 
-@router.post("/upload", dependencies=[Depends(verify_admin)])
-async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_db)):
+@router.post("/upload")
+async def upload_employees(
+    file: UploadFile,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
     content = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
 
@@ -124,6 +138,8 @@ async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_
             "employee_id": str(eid),
             "employee_name": str(ename),
             "department": str(dept) if dept else "药学及技术转移部",
+            "created_by": user.username,
+            "updated_by": user.username,
         }
 
     if not rows:
@@ -137,6 +153,9 @@ async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_
             "department": stmt.excluded.department,
             "deleted_at": None,
             "deleted_by": None,
+            # ON CONFLICT 不触发 ORM onupdate，审计字段要显式写
+            "updated_at": func.now(),
+            "updated_by": user.username,
         },
     )
     await db.execute(stmt)

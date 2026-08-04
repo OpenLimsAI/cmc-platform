@@ -70,9 +70,10 @@ export default function WorkloadPage() {
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
-        formatter: (params: { name: string; value: number }[]) => {
+        formatter: (params: { name: string; value: number; dataIndex: number }[]) => {
           const p = params[0]
-          const item = rows.find((i) => (i.employee_name ?? i.tester) === p.name)
+          // 用 dataIndex 定位而非按显示名反查：同名员工按名字查会串数据
+          const item = sorted[p.dataIndex]
           const dept = item?.department ? ` · ${item.department}` : ""
           return `${p.name}${dept}<br/>标准工时：<b>${p.value.toFixed(1)} 小时</b><br/>检项数：${item?.test_n ?? "—"}`
         },

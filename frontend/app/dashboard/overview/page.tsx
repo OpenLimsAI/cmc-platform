@@ -212,8 +212,10 @@ export default function OverviewPage() {
         </CardHeader>
         <CardContent>
           {projectQuery.isLoading && <p className="text-sm text-gray-400 py-8 text-center">加载中…</p>}
-          {projectQuery.data && projectQuery.data.items.length === 0 && (
-            <p className="text-sm text-gray-400 py-8 text-center">暂无数据</p>
+          {projectQuery.data && (projectQuery.data.items.length === 0 || !pieOption) && (
+            <p className="text-sm text-gray-400 py-8 text-center">
+              暂无数据{projectQuery.data.items.length > 0 ? "（所选指标合计为 0）" : ""}
+            </p>
           )}
           {pieOption && projectQuery.data && (
             <>
