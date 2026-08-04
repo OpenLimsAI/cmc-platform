@@ -21,11 +21,14 @@
 `cmc-instrument-ingest` —— **小仪器原始数据的备份归档中心**（定位于 2026-07-15 确认）。
 
 **本项目只做一件事：Stage 1 —— 从仪器侧只读拉取数据、SHA256 校验、归档到 NAS。不解析业务字段、不入库。**
-当前只接入 Nova BioProfile FLEX2 一台仪器；设计为可容纳其他小仪器（Biacore 待收编），
-但**现在不要做过度抽象**，只有一个 `flex2/` 目录，第二台来了再加平级目录。
+已接入两台仪器：**FLEX2**（`flex2/`）与 **Vi-CELL XR**（`vicell/`）；Biacore 待收编。
+每台一个平级目录，**不做提前抽象**——第三台来了再加。
+与仪器无关的通用规范（命名 / 账号 / 采集策略分类 / 校验 / 时间戳 / 告警心跳 / 接入清单）
+统一放 **`docs/INGEST-STANDARD.md`**，新增仪器照它办，别现想。
 
-**ETL 不在本项目。** 每台仪器的解析入库各自独立成 repo（Nova → `rd-nova-etl`，**尚未建**），
-从 NAS 读归档 → 解析 → 入 `cmc_rd`，和 `rd-vicell-etl` / `rd-lucullus-etl` 的做法完全一致。
+**ETL 不在本项目。** 每台仪器的解析入库各自独立成 repo（Nova → `rd-nova-etl` 已建，
+Vi-CELL → `rd-vicell-etl` 已有），从 NAS 读归档 → 解析 → 入 `cmc_rd`，
+和 `rd-lucullus-etl` 的做法完全一致。
 
 **两阶段解耦，这是架构的核心，物理上拆成两个 repo：**
 
@@ -121,7 +124,9 @@ cmc_rd → cmc_analytics
 |---|---|
 | 连通性 | ✅ 全部验证完毕 |
 | Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0，**已上线**（Linux systemd，每日 01:00 / 12:00 / 16:00 增量） |
-| Stage 1 `vicell/vicell_ingest.py` | 🟡 v1.0.0 已写好，**待首跑**（源已实机勘察完，见 `docs/source-survey-vicell.md`） |
+| Stage 1 `vicell/vicell_ingest.py` | ✅ **v1.4.1 已上线**（每日 02:30 timer + 09:00 心跳巡检）。含 metadata 采集 / 结构化告警 / 心跳。回补已完成：2000 图片目录 + 18.9k txt + 36.8k xls + 4 个历史目录 + 配置审计文件，**187606 行 SHA-256 全 MATCH** |
+| 监控（MD-004/005） | 🟡 告警与心跳**已上线**，但 **`ALERT_CMD` 外呼端点未配置 ⇒ 告警只落盘、没有人会被通知**。MD-004 停在 Phase 1 |
+| 数据完整性审计 | ✅ 已完成，见 `docs/AUDIT-2026-08-03-data-integrity.md`（15 项发现，MD-001/004/005 已整改） |
 | Stage 2 ETL | ✅ **已建成 `~/code/rd-nova-etl`**（本地已跑通全量入库+幂等；Linux 生产库待部署） |
 | `sql/` 本地测试镜像 | ⬜ 未开始（真库 DDL 在 `cmc-schema-migrations`，见铁律 8） |
 | 部署（挂载/systemd） | ✅ 已完成（/opt clone + fstab 挂载 + systemd timer；backfill 已归档 2024-01→2026-07 全部月度 + Database） |
@@ -142,6 +147,18 @@ cmc_rd → cmc_analytics
       月度**不是**逐次的严格超集——逐次独有 810 条错位行的中段检测值，月度独有试剂批号。
       **两者互补，逐次文件永久保留，不再讨论弃用。** 详见 `docs/source-survey-flex2.md` §8。
 - [ ] `tests/fixtures/`：脱敏样例 CSV，给解析器做回归
+
+**Vi-CELL 相关（2026-08-04 部署后剩余）**
+- [ ] **提供 `ALERT_CMD` 外呼端点**（企业微信机器人 / 邮件）——这是目前监控链条上最大的缺口，
+      不做的话所有 CRITICAL 告警只是安静地写进文件。配置后需发测试告警并**确认收到**才算 Phase 2 完成
+- [ ] `instrument_reader` 密码轮换（2026-08-03 截图外泄）
+- [ ] FLEX2 接入告警与心跳（现在只有 Vi-CELL 有心跳；巡检 `--expect` 也只列了 Vi-CELL，
+      所以"FLEX2 备份停了"目前发现不了）
+- [ ] 被 systemd 超时杀掉（SIGTERM）时不写心跳，与"没跑过"无法区分。需捕获 SIGTERM 写 FAILED 心跳
+- [ ] `ViabilityDef.cfg` 是仪器运行时状态文件（含试剂余量），每次运行都会产生 `.rev` 快照 +
+      一条 WARNING。量很小（2.4 KB/天），但要决定是保留、排除、还是标记为"预期会变"
+- [ ] 决定是否归档 `E:\ViCELLXR` 下的 `ViCELLXR204.exe`（软件安装包，现按设计排除）
+- [ ] 后续阶段：MD-002 元数据库、MD-003 恢复验证演练（见审计报告）
 
 **需要人去问 / 去确认（不是代码能解决的）**
 - [ ] **查明 2026-07-16 仪器 PC 上被改了什么**（当天起日期格式由 `M/D/YYYY` 变成 `YYYY-M-D`，
