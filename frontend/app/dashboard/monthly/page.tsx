@@ -21,7 +21,9 @@ function pivot(items: MethodMonthlyItem[], metric: Metric) {
   const methodMap = new Map<string, Map<string, number>>()
   for (const item of items) {
     if (!methodMap.has(item.method_name)) methodMap.set(item.method_name, new Map())
-    methodMap.get(item.method_name)!.set(item.ym, Number(item[metric]))
+    // 累加而非覆盖：同一 method_name 可能对应多个 method_code（历史改名/合并）
+    const row = methodMap.get(item.method_name)!
+    row.set(item.ym, (row.get(item.ym) ?? 0) + Number(item[metric]))
   }
   // 按总量降序排列方法
   const methods = [...methodMap.keys()].sort((a, b) => {

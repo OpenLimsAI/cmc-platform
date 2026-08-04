@@ -118,7 +118,8 @@ async def get_kpi(
     sql_pending = f"""
         SELECT COUNT(DISTINCT test_id) FROM mart.v_test_task_monitor
         WHERE sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
-          AND test_authorised_dt IS NULL
+          AND (test_authorised_dt IS NULL
+               OR test_authorised_dt >= (CAST(:end_date AS date) + INTERVAL '1 day'))
           AND {_STATUS_EXCL_XU} AND {group_sql}
     """
 
@@ -590,7 +591,8 @@ def _workload_where(scope: str, group_sql: str) -> str:
     elif scope == "pending":
         return f"""
             v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
-            AND v.test_authorised_dt IS NULL
+            AND (v.test_authorised_dt IS NULL
+                 OR v.test_authorised_dt >= (CAST(:end_date AS date) + INTERVAL '1 day'))
             AND UPPER(COALESCE(v.sample_status, '')) NOT IN ('X','U')
             AND UPPER(COALESCE(v.test_status,   '')) NOT IN ('X','U')
             AND v.tester IS NOT NULL AND TRIM(v.tester) <> ''
@@ -673,7 +675,8 @@ async def get_workload_kpi(
         FROM mart.v_test_task_monitor v
         LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
-          AND v.test_authorised_dt IS NULL
+          AND (v.test_authorised_dt IS NULL
+               OR v.test_authorised_dt >= (CAST(:end_date AS date) + INTERVAL '1 day'))
           AND UPPER(COALESCE(v.sample_status,'')) NOT IN ('X','U')
           AND UPPER(COALESCE(v.test_status,  '')) NOT IN ('X','U')
           AND {group_sql}
@@ -828,7 +831,8 @@ async def get_overdue(
         LEFT JOIN mart.dim_method m ON v.method_code = m.method_code
         WHERE v.sample_received_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
           AND UPPER(COALESCE(v.test_status, '')) NOT IN ('X','U')
-          AND v.test_authorised_dt IS NULL
+          AND (v.test_authorised_dt IS NULL
+               OR v.test_authorised_dt >= (CAST(:end_date AS date) + INTERVAL '1 day'))
           AND {group_sql}
         GROUP BY v.method_code, m.method_name
         ORDER BY test_count DESC
@@ -899,7 +903,7 @@ async def get_overdue_list(
             v.sample_status,
             m.target_days,
             CASE
-                WHEN v.test_completed_dt IS NOT NULL AND v.test_authorised_dt IS NULL
+                WHEN v.test_completed_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
                                                             THEN 'unauthorized'
                 ELSE 'inprogress'
             END AS overdue_bucket,
@@ -912,7 +916,8 @@ async def get_overdue_list(
                ON v.tester = e.employee_id
         WHERE v.assigned_dt IS NOT NULL
           AND v.assigned_dt < (CAST(:end_date AS date) + INTERVAL '1 day')
-          AND v.test_authorised_dt IS NULL
+          AND (v.test_authorised_dt IS NULL
+               OR v.test_authorised_dt >= (CAST(:end_date AS date) + INTERVAL '1 day'))
           AND (v.test_status IS NULL OR UPPER(v.test_status) <> 'X')
           AND {group_sql}
         ORDER BY overdue_days DESC, v.sample_id, v.method_code

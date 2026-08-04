@@ -111,23 +111,25 @@ async def upload_employees(file: UploadFile, db: AsyncSession = Depends(get_mdm_
         (i + 1 for i, h in enumerate(headers) if h and "department" in str(h).lower()), None
     )
 
-    rows = []
+    # 按 employee_id 去重（同号取最后一行）：同一 VALUES 里重复主键会让
+    # ON CONFLICT DO UPDATE 报 "cannot affect row a second time" 整体 500
+    rows: dict[str, dict] = {}
     for row in ws.iter_rows(min_row=2, values_only=True):
         eid = row[col_id - 1]
         ename = row[col_name - 1]
         if not eid or not ename:
             continue
         dept = row[col_dept - 1] if col_dept else None
-        rows.append({
+        rows[str(eid)] = {
             "employee_id": str(eid),
             "employee_name": str(ename),
             "department": str(dept) if dept else "药学及技术转移部",
-        })
+        }
 
     if not rows:
         raise HTTPException(status_code=422, detail="Excel 中无有效数据行")
 
-    stmt = insert(DimEmployee).values(rows)
+    stmt = insert(DimEmployee).values(list(rows.values()))
     stmt = stmt.on_conflict_do_update(
         index_elements=["employee_id"],
         set_={

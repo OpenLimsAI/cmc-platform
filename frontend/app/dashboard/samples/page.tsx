@@ -42,6 +42,14 @@ export default function SamplesPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
 
+  // sidebar 的日期/检验组变化时回到第 1 页，避免带着旧页码查新条件显示"暂无数据"
+  const sidebarKey = `${startDate}|${endDate}|${groups.join(",")}`
+  const [prevSidebarKey, setPrevSidebarKey] = useState(sidebarKey)
+  if (sidebarKey !== prevSidebarKey) {
+    setPrevSidebarKey(sidebarKey)
+    setPage(1)
+  }
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["sample-list", startDate, endDate, groups, statusFilter, projectSearch, page, pageSize],
     queryFn: () =>
