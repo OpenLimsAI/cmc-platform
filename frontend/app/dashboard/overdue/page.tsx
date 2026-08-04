@@ -118,6 +118,7 @@ export default function OverduePage() {
         changed = true
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 选项集变化时清掉已失效的筛选值，带 changed 守卫不会级联
     if (changed) setFilters(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [optionsByField])

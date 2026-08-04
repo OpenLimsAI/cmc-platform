@@ -16,8 +16,6 @@ import {
   fetchOverTargetPending,
   CycleStage,
   CycleTimeStagesTrendItem,
-  CycleTimeTrendByMethodItem,
-  MethodTargetItem,
 } from "@/lib/api"
 import { downloadCSV } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,23 +39,6 @@ function matchMethod(name: string, include: string, exclude: string | null) {
   if (!n.includes(include.toLowerCase())) return false
   if (exclude && n.includes(exclude.toLowerCase())) return false
   return true
-}
-
-// 将多个 method_name 按月合并（完成数加权平均周期）
-function mergeByMonth(items: CycleTimeTrendByMethodItem[]) {
-  const map: Record<string, { completed_n: number; wsum: number }> = {}
-  for (const item of items) {
-    if (!map[item.ym]) map[item.ym] = { completed_n: 0, wsum: 0 }
-    map[item.ym].completed_n += item.completed_n
-    map[item.ym].wsum += (item.avg_cycle_days ?? 0) * item.completed_n
-  }
-  return Object.entries(map)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([ym, v]) => ({
-      ym,
-      completed_n: v.completed_n,
-      avg_cycle_days: v.completed_n > 0 ? parseFloat((v.wsum / v.completed_n).toFixed(1)) : null,
-    }))
 }
 
 // 4 段细分相关

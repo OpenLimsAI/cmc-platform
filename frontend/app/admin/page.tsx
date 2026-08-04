@@ -129,6 +129,7 @@ function MethodsTab() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时拉取数据的标准写法，loading 初值已是 true
   useEffect(() => { load() }, [])
 
   const updateField = async (code: string, field: "method_name" | "std_minutes" | "target_days", val: string) => {
@@ -278,6 +279,7 @@ function EmployeesTab() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时拉取数据的标准写法，loading 初值已是 true
   useEffect(() => { load() }, [])
 
   const updateField = async (id: string, field: "employee_name" | "department", val: string) => {
@@ -397,6 +399,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<"methods" | "employees">("methods")
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 只能客户端读，挂载后初始化是 SSR 水合安全的标准写法
     if (getToken()) setUser(getUser())
     setChecked(true)
   }, [])
@@ -425,6 +428,7 @@ export default function AdminPage() {
         </div>
         <button
           className="text-sm text-gray-400 hover:text-gray-600"
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 登出后整页刷新以清空全部内存态，属有意为之
           onClick={async () => { await logout(); window.location.href = "/login" }}
         >
           退出登录

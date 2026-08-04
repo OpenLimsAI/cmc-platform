@@ -23,6 +23,7 @@ export function Navbar() {
   // localStorage 只能在客户端读，挂载后再取用户，避免 SSR 水合不一致
   const [user, setUser] = useState<AuthUser | null>(null)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 只能客户端读，挂载后初始化是 SSR 水合安全的标准写法
     setUser(getUser())
   }, [pathname])
 
@@ -34,6 +35,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     await logout()
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 登出后整页刷新以清空全部内存态，属有意为之
     window.location.href = "/login"
   }
 

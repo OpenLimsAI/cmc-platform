@@ -39,6 +39,7 @@ function tokenExpMs(token: string): number {
 function forceLogout() {
   clearAuth()
   if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 非组件模块拿不到 router，且登出需整页刷新清空内存态
     window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
   }
 }

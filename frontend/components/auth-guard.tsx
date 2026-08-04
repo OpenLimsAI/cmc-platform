@@ -13,6 +13,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLogin) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 登录态只能在客户端读 localStorage 确认，挂载后放行是 SSR 水合安全的标准写法
       setReady(true)
       return
     }
