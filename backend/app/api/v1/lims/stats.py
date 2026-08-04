@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import require_export
 from app.core.database import get_analytics_db, get_raw_db
 from app.schemas.lims.stats import (
     CycleTimeByMethodResponse,
@@ -328,6 +329,7 @@ async def overdue_list(
 @router.get(
     "/lims/stats/pending-tests-csv",
     summary="导出待检测检项清单（CSV，口径与原版 export_pending_tests_to_excel 一致）",
+    dependencies=[Depends(require_export)],  # 导出限化学家及以上，router 级的 require_view 不够
 )
 async def pending_tests_csv(
     groups: list[str] | None = Query(default=None, description="检验组过滤"),

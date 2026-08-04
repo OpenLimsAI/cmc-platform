@@ -185,7 +185,8 @@ class WorkloadItem(BaseModel):
     employee_name: str | None = None
     department: str | None = None
     test_n: int
-    total_minutes: int
+    # std_minutes 是 Numeric(6,2)，SUM 可能带小数（如 37.5 分钟），int 会让整个接口 500
+    total_minutes: float
     total_hours: float
 
 

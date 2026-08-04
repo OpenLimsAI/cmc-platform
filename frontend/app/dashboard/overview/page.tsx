@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic"
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useSearchParams } from "next/navigation"
-import { fetchKPI, fetchMonthlyTrend, fetchProjectDistribution, fetchMethodDistribution, ProjectDistributionItem } from "@/lib/api"
+import { fetchKPI, fetchMonthlyTrend, fetchProjectDistribution, fetchMethodDistribution, downloadPendingTestsCsv, ProjectDistributionItem } from "@/lib/api"
 import { KpiCards } from "@/components/kpi-cards"
 import { MonthlyTrendChart } from "@/components/monthly-trend-chart"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -87,6 +87,25 @@ export default function OverviewPage() {
   const [threshold, setThreshold] = useState(0.01)
   const [showPercent, setShowPercent] = useState(true)
   const [methodThreshold, setMethodThreshold] = useState(10)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  const handleExport = async () => {
+    setExporting(true)
+    setExportError(null)
+    try {
+      await downloadPendingTestsCsv(groups)
+    } catch (e) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      setExportError(
+        status === 403
+          ? "无导出权限：需「检验化学家」或以上角色"
+          : "导出失败，请稍后重试"
+      )
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const today = dayjs().format("YYYY-MM-DD")
   const startDate = searchParams.get("start_date") ?? dayjs().subtract(30, "day").format("YYYY-MM-DD")
@@ -295,14 +314,15 @@ export default function OverviewPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8030"}/api/v1/lims/stats/pending-tests-csv${groups.length ? "?" + groups.map((g) => `groups=${encodeURIComponent(g)}`).join("&") : ""}`}
-              download
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition-colors"
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              导出 待检测检项.csv
-            </a>
+              {exporting ? "导出中…" : "导出 待检测检项.csv"}
+            </button>
             <span className="text-xs text-gray-400 self-center">（口径：test_authorised_dt IS NULL，排除 X/U）</span>
+            {exportError && <span className="text-xs text-red-500 self-center">{exportError}</span>}
           </div>
         </CardContent>
       </Card>

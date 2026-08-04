@@ -5,11 +5,16 @@ import { clearAuth, getToken, setToken } from "@/lib/auth"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8030"
 
-// FastAPI 期望数组参数为 ?groups=TT1&groups=TT5，axios 默认序列化为 groups[]=TT1，需覆盖
+// FastAPI 期望数组参数为 ?groups=TT1&groups=TT5，axios 默认序列化为 groups[]=TT1，需覆盖。
+// axios 会把 params 对象原样交给自定义 serializer，必须自己滤掉 undefined/null，
+// 否则 String(undefined) 变成字面文字 "undefined" 发给后端（曾导致样品搜索/全部检验组查无数据）
 const paramsSerializer = (params: Record<string, unknown>) =>
   Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null)
     .flatMap(([k, v]) =>
-      Array.isArray(v) ? v.map((i) => `${k}=${encodeURIComponent(i)}`) : [`${k}=${encodeURIComponent(String(v))}`]
+      Array.isArray(v)
+        ? v.filter((i) => i !== undefined && i !== null).map((i) => `${k}=${encodeURIComponent(i)}`)
+        : [`${k}=${encodeURIComponent(String(v))}`]
     )
     .join("&")
 
@@ -470,6 +475,23 @@ export const fetchDataFreshness = () =>
 
 export const fetchMethodTargets = () =>
   api.get<MethodTargetItem[]>("/api/v1/lims/meta/method-targets").then((r) => r.data)
+
+// 导出待检测检项 CSV。必须走 api 实例（带 Bearer + 无感续期）：
+// 裸 <a href> 不带令牌，AUTH_REQUIRED=true 的环境点了必 401
+export const downloadPendingTestsCsv = async (groups?: string[]) => {
+  const resp = await api.get<Blob>("/api/v1/lims/stats/pending-tests-csv", {
+    params: { groups: groups?.length ? groups : undefined },
+    responseType: "blob",
+  })
+  const cd = String(resp.headers["content-disposition"] ?? "")
+  const filename = /filename="?([^";]+)"?/.exec(cd)?.[1] ?? "pending_tests.csv"
+  const url = URL.createObjectURL(resp.data)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 // ---------- 样本总览 ----------
 

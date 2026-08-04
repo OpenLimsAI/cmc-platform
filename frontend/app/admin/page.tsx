@@ -23,27 +23,38 @@ function EditableCell({
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(String(value ?? ""))
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const save = async () => {
     setSaving(true)
-    await onSave(val)
-    setSaving(false)
-    setEditing(false)
+    setError(null)
+    try {
+      await onSave(val)
+      setEditing(false)
+    } catch (e) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(msg ?? "保存失败")
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1">
-        <input
-          autoFocus
-          type={type}
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false) }}
-          className="border rounded px-1 py-0.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-indigo-400"
-        />
-        <button onClick={save} disabled={saving} className="text-green-600 hover:text-green-700"><Check size={14} /></button>
-        <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+      <div>
+        <div className="flex items-center gap-1">
+          <input
+            autoFocus
+            type={type}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false) }}
+            className="border rounded px-1 py-0.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+          <button onClick={save} disabled={saving} className="text-green-600 hover:text-green-700"><Check size={14} /></button>
+          <button onClick={() => { setEditing(false); setError(null) }} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+        </div>
+        {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
       </div>
     )
   }
@@ -102,12 +113,20 @@ function MethodsTab() {
   const [adding, setAdding] = useState(false)
   const [newRow, setNewRow] = useState({ method_code: "", method_name: "", std_minutes: "", target_days: "" })
   const [saveError, setSaveError] = useState("")
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
-    const { data } = await api.get<MethodItem[]>("/api/v1/admin/methods")
-    setRows(data)
-    setLoading(false)
+    setLoadError(null)
+    try {
+      const { data } = await api.get<MethodItem[]>("/api/v1/admin/methods")
+      setRows(data)
+    } catch (e) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setLoadError(msg ?? "加载失败，请检查网络或数据库权限后重试")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -152,6 +171,11 @@ function MethodsTab() {
       </div>
       {loading ? (
         <p className="text-sm text-gray-400">加载中…</p>
+      ) : loadError ? (
+        <div className="text-sm text-red-500 flex items-center gap-3">
+          <span>{loadError}</span>
+          <Button size="sm" variant="outline" onClick={load}>重试</Button>
+        </div>
       ) : (
         <div className="overflow-auto rounded-lg border">
           <table className="w-full text-sm">
@@ -238,12 +262,20 @@ function EmployeesTab() {
   const [adding, setAdding] = useState(false)
   const [newRow, setNewRow] = useState({ employee_id: "", employee_name: "", department: "" })
   const [saveError, setSaveError] = useState("")
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
-    const { data } = await api.get<EmployeeItem[]>("/api/v1/admin/employees")
-    setRows(data)
-    setLoading(false)
+    setLoadError(null)
+    try {
+      const { data } = await api.get<EmployeeItem[]>("/api/v1/admin/employees")
+      setRows(data)
+    } catch (e) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setLoadError(msg ?? "加载失败，请检查网络或数据库权限后重试")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -287,6 +319,11 @@ function EmployeesTab() {
       </div>
       {loading ? (
         <p className="text-sm text-gray-400">加载中…</p>
+      ) : loadError ? (
+        <div className="text-sm text-red-500 flex items-center gap-3">
+          <span>{loadError}</span>
+          <Button size="sm" variant="outline" onClick={load}>重试</Button>
+        </div>
       ) : (
         <div className="overflow-auto rounded-lg border">
           <table className="w-full text-sm">
