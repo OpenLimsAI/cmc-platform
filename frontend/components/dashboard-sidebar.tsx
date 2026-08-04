@@ -183,11 +183,21 @@ export function DashboardSidebar() {
         {freshness && (
           <div className="pt-3 mt-3 border-t border-gray-100 text-[11px] text-gray-400 leading-relaxed space-y-0.5">
             <div>数据库：{freshness.db_name}</div>
-            <div>
+            <div
+              className={
+                freshness.etl_last_run_at &&
+                dayjs().diff(dayjs(freshness.etl_last_run_at), "hour") >= 24
+                  ? "text-red-500 font-medium"
+                  : undefined
+              }
+            >
               ETL 更新：
               {freshness.etl_last_run_at
                 ? dayjs(freshness.etl_last_run_at).format("MM-DD HH:mm")
                 : "—"}
+              {freshness.etl_last_run_at &&
+                dayjs().diff(dayjs(freshness.etl_last_run_at), "hour") >= 24 &&
+                " ⚠️ 超24小时未同步"}
             </div>
             <div>
               数据时间：

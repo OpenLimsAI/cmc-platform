@@ -27,7 +27,9 @@ async def get_data_freshness(
     返回三段时间：
       - db_name：当前主库名
       - data_max_at：cmc_analytics.staging.stg_result.updated_at 的 MAX —— 业务上最新一条结果的变更时间
-      - etl_last_run_at：cmc_rd.meta.etl_run 最近一次 SUCCESS 的 run_finished_at —— ETL 跑完时间
+      - etl_last_run_at：cmc_rd.meta.etl_run 里 LIMS 管道最近一次 SUCCESS 的 run_finished_at
+        —— 必须限定 job_name：meta.etl_run 是多条 ETL 共用的台账，不过滤会取到别的管道
+        （如 lucullus）的成功时间，LIMS 断流时指示灯照样天天刷新（2026-07 事故的教训）
     raw_db 未配置时 etl_last_run_at 返回 None，端点降级仍可用。
     """
     row = (await analytics_db.execute(text(
@@ -39,12 +41,12 @@ async def get_data_freshness(
 
     etl_last_run_at = None
     if raw_db is not None:
-        # run_finished_at 列是 naive timestamp，但 PG server 时区是 UTC，写入用 NOW() 故本质是 UTC。
-        # 显式 AT TIME ZONE 'UTC' 把 naive 当 UTC 解释 → 输出 timestamptz，Pydantic 序列化带 +00:00。
-        # 否则前端 dayjs 按本地时区解析会错算 8 小时。
+        # run_finished_at 自 2026-07-01 迁移(cmc_rd_tstz)起是 TIMESTAMPTZ，直接返回即可
+        # 带时区序列化；再套 AT TIME ZONE 'UTC' 会剥掉时区，前端按本地时区解析慢 8 小时。
         etl_row = (await raw_db.execute(text(
-            "SELECT MAX(run_finished_at) AT TIME ZONE 'UTC' AS finished_at "
-            "FROM meta.etl_run WHERE status = 'SUCCESS'"
+            "SELECT MAX(run_finished_at) AS finished_at "
+            "FROM meta.etl_run "
+            "WHERE status = 'SUCCESS' AND job_name = 'rd_lims_etl_samplemanager'"
         ))).mappings().first()
         etl_last_run_at = etl_row["finished_at"] if etl_row else None
 
