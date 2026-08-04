@@ -44,6 +44,24 @@ cmc_rd → cmc_analytics
 合并后改一次 ETL schema 就要重新验证整条归档链路。且 ETL 挂掉时归档必须照常跑——数据先落袋为安。
 拆成两个 repo 让这道边界更硬。
 
+### ⚠️ 本项目对外提供的共用组件：告警出口（改之前先看这里）
+
+数据上与下游 ETL 零耦合，但**运维告警**是共用的——本项目提供统一告警出口，
+三个仓库共用，免得各带一份脚本然后慢慢漂移：
+
+| 提供 | `tools/ingest-alert.sh` + `tools/deploy/instrument-alert@.service` |
+|---|---|
+| **使用方（改动前必须盘点）** | 本项目三个采集单元；**`rd-vicell-etl`** 的 `vicell-etl.service`；**`rd-nova-etl`** 的 `nova-etl.service`（后两者通过 `OnFailure=instrument-alert@%n.service` 引用） |
+
+**动这两个文件（改名/挪位置/改路径）前，必须同时改上面两个下游仓库**，
+否则它们的 `OnFailure` 会静默失效——systemd 只留一行
+`Failed to enqueue OnFailure= job, ignoring: Unit ... not found.`，
+主服务照常失败、告警一条不发，没人会发现。这与总纲「改共用表前先盘点全部使用方」
+是同一条铁律（2026-08-04 LIMS 断流事故的教训）。
+
+外呼开关：`/etc/instrument-ingest/alert.env` 的 `INGEST_ALERT_WEBHOOK`，
+留空则只写 journald（`journalctl -t instrument-alert`）。样例见 `tools/alert.env.example`。
+
 ---
 
 ## 铁律（不可违反，违反了不是 bug 是事故）
