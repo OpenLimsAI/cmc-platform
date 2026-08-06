@@ -34,6 +34,7 @@ import os
 import sys
 import json
 import time
+import signal
 import shutil
 import hashlib
 import logging
@@ -57,8 +58,8 @@ from heartbeat import write_heartbeat  # noqa: E402
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.5.0"
-SCRIPT_RELEASE_DATE = "2026-08-05"
+SCRIPT_VERSION = "v1.6.0"
+SCRIPT_RELEASE_DATE = "2026-08-06"
 SCRIPT_OWNER = "TT Lab"
 
 # =========================================================
@@ -105,6 +106,21 @@ ALERT_MAX_EXTERNAL = int(os.environ.get("VICELL_ALERT_MAX_EXTERNAL", "20"))
 # 读取源文件时，若 stat 在读取前后变化则重试（防止读到正在写入的半截文件）
 STABLE_RETRIES = int(os.environ.get("VICELL_STABLE_RETRIES", "4"))
 STABLE_WAIT_SEC = float(os.environ.get("VICELL_STABLE_WAIT_SEC", "3"))
+
+# ---- 分段保存 state（2026-08-06 加）----
+# 每归档这么多个图片目录就存一次记账。0 = 关闭（退回"只在跑完时存一次"）。
+# 起因：2026-08-06 夜班跑满 2 小时被 systemd 超时杀掉，**整趟白干**——
+# 28 个已经完整拷完 50/50 的目录因为没来得及记账，第二晚要从头再来，
+# 于是每晚重做、每晚超时、永远不收敛。分段存盘让每一晚都能往前推进。
+STATE_SAVE_EVERY = int(os.environ.get("VICELL_STATE_SAVE_EVERY", "20"))
+
+# ---- 源文件读不出来的处理（2026-08-06 加）----
+# 连续这么多趟都读不出来的源文件，判定为"源端确实坏了"，此后直接跳过、不再重试。
+# 起因：两张 tif 稳定报 [Errno 5] Input/output error，每张要耗掉 STABLE_RETRIES 次
+# 重试约 30 分钟；不跳过的话每晚白烧一小时，还把整趟拖到超时。
+# ⚠️ 这**不是**放宽铁律 5。跳过的文件会记进 state 的 unreadable_files 并告警，
+# 是"如实记录源端坏了"，不是"把坏数据当好数据归档"。
+BAD_FILE_THRESHOLD = int(os.environ.get("VICELL_BAD_FILE_THRESHOLD", "3"))
 
 CHUNK = 1024 * 1024
 
@@ -404,6 +420,95 @@ def save_state(state: Dict[str, Any], dry_run: bool) -> None:
             logger.warning(f"状态文件写入失败 {f}: {e}")
 
 
+def checkpoint_state(state: Dict[str, Any], dry_run: bool, why: str) -> None:
+    """
+    中途存盘。**绝不抛异常**——存盘失败不该让正在跑的归档挂掉，
+    大不了这一段进度丢了，下次重来即可。
+    """
+    if dry_run:
+        return
+    try:
+        save_state(state, dry_run)
+        logger.info(f"记账已存盘（{why}）")
+    except Exception as e:
+        logger.warning(f"中途存盘失败（继续归档，不影响本次结果）: {e}")
+
+
+# =========================================================
+# 源文件读不出来的记账（2026-08-06 加）
+# =========================================================
+class Terminated(Exception):
+    """收到 SIGTERM。用异常而不是直接 exit，好让上层把心跳与记账落干净。"""
+
+
+def install_sigterm_handler(state_ref: Dict[str, Any], dry_run: bool) -> None:
+    """
+    捕获 systemd 的 SIGTERM（超时或 systemctl stop），把它变成可收尾的异常。
+
+    为什么必须有（2026-08-06 血的教训）：夜班跑满 2 小时被 SIGTERM 杀掉，
+    **心跳没写、记账没存**。于是心跳停留在前一次成功，巡检第二天早上照常
+    报告"全部正常 ✅"——备份实际已经连挂两晚。监控撒谎比不监控更危险。
+
+    ⚠️ 局限要说清楚：信号只能在 Python 字节码之间投递。如果此刻正阻塞在
+    一个迟迟不返回的 SMB 读上，处理函数要等它返回才跑得起来；systemd 默认
+    只等 90 秒（TimeoutStopSec）就补 SIGKILL，那时什么都来不及做。
+    所以这只是第二道防线，**第一道是分段存盘**（STATE_SAVE_EVERY）。
+    """
+    def _handler(signum, frame):
+        logger.warning(f"收到信号 {signum}（多半是 systemd 超时），开始收尾…")
+        try:
+            checkpoint_state(state_ref, dry_run, "收到 SIGTERM")
+        except Exception:
+            pass
+        raise Terminated(f"被信号 {signum} 中止")
+
+    try:
+        signal.signal(signal.SIGTERM, _handler)
+    except Exception as e:   # 非主线程等极端情况，装不上就算了，不能因此跑不起来
+        logger.warning(f"SIGTERM 处理器安装失败（继续运行）: {e}")
+
+
+def bad_file_key(path: Path) -> str:
+    """用相对源挂载点的路径做键，换挂载点也不会串。"""
+    try:
+        return str(path.relative_to(SRC_MOUNT))
+    except ValueError:
+        return str(path)
+
+
+def is_known_unreadable(state: Dict[str, Any], path: Path) -> bool:
+    """这个文件是否已被判定为源端坏了（此后直接跳过，不再浪费半小时去重试）。"""
+    rec = (state.get("unreadable_files") or {}).get(bad_file_key(path))
+    return bool(rec and rec.get("confirmed"))
+
+
+def note_read_failure(state: Dict[str, Any], path: Path, err: str) -> bool:
+    """
+    记一次读取失败。返回 True 表示这次刚好达到阈值、被判定为"源端确实坏了"
+    （调用方据此发一条 CRITICAL；后续趟数不再重复告警）。
+    """
+    reg = state.setdefault("unreadable_files", {})
+    k = bad_file_key(path)
+    rec = reg.setdefault(k, {"fail_count": 0, "first_failed_at": NOW_STR, "confirmed": False})
+    rec["fail_count"] = int(rec.get("fail_count", 0)) + 1
+    rec["last_failed_at"] = NOW_STR
+    rec["last_error"] = err[:300]
+    if not rec.get("confirmed") and rec["fail_count"] >= BAD_FILE_THRESHOLD:
+        rec["confirmed"] = True
+        rec["confirmed_at"] = NOW_STR
+        return True
+    return False
+
+
+def clear_read_failure(state: Dict[str, Any], path: Path) -> None:
+    """读成功了就把失败记录清掉——文件后来被修好/重导出属于正常情况。"""
+    reg = state.get("unreadable_files") or {}
+    k = bad_file_key(path)
+    if k in reg:
+        reg.pop(k, None)
+        logger.info(f"此前读不出的文件本次已读成功，记录已清除: {k}")
+
+
 # =========================================================
 # 归档：单文件（Data / Export）
 # =========================================================
@@ -646,11 +751,14 @@ def archive_sample_dirs(
                     f"（按每样品 {EXPECTED_TIF_PER_SAMPLE} 张估算，未逐目录核实）")
         return stats
 
+    done_since_save = 0
     for dname in todo:
         sdir = origin[dname] / dname
         ddir = dest_root / dname
         # 本目录这一轮是否"完整拿全了"。任何一个文件没拿到都必须为 False，
         # 否则下面会把目录写进 state，缺的那几张**永远补不回来**。
+        # 例外见下面 known_bad：源端确实坏掉、已如实记录在案的文件不算"没拿到"，
+        # 否则这个目录会永远重试、永远超时，反而让其余目录也归不了档。
         dir_ok = True
         try:
             fs, sk = list_entries(sdir, "file")
@@ -671,7 +779,16 @@ def archive_sample_dirs(
             stats["error"] += 1
             continue
 
-        if EXPECTED_TIF_PER_SAMPLE and len(files) != EXPECTED_TIF_PER_SAMPLE and dir_ok:
+        # 已确认源端坏掉的文件直接摘出来，不再送进复制流程。
+        # 不摘的话每张要白烧 STABLE_RETRIES 次重试（实测约 30 分钟/张），
+        # 两张就能把整趟拖到超时——2026-08-06 夜班就是这么挂的。
+        known_bad = [f for f in files if is_known_unreadable(state, sdir / f)]
+        if known_bad:
+            files = [f for f in files if f not in known_bad]
+            logger.warning(f"{label}/{dname}: 跳过 {len(known_bad)} 个已确认读不出的源文件"
+                           f"（已记录在案，不再重试）: {', '.join(known_bad[:5])}")
+
+        if EXPECTED_TIF_PER_SAMPLE and len(files) + len(known_bad) != EXPECTED_TIF_PER_SAMPLE and dir_ok:
             # 只告警、照常归档（铁律 5：结构异常不等于损坏，不能因此丢数据）。
             # dir_ok 为假时不再报这条：那种情况下张数少是"读不到"造成的，
             # 上面已经报过更准确的原因，再来一条"图片数异常"只会让人以为是仪器少拍了。
@@ -725,6 +842,8 @@ def archive_sample_dirs(
             ], None
 
         copied = 0
+        newly_confirmed_bad = []
+        failed_names = []
         # 并发复制：每个文件独立，瓶颈是往返延迟不是带宽，线程池能把延迟叠掉。
         # 注意 dir_ok 在上面列目录时就可能已经为 False，这里不要重新初始化。
         with ThreadPoolExecutor(max_workers=COPY_WORKERS) as pool:
@@ -732,11 +851,30 @@ def archive_sample_dirs(
                 if err:
                     lvl = "CRITICAL" if "SHA256" in err else "WARN"
                     alert(lvl, f"图片归档失败: {dname}/{fname} ({err})")
-                    dir_ok = False
                     stats["error"] += 1
+                    # 读取类失败才计入"源端坏了"的累计；SHA256 不一致是另一回事
+                    # （那是传输/存储问题，重试通常能好，不该被判定成源文件损坏）。
+                    if "SHA256" not in err:
+                        failed_names.append(fname)
+                        if note_read_failure(state, sdir / fname, err):
+                            newly_confirmed_bad.append(fname)
+                    else:
+                        # SHA256 不一致是传输/存储问题，重试通常能好，
+                        # 绝不能被算成"源端损坏"从而被跳过——那才是真的丢数据。
+                        dir_ok = False
                     continue
+                clear_read_failure(state, sdir / fname)
                 compare_rows.append(row)
                 copied += 1
+
+        if newly_confirmed_bad:
+            # 连续 BAD_FILE_THRESHOLD 趟都读不出来 —— 判定为源端确实坏了。
+            # 只在"刚判定"这一刻告警一次，之后不再重复刷屏。
+            alert("CRITICAL",
+                  f"{label}/{dname}: {len(newly_confirmed_bad)} 个源文件连续 {BAD_FILE_THRESHOLD} 趟"
+                  f"读不出来，已判定为**源端损坏**并记入 unreadable_files，此后不再重试。"
+                  f"这不是备份程序能修的，需要人去仪器上确认磁盘/文件状态: "
+                  f"{', '.join(newly_confirmed_bad)}")
 
         if rev_notes:
             alert("CRITICAL",
@@ -744,7 +882,24 @@ def archive_sample_dirs(
                   f"但记账里没有本目录——state 可能丢失或回退。已另存 .rev 快照、原件保留: "
                   f"{', '.join(rev_notes[:5])}")
 
-        if dir_ok and copied == len(files):
+        # 本趟读失败的文件里，哪些已经被判定为源端确实坏了。
+        # 这一步很关键：判定成立的**就是这一趟**，若不在这里合并，
+        # 目录还要再等一整晚才肯记账（测试抓到过）。
+        unrecoverable = [f for f in failed_names if is_known_unreadable(state, sdir / f)]
+        retryable = [f for f in failed_names if f not in unrecoverable]
+        if unrecoverable and not retryable:
+            # 只剩"确实坏了"的文件没拿到 —— 不再把整个目录判为失败，
+            # 否则它会永远重试、永远超时，把其余目录一起拖下水。
+            known_bad = sorted(set(known_bad) | set(unrecoverable))
+            dir_ok = True
+        elif retryable:
+            dir_ok = False
+
+        # 本趟"应当拷成功"的张数 = 送进流程的文件数 - 判定为源端损坏的那些。
+        # 不减掉的话，带坏文件的目录永远满足不了记账条件（测试抓到过）。
+        expected_copies = len(files) - len(unrecoverable)
+
+        if dir_ok and copied == expected_copies:
             # 整个目录都到齐了才记账，半截的下次重来（避免漏图片被永久跳过）
             # metadata 在主线程采集，不放进线程池——stats 累加不是原子操作，
             # 放进池里会丢计数。每目录 50 个文件约 0.13 秒，相对 8 秒的复制可忽略。
@@ -752,13 +907,33 @@ def archive_sample_dirs(
                 for fname in files:
                     mc.collect(sdir / fname, f"{label}/{dname}/{fname}")
 
-            known[dname] = {"tif_count": len(files), "source": str(origin[dname]),
-                            "archived_at": NOW_STR}
+            rec: Dict[str, Any] = {"tif_count": copied, "source": str(origin[dname]),
+                                   "archived_at": NOW_STR}
+            if known_bad:
+                # 目录里有源端确实坏掉的文件。**如实记下缺了哪几个**再记账——
+                # 不记账的话这个目录会被永远重试（而它永远不可能齐），
+                # 连带把整趟拖到超时、其余目录也归不了档。
+                # 记账不等于"当它是完整的"：unreadable 字段就是那份缺失清单，
+                # 核对工具与人工复核都看得到。
+                rec["unreadable"] = sorted(known_bad)
+                rec["expected_count"] = copied + len(known_bad)
+                rec["complete"] = False
+                logger.warning(f"{label}: 目录记账为**不完整**（源端 {len(known_bad)} 个文件损坏）: {dname}")
             stats["new_dirs"] += 1
             stats["files"] += copied
+            known[dname] = rec
             logger.info(f"{label}: 目录已归档 {dname}（{copied} 个文件，取自 {origin[dname].name}）")
         else:
             logger.warning(f"{label}: 目录未完整归档，本次不记账，下次重试: {dname}")
+
+        # 分段存盘：跑满超时被 SIGTERM 杀掉时，已完成的部分不至于全部白干。
+        done_since_save += 1
+        if STATE_SAVE_EVERY > 0 and done_since_save >= STATE_SAVE_EVERY:
+            checkpoint_state(state, dry_run, f"{label} 已处理 {done_since_save} 个目录")
+            done_since_save = 0
+
+    if done_since_save:
+        checkpoint_state(state, dry_run, f"{label} 收尾")
 
     return stats
 
@@ -957,6 +1132,16 @@ def main() -> int:
     for k, v in default_state().items():
         state.setdefault(k, v)
 
+    # 装 SIGTERM 处理器。必须在开始归档之前装、且要拿到 state 引用，
+    # 这样被 systemd 超时杀掉时才能把已完成的进度存下来。
+    install_sigterm_handler(state, args.dry_run)
+
+    bad = state.get("unreadable_files") or {}
+    confirmed_bad = [k for k, v in bad.items() if v.get("confirmed")]
+    if confirmed_bad:
+        logger.warning(f"源端已确认损坏、本次直接跳过的文件 {len(confirmed_bad)} 个"
+                       f"（详见 state 的 unreadable_files）: {', '.join(confirmed_bad[:5])}")
+
     compare_rows: List[List[str]] = []
     ds = es = imgs = cfg = None
     legacy_stats: List[Tuple[str, Dict[str, int]]] = []
@@ -1089,6 +1274,27 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.warning("用户中断")
         sys.exit(130)
+    except Terminated as e:
+        # systemd 超时/停止。**必须写 FAILED 心跳**——不写的话心跳停留在上一次成功，
+        # 巡检会照常报告"全部正常"，而备份其实已经挂了（2026-08-06 实际发生过）。
+        logger.warning(f"被中止: {e}")
+        alert("ERROR", f"备份被 systemd 中止（多半是超时）: {e}。已存盘的进度不会丢失")
+        try:
+            if HEARTBEAT_ENABLED:
+                write_heartbeat(
+                    machine_name=MACHINE_NAME, script_name=SCRIPT_NAME,
+                    software_version=SCRIPT_VERSION, run_tag=RUN_TAG,
+                    started_at=RUN_DT.timestamp(), backup_status="FAILED",
+                    files_processed=0, files_failed=1,
+                    alerts=(_SINK.counts if _SINK is not None else {}),
+                    expected_interval_hours=EXPECTED_INTERVAL_HOURS,
+                    max_silence_hours=MAX_SILENCE_HOURS,
+                    nas_state_dir=STATE_DIR, local_state_dir=LOCAL_STATE_DIR,
+                    log=logger,
+                )
+        except Exception:
+            pass
+        sys.exit(143)   # 128 + SIGTERM(15)，与 shell 惯例一致
     except Exception as e:
         logger.exception(f"未捕获异常: {e}")
         alert("CRITICAL", f"脚本异常退出: {e}")

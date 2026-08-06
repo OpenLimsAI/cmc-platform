@@ -15,9 +15,14 @@ EnvironmentFile=/etc/flex2-ingest.env
 EnvironmentFile=/etc/instrument-ingest/vicell-ingest.env
 # 与白天班的唯一区别是 night —— Vi-CELL 不加 --no-images，图片在这一趟补齐。
 ExecStart=/opt/cmc-instrument-ingest/tools/run-ingest.sh night
-# 图片段偶尔会慢（几百个目录 × 50 张 tif）；给 2 小时，02:00 起跑到 04:00 结束，
-# 仍远早于 09:00 的心跳巡检。
-TimeoutStartSec=7200
+# 图片段偶尔会慢（几百个目录 × 50 张 tif）。
+# 2026-08-06 从 2 小时提到 4 小时：那晚两个读不出的源文件各烧掉约 30 分钟重试，
+# 整趟跑满 2 小时被杀、进度全丢。治本是 v1.6.0 的分段存盘 + 坏文件跳过，
+# 这里放宽只是留出余量；02:00 起跑最迟 06:00 结束，仍早于 09:00 的心跳巡检。
+TimeoutStartSec=14400
+# 给 SIGTERM 留足收尾时间（默认 90 秒）。超时被杀时脚本要写 FAILED 心跳 + 存盘，
+# 而此刻可能正卡在一个迟迟不返回的 SMB 读上，90 秒往往不够，会被补 SIGKILL。
+TimeoutStopSec=300
 Nice=10
 NoNewPrivileges=true
 PrivateTmp=true
