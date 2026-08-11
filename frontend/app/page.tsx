@@ -18,8 +18,9 @@ import {
   type ViewWindow,
 } from "@/components/SeriesChart";
 import { CellGrowthView } from "@/components/CellGrowthView";
+import { NovaView } from "@/components/NovaView";
 
-type ViewMode = "process" | "cell";
+type ViewMode = "process" | "cell" | "nova";
 
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
@@ -353,6 +354,7 @@ export default function Home() {
             [
               ["process", "工艺曲线"],
               ["cell", "细胞生长曲线"],
+              ["nova", "生化曲线"],
             ] as [ViewMode, string][]
           ).map(([v, label]) => (
             <button
@@ -371,7 +373,9 @@ export default function Home() {
         <span className="text-sm text-slate-400">
           {view === "process"
             ? "Lucullus 生物反应器 · 工艺时序曲线"
-            : "Vi-CELL 细胞计数 · 生长曲线"}
+            : view === "cell"
+              ? "Vi-CELL 细胞计数 · 生长曲线"
+              : "Nova FLEX2 生化分析 · 趋势曲线"}
         </span>
         <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
           本地测试环境 · 样本批次
@@ -379,6 +383,7 @@ export default function Home() {
       </header>
 
       {view === "cell" && <CellGrowthView />}
+      {view === "nova" && <NovaView />}
 
       <div className={`${view === "process" ? "flex" : "hidden"} min-h-0 flex-1`}>
         {/* 左侧：批次列表 */}

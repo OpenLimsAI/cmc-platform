@@ -144,3 +144,57 @@ export function workstationLabel(sourceInstance: string): string {
   const m = sourceInstance.match(/ws(\d+)/i);
   return m ? `WS${m[1]}` : sourceInstance;
 }
+
+// ============ Nova FLEX2 生化分析趋势 ============
+
+export interface NovaBatch {
+  batch_key: string; // 项目_批号_罐，与 Vi-CELL 同一套身份
+  project_id: string | null;
+  batch_number: string | null;
+  bioreactor_id: string | null;
+  batch_year: number | null;
+  n_samples: number;
+  day_min: number | null;
+  day_max: number | null;
+  first_measured_at: string | null;
+  has_process_link: boolean;
+}
+
+// 一个培养天的全部生化指标（同天多次取样已平均）
+export interface NovaPoint {
+  culture_day: number;
+  gluc: number | null; // 葡萄糖 g/L
+  lac: number | null; // 乳酸 g/L
+  gln: number | null; // 谷氨酰胺 mmol/L
+  glu: number | null; // 谷氨酸 mmol/L
+  nh4: number | null; // 氨 mmol/L
+  na: number | null; // 钠 mmol/L
+  k: number | null; // 钾 mmol/L
+  ca: number | null; // 钙 mmol/L
+  ph: number | null;
+  po2: number | null; // 氧分压 mmHg
+  pco2: number | null; // 二氧化碳分压 mmHg
+  n: number;
+}
+
+export interface NovaSeries {
+  batch_key: string;
+  project_id: string | null;
+  batch_number: string | null;
+  bioreactor_id: string | null;
+  n_samples: number;
+  metrics: string[];
+  points: NovaPoint[];
+}
+
+export async function fetchNovaBatches(): Promise<NovaBatch[]> {
+  const { data } = await http.get<NovaBatch[]>("/api/nova/batches");
+  return data;
+}
+
+export async function fetchNovaSeries(batchKey: string): Promise<NovaSeries> {
+  const { data } = await http.get<NovaSeries>("/api/nova/series", {
+    params: { batch_key: batchKey },
+  });
+  return data;
+}
