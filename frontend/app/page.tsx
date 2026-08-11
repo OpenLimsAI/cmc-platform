@@ -17,11 +17,9 @@ import {
   type ChartSeries,
   type ViewWindow,
 } from "@/components/SeriesChart";
-import { CellGrowthView } from "@/components/CellGrowthView";
-import { NovaView } from "@/components/NovaView";
-import { OverviewView } from "@/components/OverviewView";
+import { BatchCurvesView } from "@/components/BatchCurvesView";
 
-type ViewMode = "overview" | "process" | "cell" | "nova";
+type ViewMode = "curves" | "process";
 
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
@@ -102,8 +100,8 @@ function sortReactor(a: string, b: string): number {
 }
 
 export default function Home() {
-  // 顶部视图切换：工艺曲线（Lucullus）/ 细胞生长曲线（Vi-CELL）
-  const [view, setView] = useState<ViewMode>("process");
+  // 顶部页签：批次曲线（第一层筛选批号 → 多源曲线叠加）/ 工艺曲线全量时序（单批钻取）
+  const [view, setView] = useState<ViewMode>("curves");
   const [selected, setSelected] = useState<Batch | null>(null);
   const [channels, setChannels] = useState<string[]>([]);
   // 叠加到工艺图上的细胞指标（虚拟通道 code，见 CELL_OVERLAYS）
@@ -344,7 +342,7 @@ export default function Home() {
     );
   }
 
-  // 总览页「查看工艺曲线」→ 切到工艺视图并选中对应工艺批次
+  // 批次曲线页「全量→」→ 切到工艺全量时序页签并选中对应工艺批次
   function openProcess(sourceInstance: string, procid: number) {
     const b = (batchesQ.data ?? []).find(
       (x) => x.source_instance === sourceInstance && x.procid === procid
@@ -362,10 +360,8 @@ export default function Home() {
         <div className="flex rounded-md border border-slate-200 p-0.5">
           {(
             [
-              ["overview", "批次总览"],
-              ["process", "工艺曲线"],
-              ["cell", "细胞生长曲线"],
-              ["nova", "生化曲线"],
+              ["curves", "批次曲线"],
+              ["process", "工艺曲线（全量时序）"],
             ] as [ViewMode, string][]
           ).map(([v, label]) => (
             <button
@@ -382,22 +378,19 @@ export default function Home() {
           ))}
         </div>
         <span className="text-sm text-slate-400">
-          {view === "overview"
-            ? "一个批号 · 细胞 + 生化 + 工艺一页看全"
-            : view === "process"
-              ? "Lucullus 生物反应器 · 工艺时序曲线"
-              : view === "cell"
-                ? "Vi-CELL 细胞计数 · 生长曲线"
-                : "Nova FLEX2 生化分析 · 趋势曲线"}
+          {view === "curves"
+            ? "先选批号（可多选），生长 / 生化 / 工艺曲线同屏叠加对比"
+            : "Lucullus 生物反应器 · 按小时全量时序（单批钻取）"}
         </span>
         <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
           本地测试环境 · 样本批次
         </span>
       </header>
 
-      {view === "overview" && <OverviewView onOpenProcess={openProcess} />}
-      {view === "cell" && <CellGrowthView />}
-      {view === "nova" && <NovaView />}
+      {/* 保持挂载（hidden 切换），页签来回切不丢批号筛选 */}
+      <div className={`${view === "curves" ? "flex" : "hidden"} min-h-0 flex-1`}>
+        <BatchCurvesView onOpenProcess={openProcess} />
+      </div>
 
       <div className={`${view === "process" ? "flex" : "hidden"} min-h-0 flex-1`}>
         {/* 左侧：批次列表 */}
