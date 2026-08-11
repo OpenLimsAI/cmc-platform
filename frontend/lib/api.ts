@@ -270,3 +270,36 @@ export async function fetchVicellSamples(batchKey: string): Promise<VicellSample
   });
   return data;
 }
+
+// 工艺参数按天汇总（mart.fact_process_daily，总览页嵌图）
+export interface ProcessDailyPoint {
+  culture_day: number;
+  ph_mean: number | null;
+  temp_c_mean: number | null; // 温度 °C
+  do_pct_mean: number | null; // 溶氧 %
+  do_pct_min: number | null;
+  stirrer_rpm_mean: number | null; // 搅拌 rpm
+  o2_mlmin_mean: number | null; // O₂ 流量 ml/min
+  air_mlmin_mean: number | null;
+  co2_mlmin_mean: number | null;
+  alkali_cum_ml: number | null; // 加碱累计 ml
+  acid_cum_ml: number | null;
+  n_samples_max: number | null;
+}
+
+export interface ProcessDaily {
+  source_instance: string;
+  procid: number;
+  metrics: string[];
+  points: ProcessDailyPoint[];
+}
+
+export async function fetchProcessDaily(
+  sourceInstance: string,
+  procid: number
+): Promise<ProcessDaily> {
+  const { data } = await http.get<ProcessDaily>("/api/overview/process-daily", {
+    params: { source_instance: sourceInstance, procid },
+  });
+  return data;
+}

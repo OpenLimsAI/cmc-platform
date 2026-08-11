@@ -8,8 +8,10 @@ import {
   fetchNovaSeries,
   fetchVicellSamples,
   fetchNovaSamples,
+  fetchProcessDaily,
   type OverviewBatch,
   type GrowthPoint,
+  type ProcessDailyPoint,
 } from "@/lib/api";
 import { SeriesChart, type ChartSeries } from "@/components/SeriesChart";
 import { NOVA_METRICS, NOVA_DEFAULT_METRICS } from "@/components/NovaView";
@@ -24,6 +26,28 @@ const CELL_METRICS: {
   { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", pick: (p) => p.viable_per_ml },
   { code: "viability_pct", name: "活率", unit: "%", pick: (p) => p.viability_pct },
 ];
+
+// 工艺按天汇总的可选指标（chip 勾选）。日均值；加碱/加酸是当天累计末值。
+const PROCESS_METRICS: {
+  code: string;
+  name: string;
+  unit: string;
+  pick: (p: ProcessDailyPoint) => number | null;
+}[] = [
+  { code: "temp_c_mean", name: "温度", unit: "°C", pick: (p) => p.temp_c_mean },
+  { code: "ph_mean", name: "pH", unit: "", pick: (p) => p.ph_mean },
+  { code: "do_pct_mean", name: "溶氧", unit: "%", pick: (p) => p.do_pct_mean },
+  { code: "do_pct_min", name: "溶氧最低", unit: "%", pick: (p) => p.do_pct_min },
+  { code: "stirrer_rpm_mean", name: "搅拌", unit: "rpm", pick: (p) => p.stirrer_rpm_mean },
+  { code: "o2_mlmin_mean", name: "O₂流量", unit: "ml/min", pick: (p) => p.o2_mlmin_mean },
+  { code: "air_mlmin_mean", name: "空气流量", unit: "ml/min", pick: (p) => p.air_mlmin_mean },
+  { code: "co2_mlmin_mean", name: "CO₂流量", unit: "ml/min", pick: (p) => p.co2_mlmin_mean },
+  { code: "alkali_cum_ml", name: "加碱累计", unit: "ml", pick: (p) => p.alkali_cum_ml },
+  { code: "acid_cum_ml", name: "加酸累计", unit: "ml", pick: (p) => p.acid_cum_ml },
+];
+
+// 工艺区默认勾选：温度 / pH / 溶氧
+const PROCESS_DEFAULT_METRICS = ["temp_c_mean", "ph_mean", "do_pct_mean"];
 
 // 项目编号解析不出的批次归入这个桶
 const PROJ_NONE = "__none__";
@@ -71,6 +95,15 @@ export function OverviewView({
     );
   }
 
+  // 工艺区勾选的指标
+  const [procMetrics, setProcMetrics] = useState<string[]>(PROCESS_DEFAULT_METRICS);
+
+  function toggleProcMetric(code: string) {
+    setProcMetrics((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  }
+
   // 四个级联筛选：项目编号 / 批次年份 / 批号 / 罐号（"" = 全部）
   const [fProject, setFProject] = useState<string>("");
   const [fYear, setFYear] = useState<string>("");
@@ -108,6 +141,23 @@ export function OverviewView({
     queryKey: ["nova-samples", bk],
     queryFn: () => fetchNovaSamples(bk!),
     enabled: !!bk && hasNova,
+    placeholderData: keepPreviousData,
+  });
+  // 工艺按天汇总（有 Lucullus 关联才取；procid 撞号，必须带工作站消歧）
+  const hasProcessLink =
+    selected?.lucullus_procid != null && !!selected?.lucullus_source_instance;
+  const processQ = useQuery({
+    queryKey: [
+      "overview-process-daily",
+      selected?.lucullus_source_instance,
+      selected?.lucullus_procid,
+    ],
+    queryFn: () =>
+      fetchProcessDaily(
+        selected!.lucullus_source_instance!,
+        selected!.lucullus_procid!
+      ),
+    enabled: hasProcessLink,
     placeholderData: keepPreviousData,
   });
 
@@ -200,6 +250,26 @@ export function OverviewView({
         })),
     }));
   }, [growthQ.data]);
+
+  // 工艺按天趋势（勾选指标）
+  const processSeries: ChartSeries[] = useMemo(() => {
+    const pts = processQ.data?.points ?? [];
+    if (!pts.length) return [];
+    return PROCESS_METRICS.filter((m) => procMetrics.includes(m.code)).map(
+      (m) => ({
+        code: m.code,
+        name: m.name,
+        unit: m.unit || null,
+        points: pts
+          .filter((p) => m.pick(p) != null)
+          .map((p) => ({
+            time_hours: p.culture_day,
+            ts: "",
+            value: m.pick(p) as number,
+          })),
+      })
+    );
+  }, [processQ.data, procMetrics]);
 
   // 生化趋势（勾选指标）
   const novaSeries: ChartSeries[] = useMemo(() => {
@@ -465,22 +535,15 @@ export function OverviewView({
               </div>
             </section>
 
-            {/* 3. 工艺参数（Phase 2 占位 / 跳转） */}
+            {/* 3. 工艺参数（按天汇总；跳转看全量时序） */}
             <section className="rounded-lg border border-slate-200 bg-white">
-              <div className="flex items-baseline gap-2 border-b border-slate-100 px-5 py-2.5">
-                <h2 className="text-sm font-semibold">工艺参数</h2>
-                <span className="text-xs text-slate-400">
-                  Lucullus · 温度 / pH / 溶氧 / 搅拌…
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 px-5 py-4">
-                {selected.lucullus_procid != null &&
-                selected.lucullus_source_instance ? (
-                  <>
-                    <span className="text-sm text-slate-500">
-                      该批已关联工艺批次（procid {selected.lucullus_procid}
-                      ）。按天汇总的工艺曲线嵌入是 Phase 2，先跳到工艺曲线视图看全量时序。
-                    </span>
+              <div className="border-b border-slate-100 px-5 py-2.5">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-sm font-semibold">工艺参数</h2>
+                  <span className="text-xs text-slate-400">
+                    Lucullus · 按培养天汇总（日均值；加碱/加酸为当天累计）
+                  </span>
+                  {hasProcessLink && (
                     <button
                       onClick={() =>
                         onOpenProcess?.(
@@ -488,17 +551,59 @@ export function OverviewView({
                           selected.lucullus_procid!
                         )
                       }
-                      className="shrink-0 rounded-md border border-blue-500 px-3 py-1.5 text-sm text-blue-600 transition hover:bg-blue-50"
+                      className="ml-auto shrink-0 rounded-md border border-blue-500 px-2.5 py-1 text-xs text-blue-600 transition hover:bg-blue-50"
                     >
-                      查看工艺曲线 →
+                      看全量时序曲线 →
                     </button>
-                  </>
-                ) : (
-                  <span className="text-sm text-slate-400">
-                    该批次未关联到 Lucullus 工艺批次（多数历史批次如此，属数据本身限制）。
-                  </span>
+                  )}
+                </div>
+                {hasProcessLink && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {PROCESS_METRICS.map((m) => {
+                      const on = procMetrics.includes(m.code);
+                      return (
+                        <button
+                          key={m.code}
+                          onClick={() => toggleProcMetric(m.code)}
+                          className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                            on
+                              ? "border-blue-500 bg-blue-500 text-white"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          }`}
+                        >
+                          {m.name}
+                          {m.unit && (
+                            <span className={on ? "opacity-80" : "text-slate-400"}>
+                              {" "}
+                              {m.unit}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
+              {hasProcessLink ? (
+                <div className="h-72 p-3">
+                  {processQ.isSuccess &&
+                  (processQ.data?.points.length ?? 0) === 0 ? (
+                    <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                      该工艺批次还没有按天汇总数据（ETL 每日物化，稍后再看）
+                    </div>
+                  ) : (
+                    <SeriesChart
+                      series={processSeries}
+                      loading={processQ.isFetching}
+                      xName="培养天 (day)"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="px-5 py-4 text-sm text-slate-400">
+                  该批次未关联到 Lucullus 工艺批次（多数历史批次如此，属数据本身限制）。
+                </div>
+              )}
             </section>
 
             {/* 4. 取样记录明细 */}

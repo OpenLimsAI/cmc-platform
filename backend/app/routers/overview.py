@@ -12,6 +12,20 @@ from ..db import analytics_engine
 
 router = APIRouter(prefix="/api/overview", tags=["overview"])
 
+# 工艺按天宽表的数值列（mart.fact_process_daily，rd-lucullus-etl 每日物化）
+PROCESS_METRICS = [
+    "ph_mean",
+    "temp_c_mean",
+    "do_pct_mean",
+    "do_pct_min",
+    "stirrer_rpm_mean",
+    "o2_mlmin_mean",
+    "air_mlmin_mean",
+    "co2_mlmin_mean",
+    "alkali_cum_ml",
+    "acid_cum_ml",
+]
+
 # 批次年份从批号解析（与 vicell.py / nova.py 同规则）：R2601 -> 2026。
 _YEAR_EXPR = """
     coalesce(
@@ -111,3 +125,48 @@ async def list_batches(limit: int = Query(5000, ge=1, le=20000)):
         )
         out.append(d)
     return out
+
+
+@router.get("/process-daily")
+async def get_process_daily(
+    source_instance: str = Query(..., description="Lucullus 工作站编码，如 rd_ws01_usp_lucullus_01"),
+    procid: int = Query(..., description="工艺批次编号（Lucullus procid）"),
+):
+    """某工艺批次按培养天汇总的核心工艺参数（总览页嵌图用）。
+
+    数据源 mart.fact_process_daily（rd-lucullus-etl 每日从 signal_timeseries 物化）。
+    ⚠️ procid 跨工作站撞号，必须带 source_instance 消歧（工艺侧编码，来自
+    /api/overview/batches 的 lucullus_source_instance）。
+    没数据返回空 points（前端做空态提示），不报错。
+    """
+    cols = ",\n            ".join(PROCESS_METRICS)
+    sql = text(f"""
+        SELECT
+            culture_day,
+            {cols},
+            n_samples_max
+        FROM mart.fact_process_daily
+        WHERE source_instance = :si
+          AND procid = :procid
+        ORDER BY culture_day
+    """)
+    async with analytics_engine().connect() as conn:
+        rows = (await conn.execute(sql, {"si": source_instance, "procid": procid})).mappings().all()
+
+    def num(v):
+        return float(v) if v is not None else None
+
+    points = [
+        {
+            "culture_day": int(r["culture_day"]),
+            **{m: num(r[m]) for m in PROCESS_METRICS},
+            "n_samples_max": int(r["n_samples_max"]) if r["n_samples_max"] is not None else None,
+        }
+        for r in rows
+    ]
+    return {
+        "source_instance": source_instance,
+        "procid": procid,
+        "metrics": PROCESS_METRICS,
+        "points": points,
+    }
