@@ -32,6 +32,16 @@ case "$MODE" in
   *) echo "用法: $0 <day|night> [flex2|vicell ...]" >&2; exit 2 ;;
 esac
 
+# ---- 互斥锁（2026-08-11 加）----
+# day/night 两个 timer 都是 Persistent=true：停机跨过两个触发点后，开机会把
+# 两趟一起补跑，并发写同一批 state 文件。flock 排他锁把它们串行化：
+# 后来的一趟阻塞等前一趟跑完（最多等 30 分钟），等不到就报错退出、
+# 由 OnFailure 告警——绝不并发跑。
+# 锁文件放 /var/lock（各 service 已加 ReadWritePaths=/run/lock，
+# ProtectSystem=strict 下才写得进去）。fd 随进程退出自动释放，无需显式解锁。
+exec 200>/var/lock/instrument-ingest.lock || { echo "打不开锁文件 /var/lock/instrument-ingest.lock" >&2; exit 1; }
+flock -w 1800 200 || { echo "等待采集互斥锁超时（另一趟采集仍在跑？）" >&2; exit 1; }
+
 if [ $# -gt 0 ]; then
   DEVICES=("$@")
 else

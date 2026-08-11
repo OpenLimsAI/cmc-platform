@@ -31,6 +31,7 @@ vicell_ingest.py — Stage 1：Beckman Vi-CELL XR 数据采集与校验
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -58,8 +59,8 @@ from heartbeat import write_heartbeat  # noqa: E402
 # 版本信息（变更控制用，改动逻辑请同步递增并更新 CHANGELOG.md）
 # =========================================================
 SCRIPT_NAME = "vicell_ingest"
-SCRIPT_VERSION = "v1.6.0"
-SCRIPT_RELEASE_DATE = "2026-08-06"
+SCRIPT_VERSION = "v1.7.0"
+SCRIPT_RELEASE_DATE = "2026-08-11"
 SCRIPT_OWNER = "TT Lab"
 
 # =========================================================
@@ -217,6 +218,9 @@ def setup_logger(log_file: Optional[Path]) -> None:
 
 # 全局告警槽。main() 早期初始化，使预检阶段的挂载类告警也能被捕获。
 _SINK: Optional[AlertSink] = None
+# dry-run 标志。alert() 需要它来区分"sink 因 dry-run 关闭"（保持静默，空跑不外呼）
+# 与"sink 因 VICELL_ALERTS_ENABLED=0 关闭"（要退回 v1.3.0 的直呼 ALERT_CMD 行为）。
+_DRY_RUN = False
 
 
 def alert(level: str, message: str) -> None:
@@ -224,13 +228,17 @@ def alert(level: str, message: str) -> None:
     告警钩子。**签名与行为对调用方完全不变**——32 处调用点一律不改。
 
     v1.4.0 起内部改走 AlertSink：severity 归一化、事件分类、结构化落盘、外呼限流。
-    AlertSink 未初始化时（理论上不会发生）退回 v1.3.0 的直接调用行为。
+    AlertSink 未初始化（理论上不会发生）或被 VICELL_ALERTS_ENABLED=0 关闭时，
+    退回 v1.3.0 的直接调用行为——落盘/限流没了，但 ALERT_CMD 外呼照旧。
+    （v1.6.0 及之前有个缺陷：sink 存在但 disabled 时这里直接 return，
+    外呼也一并断掉，与"设 0 则退回 v1.3.0 行为"的注释不符，2026-08-11 修。）
+    dry-run 例外：空跑不外呼，维持既有行为。
     """
     logger.error(f"ALERT[{level}] {message}")
-    if _SINK is not None:
+    if _SINK is not None and _SINK.enabled:
         _SINK.emit(level, message)      # emit 内部全捕获，绝不抛出
         return
-    if not ALERT_CMD:
+    if _DRY_RUN or not ALERT_CMD:
         return
     try:
         subprocess.run([ALERT_CMD, level, f"[{MACHINE_NAME}] {message}"], timeout=30, check=False)
@@ -300,6 +308,14 @@ def preflight() -> None:
     if problems:
         alert("CRITICAL", "预检失败 -> " + "; ".join(problems))
         raise SystemExit(2)
+
+    # 活动图片源单独检查（2026-08-11 加）。SRC_IMAGES 消失原来完全静默：
+    # 上面只查 Data/Export，而 archive_sample_dirs 只要历史源 IMAGES_ORIGIN 还在
+    # 就不出声——新样品的图片会从此永久漏归档。目录消失是共享结构变更的信号，
+    # 必须留痕；但只告警不中止，其余源（Data/Export/历史图片）照常归档。
+    if not SRC_IMAGES.is_dir():
+        alert("WARNING", f"活动图片源目录不存在（共享结构可能变更，新样品图片将无法归档，"
+                         f"需人工确认）: {SRC_IMAGES}")
 
     # 铁律 2：源必须只读。可写说明 ro 没生效，属配置事故，宁可停也不冒险。
     probe = SRC_MOUNT / f".__ro_probe_{os.getpid()}"
@@ -373,6 +389,44 @@ def write_atomic(dest: Path, data: bytes, mtime: Optional[float] = None) -> None
                 tmp.unlink()
             except Exception:
                 pass
+
+
+# 本脚本临时文件的专属模式：.<原名>.<pid>.tmp（见 write_atomic 的 tmp 命名）。
+# 锚定"点开头 + .<数字>.tmp 结尾"，正式归档文件（*.txt/*.xls/*.tif …）绝不可能命中。
+_STALE_TMP_RE = re.compile(r"^\..+\.\d+\.tmp$")
+
+
+def sweep_stale_tmp(root: Path, max_age_sec: float = 86400.0) -> int:
+    """
+    清扫归档树里被 SIGKILL 留下的临时文件（2026-08-11 加）。
+
+    write_atomic 的 finally 兜底只覆盖"异常"路径；进程被 SIGKILL（systemd 超时
+    补刀，2026-08-06 实际发生过）时什么收尾都跑不到，.tmp 文件会永远躺在归档区。
+    只删匹配自家模式、且 mtime 超过 max_age_sec 的文件——正在跑的另一趟
+    刚写出的临时文件不会被误删（它们的 mtime 是刚才）。
+    任何失败只记日志，绝不影响本次备份。
+    """
+    n = 0
+    try:
+        if not root.is_dir():
+            return 0
+        now = time.time()
+        for dirpath, _dirnames, filenames in os.walk(root):
+            for fname in filenames:
+                if not _STALE_TMP_RE.match(fname):
+                    continue
+                p = Path(dirpath) / fname
+                try:
+                    if now - p.stat().st_mtime < max_age_sec:
+                        continue
+                    p.unlink()
+                    n += 1
+                    logger.info(f"已清理残留临时文件（上次运行被强杀所遗留）: {p}")
+                except Exception as e:
+                    logger.warning(f"残留临时文件清理失败（跳过）: {p} ({e})")
+    except Exception as e:
+        logger.warning(f"临时文件清扫异常（已忽略，不影响备份）: {e}")
+    return n
 
 
 # =========================================================
@@ -755,22 +809,29 @@ def archive_sample_dirs(
     for dname in todo:
         sdir = origin[dname] / dname
         ddir = dest_root / dname
-        # 本目录这一轮是否"完整拿全了"。任何一个文件没拿到都必须为 False，
-        # 否则下面会把目录写进 state，缺的那几张**永远补不回来**。
+        # 本目录这一轮是否"完整拿全了"，拆成两个**独立**标志（2026-08-11 修）：
+        #   list_ok —— 目录清单本身可信：list_entries 没有任何 stat 失败的条目。
+        #   copy_ok —— 送进复制流程的文件全部拿到（或缺的仅为已确认的源端损坏）。
+        # 只有两者都成立才记账。任何一个文件没拿到都必须让记账落空，
+        # 否则目录被写进 state，缺的那几张**永远补不回来**。
         # 例外见下面 known_bad：源端确实坏掉、已如实记录在案的文件不算"没拿到"，
-        # 否则这个目录会永远重试、永远超时，反而让其余目录也归不了档。
-        dir_ok = True
+        # 否则这个目录会永远重试、永远超时，反而让其余目录也归不了档——
+        # 但那个豁免**只豁免复制失败，绝不豁免 list 失败**：v1.6.0 只有一个 dir_ok，
+        # "本趟失败全是源端损坏"的分支无条件把它改回 True，把 list 失败的 False
+        # 也一并覆盖，stat 失败的那几张图从此永久跳过（2026-08-11 修）。
+        list_ok = True
+        copy_ok = True
         try:
             fs, sk = list_entries(sdir, "file")
             files = sorted(p.name for p in fs)
             if sk:
                 # ⚠️ 这里曾是个静默丢数据的缺陷（2026-08-05 修）：
                 # 读不到属性的文件被 list_entries 剔除，不在 files 里，
-                # 于是后面的 `copied == len(files)` 照样成立、dir_ok 仍为 True，
-                # 目录被记账，下次直接跳过——缺的图片永久丢失。
+                # 于是后面的 `copied == len(files)` 照样成立、目录照样被记账，
+                # 下次直接跳过——缺的图片永久丢失。
                 # 而这条告警的文字当时就写着"本目录本次不记账"，与代码行为正好相反。
-                # 现在把 dir_ok 置 False，让告警说的和代码做的一致。
-                dir_ok = False
+                # 现在置 list_ok = False，让告警说的和代码做的一致。
+                list_ok = False
                 stats["error"] += len(sk)
                 alert("WARN", f"{label}/{dname}: {len(sk)} 个文件无法读取属性（仪器正在写入？），"
                               f"本目录本次不记账，下次重试: {', '.join(sk[:5])}")
@@ -788,9 +849,9 @@ def archive_sample_dirs(
             logger.warning(f"{label}/{dname}: 跳过 {len(known_bad)} 个已确认读不出的源文件"
                            f"（已记录在案，不再重试）: {', '.join(known_bad[:5])}")
 
-        if EXPECTED_TIF_PER_SAMPLE and len(files) + len(known_bad) != EXPECTED_TIF_PER_SAMPLE and dir_ok:
+        if EXPECTED_TIF_PER_SAMPLE and len(files) + len(known_bad) != EXPECTED_TIF_PER_SAMPLE and list_ok:
             # 只告警、照常归档（铁律 5：结构异常不等于损坏，不能因此丢数据）。
-            # dir_ok 为假时不再报这条：那种情况下张数少是"读不到"造成的，
+            # list_ok 为假时不再报这条：那种情况下张数少是"读不到"造成的，
             # 上面已经报过更准确的原因，再来一条"图片数异常"只会让人以为是仪器少拍了。
             alert("WARN", f"样品图片数异常（期望 {EXPECTED_TIF_PER_SAMPLE}，实际 {len(files)}）: {dname}")
 
@@ -845,7 +906,7 @@ def archive_sample_dirs(
         newly_confirmed_bad = []
         failed_names = []
         # 并发复制：每个文件独立，瓶颈是往返延迟不是带宽，线程池能把延迟叠掉。
-        # 注意 dir_ok 在上面列目录时就可能已经为 False，这里不要重新初始化。
+        # 注意 list_ok 在上面列目录时就可能已经为 False，这里不要重新初始化。
         with ThreadPoolExecutor(max_workers=COPY_WORKERS) as pool:
             for fname, row, err in pool.map(_copy_one, files):
                 if err:
@@ -861,7 +922,7 @@ def archive_sample_dirs(
                     else:
                         # SHA256 不一致是传输/存储问题，重试通常能好，
                         # 绝不能被算成"源端损坏"从而被跳过——那才是真的丢数据。
-                        dir_ok = False
+                        copy_ok = False
                     continue
                 clear_read_failure(state, sdir / fname)
                 compare_rows.append(row)
@@ -888,17 +949,20 @@ def archive_sample_dirs(
         unrecoverable = [f for f in failed_names if is_known_unreadable(state, sdir / f)]
         retryable = [f for f in failed_names if f not in unrecoverable]
         if unrecoverable and not retryable:
-            # 只剩"确实坏了"的文件没拿到 —— 不再把整个目录判为失败，
+            # 只剩"确实坏了"的文件没拿到 —— 复制层面不再把目录判为失败，
             # 否则它会永远重试、永远超时，把其余目录一起拖下水。
+            # ⚠️ 这个豁免只作用于 copy_ok（读失败本身没把 copy_ok 置 False，
+            # 所以这里合并进 known_bad 即可）；**绝不碰 list_ok**——
+            # list 失败意味着连"目录里到底有哪些文件"都没数清，必须下次重来。
             known_bad = sorted(set(known_bad) | set(unrecoverable))
-            dir_ok = True
         elif retryable:
-            dir_ok = False
+            copy_ok = False
 
         # 本趟"应当拷成功"的张数 = 送进流程的文件数 - 判定为源端损坏的那些。
         # 不减掉的话，带坏文件的目录永远满足不了记账条件（测试抓到过）。
         expected_copies = len(files) - len(unrecoverable)
 
+        dir_ok = list_ok and copy_ok
         if dir_ok and copied == expected_copies:
             # 整个目录都到齐了才记账，半截的下次重来（避免漏图片被永久跳过）
             # metadata 在主线程采集，不放进线程池——stats 累加不是原子操作，
@@ -1088,6 +1152,10 @@ def main() -> int:
         print(f"{SCRIPT_NAME} {SCRIPT_VERSION} ({SCRIPT_RELEASE_DATE}) — {SCRIPT_OWNER}")
         return 0
 
+    # 记下 dry-run 标志，供 alert() 判断"sink 关闭时要不要退回直呼 ALERT_CMD"
+    global _DRY_RUN
+    _DRY_RUN = args.dry_run
+
     log_file = None if args.dry_run else LOG_DIR / f"{MACHINE_NAME}_{RUN_TAG}.log"
     setup_logger(log_file)
 
@@ -1127,6 +1195,11 @@ def main() -> int:
                 log=logger,
             )
         raise
+
+    # 清扫上次被 SIGKILL 强杀后残留的 .tmp 临时文件（超过 1 天的才删，
+    # 不会碰到并行运行刚写出的临时文件；dry-run 不动任何东西）
+    if not args.dry_run:
+        sweep_stale_tmp(ARCHIVE_ROOT)
 
     state = load_state() or {}
     for k, v in default_state().items():

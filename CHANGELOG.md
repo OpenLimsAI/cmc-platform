@@ -5,6 +5,65 @@
 
 ---
 
+## flex2_ingest.py v1.5.0 + vicell_ingest.py v1.7.0 (2026-08-11) 🧹 审查修复 11 项：校验失败删坏副本 / dir_ok 拆分 / mtime 保留 / 互斥锁
+
+外部审查发现的 11 个问题一次修完。判定基准 `docs/INGEST-STANDARD.md`。
+
+### FLEX2（v1.4.0 → v1.5.0）
+
+- **【高】校验失败不再留坏副本**：monthly / database / per-event 三处 SHA 不一致时
+  按 §6 要求"删除坏副本 + 不记账 + CRITICAL"（与 Vi-CELL 既有做法对齐）。
+  坏副本留着的话，下次重跑 append-only 守卫会把好数据挤成 `.rev`。
+  配套：`archive_bytes` 改为返回**实际写入路径**——守卫可能已把目标改到 `.rev`，
+  按调用方手里的旧路径删会误删原有好文件。
+- **【中】归档副本保留源 mtime**（§7）：`archive_bytes` 加 `mtime=` 参数，
+  rename 之后 `os.utime` + 回读确认，所有调用点传入源文件修改时间。
+- **【中】Database 目录单文件失败改 `continue`**：该备份每晚被覆盖，错过永久丢；
+  逐文件尽力归档，目录有失败仍不记账（下轮重试语义不变）。
+- **【中】Database 目录不存在改 `alert WARNING`**：原来只 `logger.info` 静默跳过，
+  且 `DB_STALE_HOURS` 新鲜度告警随之失效——共享结构变更必须留痕。
+- **【低】per-event 疑似损坏改走 `alert WARNING`** 留痕；照常归档是刻意的
+  （冷备忠实保存，SHA 双向校验已过），注释写明。
+
+### Vi-CELL（v1.6.0 → v1.7.0）
+
+- **【中】`dir_ok` 拆成 `list_ok` × `copy_ok`**：v1.6.0 的"本趟失败全是源端损坏"
+  豁免分支无条件 `dir_ok = True`，把 list_entries 出 stat 失败时置的 False 也覆盖了
+  ——目录被记账、stat 失败的图片永久跳过。现在豁免只作用于复制失败，
+  list 失败的目录一律不记账、下次重来。
+- **【中】`SRC_IMAGES` 消失单独告警**：preflight 只查 Data/Export，而
+  `archive_sample_dirs` 只要历史源还在就不出声，活动图片源没了完全静默。
+  现在 preflight 单独查它：不存在时 `WARNING` 并继续（不中止其他源）。
+- **【低】`VICELL_ALERTS_ENABLED=0` 真正退回 v1.3.0 行为**：原来 sink 存在但
+  disabled 时 `alert()` 直接 return，`ALERT_CMD` 直呼分支永远走不到，与注释不符。
+  现在 disabled 时落到直呼分支；dry-run 保持不外呼。
+
+### 两者共同
+
+- **【低】启动时清扫 SIGKILL 残留的临时文件**：在归档树内查找匹配**自家专属模式**
+  （vicell `.<名>.<pid>.tmp` / flex2 `<名>.part.<pid>.<时间戳>`）且 mtime 超过
+  1 天的文件删除并留日志。模式锚定 pid/时间戳数字段，正式归档文件不可能命中。
+
+### 部署侧
+
+- **`run-ingest.sh` 加 flock 互斥锁**（`/var/lock/instrument-ingest.lock`，
+  阻塞等待最多 30 分钟）：day/night 两个 timer 都 `Persistent=true`，
+  停机跨过两个触发点后开机会并发补跑、并发写同一批 state 文件。
+  两个 service 的 `ReadWritePaths` 补 `/run/lock`（`ProtectSystem=strict` 下
+  锁文件才写得进去）。
+- `heartbeat-check.timer` 注释里的旧排班（01:00 FLEX2 / 02:30 Vi-CELL）改为
+  实际值（02:00 夜班全量 + 11:45/16:00 白天班）。带日期的历史文档
+  （DEPLOYMENT-CHECKLIST / PRE-DEPLOYMENT-CHECK / 旧 CHANGELOG 条目）按
+  历史记录保留原文不改。
+
+### 验证
+
+`tests/local_cifs_suite.sh`（Docker + 真 CIFS，12 项断言）全部通过。
+该套件只覆盖 Vi-CELL；FLEX2 的改动（删坏副本 / mtime / continue / Database 告警）
+以代码审查保证，上线后按 §11 首跑三步复核。
+
+---
+
 ## vicell_ingest.py v1.6.0 (2026-08-06) 🔴 解开夜班死结：分段存盘 / 坏文件跳过 / SIGTERM 心跳
 
 **2026-08-06 夜班跑满 2 小时被 systemd 超时杀掉，而今早 09:00 巡检报告"全部正常 ✅"。**

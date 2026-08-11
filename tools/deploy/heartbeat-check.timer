@@ -3,7 +3,8 @@ Description=Run instrument backup heartbeat check daily
 
 [Timer]
 # 排在上班时间，保证异常当天有人看得到。
-# 采集作业在 01:00(FLEX2) / 02:30(Vi-CELL)，09:00 检查时当天的结果已经出来了。
+# 采集作业已合并为所有设备同跑：02:00 夜班全量（instrument-ingest-night），
+# 09:00 检查时当天夜班的结果已经出来了（白天班 11:45/16:00 在巡检之后）。
 OnCalendar=*-*-* 09:00:00
 RandomizedDelaySec=120
 Persistent=true

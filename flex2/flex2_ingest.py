@@ -45,8 +45,8 @@ from typing import Dict, Any, List, Optional, Tuple
 # 版本信息（变更控制用，改动逻辑请同步递增）
 # =========================================================
 SCRIPT_NAME = "flex2_ingest"
-SCRIPT_VERSION = "v1.4.0"
-SCRIPT_RELEASE_DATE = "2026-08-05"
+SCRIPT_VERSION = "v1.5.0"
+SCRIPT_RELEASE_DATE = "2026-08-11"
 SCRIPT_OWNER = "TT Lab"
 
 # =========================================================
@@ -364,14 +364,24 @@ def validate_csv(data: bytes, name: str) -> Tuple[bool, int, str, Optional[str]]
     return True, len(data_rows), ("OK" if not notes else "; ".join(notes)), warn
 
 
-def archive_bytes(data: bytes, dest: Path, dry_run: bool) -> Tuple[str, str]:
+def archive_bytes(data: bytes, dest: Path, dry_run: bool,
+                  mtime: Optional[float] = None) -> Tuple[str, str, Path]:
     """
     原子写入 NAS 并回读校验。
-    返回 (源 hash, 归档 hash)。二者一致才算归档成功。
+    返回 (源 hash, 归档 hash, 实际写入路径)。前两者一致才算归档成功。
+
+    实际写入路径可能不是传入的 dest：append-only 守卫发现同名不同内容时会
+    改写到 .rev 快照。调用方**必须用返回的路径**做后续处理（尤其是删除坏副本），
+    否则会误删归档区里原有的好文件。
+
+    传入 mtime 时把源文件的修改时间带到归档副本上（INGEST-STANDARD §7）。
+    ⚠️ 必须在 rename **之后**设：实测本 NAS 的 CIFS 上 rename 会把修改时间
+    重置成当前时间，先设等于白设（2026-08-03 Vi-CELL 回补抽查时发现）。
+    设完回读确认——这个坑静默发生、内容校验全绿，不主动查就发现不了。
     """
     h1 = sha256_bytes(data)
     if dry_run:
-        return h1, h1
+        return h1, h1, dest
 
     # ---- append-only 守卫（2026-08-05 加）----
     # 归档区 append-only 这条铁律，原来完全靠 state 记账来保证：state 说"没归档过"
@@ -387,7 +397,7 @@ def archive_bytes(data: bytes, dest: Path, dry_run: bool) -> Tuple[str, str]:
         if existing == h1:
             # 内容完全一样：不必重写，省一次 NAS 往返，也避免无谓改动底本
             logger.info(f"归档已存在且内容一致，跳过写入: {dest.name}")
-            return h1, existing
+            return h1, existing, dest
         if existing is not None:
             stem, ext = os.path.splitext(dest.name)
             dest = dest.with_name(f"{stem}.rev{RUN_TAG}{ext}")
@@ -411,8 +421,55 @@ def archive_bytes(data: bytes, dest: Path, dry_run: bool) -> Tuple[str, str]:
             pass
         raise
 
+    if mtime is not None:
+        try:
+            os.utime(dest, (mtime, mtime))
+            # 设完立刻回读确认（rename 冲掉时间戳的坑是静默的，所以查）
+            if abs(os.stat(dest).st_mtime - mtime) > 2:
+                logger.warning(f"修改时间未生效（继续归档，需事后修正）: {dest.name}")
+        except Exception as e:
+            logger.warning(f"设置修改时间失败（继续归档）: {dest.name} ({e})")
+
     h2 = sha256_file(dest)  # 回读，不是复用内存里的 h1
-    return h1, h2
+    return h1, h2, dest
+
+
+# 本脚本临时文件的专属模式：<原名>.part.<pid>.<YYYYmmddTHHMMSS>（见 archive_bytes）。
+# 锚定 ".part.<数字>.<时间戳>" 结尾，正式归档文件（*.csv、Backup_* 内容）绝不可能命中。
+_STALE_TMP_RE = re.compile(r"\.part\.\d+\.\d{8}T\d{6}$")
+
+
+def sweep_stale_tmp(root: Path, max_age_sec: float = 86400.0) -> int:
+    """
+    清扫归档树里被 SIGKILL 留下的临时文件（2026-08-11 加）。
+
+    archive_bytes 的 finally 兜底只覆盖"异常"路径；进程被 SIGKILL（如 systemd
+    超时补刀）时什么收尾都跑不到，.part.* 临时文件会永远躺在归档区。
+    只删匹配自家模式、且 mtime 超过 max_age_sec 的文件——正在跑的另一趟
+    刚写出的临时文件不会被误删（它们的 mtime 是刚才）。
+    任何失败只记日志，绝不影响本次备份。
+    """
+    n = 0
+    try:
+        if not root.is_dir():
+            return 0
+        now = time.time()
+        for dirpath, _dirnames, filenames in os.walk(root):
+            for fname in filenames:
+                if not _STALE_TMP_RE.search(fname):
+                    continue
+                p = Path(dirpath) / fname
+                try:
+                    if now - p.stat().st_mtime < max_age_sec:
+                        continue
+                    p.unlink()
+                    n += 1
+                    logger.info(f"已清理残留临时文件（上次运行被强杀所遗留）: {p}")
+                except Exception as e:
+                    logger.warning(f"残留临时文件清理失败（跳过）: {p} ({e})")
+    except Exception as e:
+        logger.warning(f"临时文件清扫异常（已忽略，不影响备份）: {e}")
+    return n
 
 
 def save_json_atomic(path: Path, obj: Dict[str, Any]) -> None:
@@ -523,7 +580,7 @@ def ingest_monthly(state: Dict[str, Any], args, manifest: List[List[Any]]) -> Di
         dest = (RESULTS_ROOT / "Monthly" / f"{year:04d}-{mon:02d}" /
                 f"{src.stem}__snap_{RUN_TAG}.csv")
         try:
-            h1, h2 = archive_bytes(data, dest, args.dry_run)
+            h1, h2, dest = archive_bytes(data, dest, args.dry_run, mtime=src.stat().st_mtime)
         except Exception as e:
             alert("ERROR", f"月度文件归档失败: {src.name} -> {e}")
             stats["failed"] += 1
@@ -531,7 +588,13 @@ def ingest_monthly(state: Dict[str, Any], args, manifest: List[List[Any]]) -> Di
 
         verify = "MATCH" if h1 == h2 else "MISMATCH"
         if verify != "MATCH":
-            alert("CRITICAL", f"归档校验不一致: {dest} (源 {h1[:12]} vs 归档 {h2[:12]})")
+            # 校验不过就不算归档（INGEST-STANDARD §6）：删除坏副本 + 不记账 + CRITICAL。
+            # 坏副本留着的话，下次重跑 append-only 守卫会把好数据挤成 .rev 快照。
+            alert("CRITICAL", f"归档校验不一致，已删除坏副本: {dest} (源 {h1[:12]} vs 归档 {h2[:12]})")
+            try:
+                dest.unlink()
+            except Exception as e:
+                logger.warning(f"坏副本删除失败（下次运行会另存 .rev，需人工清理）: {dest} ({e})")
             stats["failed"] += 1
             continue
 
@@ -570,7 +633,11 @@ def ingest_database(state: Dict[str, Any], args, manifest: List[List[Any]]) -> D
     reg = state.setdefault("database", {})
 
     if not SRC_DATABASE.is_dir():
-        logger.info(f"无 Database 目录，跳过: {SRC_DATABASE}")
+        # 目录消失是共享结构变更的信号，必须留痕（2026-08-11 改）。
+        # 原来只 logger.info 静默跳过，且 DB_STALE_HOURS 新鲜度告警随之失效——
+        # 数据库备份这条最好的健康信号就这样无声无息地断掉，没人会知道。
+        alert("WARNING", f"源端 Database 目录不存在（共享结构可能变更，数据库备份新鲜度"
+                         f"监控随之失效，需人工确认）: {SRC_DATABASE}")
         return stats
 
     try:
@@ -629,21 +696,31 @@ def ingest_database(state: Dict[str, Any], args, manifest: List[List[Any]]) -> D
 
         entry_files = dict(prev_files)   # 保留已归档的记账，补抓时不能丢
         failed = False
+        # 逐文件尽力归档（2026-08-11 改）：这份备份每晚被仪器覆盖，错过即永久丢失。
+        # 原来单个文件失败就 break，后面的文件本轮全部放弃——它们明晚就没了。
+        # 现在失败只标记不中断（continue），目录有失败仍不记账/不推进状态，
+        # 保证下轮重试语义不变；但能抢救的文件当场抢救。
         for src in files:
             try:
+                src_mtime = src.stat().st_mtime
                 data = read_source_stable(src)
                 dest = DATABASE_ROOT / bdir.name / src.name
-                h1, h2 = archive_bytes(data, dest, args.dry_run)
+                h1, h2, dest = archive_bytes(data, dest, args.dry_run, mtime=src_mtime)
             except Exception as e:
                 alert("ERROR", f"数据库备份归档失败: {bdir.name}/{src.name} -> {e}")
                 failed = True
-                break
+                continue
 
             verify = "MATCH" if h1 == h2 else "MISMATCH"
             if verify != "MATCH":
-                alert("CRITICAL", f"数据库备份校验不一致: {dest}")
+                # 校验不过就不算归档（INGEST-STANDARD §6）：删除坏副本 + 不记账 + CRITICAL
+                alert("CRITICAL", f"数据库备份校验不一致，已删除坏副本: {dest}")
+                try:
+                    dest.unlink()
+                except Exception as e:
+                    logger.warning(f"坏副本删除失败（下次运行会另存 .rev，需人工清理）: {dest} ({e})")
                 failed = True
-                break
+                continue
 
             entry_files[src.name] = {"size": len(data), "sha256": h1}
             manifest.append([
@@ -700,9 +777,10 @@ def ingest_per_event(state: Dict[str, Any], args, manifest: List[List[Any]]) -> 
             continue
 
         try:
+            src_mtime = src.stat().st_mtime
             data = read_source_stable(src)
             dest = (RESULTS_ROOT / "PerEvent" / f"{m.group('year')}-{m.group('mm')}" / src.name)
-            h1, h2 = archive_bytes(data, dest, args.dry_run)
+            h1, h2, dest = archive_bytes(data, dest, args.dry_run, mtime=src_mtime)
         except Exception as e:
             alert("ERROR", f"逐次文件归档失败: {src.name} -> {e}")
             stats["failed"] += 1
@@ -710,13 +788,22 @@ def ingest_per_event(state: Dict[str, Any], args, manifest: List[List[Any]]) -> 
 
         verify = "MATCH" if h1 == h2 else "MISMATCH"
         if verify != "MATCH":
-            alert("CRITICAL", f"归档校验不一致: {dest}")
+            # 校验不过就不算归档（INGEST-STANDARD §6）：删除坏副本 + 不记账 + CRITICAL
+            alert("CRITICAL", f"归档校验不一致，已删除坏副本: {dest}")
+            try:
+                dest.unlink()
+            except Exception as e:
+                logger.warning(f"坏副本删除失败（下次运行会另存 .rev，需人工清理）: {dest} ({e})")
             stats["failed"] += 1
             continue
 
         ok, rows, note, warn = validate_csv(data, src.name)
         if not ok:
-            logger.warning(f"逐次文件疑似损坏（已归档，仅记录）: {src.name} -> {note}")
+            # 疑似损坏但**刻意照常归档**：逐次文件是冷备，忠实保存底本优先
+            # （铁律 2："坏"特指损坏才拒收，这里 SHA 双向校验已过、内容与源逐字节一致，
+            # 拒收只会让这份源端仅有的副本彻底没了）。走 alert 留痕（2026-08-11 改，
+            # 原来只 logger.warning，结构化告警/外呼里完全看不到）。
+            alert("WARNING", f"逐次文件疑似损坏（已归档，冷备忠实保存）: {src.name} -> {note}")
         elif warn:
             logger.info(f"逐次文件结构提示: {src.name} -> {warn}")
 
@@ -755,6 +842,11 @@ def main() -> int:
     logger.info("=" * 60)
 
     preflight()
+
+    # 清扫上次被 SIGKILL 强杀后残留的 .part.* 临时文件（超过 1 天的才删，
+    # 不会碰到并行运行刚写出的临时文件；dry-run 不动任何东西）
+    if not args.dry_run:
+        sweep_stale_tmp(ARCHIVE_ROOT)
 
     state = load_state()
     manifest: List[List[Any]] = []

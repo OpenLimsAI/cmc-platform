@@ -27,7 +27,9 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/flex2-ingest /var/lib/vicell-ingest /mnt/ttlab-backups
+# /run/lock：run-ingest.sh 的互斥锁文件（/var/lock -> /run/lock），
+# 用来防止 day/night 两趟补跑并发写同一批 state 文件
+ReadWritePaths=/var/lib/flex2-ingest /var/lib/vicell-ingest /mnt/ttlab-backups /run/lock
 
 [Install]
 WantedBy=multi-user.target
