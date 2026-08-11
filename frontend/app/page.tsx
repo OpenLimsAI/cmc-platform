@@ -19,8 +19,9 @@ import {
 } from "@/components/SeriesChart";
 import { CellGrowthView } from "@/components/CellGrowthView";
 import { NovaView } from "@/components/NovaView";
+import { OverviewView } from "@/components/OverviewView";
 
-type ViewMode = "process" | "cell" | "nova";
+type ViewMode = "overview" | "process" | "cell" | "nova";
 
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
@@ -343,6 +344,15 @@ export default function Home() {
     );
   }
 
+  // 总览页「查看工艺曲线」→ 切到工艺视图并选中对应工艺批次
+  function openProcess(sourceInstance: string, procid: number) {
+    const b = (batchesQ.data ?? []).find(
+      (x) => x.source_instance === sourceInstance && x.procid === procid
+    );
+    if (b) pickBatch(b);
+    setView("process");
+  }
+
   return (
     <div className="flex h-screen flex-col">
       {/* 顶栏 */}
@@ -352,6 +362,7 @@ export default function Home() {
         <div className="flex rounded-md border border-slate-200 p-0.5">
           {(
             [
+              ["overview", "批次总览"],
               ["process", "工艺曲线"],
               ["cell", "细胞生长曲线"],
               ["nova", "生化曲线"],
@@ -371,17 +382,20 @@ export default function Home() {
           ))}
         </div>
         <span className="text-sm text-slate-400">
-          {view === "process"
-            ? "Lucullus 生物反应器 · 工艺时序曲线"
-            : view === "cell"
-              ? "Vi-CELL 细胞计数 · 生长曲线"
-              : "Nova FLEX2 生化分析 · 趋势曲线"}
+          {view === "overview"
+            ? "一个批号 · 细胞 + 生化 + 工艺一页看全"
+            : view === "process"
+              ? "Lucullus 生物反应器 · 工艺时序曲线"
+              : view === "cell"
+                ? "Vi-CELL 细胞计数 · 生长曲线"
+                : "Nova FLEX2 生化分析 · 趋势曲线"}
         </span>
         <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
           本地测试环境 · 样本批次
         </span>
       </header>
 
+      {view === "overview" && <OverviewView onOpenProcess={openProcess} />}
       {view === "cell" && <CellGrowthView />}
       {view === "nova" && <NovaView />}
 

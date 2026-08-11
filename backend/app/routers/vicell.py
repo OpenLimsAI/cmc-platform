@@ -139,6 +139,48 @@ async def get_growth(batch_key: str = Query(..., description="批次身份，如
     }
 
 
+@router.get("/samples")
+async def get_samples(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
+    """某批次的细胞取样记录明细（总览页明细表用）：每次取样一行，不按天聚合。"""
+    sql = text(f"""
+        SELECT
+            run_id,
+            sample_id,
+            culture_day,
+            run_date,
+            viable_per_ml,
+            viability_pct,
+            total_per_ml,
+            avg_diameter_um,
+            avg_circularity,
+            parse_status
+        FROM {VIEW}
+        WHERE batch_key = :bk
+        ORDER BY run_date, culture_day
+    """)
+    async with analytics_engine().connect() as conn:
+        rows = (await conn.execute(sql, {"bk": batch_key})).mappings().all()
+
+    def num(v):
+        return float(v) if v is not None else None
+
+    return [
+        {
+            "run_id": int(r["run_id"]),
+            "sample_id": r["sample_id"],
+            "culture_day": int(r["culture_day"]) if r["culture_day"] is not None else None,
+            "run_date": r["run_date"].isoformat() if r["run_date"] else None,
+            "viable_per_ml": num(r["viable_per_ml"]),
+            "viability_pct": num(r["viability_pct"]),
+            "total_per_ml": num(r["total_per_ml"]),
+            "avg_diameter_um": num(r["avg_diameter_um"]),
+            "avg_circularity": num(r["avg_circularity"]),
+            "parse_status": r["parse_status"],
+        }
+        for r in rows
+    ]
+
+
 @router.get("/growth-by-procid")
 async def get_growth_by_procid(
     source_instance: str = Query(..., description="Lucullus 工作站编码，如 rd_ws01_usp_lucullus_01"),

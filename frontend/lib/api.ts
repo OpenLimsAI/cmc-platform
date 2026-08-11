@@ -107,6 +107,8 @@ export interface Growth {
   batch_number: string | null;
   bioreactor_id: string | null;
   n_samples: number;
+  generation: number | null; // 代次（来自 rd-batch-registry 登记表，新格式批次才有）
+  seeded_from_stages: string | null; // 父容器（谁分自谁）
   points: GrowthPoint[];
 }
 
@@ -194,6 +196,76 @@ export async function fetchNovaBatches(): Promise<NovaBatch[]> {
 
 export async function fetchNovaSeries(batchKey: string): Promise<NovaSeries> {
   const { data } = await http.get<NovaSeries>("/api/nova/series", {
+    params: { batch_key: batchKey },
+  });
+  return data;
+}
+
+// Nova 取样明细（总览页明细表）
+export interface NovaSample {
+  sample_result_id: number;
+  sample_id: string | null;
+  culture_day: number | null;
+  measured_at: string | null;
+  gluc: number | null;
+  lac: number | null;
+  gln: number | null;
+  glu: number | null;
+  nh4: number | null;
+  na: number | null;
+  k: number | null;
+  ca: number | null;
+  ph: number | null;
+  po2: number | null;
+  pco2: number | null;
+  parse_status: string;
+}
+
+export async function fetchNovaSamples(batchKey: string): Promise<NovaSample[]> {
+  const { data } = await http.get<NovaSample[]>("/api/nova/samples", {
+    params: { batch_key: batchKey },
+  });
+  return data;
+}
+
+// ============ 批次总览（一个批号看全部数据源） ============
+
+export interface OverviewBatch {
+  batch_key: string;
+  project_id: string | null;
+  batch_number: string | null;
+  bioreactor_id: string | null;
+  batch_year: number | null;
+  n_vicell: number; // 细胞取样数（0 = 该源没有此批）
+  n_nova: number; // 生化取样数
+  day_min: number | null;
+  day_max: number | null;
+  first_at: string | null;
+  lucullus_procid: number | null; // 工艺关联（跳转工艺曲线视图用）
+  lucullus_source_instance: string | null;
+}
+
+export async function fetchOverviewBatches(): Promise<OverviewBatch[]> {
+  const { data } = await http.get<OverviewBatch[]>("/api/overview/batches");
+  return data;
+}
+
+// Vi-CELL 取样明细（总览页明细表）
+export interface VicellSample {
+  run_id: number;
+  sample_id: string | null;
+  culture_day: number | null;
+  run_date: string | null;
+  viable_per_ml: number | null;
+  viability_pct: number | null;
+  total_per_ml: number | null;
+  avg_diameter_um: number | null;
+  avg_circularity: number | null;
+  parse_status: string;
+}
+
+export async function fetchVicellSamples(batchKey: string): Promise<VicellSample[]> {
+  const { data } = await http.get<VicellSample[]>("/api/vicell/samples", {
     params: { batch_key: batchKey },
   });
   return data;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
 import {
   fetchVicellBatches,
   fetchGrowth,
@@ -53,13 +53,20 @@ function sortReactor(a: string, b: string): number {
 }
 
 export function CellGrowthView() {
-  const [selected, setSelected] = useState<VicellBatch | null>(null);
+  // 已选批次（可多选叠加对比；点列表项增/减）
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   // 勾选要看的细胞指标（code 见 CELL_METRICS）
   const [metrics, setMetrics] = useState<string[]>(DEFAULT_METRICS);
 
   function toggleMetric(code: string) {
     setMetrics((prev) =>
       prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  }
+
+  function toggleBatch(key: string) {
+    setSelectedKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
   }
 
@@ -74,11 +81,13 @@ export function CellGrowthView() {
     queryFn: fetchVicellBatches,
   });
 
-  const growthQ = useQuery({
-    queryKey: ["vicell-growth", selected?.batch_key],
-    queryFn: () => fetchGrowth(selected!.batch_key),
-    enabled: !!selected,
-    placeholderData: keepPreviousData,
+  // 每个已选批次各取一条生长曲线（多选时叠加同图对比）
+  const growthQs = useQueries({
+    queries: selectedKeys.map((key) => ({
+      queryKey: ["vicell-growth", key],
+      queryFn: () => fetchGrowth(key),
+      placeholderData: keepPreviousData,
+    })),
   });
 
   const allBatches = batchesQ.data ?? [];
@@ -153,23 +162,39 @@ export function CellGrowthView() {
     setFReactor("");
   }
 
-  // 生长曲线：按勾选的指标各画一条，不同单位自动分左右坐标轴
+  // 生长曲线：每个已选批次 × 每个勾选指标各画一条；
+  // 多批次时系列名带批次前缀，单批次保持原样。不同单位自动分左右坐标轴。
+  const multi = selectedKeys.length > 1;
   const chartSeries: ChartSeries[] = useMemo(() => {
-    const pts = growthQ.data?.points ?? [];
-    if (!pts.length) return [];
-    return CELL_METRICS.filter((m) => metrics.includes(m.code)).map((m) => ({
-      code: m.code,
-      name: m.name,
-      unit: m.unit,
-      points: pts
-        .filter((p) => m.pick(p) != null)
-        .map((p) => ({
-          time_hours: p.culture_day, // 复用 SeriesChart：横轴此处是培养天
-          ts: "",
-          value: m.pick(p) as number,
-        })),
-    }));
-  }, [growthQ.data, metrics]);
+    const out: ChartSeries[] = [];
+    selectedKeys.forEach((key, i) => {
+      const pts = growthQs[i]?.data?.points ?? [];
+      if (!pts.length) return;
+      CELL_METRICS.filter((m) => metrics.includes(m.code)).forEach((m) => {
+        out.push({
+          code: `${key}:${m.code}`,
+          name: multi ? `${key} ${m.name}` : m.name,
+          unit: m.unit,
+          points: pts
+            .filter((p) => m.pick(p) != null)
+            .map((p) => ({
+              time_hours: p.culture_day, // 复用 SeriesChart：横轴此处是培养天
+              ts: "",
+              value: m.pick(p) as number,
+            })),
+        });
+      });
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedKeys,
+    growthQs.map((q) => q.dataUpdatedAt).join(","),
+    metrics,
+    multi,
+  ]);
+
+  const chartLoading = growthQs.some((q) => q.isFetching);
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -249,14 +274,24 @@ export function CellGrowthView() {
           <span className="uppercase tracking-wide">
             批次 {batchesQ.data ? `(${filteredBatches.length})` : ""}
           </span>
-          {hasFilter && (
-            <button
-              onClick={clearFilters}
-              className="rounded border border-slate-200 px-1.5 py-0.5 text-slate-500 hover:bg-slate-50"
-            >
-              清除筛选
-            </button>
-          )}
+          <span className="flex gap-1.5">
+            {selectedKeys.length > 0 && (
+              <button
+                onClick={() => setSelectedKeys([])}
+                className="rounded border border-blue-200 px-1.5 py-0.5 text-blue-600 hover:bg-blue-50"
+              >
+                清空已选 ({selectedKeys.length})
+              </button>
+            )}
+            {hasFilter && (
+              <button
+                onClick={clearFilters}
+                className="rounded border border-slate-200 px-1.5 py-0.5 text-slate-500 hover:bg-slate-50"
+              >
+                清除筛选
+              </button>
+            )}
+          </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {batchesQ.isLoading && (
@@ -271,11 +306,11 @@ export function CellGrowthView() {
             <div className="p-4 text-sm text-slate-400">没有符合筛选的批次。</div>
           )}
           {filteredBatches.map((b) => {
-            const active = selected?.batch_key === b.batch_key;
+            const active = selectedKeys.includes(b.batch_key);
             return (
               <button
                 key={b.batch_key}
-                onClick={() => setSelected(b)}
+                onClick={() => toggleBatch(b.batch_key)}
                 className={`block w-full border-b border-slate-100 px-4 py-2.5 text-left transition ${
                   active ? "bg-blue-50" : "hover:bg-slate-50"
                 }`}
@@ -288,6 +323,7 @@ export function CellGrowthView() {
                   >
                     {b.batch_key}
                   </span>
+                  {active && <span className="ml-auto text-xs text-blue-500">✓</span>}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
                   {b.bioreactor_id && (
@@ -306,19 +342,23 @@ export function CellGrowthView() {
         </div>
       </aside>
 
-      {/* 右侧：生长曲线 */}
+      {/* 右侧：生长曲线（多选批次时叠加对比） */}
       <main className="flex min-w-0 flex-1 flex-col bg-slate-50">
-        {!selected ? (
+        {selectedKeys.length === 0 ? (
           <div className="flex flex-1 items-center justify-center text-slate-400">
-            ← 先从左边选一个批次
+            ← 先从左边选批次（可多选叠加对比）
           </div>
         ) : (
           <>
             <div className="border-b border-slate-200 bg-white px-5 py-3">
               <div className="mb-2 flex items-baseline gap-2">
-                <span className="font-medium">{selected.batch_key}</span>
+                <span className="font-medium">
+                  {multi
+                    ? `${selectedKeys.length} 个批次对比`
+                    : selectedKeys[0]}
+                </span>
                 <span className="text-xs text-slate-400">
-                  细胞生长曲线 · 横轴培养天 · 选指标（不同单位自动分坐标轴）
+                  细胞生长曲线 · 横轴培养天 · 点左侧列表可增减批次
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -349,7 +389,7 @@ export function CellGrowthView() {
               <div className="h-full rounded-lg border border-slate-200 bg-white p-3">
                 <SeriesChart
                   series={chartSeries}
-                  loading={growthQ.isFetching}
+                  loading={chartLoading}
                   xName="培养天 (day)"
                 />
               </div>
