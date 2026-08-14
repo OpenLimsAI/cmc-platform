@@ -271,6 +271,55 @@ export async function fetchVicellSamples(batchKey: string): Promise<VicellSample
   return data;
 }
 
+// 数据表板块（《项目第一表》样式）：一行 = 某批次某培养天，三源列并排
+export interface DailyTableRow {
+  batch_key: string;
+  culture_day: number | null;
+  sample_date: string | null; // 取样日期（细胞/生化侧最早一次）
+  // 工艺（Lucullus 按天汇总）
+  ph_mean: number | null;
+  do_pct_mean: number | null;
+  do_pct_min: number | null;
+  temp_c_mean: number | null;
+  stirrer_rpm_mean: number | null;
+  air_mlmin_mean: number | null;
+  o2_mlmin_mean: number | null;
+  co2_mlmin_mean: number | null;
+  alkali_cum_ml: number | null;
+  acid_cum_ml: number | null;
+  // 细胞（Vi-CELL，同天多次取样已平均）
+  density_tcd: number | null; // 总细胞密度 ×10⁶/ml
+  density_vcd: number | null; // 活细胞密度 ×10⁶/ml
+  viability_pct: number | null;
+  avg_diameter_um: number | null;
+  // 生化（Nova FLEX2，同天多次取样已平均）
+  gluc: number | null;
+  lac: number | null;
+  gln: number | null;
+  glu: number | null;
+  nh4: number | null;
+  na: number | null;
+  k: number | null;
+  ca: number | null;
+  ph_nova: number | null;
+  po2: number | null;
+  pco2: number | null;
+  n_vicell: number; // 当天细胞取样次数（>1 = 已平均）
+  n_nova: number;
+}
+
+export interface DailyTable {
+  rows: DailyTableRow[];
+  columns: string[];
+}
+
+export async function fetchDailyTable(batchKeys: string[]): Promise<DailyTable> {
+  const { data } = await http.post<DailyTable>("/api/overview/daily-table", {
+    batch_keys: batchKeys,
+  });
+  return data;
+}
+
 // 工艺参数按天汇总（mart.fact_process_daily，总览页嵌图）
 export interface ProcessDailyPoint {
   culture_day: number;

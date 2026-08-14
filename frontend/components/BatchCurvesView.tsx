@@ -9,9 +9,11 @@ import {
   fetchProcessDaily,
   fetchVicellSamples,
   fetchNovaSamples,
+  fetchDailyTable,
   type OverviewBatch,
 } from "@/lib/api";
 import { SeriesChart, type ChartSeries } from "@/components/SeriesChart";
+import { DailyTable } from "@/components/DailyTable";
 import {
   CELL_METRICS,
   CELL_DEFAULT_METRICS,
@@ -23,11 +25,12 @@ import {
 } from "@/lib/metrics";
 
 // 右侧可同开的曲线板块（多选，切换不影响左侧批号筛选）
-type Section = "cell" | "nova" | "process" | "samples";
+type Section = "cell" | "nova" | "process" | "table" | "samples";
 const SECTIONS: { code: Section; label: string }[] = [
   { code: "cell", label: "生长曲线" },
   { code: "nova", label: "生化曲线" },
   { code: "process", label: "工艺参数" },
+  { code: "table", label: "数据表" },
   { code: "samples", label: "取样明细" },
 ];
 const DEFAULT_SECTIONS: Section[] = ["cell", "nova", "process"];
@@ -216,6 +219,17 @@ export function BatchCurvesView({
       enabled: sections.includes("samples"),
       placeholderData: keepPreviousData,
     })),
+  });
+  // 数据表板块：所有选中批次一次请求，后端按 (批次, 培养天) 合并三源
+  const selectedKeys = useMemo(
+    () => selected.map((b) => b.batch_key).sort(),
+    [selected]
+  );
+  const tableQ = useQuery({
+    queryKey: ["daily-table", selectedKeys.join(",")],
+    queryFn: () => fetchDailyTable(selectedKeys),
+    enabled: sections.includes("table") && selectedKeys.length > 0,
+    placeholderData: keepPreviousData,
   });
 
   // 组曲线：每个批次 × 每个勾选指标一条；多批次时名字带批号前缀
@@ -679,6 +693,23 @@ export function BatchCurvesView({
                     </div>
                   )}
                 </div>
+              </section>
+            )}
+
+            {/* 数据表：《项目第一表》样式的按天合并宽表 */}
+            {showSection("table") && (
+              <section className="rounded-lg border border-slate-200 bg-white">
+                <div className="flex items-baseline gap-2 border-b border-slate-100 px-5 py-2.5">
+                  <h2 className="text-sm font-semibold">数据表</h2>
+                  <span className="text-xs text-slate-400">
+                    一行 = 一个批次一个培养天 · 工艺 / 细胞 / 生化 列并排（对齐《项目第一表》）
+                  </span>
+                </div>
+                <DailyTable
+                  rows={tableQ.data?.rows ?? []}
+                  batches={selected}
+                  loading={tableQ.isFetching}
+                />
               </section>
             )}
 
