@@ -17,5 +17,21 @@ class Settings(BaseSettings):
     # 前端开发地址，逗号分隔，用于 CORS（如 http://localhost:5170）
     dev_extra_origins: str = ""
 
+    # ---- 统一认证（MDM Portal 代理登录 + 本地验签，规范见 ~/code/CLAUDE.md §8）----
+    # 本项目不建用户表、不存密码、不签发令牌：登录转发 MDM，之后本地验签 MDM 的 JWT。
+    mdm_base_url: str = ""  # MDM 后端地址，如 http://localhost:18000；留空则无法登录
+    jwt_algorithm: str = "HS256"  # HS256（共享密钥）/ RS256（MDM 公钥文件）
+    jwt_secret_key: str = ""  # HS256：必须与 MDM 的 SECRET_KEY 逐字符一致
+    jwt_public_key_path: str = ""  # RS256：MDM 公钥 PEM 文件路径
+    # 生产必须 true：要求鉴权但漏配验签密钥时启动即报错（防裸奔上线）。
+    # false + 未配密钥 = 本地开放模式（不挡本地开发）。
+    auth_required: bool = False
+    # 允许查看本看板的角色码（逗号分隔）；SYS_ADMIN 是 MDM 规范的超管，始终该在列
+    viewer_roles: str = "SYS_ADMIN,CMC_USP_RESEARCHER,CMC_USP_MANAGER,CMC_USP_OPERATOR"
+
+    @property
+    def viewer_role_set(self) -> set[str]:
+        return {r.strip() for r in self.viewer_roles.split(",") if r.strip()}
+
 
 settings = Settings()

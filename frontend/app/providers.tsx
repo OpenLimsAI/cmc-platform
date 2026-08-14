@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { AuthGate } from "@/components/AuthGate";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -12,5 +13,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      {/* 全站登录门：未登录只能见登录页（后端开放模式除外） */}
+      <AuthGate>{children}</AuthGate>
+    </QueryClientProvider>
+  );
 }

@@ -18,6 +18,7 @@ import {
   type ViewWindow,
 } from "@/components/SeriesChart";
 import { BatchCurvesView } from "@/components/BatchCurvesView";
+import { useAuth } from "@/components/AuthGate";
 
 type ViewMode = "curves" | "process";
 
@@ -100,6 +101,7 @@ function sortReactor(a: string, b: string): number {
 }
 
 export default function Home() {
+  const { user, logout } = useAuth();
   // 顶部页签：批次曲线（第一层筛选批号 → 多源曲线叠加）/ 工艺曲线全量时序（单批钻取）
   const [view, setView] = useState<ViewMode>("curves");
   const [selected, setSelected] = useState<Batch | null>(null);
@@ -385,6 +387,18 @@ export default function Home() {
         <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
           本地测试环境 · 样本批次
         </span>
+        {/* 当前登录人 + 退出（后端开放模式 system 时不显示） */}
+        {user && !user.is_system && (
+          <span className="flex items-center gap-2 text-xs text-slate-500">
+            <span>{user.full_name || user.username}</span>
+            <button
+              onClick={logout}
+              className="rounded border border-slate-200 px-2 py-0.5 text-slate-500 transition hover:bg-slate-50"
+            >
+              退出
+            </button>
+          </span>
+        )}
       </header>
 
       {/* 保持挂载（hidden 切换），页签来回切不丢批号筛选 */}

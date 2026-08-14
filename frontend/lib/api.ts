@@ -4,6 +4,66 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8070";
 
 export const http = axios.create({ baseURL: API_BASE });
 
+// ============ 统一认证（MDM 代理登录，规范见 ~/code/CLAUDE.md §8） ============
+
+const TOKEN_KEY = "usp_dashboard_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(t: string) {
+  localStorage.setItem(TOKEN_KEY, t);
+}
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// 每个请求带上令牌；401 = 令牌失效 → 清掉并通知 AuthGate 回登录页
+http.interceptors.request.use((config) => {
+  const t = getToken();
+  if (t) config.headers.Authorization = `Bearer ${t}`;
+  return config;
+});
+http.interceptors.response.use(
+  (resp) => resp,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      clearToken();
+      window.dispatchEvent(new Event("usp-auth-expired"));
+    }
+    return Promise.reject(error);
+  }
+);
+
+export interface LoginResult {
+  access_token: string;
+  user?: { username?: string; full_name?: string } | null;
+}
+
+export async function login(
+  username: string,
+  password: string
+): Promise<LoginResult> {
+  const { data } = await http.post<LoginResult>("/api/auth/login", {
+    username,
+    password,
+  });
+  return data;
+}
+
+export interface Me {
+  username: string;
+  full_name: string | null;
+  roles: string[];
+  is_system: boolean; // true = 后端开放模式（本地开发，不用登录）
+}
+
+export async function fetchMe(): Promise<Me> {
+  const { data } = await http.get<Me>("/api/auth/me");
+  return data;
+}
+
 export interface Batch {
   source_instance: string;
   procid: number;
