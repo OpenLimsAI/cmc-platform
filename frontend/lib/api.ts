@@ -306,6 +306,12 @@ export interface DailyTableRow {
   pco2: number | null;
   n_vicell: number; // 当天细胞取样次数（>1 = 已平均）
   n_nova: number;
+  // 溯源：原始样本名（仪器录入）与解析状态；项目/批号/罐号都拆自样本名
+  vicell_sample_ids: string | null;
+  vicell_status: string | null; // ok / suspect / unparseable…（多个用逗号连）
+  nova_sample_ids: string | null;
+  nova_status: string | null;
+  has_process: boolean; // 该天有 Lucullus 工艺汇总数据
 }
 
 export interface DailyTable {

@@ -185,7 +185,9 @@ async def get_daily_table(req: DailyTableRequest):
                    avg(viable_per_ml)   AS density_vcd,
                    avg(viability_pct)   AS viability_pct,
                    avg(avg_diameter_um) AS avg_diameter_um,
-                   count(*)             AS n_vicell
+                   count(*)             AS n_vicell,
+                   string_agg(DISTINCT sample_id, ' ｜ ')    AS vicell_sample_ids,
+                   string_agg(DISTINCT parse_status, ',')    AS vicell_status
             FROM mart.fact_vicell
             WHERE batch_key = ANY(:keys) AND culture_day IS NOT NULL
             GROUP BY batch_key, culture_day
@@ -199,7 +201,9 @@ async def get_daily_table(req: DailyTableRequest):
                    avg(k)    AS k,    avg(ca)  AS ca,
                    avg(ph)   AS ph_nova,
                    avg(po2)  AS po2,  avg(pco2) AS pco2,
-                   count(*)  AS n_nova
+                   count(*)  AS n_nova,
+                   string_agg(DISTINCT sample_id, ' ｜ ')    AS nova_sample_ids,
+                   string_agg(DISTINCT parse_status, ',')    AS nova_status
             FROM mart.fact_nova
             WHERE batch_key = ANY(:keys) AND culture_day IS NOT NULL
             GROUP BY batch_key, culture_day
@@ -228,7 +232,9 @@ async def get_daily_table(req: DailyTableRequest):
                 n.gluc, n.lac, n.gln, n.glu, n.nh4, n.na, n.k, n.ca,
                 n.ph_nova, n.po2, n.pco2,
                 coalesce(v.n_vicell, 0) AS n_vicell,
-                coalesce(n.n_nova, 0)   AS n_nova
+                coalesce(n.n_nova, 0)   AS n_nova,
+                v.vicell_sample_ids, v.vicell_status,
+                n.nova_sample_ids, n.nova_status
             FROM v
             FULL OUTER JOIN n
               ON n.batch_key = v.batch_key AND n.culture_day = v.culture_day
@@ -244,7 +250,10 @@ async def get_daily_table(req: DailyTableRequest):
             vn.gluc, vn.lac, vn.gln, vn.glu, vn.nh4, vn.na, vn.k, vn.ca,
             vn.ph_nova, vn.po2, vn.pco2,
             coalesce(vn.n_vicell, 0) AS n_vicell,
-            coalesce(vn.n_nova, 0)   AS n_nova
+            coalesce(vn.n_nova, 0)   AS n_nova,
+            vn.vicell_sample_ids, vn.vicell_status,
+            vn.nova_sample_ids, vn.nova_status,
+            (p.batch_key IS NOT NULL) AS has_process
         FROM vn
         FULL OUTER JOIN p
           ON p.batch_key = vn.batch_key AND p.culture_day = vn.culture_day
@@ -266,6 +275,14 @@ async def get_daily_table(req: DailyTableRequest):
             **{c: num(r[c]) for c in metric_cols},
             "n_vicell": int(r["n_vicell"]),
             "n_nova": int(r["n_nova"]),
+            # 溯源列：原始样本名（仪器上录入的名字）+ 解析状态 + 是否有工艺关联。
+            # 项目/批号/罐号都是从样本名拆出来的——样本名录错 = 原始数据错；
+            # 样本名没问题但拆出来的字段不对 = 解析错误（走 ETL 别名修正）。
+            "vicell_sample_ids": r["vicell_sample_ids"],
+            "vicell_status": r["vicell_status"],
+            "nova_sample_ids": r["nova_sample_ids"],
+            "nova_status": r["nova_status"],
+            "has_process": bool(r["has_process"]),
         }
         for r in rows
     ]

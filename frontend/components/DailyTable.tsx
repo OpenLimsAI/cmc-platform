@@ -51,6 +51,58 @@ const METRIC_COLS = [...PROC_COLS, ...CELL_COLS, ...NOVA_COLS];
 const fmt = (v: number | null, digits: number) =>
   v == null ? "" : v.toFixed(digits);
 
+// 解析状态是否有问题（非 ok 就标黄提醒，如 suspect / unparseable / non_standard）
+const statusBad = (s: string | null) =>
+  !!s && s.split(",").some((x) => x.trim() !== "ok");
+
+// 来源徽标（细胞/生化/工艺），配色与曲线板块一致
+function SourceBadges({ r }: { r: DailyTableRow }) {
+  return (
+    <span className="flex gap-1">
+      {r.n_vicell > 0 && (
+        <span className="rounded bg-emerald-50 px-1 py-0.5 text-[10px] text-emerald-700">
+          细胞
+        </span>
+      )}
+      {r.n_nova > 0 && (
+        <span className="rounded bg-sky-50 px-1 py-0.5 text-[10px] text-sky-700">
+          生化
+        </span>
+      )}
+      {r.has_process && (
+        <span className="rounded bg-violet-50 px-1 py-0.5 text-[10px] text-violet-700">
+          工艺
+        </span>
+      )}
+    </span>
+  );
+}
+
+// 原始样本名单元格：仪器上录入的名字，解析可疑时标黄 + ⚠
+function SampleIdCell({ r }: { r: DailyTableRow }) {
+  const parts: { text: string; bad: boolean }[] = [];
+  if (r.vicell_sample_ids)
+    parts.push({ text: r.vicell_sample_ids, bad: statusBad(r.vicell_status) });
+  if (r.nova_sample_ids)
+    parts.push({ text: r.nova_sample_ids, bad: statusBad(r.nova_status) });
+  if (!parts.length)
+    return <span className="text-slate-300">（来自工艺批次名）</span>;
+  return (
+    <span className="flex flex-col">
+      {parts.map((p, i) => (
+        <span
+          key={i}
+          title={p.text + (p.bad ? "（样本名不规范，解析结果存疑）" : "")}
+          className={`max-w-56 truncate ${p.bad ? "text-amber-600" : ""}`}
+        >
+          {p.bad && "⚠ "}
+          {p.text}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function DailyTable({
   rows,
   batches,
@@ -69,6 +121,9 @@ export function DailyTable({
   // 导出 CSV（Excel 直接能开；加 BOM 防中文乱码）
   function exportCsv() {
     const head = [
+      "source",
+      "raw_sample_ids",
+      "parse_status",
       "sample_date",
       "project_id",
       "batch_number",
@@ -77,11 +132,30 @@ export function DailyTable({
       "culture_day",
       ...METRIC_COLS.map((c) => c.key as string),
     ];
+    // 样本名里可能有逗号/引号，CSV 字段统一转义
+    const esc = (v: string | number) => {
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
     const lines = [head.join(",")];
     rows.forEach((r) => {
       const b = metaByKey.get(r.batch_key);
+      const src = [
+        r.n_vicell > 0 ? "细胞" : "",
+        r.n_nova > 0 ? "生化" : "",
+        r.has_process ? "工艺" : "",
+      ]
+        .filter(Boolean)
+        .join("+");
+      const rawIds = [r.vicell_sample_ids, r.nova_sample_ids]
+        .filter(Boolean)
+        .join(" ｜ ");
+      const status = [r.vicell_status, r.nova_status].filter(Boolean).join(",");
       lines.push(
         [
+          src,
+          esc(rawIds),
+          esc(status),
           r.sample_date ?? "",
           b?.project_id ?? "",
           b?.batch_number ?? "",
@@ -115,8 +189,10 @@ export function DailyTable({
     <div>
       <div className="flex items-center justify-between px-4 pt-3">
         <span className="text-xs text-slate-400">
-          共 {rows.length} 行 · 一行 = 一个批次一个培养天 · 同天多次取样已平均 ·
-          空格 = 该源当天无数据
+          共 {rows.length} 行 · 同天多次取样已平均 · 空格 = 该源当天无数据 ·
+          项目/批号/罐号拆自「原始样本名」，
+          <span className="text-amber-600">⚠ 黄色</span>
+          = 样本名不规范、解析存疑（错在录入还是解析，看原始样本名即可判断）
         </span>
         <button
           onClick={exportCsv}
@@ -130,8 +206,8 @@ export function DailyTable({
           <thead className="sticky top-0 z-10 bg-white">
             {/* 第一行：来源分组 */}
             <tr className="text-[11px]">
-              <th colSpan={5} className="px-2 pb-0.5 text-left font-normal text-slate-400">
-                批次 / 时间
+              <th colSpan={7} className="px-2 pb-0.5 text-left font-normal text-slate-400">
+                批次 / 时间 / 溯源
               </th>
               <th
                 colSpan={PROC_COLS.length}
@@ -154,6 +230,8 @@ export function DailyTable({
             </tr>
             {/* 第二行：列名 + 单位 */}
             <tr className="border-b border-slate-200 text-slate-500">
+              <th className="px-2 py-1.5 text-left">来源</th>
+              <th className="px-2 py-1.5 text-left">原始样本名（仪器录入）</th>
               <th className="px-2 py-1.5 text-left">取样日期</th>
               <th className="px-2 py-1.5 text-left">项目</th>
               <th className="px-2 py-1.5 text-left">批号</th>
@@ -188,6 +266,12 @@ export function DailyTable({
                     firstOfBatch ? "border-t-2 border-slate-200" : "border-t border-slate-100"
                   }`}
                 >
+                  <td className="px-2 py-1 text-left">
+                    <SourceBadges r={r} />
+                  </td>
+                  <td className="px-2 py-1 text-left">
+                    <SampleIdCell r={r} />
+                  </td>
                   <td className="px-2 py-1 text-left">{r.sample_date ?? ""}</td>
                   <td className="px-2 py-1 text-left">{b?.project_id ?? ""}</td>
                   <td className="px-2 py-1 text-left">{b?.batch_number ?? ""}</td>
