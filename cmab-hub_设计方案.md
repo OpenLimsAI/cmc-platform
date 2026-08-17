@@ -90,7 +90,7 @@ apps:
 
 | 子系统 | 栈 | 要改什么 |
 |---|---|---|
-| MDM | React + Vite | `vite.config` 设 `base: '/mdm/'`；React Router `basename='/mdm'`；API baseURL 改相对 `/mdm/api` |
+| MDM | React + Vite | ✅ 2026-08-17 已改：`base: '/mdm/'`、`basename`、API `/mdm/api/v1`、authStore 读统一 key（`frontend/src/shared/base.ts` 可当模板） |
 | LabOps | React + Vite | 同上，前缀 `/labops/` |
 | 批号管理 | React + Vite | 同上，前缀 `/batch/`（新项目，建议**一开始就按子路径写**，省得回头改） |
 | 上游工艺看板 | Next.js | `next.config` 设 `basePath: '/usp'`、`assetPrefix` |

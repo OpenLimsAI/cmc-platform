@@ -26,5 +26,6 @@
 - ✅ §10 ④ nginx 反代：`nginx/`（`hub-locations.conf` 路由表两边共用 + mac/linux 两份 server）。**Mac 已上线**：brew nginx 听 5100、伺服 dist、`/mdm/*` `/labops/*` 全通。Linux 待仓库落地后软链（`nginx/README.md`）。
 - **令牌统一 key 已拍板**：`cmab_access_token` + `cmab_user`（设计方案 §5），门户已按此写；子系统各自改读，门户不做桥接。
 - 端口：**5100 = nginx（唯一对外门）**；`5101` = 门户 Vite dev（只在单独调界面时用）。
+- ✅ MDM 前端已改完（子路径 + 统一 key），本地经 5100/mdm/ 验证通过；MDM 仓库已本地提交待 push。**nginx 前端一路不剥前缀**（Vite dev 只认带前缀请求），已更新路由表。
 - **下一步**：§10 ② 与 MDM 窗口对齐 → ⑤ 逐个子系统改子路径（Vite：base/basename/API 相对路径 + 读统一 key；Next：basePath）→ ⑥ SSO 验证 → PORTS.md 改「在用」→ Linux 部署。
 - 已知待拍板：`apps.ts` 里各应用 `requires` 角色码是按子系统现有代码填的默认值，最终以 MDM 后台为准。
