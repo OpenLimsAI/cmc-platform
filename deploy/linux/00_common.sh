@@ -26,6 +26,7 @@ bind_localhost() {  # $1 = unit 名
 
 restart_unit() { sudo systemctl restart "$1"; sleep 3; systemctl is-active --quiet "$1" && ok "$1 已重启并运行" || { echo "$1 启动失败"; sudo journalctl -u "$1" -n 20 --no-pager; exit 1; }; }
 
-nginx_reload() { sudo nginx -t && sudo systemctl reload nginx && ok "nginx 已重载"; }
+# 注意用 restart 不用 reload：同一端口从 0.0.0.0 改 127.0.0.1 时 reload 会 "Address already in use" 而沿用旧监听
+nginx_reload() { sudo nginx -t && sudo systemctl restart nginx && sleep 1 && systemctl is-active --quiet nginx && ok "nginx 已重启"; }
 
 check() { printf '    %-52s → %s\n' "$1" "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$1")"; }
