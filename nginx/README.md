@@ -21,6 +21,13 @@
 
 > 为什么前端不剥前缀：Mac 上子系统前端是 Vite dev server，配了 `base` 后只认带前缀的请求，剥了就拒收。
 
+## 老网址（IP:端口 直连）还能用吗
+
+能，作为过渡/兜底保留，但**不免登**（不同端口 = 不同站点，SSO 只在 5100 门内有效）。要点：
+- 根路径自动跳到子路径：`IP:5110/` → `/labops/`（子系统 nginx `location = /` 302）；Next 看板由 `next.config redirects` 跳到 `/usp`、`/lims`。
+- 直连时前端调的是 `/xxx/api/...`，所以子系统自己也得会转：Vite 项目在子系统 nginx 加 `location /xxx/api/ { proxy_pass 后端/api/; }`（MDM/LabOps 片段已含）；Next 项目用 `next.config rewrites`（已加）。
+- Mac 上 Vite dev 直连根路径会显示 Vite 的"请访问 /xxx/"提示页而非自动跳转，属开发态正常。
+
 ## 子系统改造进度
 
 | 子系统 | 前端改造 | 统一 key | Linux 子系统 nginx | 备注 |
