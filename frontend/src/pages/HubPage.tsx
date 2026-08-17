@@ -11,9 +11,9 @@ import { authStore, useAuth } from '@/stores/authStore'
 export default function HubPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  // 临时：磁贴风格预览开关 ?style=glass|bare|dark（默认 glass），负责人选定后收口成一种
+  // 临时：背景色预览开关 ?bg=1|2（1=rgb(37,55,97) 2=rgb(31,56,100)，默认蓝渐变），负责人选定后收口
   const [params] = useSearchParams()
-  const style = params.get('style') || 'glass'
+  const bg = params.get('bg') || ''
 
   const visible = HUB_APPS.filter((a) => canAccess(a, user))
   const hiddenCount = HUB_APPS.filter((a) => a.status !== 'hidden').length - visible.length
@@ -25,7 +25,7 @@ export default function HubPage() {
   }
 
   return (
-    <div className="hub" data-style={style}>
+    <div className="hub" data-bg={bg}>
       <header className="hub-header">
         <div className="hub-brand">
           <span className="hub-logo">CMAB</span>
