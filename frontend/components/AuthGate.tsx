@@ -97,7 +97,7 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         setError("登录返回里没有令牌");
         return;
       }
-      setToken(data.access_token);
+      setToken(data.access_token, data.user); // 同时落 cmab_user，供门户/其他子系统共用
       onSuccess();
     } catch (e) {
       const err = e as {

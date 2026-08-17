@@ -1,22 +1,35 @@
 import axios from "axios";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8070";
+// 默认 "/usp"：所有 "/api/..." 调用实际发到 /usp/api/...，经统一门户 nginx（5100）剥掉 /usp 到后端 8070。
+// 一律相对路径、同源，不写死 host:端口（.env.local 里也请写 /usp）。
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/usp";
 
 export const http = axios.create({ baseURL: API_BASE });
 
 // ============ 统一认证（MDM 代理登录，规范见 ~/code/CLAUDE.md §8） ============
-
-const TOKEN_KEY = "usp_dashboard_token";
+// ★ 全公司统一令牌 key（cmab-hub 统一门户 2026-08-17 拍板）：
+//   localStorage['cmab_access_token'] = MDM access token 原文；localStorage['cmab_user'] = 登录返回的 user 对象
+//   各子系统同源挂在 5100 之下、都读同一个 key → 门户登录一次，到处免登。
+const TOKEN_KEY = "cmab_access_token";
+const USER_KEY = "cmab_user";
+const LEGACY_TOKEN_KEY = "usp_dashboard_token"; // 旧 key：读到就迁移一次然后删掉
+if (typeof window !== "undefined") {
+  const old = localStorage.getItem(LEGACY_TOKEN_KEY);
+  if (old && !localStorage.getItem(TOKEN_KEY)) localStorage.setItem(TOKEN_KEY, old);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
-export function setToken(t: string) {
+export function setToken(t: string, user?: unknown) {
   localStorage.setItem(TOKEN_KEY, t);
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 // 每个请求带上令牌；401 = 令牌失效 → 清掉并通知 AuthGate 回登录页
