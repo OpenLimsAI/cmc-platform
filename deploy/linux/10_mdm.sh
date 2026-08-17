@@ -3,7 +3,7 @@
 source "$(dirname "$0")/00_common.sh"
 cd /opt/cmab-mdm-platform
 log "拉取代码"; git pull -q; git log --oneline -1
-log "重建前端"; (cd frontend && pnpm install --frozen-lockfile >/dev/null && pnpm build 2>&1 | grep -E "error TS|✓ built" || true)
+log "重建前端"; (cd frontend && pnpm install --frozen-lockfile >/dev/null && pnpm build 2>&1 | tail -3)
 grep -o 'src="[^"]*"' frontend/dist/index.html | head -1
 log "nginx：换成仓库受管副本 + 只听本机"
 backup /etc/nginx/conf.d/cmab-mdm.conf

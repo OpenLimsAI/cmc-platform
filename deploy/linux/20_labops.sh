@@ -3,7 +3,7 @@
 source "$(dirname "$0")/00_common.sh"
 cd /opt/cmc-labops
 log "拉取代码"; git pull -q; git log --oneline -1
-log "重建前端"; (cd frontend-react && npm install --silent && npm run build 2>&1 | grep -E "error TS|✓ built" || true)
+log "重建前端"; (cd frontend-react && npm install --silent && npm run build 2>&1 | tail -3)
 grep -o 'src="[^"]*"' frontend-react/dist/index.html | head -1
 log "nginx：加 /labops/ 伺服 + /labops/api/ 转发 + 只听本机"
 CONF=/etc/nginx/conf.d/cmc-labops.conf; backup "$CONF"
