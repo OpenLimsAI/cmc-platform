@@ -136,13 +136,16 @@ export default function Home() {
   // 可见通道：同一物理量（canonical_key 相同）在本批次里若已有首选通道（is_preferred），
   // 别名/旧命名通道就不列——它们数据逐点一样、名字也一样，列出来只会重复。
   // 旧批次没有首选通道时别名照常显示，数据不丢。字典里没有的通道（canonical_key 空）一律显示。
+  // 字典标记 is_active=false 的冗余通道（如 ws01 m_air）不列。
   const visibleChannels = useMemo<Channel[]>(() => {
     const all = channelsQ.data ?? [];
     const preferredKeys = new Set(
       all.filter((c) => c.is_preferred && c.canonical_key).map((c) => c.canonical_key!)
     );
     return all.filter(
-      (c) => c.is_preferred || !c.canonical_key || !preferredKeys.has(c.canonical_key)
+      (c) =>
+        c.is_active !== false &&
+        (c.is_preferred || !c.canonical_key || !preferredKeys.has(c.canonical_key))
     );
   }, [channelsQ.data]);
 

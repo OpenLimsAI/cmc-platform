@@ -120,6 +120,7 @@ async def list_channels(source_instance: str, procid: int):
         d["category"] = meta.category if meta else None
         d["canonical_key"] = meta.canonical_key if meta else None
         d["is_preferred"] = meta.is_preferred if meta else True
+        d["is_active"] = meta.is_active if meta else True  # false = 字典标记为看板不列（冗余通道）
         d["sort_order"] = meta.sort_order if meta else 9999
         d["notes"] = meta.notes if meta else None
         out.append(d)

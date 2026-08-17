@@ -89,6 +89,7 @@ export interface Channel {
   category: string | null; // 分组：培养参数 / 气路 / 加料泵 / 液位/压力 / 阶段/其它
   canonical_key: string | null; // 同一物理量归并键（跨站/别名共用）
   is_preferred: boolean; // 同 canonical_key 内首选通道；别名为 false
+  is_active: boolean; // false = 字典标记为看板不列（与其它通道逐点重复又无法归并的冗余通道）
   sort_order: number; // 字典排序
   notes: string | null;
 }
