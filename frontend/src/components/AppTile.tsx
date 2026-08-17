@@ -41,7 +41,8 @@ export default function AppTile({ app }: { app: HubApp }) {
     </>
   )
 
-  // 子系统是独立应用，用整页跳转（<a href>）而不是前端路由；同源下令牌自动共享。
+  // 子系统是独立应用，用 <a href> 而不是前端路由；同源下令牌自动共享。
+  // 在新标签页打开（负责人 2026-08-17 要求）：门户页保持不动，方便来回切换。
   if (planned) {
     return (
       <div className="tile tile-disabled" aria-disabled>
@@ -50,7 +51,7 @@ export default function AppTile({ app }: { app: HubApp }) {
     )
   }
   return (
-    <a className="tile" href={app.path}>
+    <a className="tile" href={app.path} target="_blank" rel="noopener">
       {body}
     </a>
   )
