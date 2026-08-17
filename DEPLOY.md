@@ -228,7 +228,7 @@ PGPASSWORD='<your-password>' psql -h 127.0.0.1 -U cmc_user \
 ./restart.sh
 ```
 
-**登录(v2.x):** 浏览器开 `http://<server-ip>:5110` → 用 **MDM Portal 的账号**登录
+**登录(v2.x):** 浏览器开统一门户 `http://<server-ip>:5100` 登录（MDM 账号）→ 点“实验室运营 LabOps”图标（= `/labops/`）；`:5110` 直连已关闭
 (本系统代理 MDM /auth/login,本地不建用户)。账号/角色/改密都在 MDM Portal 操作;
 LabOps 写权限角色:SYS_ADMIN / CMC_WAREHOUSE_ADMIN(物料) / CMC_EQUIPMENT_ADMIN(设备)。
 
