@@ -1,0 +1,57 @@
+import {
+  AppstoreOutlined,
+  BarcodeOutlined,
+  CalculatorOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  ExperimentOutlined,
+  LineChartOutlined,
+} from '@ant-design/icons'
+import { Tag } from 'antd'
+import type { ReactNode } from 'react'
+
+import type { HubApp } from '@/config/apps'
+
+// 图标名 → 图标组件。注册表里 icon 字段填这里的 key；没有的回退到 appstore。
+const ICONS: Record<string, ReactNode> = {
+  database: <DatabaseOutlined />,
+  experiment: <ExperimentOutlined />,
+  barcode: <BarcodeOutlined />,
+  'line-chart': <LineChartOutlined />,
+  dashboard: <DashboardOutlined />,
+  calculator: <CalculatorOutlined />,
+}
+
+export default function AppTile({ app }: { app: HubApp }) {
+  const planned = app.status === 'planned'
+  const body = (
+    <>
+      <div className="tile-icon" style={{ background: planned ? '#bfbfbf' : app.color }}>
+        {ICONS[app.icon] ?? <AppstoreOutlined />}
+      </div>
+      <div className="tile-name">
+        {app.name}
+        {planned && (
+          <Tag color="default" style={{ marginLeft: 8 }}>
+            建设中
+          </Tag>
+        )}
+      </div>
+      <div className="tile-desc">{app.description}</div>
+    </>
+  )
+
+  // 子系统是独立应用，用整页跳转（<a href>）而不是前端路由；同源下令牌自动共享。
+  if (planned) {
+    return (
+      <div className="tile tile-disabled" aria-disabled>
+        {body}
+      </div>
+    )
+  }
+  return (
+    <a className="tile" href={app.path}>
+      {body}
+    </a>
+  )
+}

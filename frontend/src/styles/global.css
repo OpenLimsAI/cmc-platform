@@ -1,0 +1,73 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f0f2f5;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+/* ── 登录页 ── */
+.login-bg {
+  min-height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(1200px 600px at 20% 0%, #dbeafe 0%, transparent 60%),
+              radial-gradient(900px 500px at 100% 100%, #e0f2fe 0%, transparent 60%),
+              #f0f2f5;
+  padding: 24px;
+}
+.login-card {
+  width: 380px; max-width: 100%;
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  padding: 36px 32px 28px;
+}
+.login-brand { text-align: center; margin-bottom: 28px; }
+.login-logo {
+  display: inline-block; margin-bottom: 12px;
+  font-weight: 800; letter-spacing: 3px; font-size: 14px;
+  color: #fff; background: #1677ff; padding: 4px 12px; border-radius: 6px;
+}
+
+/* ── 门户主页 ── */
+.hub { min-height: 100%; display: flex; flex-direction: column; }
+.hub-header {
+  height: 56px; padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: #001529; color: #fff;
+}
+.hub-brand { display: flex; align-items: center; gap: 10px; }
+.hub-logo {
+  font-weight: 800; letter-spacing: 3px; font-size: 13px;
+  background: #1677ff; padding: 3px 10px; border-radius: 5px;
+}
+.hub-title { font-size: 18px; font-weight: 600; letter-spacing: 2px; }
+.hub-user { color: rgba(255, 255, 255, 0.85); }
+.hub-dept { color: rgba(255, 255, 255, 0.55); }
+.hub-main { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 32px 28px 48px; }
+
+/* ── 图标墙 ── */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+.tile {
+  display: block; text-decoration: none; color: inherit;
+  background: #fff; border-radius: 12px; padding: 24px 20px 20px;
+  border: 1px solid #f0f0f0;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
+  border-color: #d9e6ff;
+}
+.tile-disabled { cursor: not-allowed; opacity: .6; }
+.tile-disabled:hover { transform: none; box-shadow: none; border-color: #f0f0f0; }
+.tile-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 28px; margin-bottom: 16px;
+}
+.tile-name { font-size: 16px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; }
+.tile-desc { font-size: 13px; color: rgba(0, 0, 0, 0.5); line-height: 1.5; }
