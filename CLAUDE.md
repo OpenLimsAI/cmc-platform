@@ -17,7 +17,7 @@
 
 - **同源是 SSO 的关键**：所有子系统都反代到 `localhost:5100` 之下 → 令牌天然共享。**动手前先和各子系统对齐令牌形态**（都用 localStorage 还是 cookie），别一半一半。
 - **深版主要工作量在改子系统**，不在门户本身：每个现有前端要支持"挂子路径"（Vite `base`/Router `basename`/相对 API；Next 用 `basePath`）。详见设计方案 §7。
-- **批号系统**从一开始就按 `/batch/` 子路径 + 相对 API 写，接门户零改动——不用你替它改。
+- **批号系统**：2026-08-17 已由门户窗口按同一套路改完并纳入（`/batch/` + 统一 key），负责人拍板。
 
 ## 现状（2026-08-17）
 
@@ -25,10 +25,9 @@
 - ✅ nginx 反代 `nginx/`：5100 唯一入口，路由表两边共用；**Mac brew nginx 已上线**。约定：`/xxx/api/` 剥前缀转后端；`/xxx/` **不剥**，前端自己认前缀（Vite `base` / Next `basePath`）。
 - ✅ 统一令牌 key `cmab_access_token` + `cmab_user`（设计方案 §5）；子系统旧 key 自动迁移。
 - ✅ 子系统已改完并推 GitHub：**MDM**(`/mdm/`)、**LabOps**(`/labops/`)、**usp 看板**(`/usp`)、**LIMS 看板**(`/lims`)。Mac 上 SSO 实测：门户登录一次，四个系统全部免登。
-- ⬜ **批号管理**由批号窗口自己改（`/batch/` + 统一 key，抄 LabOps `src/shared/base.ts`）——门户不替它改。
+- ✅ **批号管理**已纳入（2026-08-17，负责人指示由门户窗口改）：`/batch/` + 统一 key；Linux 已部署、5180 只听本机；注册表 batch→live。
 - ⬜ 成本模型未纳入本轮（注册表里标 planned）。
 - ✅ **Linux 已上线（2026-08-17）**：`/opt/cmab-hub` + nginx 5100；MDM/LabOps/usp/LIMS 已 pull+build 并挂上，**前后端全部改为只听 127.0.0.1**（内网老端口不可达）。部署脚本 `deploy/linux/*.sh`（可重复跑）。
-- ⬜ 防火墙 `deploy/linux/50_firewall.sh`（只放行 13568/5100/5180）待负责人亲自执行（自动模式不允许我改防火墙）。
-- ⬜ 5180 批号系统临时仍对外；批号窗口按 `/batch/` 改完部署后：其 nginx 改 listen 127.0.0.1 + `sudo ufw delete allow 5180/tcp`。
+- ⬜ 防火墙 `deploy/linux/50_firewall.sh`（只放行 13568/5100）待负责人亲自执行（自动模式不允许我改防火墙）。
 - ⬜ 界面美化放最后（负责人拍板：先功能后界面）。
 - 已知：LIMS 看板导航栏有个 hydration 告警（当前页高亮 SSR/客户端不一致），老问题，与门户无关。
