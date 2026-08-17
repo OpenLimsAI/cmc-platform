@@ -7,7 +7,8 @@
 - `CLAUDE.md` —— 项目全貌、技术栈、**数据在哪怎么连**、治理规矩、数据模型。**先读它。**
 - `backend/` —— 一个能跑的最小 FastAPI 后端（asyncpg 连 `cmc_rd`），已实现 3 个接口：
   - `GET /api/batches` —— 批次列表（含批次名、反应器、起止时间）
-  - `GET /api/batches/{source_instance}/{procid}/channels` —— 该批次有哪些通道
+  - `GET /api/batches/{source_instance}/{procid}/channels` —— 该批次有哪些通道（已带人话名 `display_name`、分组 `category`，来自 `cmc_analytics.dim.channel_dict`）
+  - `GET /api/channel-dict` —— 通道字典全表
   - `GET /api/series` —— 某批次某通道的**降采样**曲线（画图用）
 - `.env.example` —— 复制成 `.env` 填数据库连接。
 - `docs/` —— 放设计文档。

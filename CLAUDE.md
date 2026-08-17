@@ -10,7 +10,7 @@
 
 一个 **USP 上游多源分析看板**。顶部两个视图切换：
 
-1. **工艺曲线**（Lucullus）：看生物反应器 USP 上游工艺的**时序数据**——温度、pH、溶氧、搅拌、气体、液位、泵等 49 个通道随时间变化的曲线，横轴培养小时。数据来自 `rd-lucullus-etl`（工作站 Oracle → PostgreSQL）。
+1. **工艺曲线**（Lucullus）：看生物反应器 USP 上游工艺的**时序数据**——温度、pH、溶氧、搅拌、气体、液位、泵等通道（ETL 白名单 78 个）随时间变化的曲线，横轴培养小时。数据来自 `rd-lucullus-etl`（工作站 Oracle → PostgreSQL）。
 2. **细胞生长曲线**（Vi-CELL）：看 Beckman Vi-CELL XR 细胞计数的**生长曲线**——活细胞密度 + 活率随培养天变化（双轴）。数据来自 `rd-vicell-etl`。
 
 **多源定位**：三者同批次/同罐/同培养天，最终能叠着看。将来还会加生化分析仪结果曲线。
@@ -67,6 +67,11 @@
 - 主键 `(source_system, source_instance, procid... )`；查单批次走索引 `(source_instance, procid)`，快。
 - 一个批次可能有上百万个采样点 → **画图前要降采样**（后端已给示例：按时间分桶取平均）。
 - 参考表在同一个 schema 下（`process_src` 批次信息、`reactor_src` 反应器、`logiporttype_src` 通道字典、`unit_src` 单位等），需要更多元信息时 join。
+- **通道的人话名 / 分组 / 单位 / 归并键来自 `cmc_analytics.dim.channel_dict`**（2026-08-17 起，权威在数据库、不在代码里硬编码）。
+  后端 `app/channel_dict.py` 读它（进程内缓存 10 分钟；读不到就回退显示 `channel_code`），`/channels` 接口已合并
+  `display_name` / `category` / `canonical_key` / `is_preferred` / `sort_order`，另有 `GET /api/channel-dict` 查全表。
+  改显示名 = 在 `cmc-schema-migrations` 里写一条 UPDATE 迁移改那张表，**不要**在前端/后端写通道名字典。
+  同一物理量在两站/别名下的通道共用 `canonical_key`（如 ws01 的 `m_o2` 与 ws02 的 `m_mfc3` 都是 `mfc3_flow`），做跨站对比按它归并。
 - 目前库里已有数据：ws01 / ws02 的 2025、2026 年批次，约 92 批、3300 万行。更早年份 ETL 那边随时可补。
 
 ### 细胞计数（Vi-CELL）
