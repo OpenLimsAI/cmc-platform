@@ -3,8 +3,8 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: rgba(0, 0, 0, 0.88);
-  /* 与 MDM / LabOps / 批号 登录页同一套蓝（#1F4E79 → #2E75B6），全公司入口一个色系 */
-  background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%) fixed;
+  /* 门户背景（2026-08-17 负责人定稿）：主色 rgb(31,56,100)=#1F3864，135° 轻微向亮过渡 */
+  background: linear-gradient(135deg, #1F3864 0%, #264573 100%) fixed;
 }
 
 /* ── 登录页 ── */
@@ -23,7 +23,7 @@ body {
 .login-logo {
   display: inline-block; margin-bottom: 12px;
   font-weight: 800; letter-spacing: 3px; font-size: 14px;
-  color: #fff; background: #1F4E79; padding: 4px 12px; border-radius: 6px;
+  color: #fff; background: #1F3864; padding: 4px 12px; border-radius: 6px;
 }
 
 /* ── 门户主页 ── */
@@ -50,10 +50,6 @@ body {
   display: flex; flex-direction: column; justify-content: center;
 }
 .hub-note { display: block; text-align: center; margin-top: 24px; font-size: 12px; color: rgba(255, 255, 255, 0.7); }
-
-/* ── 背景色（临时预览开关 data-bg：1=#253761 2=#1F3864；默认 body 上的蓝渐变）── */
-.hub[data-bg="1"] { background: #253761; }
-.hub[data-bg="2"] { background: #1F3864; }
 
 /* ── 图标墙：固定一行 4 个正方形磁贴，整体居中 ── */
 .tile-grid {
