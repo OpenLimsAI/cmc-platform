@@ -51,7 +51,7 @@ export const HUB_APPS: HubApp[] = [
     icon: 'barcode',
     path: '/batch/',
     requires: ['CMC_USP_OPERATOR', 'CMC_USP_RESEARCHER', 'CMC_USP_MANAGER'],
-    status: 'planned',
+    status: 'live',
     color: '#722ed1',
   },
   {
