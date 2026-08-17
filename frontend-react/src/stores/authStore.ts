@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { User } from "../api/auth";
+import { TOKEN_KEY, USER_KEY, stripBase, withBase } from "../shared/base";
 
 interface AuthState {
   token: string | null;
@@ -12,10 +13,10 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  token: localStorage.getItem("token"),
+  token: localStorage.getItem(TOKEN_KEY),
   user: (() => {
     try {
-      const s = localStorage.getItem("user");
+      const s = localStorage.getItem(USER_KEY);
       return s ? JSON.parse(s) : null;
     } catch {
       return null;
@@ -23,14 +24,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   })(),
 
   setAuth: (token: string, user: User) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
     set({ token, user });
   },
 
   clearAuth: () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     set({ token: null, user: null });
   },
 
@@ -48,11 +49,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 // token 被清(别处登出)→本标签也清并回登录页;token 变化(别处续期)→同步新值。
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
-    if (e.key !== "token") return;
+    if (e.key !== TOKEN_KEY) return;
     if (!e.newValue) {
       useAuthStore.setState({ token: null, user: null });
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      if (stripBase(window.location.pathname) !== "/login") {
+        window.location.href = withBase("/login");
       }
     } else {
       useAuthStore.setState({ token: e.newValue });

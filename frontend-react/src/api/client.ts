@@ -1,6 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { BASE, TOKEN_KEY, USER_KEY, stripBase, withBase } from "../shared/base";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+// 默认 = /labops：所有 "/api/..." 调用实际发到 /labops/api/...，经 HUB nginx（或本地 vite 代理）剥掉 /labops 到后端
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || BASE;
 
 // 主客户端:携带 refresh Cookie(withCredentials),并挂续期拦截器
 const client = axios.create({
@@ -16,7 +18,6 @@ const bare = axios.create({
   withCredentials: true,
 });
 
-const TOKEN_KEY = "token";
 const REFRESH_AHEAD_MS = 5 * 60 * 1000; // access 剩余 < 5 分钟时主动续期
 
 function getToken(): string | null {
@@ -35,9 +36,9 @@ function tokenExpMs(token: string): number {
 
 function forceLogout() {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem("user");
-  if (window.location.pathname !== "/login") {
-    window.location.href = "/login";
+  localStorage.removeItem(USER_KEY);
+  if (stripBase(window.location.pathname) !== "/login") {
+    window.location.href = withBase("/login");
   }
 }
 

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BASE } from "./shared/base";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -44,7 +45,7 @@ export default function App() {
           },
         }}
       >
-        <BrowserRouter>
+        <BrowserRouter basename={BASE}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route

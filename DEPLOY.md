@@ -141,9 +141,15 @@ server {
 
     location /api/   { proxy_pass http://127.0.0.1:8010; }
     location = /health { proxy_pass http://127.0.0.1:8010/health; }
-    location /       { try_files $uri $uri/ /index.html; }
+
+    # 2026-08-17 起前端挂在统一门户 cmab-hub 的 /labops/ 子路径下(vite base:'/labops/'),
+    # 静态包按 /labops/ 伺服;HUB nginx(5100) 把 /labops/ 原样转到本机 5110、/labops/api/ 剥前缀转到 8010。
+    location = /       { return 302 /labops/; }
+    location /labops/  { alias /opt/cmc-labops/frontend-react/dist/; try_files $uri $uri/ /labops/index.html; }
 }
 ```
+
+> ⚠️ 前端 base 改成 `/labops/` 后,**没有上面 `location /labops/` 这条,直连 5110 会白屏**——部署时务必同步改 conf 并 reload。
 
 > MDM 前端同理:`/etc/nginx/conf.d/cmab-mdm.conf`,`listen 15173` → root `/opt/cmab-mdm-platform/frontend/dist`,
 > `/api` 反代 `127.0.0.1:18000`。
