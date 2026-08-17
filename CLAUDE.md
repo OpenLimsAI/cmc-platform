@@ -28,6 +28,6 @@
 - ✅ **批号管理**已纳入（2026-08-17，负责人指示由门户窗口改）：`/batch/` + 统一 key；Linux 已部署、5180 只听本机；注册表 batch→live。
 - ⬜ 成本模型未纳入本轮（注册表里标 planned）。
 - ✅ **Linux 已上线（2026-08-17）**：`/opt/cmab-hub` + nginx 5100；MDM/LabOps/usp/LIMS 已 pull+build 并挂上，**前后端全部改为只听 127.0.0.1**（内网老端口不可达）。部署脚本 `deploy/linux/*.sh`（可重复跑）。
-- ⬜ 防火墙 `deploy/linux/50_firewall.sh`（只放行 13568/5100）待负责人亲自执行（自动模式不允许我改防火墙）。
+- ✅ 防火墙已启用（2026-08-17 负责人执行 `deploy/linux/50_firewall.sh`）：ufw 只放行 13568(SSH)/5100；Mac 侧实测其余端口全部不可达。**以后在 Linux 新开对外端口必须同时加 ufw 规则**（`sudo ufw allow <port>/tcp comment '...'`），否则内网访问不到。
 - ⬜ 界面美化放最后（负责人拍板：先功能后界面）。
 - 已知：LIMS 看板导航栏有个 hydration 告警（当前页高亮 SSR/客户端不一致），老问题，与门户无关。
