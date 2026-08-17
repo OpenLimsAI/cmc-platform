@@ -5,6 +5,10 @@
 // 方便习惯看 Excel 的同事直接读数 / 导出 CSV 回 Excel。
 import { useMemo } from "react";
 import type { DailyTableRow, OverviewBatch } from "@/lib/api";
+import { useAuth } from "@/components/AuthGate";
+
+// 允许导出 CSV 的角色（负责人 2026-08-17 定：仅上游经理；SYS_ADMIN 是 MDM 规范超管）
+const EXPORT_ROLES = new Set(["SYS_ADMIN", "CMC_USP_MANAGER"]);
 
 // 列定义：key 对齐后端返回字段；label/unit 给表头；digits 控制小数位
 interface Col {
@@ -118,6 +122,11 @@ export function DailyTable({
     return m;
   }, [batches]);
 
+  // 导出权限：仅上游经理/超管可见导出按钮（本地开放模式不限）
+  const { user } = useAuth();
+  const canExport =
+    !!user && (user.is_system || user.roles.some((r) => EXPORT_ROLES.has(r)));
+
   // 导出 CSV（Excel 直接能开；加 BOM 防中文乱码）
   function exportCsv() {
     const head = [
@@ -194,12 +203,16 @@ export function DailyTable({
           <span className="text-amber-600">⚠ 黄色</span>
           = 样本名不规范、解析存疑（错在录入还是解析，看原始样本名即可判断）
         </span>
-        <button
-          onClick={exportCsv}
-          className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
-        >
-          ⬇ 导出 CSV（Excel 可开）
-        </button>
+        {canExport ? (
+          <button
+            onClick={exportCsv}
+            className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+          >
+            ⬇ 导出 CSV（Excel 可开）
+          </button>
+        ) : (
+          <span className="text-xs text-slate-300">导出功能仅限上游经理</span>
+        )}
       </div>
       <div className="max-h-[32rem] overflow-auto p-4 pt-2">
         <table className="w-full whitespace-nowrap text-right text-xs">
