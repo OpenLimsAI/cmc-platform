@@ -8,6 +8,16 @@ import AppTile from '@/components/AppTile'
 import { HUB_APPS } from '@/config/apps'
 import { authStore, useAuth } from '@/stores/authStore'
 
+// 按时段问候（参考 Claude 首页的 "Evening, how are things?"）
+function greeting(): { hello: string; sub: string } {
+  const h = new Date().getHours()
+  if (h < 5) return { hello: '夜深了', sub: '辛苦了，注意休息。' }
+  if (h < 11) return { hello: '早上好', sub: '新的一天，从哪里开始？' }
+  if (h < 13) return { hello: '中午好', sub: '先吃饭，事情不急。' }
+  if (h < 18) return { hello: '下午好', sub: '今天想从哪里开始？' }
+  return { hello: '晚上好', sub: '还在忙？挑一个进去吧。' }
+}
+
 export default function HubPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -55,6 +65,14 @@ export default function HubPage() {
             }
           />
         )}
+
+        <div className="hub-greeting">
+          <h1>
+            {greeting().hello}
+            {user?.full_name ? `，${user.full_name}` : ''}
+          </h1>
+          <p>{greeting().sub}</p>
+        </div>
 
         {visible.length === 0 ? (
           <Alert
