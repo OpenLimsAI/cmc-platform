@@ -145,6 +145,7 @@ server {
     # 2026-08-17 起前端挂在统一门户 cmab-hub 的 /labops/ 子路径下(vite base:'/labops/'),
     # 静态包按 /labops/ 伺服;HUB nginx(5100) 把 /labops/ 原样转到本机 5110、/labops/api/ 剥前缀转到 8010。
     location = /       { return 302 /labops/; }
+    location /labops/api/ { proxy_pass http://127.0.0.1:8010/api/; }   # 直连 5110 时前端调 /labops/api/…，剥前缀转后端
     location /labops/  { alias /opt/cmc-labops/frontend-react/dist/; try_files $uri $uri/ /labops/index.html; }
 }
 ```
