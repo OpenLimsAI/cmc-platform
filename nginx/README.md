@@ -27,9 +27,9 @@
 |---|---|---|---|---|
 | MDM | ✅ 2026-08-17 | ✅（旧 key 自动迁移） | 副本在 `cmab-mdm-platform/deploy/nginx/linux-host/`，待部署时 cp | 抄写模板：`frontend/src/shared/base.ts` |
 | LabOps | ✅ 2026-08-17 | ✅（旧 key 自动迁移） | 片段在 `cmc-labops/DEPLOY.md` §4b，部署时改 `/etc/nginx/conf.d/cmc-labops.conf` | Mac 上 SSO 实测通过（门户登录→LabOps 免登） |
-| 批号管理 | ⬜ | ⬜ | ⬜ | |
-| 上游看板（Next） | ⬜ | — | — | |
-| LIMS 看板（Next） | ⬜ | ⬜ | — | |
+| 批号管理 | ⬜ **由批号窗口自己做**（vite base:'/batch/' + basename + API /batch/api + 读统一 key，抄 LabOps） | ⬜ | ⬜ | 门户 CLAUDE.md 约定：不替它改 |
+| 上游看板（Next） | ✅ 2026-08-17 basePath:'/usp' | ✅（旧 key 自动迁移） | —（Linux 也是 next dev/start，自认前缀） | 本机 `.env.local` 已改 `/usp`；Linux 上 `.env.local` 也要改 |
+| LIMS 看板（Next） | ✅ 2026-08-17 basePath:'/lims' | ✅（旧 key 自动迁移） | —（同上） | 本机 `.env.local` 已改 `/lims`；Linux 上也要改 |
 | 成本模型 | ⬜ | ⬜ | ⬜ | |
 
 上游一律写 `localhost` 不写 `127.0.0.1`（Mac 上 Vite dev 只听 IPv6）。

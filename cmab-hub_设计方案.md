@@ -92,8 +92,9 @@ apps:
 |---|---|---|
 | MDM | React + Vite | ✅ 2026-08-17 已改：`base: '/mdm/'`、`basename`、API `/mdm/api/v1`、authStore 读统一 key（`frontend/src/shared/base.ts` 可当模板） |
 | LabOps | React + Vite | ✅ 2026-08-17 已改（前缀 `/labops/`，统一 key），SSO 实测通过 |
-| 批号管理 | React + Vite | 同上，前缀 `/batch/`（新项目，建议**一开始就按子路径写**，省得回头改） |
-| 上游工艺看板 | Next.js | `next.config` 设 `basePath: '/usp'`、`assetPrefix` |
+| 批号管理 | React + Vite | ⬜ **待批号窗口做**：前缀 `/batch/` + 读统一 key（截至 2026-08-17 其 vite.config 尚未配 base；抄 LabOps 的 `src/shared/base.ts`） |
+| 上游工艺看板 | Next.js | ✅ 2026-08-17 已改 `basePath:'/usp'` + API 相对 + 统一 key |
+| LIMS 看板 | Next.js | ✅ 2026-08-17 已改 `basePath:'/lims'` + API 相对 + 统一 key |
 
 **通用铁律**：所有 API 调用**一律用相对路径**（`/xxx/api/...`），**绝不写死 `host:端口`**；各后端确认反代下的路径前缀、CORS、cookie domain 都对得上。
 
@@ -117,8 +118,8 @@ apps:
 - [ ] 与 MDM 窗口对齐：提供"我可访问的应用/角色"接口 + 统一令牌形态。
 - [x] 应用注册表配置（§6）落地。（已随脚手架落地为 `frontend/src/config/apps.ts`）
 - [x] nginx 单入口反代配置（§4 的 5100 path 路由）。（2026-08-17 完成：`nginx/` 目录；Mac brew nginx 已上线 5100，Linux 待仓库落地后软链，见 `nginx/README.md`）
-- [ ] 逐个子系统改子路径 base（§7：MDM / LabOps / 批号 / usp…）。
-- [ ] **SSO 验证**：登录一次，点各图标进子系统全部免登。
+- [~] 逐个子系统改子路径 base（§7）：✅ MDM / LabOps / usp / LIMS（2026-08-17）；⬜ 批号（批号窗口做）；⬜ 成本模型（未纳入本轮）。
+- [~] **SSO 验证**：Mac 上 2026-08-17 实测门户登录 → MDM / LabOps / usp / LIMS 全部免登 ✅；Linux 部署后再验一遍。
 - [ ] `PORTS.md` 把 5100 状态从「规划中」改「在用」。
 - [ ] 部署（Mac nginx + Linux `/opt/cmab-hub` nginx/systemd）。
 

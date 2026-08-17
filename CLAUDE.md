@@ -21,11 +21,12 @@
 
 ## 现状（2026-08-17）
 
-- ✅ §10 ① 前端脚手架：`frontend/`（登录页转 MDM + 图标墙 + 按角色显隐 + 退出），`pnpm build` 通过、浏览器验证过。
-- ✅ §10 ③ 应用注册表：`frontend/src/config/apps.ts`；显隐规则 `src/auth/access.ts`。
-- ✅ §10 ④ nginx 反代：`nginx/`（`hub-locations.conf` 路由表两边共用 + mac/linux 两份 server）。**Mac 已上线**：brew nginx 听 5100、伺服 dist、`/mdm/*` `/labops/*` 全通。Linux 待仓库落地后软链（`nginx/README.md`）。
-- **令牌统一 key 已拍板**：`cmab_access_token` + `cmab_user`（设计方案 §5），门户已按此写；子系统各自改读，门户不做桥接。
-- 端口：**5100 = nginx（唯一对外门）**；`5101` = 门户 Vite dev（只在单独调界面时用）。
-- ✅ MDM 前端已改完（子路径 + 统一 key），本地经 5100/mdm/ 验证通过；MDM 仓库已本地提交待 push。**nginx 前端一路不剥前缀**（Vite dev 只认带前缀请求），已更新路由表。
-- **下一步**：§10 ② 与 MDM 窗口对齐 → ⑤ 逐个子系统改子路径（Vite：base/basename/API 相对路径 + 读统一 key；Next：basePath）→ ⑥ SSO 验证 → PORTS.md 改「在用」→ Linux 部署。
-- 已知待拍板：`apps.ts` 里各应用 `requires` 角色码是按子系统现有代码填的默认值，最终以 MDM 后台为准。
+- ✅ 前端脚手架 `frontend/`（登录页转 MDM + 图标墙 + 按角色显隐）、应用注册表 `src/config/apps.ts`。
+- ✅ nginx 反代 `nginx/`：5100 唯一入口，路由表两边共用；**Mac brew nginx 已上线**。约定：`/xxx/api/` 剥前缀转后端；`/xxx/` **不剥**，前端自己认前缀（Vite `base` / Next `basePath`）。
+- ✅ 统一令牌 key `cmab_access_token` + `cmab_user`（设计方案 §5）；子系统旧 key 自动迁移。
+- ✅ 子系统已改完并推 GitHub：**MDM**(`/mdm/`)、**LabOps**(`/labops/`)、**usp 看板**(`/usp`)、**LIMS 看板**(`/lims`)。Mac 上 SSO 实测：门户登录一次，四个系统全部免登。
+- ⬜ **批号管理**由批号窗口自己改（`/batch/` + 统一 key，抄 LabOps `src/shared/base.ts`）——门户不替它改。
+- ⬜ 成本模型未纳入本轮（注册表里标 planned）。
+- ⬜ **Linux 部署**：`/opt/cmab-hub` 拉库 + build + 软链 nginx（`nginx/README.md`）；各子系统 pull + build + 改各自 nginx `location /xxx/`（MDM/LabOps 片段已备好）+ 两个 Next 看板改 `.env.local`；然后 Linux 上再验一遍 SSO；`PORTS.md` 改「在用」。
+- ⬜ 界面美化放最后（负责人拍板：先功能后界面）。
+- 已知：LIMS 看板导航栏有个 hydration 告警（当前页高亮 SSR/客户端不一致），老问题，与门户无关。
