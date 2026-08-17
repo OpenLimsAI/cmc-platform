@@ -102,3 +102,10 @@ uv run uvicorn app.main:app --reload --port 8070
 ```
 
 先复制 `.env.example` 为 `.env` 并填好 `RAW_DATABASE_URL`（工艺曲线，必填）与 `ANALYTICS_DATABASE_URL`（细胞曲线，选填）。两者走同一 SSH 隧道 / Linux 本机，只换库名。前端 `cd frontend && npm run dev`（端口 5170）。
+
+## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
+
+- 本系统已挂在统一门户之下：正式入口 **http://172.19.0.105:5100/usp**（Linux 上本系统前后端只听 127.0.0.1，老端口内网不可达）。Mac 本地同样经 `localhost:5100/usp`。
+- 前端**自己认前缀** `/usp`：`next.config.ts` `basePath:'/usp'`（含 redirects/rewrites 供直连时用）；`lib/api.ts` `API_BASE` 默认 `/usp`。API 一律相对路径 `/usp/api/...`，由门户 nginx 剥掉前缀转给后端（后端路由不变）。**不要**写死 host:端口，**不要**用不带前缀的绝对路径跳转/引资源。
+- 登录态用**全公司统一 key**：`localStorage['cmab_access_token']`（MDM JWT）+ `localStorage['cmab_user']`（MDM 登录响应 user 对象）；同源共享 → 门户登录一次这里免登。别再改回私有 key。 `frontend/.env.local` 的 `NEXT_PUBLIC_API_BASE` 必须是 `/usp`（不进 git，Mac/Linux 都已改）。
+- 门户侧配置/路由/部署脚本在 `~/code/cmab-hub`（`nginx/hub-locations.conf`、`deploy/linux/`），约定见其 `CLAUDE.md`。
