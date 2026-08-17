@@ -26,7 +26,7 @@
 | 子系统 | 前端改造 | 统一 key | Linux 子系统 nginx | 备注 |
 |---|---|---|---|---|
 | MDM | ✅ 2026-08-17 | ✅（旧 key 自动迁移） | 副本在 `cmab-mdm-platform/deploy/nginx/linux-host/`，待部署时 cp | 抄写模板：`frontend/src/shared/base.ts` |
-| LabOps | ⬜ | ⬜ | ⬜ | |
+| LabOps | ✅ 2026-08-17 | ✅（旧 key 自动迁移） | 片段在 `cmc-labops/DEPLOY.md` §4b，部署时改 `/etc/nginx/conf.d/cmc-labops.conf` | Mac 上 SSO 实测通过（门户登录→LabOps 免登） |
 | 批号管理 | ⬜ | ⬜ | ⬜ | |
 | 上游看板（Next） | ⬜ | — | — | |
 | LIMS 看板（Next） | ⬜ | ⬜ | — | |
