@@ -51,6 +51,37 @@ body {
 }
 .hub-note { display: block; text-align: center; margin-top: 24px; font-size: 12px; color: rgba(255, 255, 255, 0.7); }
 
+/* ── 磁贴风格（临时预览开关 data-style，选定后删多余的）──
+   glass：磨砂玻璃半透明白磁贴（默认/推荐）；bare：无卡片只留大图标；dark：半透明深色磁贴 */
+.hub[data-style="glass"] .tile,
+.hub[data-style="dark"] .tile {
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.hub[data-style="glass"] .tile { background: rgba(255, 255, 255, 0.14); }
+.hub[data-style="glass"] .tile:hover { background: rgba(255, 255, 255, 0.22); }
+.hub[data-style="dark"] .tile { background: rgba(10, 30, 60, 0.42); border-color: rgba(255, 255, 255, 0.16); }
+.hub[data-style="dark"] .tile:hover { background: rgba(10, 30, 60, 0.55); }
+.hub[data-style="glass"] .tile-desc,
+.hub[data-style="dark"] .tile-desc { color: rgba(255, 255, 255, 0.72); }
+.hub[data-style="glass"] .tile-icon,
+.hub[data-style="dark"] .tile-icon { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); }
+.hub[data-style="glass"] .tile-disabled,
+.hub[data-style="dark"] .tile-disabled { opacity: .5; }
+
+.hub[data-style="bare"] .tile-grid { gap: 32px 40px; grid-template-columns: repeat(4, 160px); }
+.hub[data-style="bare"] .tile {
+  background: transparent; box-shadow: none; color: #fff; padding: 8px 4px; aspect-ratio: auto;
+  border-radius: 12px; justify-content: flex-start;
+}
+.hub[data-style="bare"] .tile:hover { background: rgba(255, 255, 255, 0.10); box-shadow: none; transform: translateY(-3px); }
+.hub[data-style="bare"] .tile-icon { width: 88px; height: 88px; border-radius: 22px; font-size: 44px; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3); }
+.hub[data-style="bare"] .tile-name { font-size: 15px; }
+.hub[data-style="bare"] .tile-desc { display: none; }
+.hub[data-style="bare"] .tile-disabled { opacity: .5; }
+
 /* ── 图标墙：固定一行 4 个正方形磁贴，整体居中 ── */
 .tile-grid {
   display: grid;
