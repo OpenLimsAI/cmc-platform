@@ -120,8 +120,8 @@ apps:
 - [x] nginx 单入口反代配置（§4 的 5100 path 路由）。（2026-08-17 完成：`nginx/` 目录；Mac brew nginx 已上线 5100，Linux 待仓库落地后软链，见 `nginx/README.md`）
 - [~] 逐个子系统改子路径 base（§7）：✅ MDM / LabOps / usp / LIMS（2026-08-17）；⬜ 批号（批号窗口做）；⬜ 成本模型（未纳入本轮）。
 - [~] **SSO 验证**：Mac 上 2026-08-17 实测门户登录 → MDM / LabOps / usp / LIMS 全部免登 ✅；Linux 部署后再验一遍。
-- [ ] `PORTS.md` 把 5100 状态从「规划中」改「在用」。
-- [ ] 部署（Mac nginx + Linux `/opt/cmab-hub` nginx/systemd）。
+- [x] `PORTS.md` 把 5100 状态从「规划中」改「在用」。（2026-08-17）
+- [x] 部署（Mac nginx + Linux `/opt/cmab-hub` nginx/systemd）。（2026-08-17；子系统只听本机；防火墙脚本待负责人执行）
 
 ## 11. 与批号系统的关系
 

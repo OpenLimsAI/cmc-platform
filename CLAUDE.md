@@ -27,6 +27,8 @@
 - ✅ 子系统已改完并推 GitHub：**MDM**(`/mdm/`)、**LabOps**(`/labops/`)、**usp 看板**(`/usp`)、**LIMS 看板**(`/lims`)。Mac 上 SSO 实测：门户登录一次，四个系统全部免登。
 - ⬜ **批号管理**由批号窗口自己改（`/batch/` + 统一 key，抄 LabOps `src/shared/base.ts`）——门户不替它改。
 - ⬜ 成本模型未纳入本轮（注册表里标 planned）。
-- ⬜ **Linux 部署**：`/opt/cmab-hub` 拉库 + build + 软链 nginx（`nginx/README.md`）；各子系统 pull + build + 改各自 nginx `location /xxx/`（MDM/LabOps 片段已备好）+ 两个 Next 看板改 `.env.local`；然后 Linux 上再验一遍 SSO；`PORTS.md` 改「在用」。
+- ✅ **Linux 已上线（2026-08-17）**：`/opt/cmab-hub` + nginx 5100；MDM/LabOps/usp/LIMS 已 pull+build 并挂上，**前后端全部改为只听 127.0.0.1**（内网老端口不可达）。部署脚本 `deploy/linux/*.sh`（可重复跑）。
+- ⬜ 防火墙 `deploy/linux/50_firewall.sh`（只放行 13568/5100/5180）待负责人亲自执行（自动模式不允许我改防火墙）。
+- ⬜ 5180 批号系统临时仍对外；批号窗口按 `/batch/` 改完部署后：其 nginx 改 listen 127.0.0.1 + `sudo ufw delete allow 5180/tcp`。
 - ⬜ 界面美化放最后（负责人拍板：先功能后界面）。
 - 已知：LIMS 看板导航栏有个 hydration 告警（当前页高亮 SSR/客户端不一致），老问题，与门户无关。
