@@ -74,3 +74,10 @@ make docs-check       # CI 文档一致性校验
 
 - 宿主端口:前端 15173 / 后端 18000 / postgres 15432 / redis 16379(可被 `HOST_*_PORT` 覆盖)。
 - dev 种子账号:`admin/__REDACTED_SEED_PASSWORD_1__`、`qingcheng/__REDACTED_SEED_PASSWORD_2__`、`researcher/__REDACTED_SEED_PASSWORD_5__`、`qa_reviewer/__REDACTED_SEED_PASSWORD_3__`、`readonly/__REDACTED_SEED_PASSWORD_4__`。
+
+## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
+
+- 本系统已挂在统一门户之下：正式入口 **http://172.19.0.105:5100/mdm/**（Linux 上本系统前后端只听 127.0.0.1，老端口内网不可达）。Mac 本地同样经 `localhost:5100/mdm/`。
+- 前端**自己认前缀** `/mdm/`：`vite.config` `base:'/mdm/'` + `main.tsx` `basename` + `src/shared/base.ts`（BASE/withBase/stripBase）。API 一律相对路径 `/mdm/api/...`，由门户 nginx 剥掉前缀转给后端（后端路由不变）。**不要**写死 host:端口，**不要**用不带前缀的绝对路径跳转/引资源。
+- 登录态用**全公司统一 key**：`localStorage['cmab_access_token']`（MDM JWT）+ `localStorage['cmab_user']`（MDM 登录响应 user 对象）；同源共享 → 门户登录一次这里免登。别再改回私有 key。 authStore 用 zustand 自定义 storage 落到这两个 key。Linux 主机 nginx 受管副本在 `deploy/nginx/linux-host/cmab-mdm.conf`。
+- 门户侧配置/路由/部署脚本在 `~/code/cmab-hub`（`nginx/hub-locations.conf`、`deploy/linux/`），约定见其 `CLAUDE.md`。
