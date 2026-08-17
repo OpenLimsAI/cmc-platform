@@ -29,15 +29,15 @@ export default function AppTile({ app }: { app: HubApp }) {
       <div className="tile-icon" style={{ background: planned ? '#bfbfbf' : app.color }}>
         {ICONS[app.icon] ?? <AppstoreOutlined />}
       </div>
-      <div className="tile-name">
-        {app.name}
-        {planned && (
-          <Tag color="default" style={{ marginLeft: 8 }}>
-            建设中
-          </Tag>
-        )}
+      <div className="tile-name">{app.name}</div>
+      {planned && (
+        <Tag color="default" className="tile-tag" style={{ marginInlineEnd: 0 }}>
+          建设中
+        </Tag>
+      )}
+      <div className="tile-desc" title={app.description}>
+        {app.description}
       </div>
-      <div className="tile-desc">{app.description}</div>
     </>
   )
 

@@ -2,30 +2,28 @@
 html, body, #root { height: 100%; margin: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #f0f2f5;
   color: rgba(0, 0, 0, 0.88);
+  /* 与 MDM / LabOps / 批号 登录页同一套蓝（#1F4E79 → #2E75B6），全公司入口一个色系 */
+  background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%) fixed;
 }
 
 /* ── 登录页 ── */
 .login-bg {
   min-height: 100%;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(1200px 600px at 20% 0%, #dbeafe 0%, transparent 60%),
-              radial-gradient(900px 500px at 100% 100%, #e0f2fe 0%, transparent 60%),
-              #f0f2f5;
   padding: 24px;
 }
 .login-card {
   width: 380px; max-width: 100%;
   background: #fff; border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
   padding: 36px 32px 28px;
 }
 .login-brand { text-align: center; margin-bottom: 28px; }
 .login-logo {
   display: inline-block; margin-bottom: 12px;
   font-weight: 800; letter-spacing: 3px; font-size: 14px;
-  color: #fff; background: #1677ff; padding: 4px 12px; border-radius: 6px;
+  color: #fff; background: #1F4E79; padding: 4px 12px; border-radius: 6px;
 }
 
 /* ── 门户主页 ── */
@@ -33,41 +31,54 @@ body {
 .hub-header {
   height: 56px; padding: 0 28px;
   display: flex; align-items: center; justify-content: space-between;
-  background: #001529; color: #fff;
+  background: rgba(0, 0, 0, 0.22); color: #fff;
+  backdrop-filter: blur(6px);
 }
 .hub-brand { display: flex; align-items: center; gap: 10px; }
 .hub-logo {
   font-weight: 800; letter-spacing: 3px; font-size: 13px;
-  background: #1677ff; padding: 3px 10px; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.18); padding: 3px 10px; border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
 }
 .hub-title { font-size: 18px; font-weight: 600; letter-spacing: 2px; }
-.hub-user { color: rgba(255, 255, 255, 0.85); }
-.hub-dept { color: rgba(255, 255, 255, 0.55); }
-.hub-main { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 32px 28px 48px; }
+.hub-user { color: rgba(255, 255, 255, 0.92); }
+.hub-dept { color: rgba(255, 255, 255, 0.6); }
+.hub-main { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 40px 28px 56px; }
+.hub-main .hub-section-title { color: #fff; margin: 0 0 20px; font-size: 18px; font-weight: 600; letter-spacing: 1px; text-align: center; }
+.hub-note { display: block; text-align: center; margin-top: 24px; font-size: 12px; color: rgba(255, 255, 255, 0.7); }
 
-/* ── 图标墙 ── */
+/* ── 图标墙：固定一行 4 个正方形磁贴，整体居中 ── */
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(4, 196px);
+  gap: 24px;
+  justify-content: center;
 }
+@media (max-width: 960px) { .tile-grid { grid-template-columns: repeat(2, 196px); } }
+@media (max-width: 480px) { .tile-grid { grid-template-columns: repeat(1, 196px); } }
+
 .tile {
-  display: block; text-decoration: none; color: inherit;
-  background: #fff; border-radius: 12px; padding: 24px 20px 20px;
-  border: 1px solid #f0f0f0;
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  aspect-ratio: 1 / 1; padding: 18px 16px; text-align: center;
+  text-decoration: none; color: inherit;
+  background: #fff; border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  transition: transform .15s ease, box-shadow .15s ease;
 }
 .tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
-  border-color: #d9e6ff;
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
 }
-.tile-disabled { cursor: not-allowed; opacity: .6; }
-.tile-disabled:hover { transform: none; box-shadow: none; border-color: #f0f0f0; }
+.tile-disabled { cursor: not-allowed; opacity: .55; }
+.tile-disabled:hover { transform: none; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14); }
 .tile-icon {
-  width: 56px; height: 56px; border-radius: 14px;
+  width: 64px; height: 64px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 28px; margin-bottom: 16px;
+  color: #fff; font-size: 32px; margin-bottom: 14px;
 }
-.tile-name { font-size: 16px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; }
-.tile-desc { font-size: 13px; color: rgba(0, 0, 0, 0.5); line-height: 1.5; }
+.tile-name { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.tile-tag { margin-top: 6px; }
+.tile-desc {
+  margin-top: 6px; font-size: 12px; color: rgba(0, 0, 0, 0.5); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}

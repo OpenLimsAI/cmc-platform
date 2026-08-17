@@ -1,5 +1,5 @@
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
-import { Alert, Button, Space, Tooltip, Typography } from 'antd'
+import { Alert, Button, Space, Tooltip } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
 import { authApi } from '@/api/auth'
@@ -56,9 +56,7 @@ export default function HubPage() {
           />
         )}
 
-        <Typography.Title level={4} style={{ marginTop: 0 }}>
-          我的应用
-        </Typography.Title>
+        <h2 className="hub-section-title">我的应用</h2>
 
         {visible.length === 0 ? (
           <Alert
@@ -76,9 +74,7 @@ export default function HubPage() {
         )}
 
         {hiddenCount > 0 && (
-          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 24, fontSize: 12 }}>
-            另有 {hiddenCount} 个应用因权限不足未显示。
-          </Typography.Text>
+          <span className="hub-note">另有 {hiddenCount} 个应用因权限不足未显示。</span>
         )}
       </main>
     </div>

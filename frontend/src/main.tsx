@@ -9,7 +9,7 @@ import './styles/global.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1677ff', borderRadius: 8 } }}>
+    <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1F4E79', borderRadius: 8 } }}>
       <AntdApp>
         <BrowserRouter>
           <App />
