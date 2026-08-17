@@ -133,19 +133,32 @@ export default function Home() {
     enabled: !!selected && cellMetrics.length > 0,
   });
 
-  // 选新批次后，自动勾选默认通道（存在的话）
+  // 可见通道：同一物理量（canonical_key 相同）在本批次里若已有首选通道（is_preferred），
+  // 别名/旧命名通道就不列——它们数据逐点一样、名字也一样，列出来只会重复。
+  // 旧批次没有首选通道时别名照常显示，数据不丢。字典里没有的通道（canonical_key 空）一律显示。
+  const visibleChannels = useMemo<Channel[]>(() => {
+    const all = channelsQ.data ?? [];
+    const preferredKeys = new Set(
+      all.filter((c) => c.is_preferred && c.canonical_key).map((c) => c.canonical_key!)
+    );
+    return all.filter(
+      (c) => c.is_preferred || !c.canonical_key || !preferredKeys.has(c.canonical_key)
+    );
+  }, [channelsQ.data]);
+
+  // 选新批次后，自动勾选默认通道（存在的话）；已勾选但在新批次里不可见的通道自动去掉
   useEffect(() => {
     if (!channelsQ.data) return;
-    const codes = new Set(channelsQ.data.map((c) => c.channel_code));
+    const codes = new Set(visibleChannels.map((c) => c.channel_code));
     setChannels((prev) => {
       const stillValid = prev.filter((c) => codes.has(c));
       if (stillValid.length) return stillValid;
       const defaults = DEFAULT_CHANNELS.filter((c) => codes.has(c));
       return defaults.length
         ? defaults
-        : channelsQ.data!.slice(0, 1).map((c) => c.channel_code);
+        : visibleChannels.slice(0, 1).map((c) => c.channel_code);
     });
-  }, [channelsQ.data]);
+  }, [channelsQ.data, visibleChannels]);
 
   // 该批次通道的完整时间范围（小时），把缩放百分比换算成时间窗口时要用
   const fullRange = useMemo<ViewWindow | null>(() => {
@@ -195,7 +208,7 @@ export default function Home() {
   const channelGroups = useMemo(() => {
     const groups: { category: string; items: Channel[] }[] = [];
     const idx = new Map<string, number>();
-    (channelsQ.data ?? []).forEach((c) => {
+    visibleChannels.forEach((c) => {
       const cat = c.category ?? "其它";
       let i = idx.get(cat);
       if (i === undefined) {
@@ -206,7 +219,7 @@ export default function Home() {
       groups[i].items.push(c);
     });
     return groups;
-  }, [channelsQ.data]);
+  }, [visibleChannels]);
 
   const chartSeries: ChartSeries[] = useMemo(() => {
     const out: ChartSeries[] = [];
@@ -592,9 +605,7 @@ export default function Home() {
                             className={`rounded-full border px-2.5 py-1 text-xs transition ${
                               on
                                 ? "border-blue-500 bg-blue-500 text-white"
-                                : c.is_preferred
-                                  ? "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                  : "border-dashed border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                             }`}
                           >
                             {c.display_name || c.channel_code}
