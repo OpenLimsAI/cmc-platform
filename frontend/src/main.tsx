@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { BASE } from '@/shared/base';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -33,7 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           },
         }}
       >
-        <BrowserRouter>
+        <BrowserRouter basename={BASE}>
           <App />
         </BrowserRouter>
       </ConfigProvider>

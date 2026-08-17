@@ -1,11 +1,12 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { message as antdMessage } from 'antd';
 import { useAuthStore } from '@/stores/authStore';
+import { BASE, stripBase, withBase } from '@/shared/base';
 import type { ApiResponse, ApiErrorInfo } from './types';
 
 // ============== 实例 ==============
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${BASE}/api/v1`, // = /mdm/api/v1：经 HUB nginx（或本地 vite 代理）剥掉 /mdm 到后端
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
   // P4.B：refresh token 走 HttpOnly Cookie，必须带 credentials 才能跨域携带
@@ -58,11 +59,10 @@ async function performRefresh(): Promise<string> {
 }
 
 function gotoLogin() {
-  if (!window.location.pathname.startsWith('/login')) {
-    const redirect = encodeURIComponent(
-      window.location.pathname + window.location.search,
-    );
-    window.location.href = `/login?redirect=${redirect}`;
+  const path = stripBase(window.location.pathname); // 去掉 /mdm 前缀，redirect 只存站内相对路径
+  if (!path.startsWith('/login')) {
+    const redirect = encodeURIComponent(path + window.location.search);
+    window.location.href = withBase(`/login?redirect=${redirect}`);
   }
 }
 

@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  // 挂在统一门户 cmab-hub 的 /mdm/ 子路径下（5100/mdm/ → 本 dev server / dist），HUB 不剥前缀，
+  // 由本前端自己认 /mdm/。API 走相对路径 /mdm/api/v1（HUB 剥掉 /mdm 转给后端 :18000/api/）。
+  base: '/mdm/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -13,9 +16,12 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      '/api': {
+      // 单独跑（不经 HUB nginx）时模拟 HUB 的 /mdm/api → 后端 /api 剥前缀，并把 refresh cookie 的 Path 改写回来
+      '/mdm/api': {
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
         changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/mdm/, ''),
+        cookiePathRewrite: { '/api/': '/mdm/api/' },
       },
     },
   },
