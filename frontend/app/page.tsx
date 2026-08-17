@@ -190,6 +190,24 @@ export default function Home() {
     return m;
   }, [channelsQ.data]);
 
+  // 通道按字典分组（category）排列；后端已按 sort_order 排好序，这里只按出现顺序分桶。
+  // 字典里没有的通道归入「其它」，仍显示原始代号，不会丢。
+  const channelGroups = useMemo(() => {
+    const groups: { category: string; items: Channel[] }[] = [];
+    const idx = new Map<string, number>();
+    (channelsQ.data ?? []).forEach((c) => {
+      const cat = c.category ?? "其它";
+      let i = idx.get(cat);
+      if (i === undefined) {
+        i = groups.length;
+        idx.set(cat, i);
+        groups.push({ category: cat, items: [] });
+      }
+      groups[i].items.push(c);
+    });
+    return groups;
+  }, [channelsQ.data]);
+
   const chartSeries: ChartSeries[] = useMemo(() => {
     const out: ChartSeries[] = [];
     channels.forEach((ch, i) => {
@@ -198,7 +216,7 @@ export default function Home() {
       const meta = chMeta.get(ch);
       out.push({
         code: ch,
-        name: meta?.channel_name || ch,
+        name: meta?.display_name || meta?.channel_name || ch,
         unit: meta?.unitsymbol ?? null,
         points: data.points,
       });
@@ -556,39 +574,45 @@ export default function Home() {
                     {dataRangeLabel(selected.starttime, fullRange) ?? "数据 —"}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-col gap-1.5">
                   {channelsQ.isLoading && (
                     <span className="text-sm text-slate-400">加载通道中…</span>
                   )}
-                  {channelsQ.data
-                    ?.slice()
-                    .sort((a, b) => a.channel_code.localeCompare(b.channel_code))
-                    .map((c) => {
-                      const on = channels.includes(c.channel_code);
-                      return (
-                        <button
-                          key={c.channel_code}
-                          onClick={() => toggleChannel(c.channel_code)}
-                          title={`${c.channel_name ?? ""} · ${c.n_points} 点`}
-                          className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                            on
-                              ? "border-blue-500 bg-blue-500 text-white"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                          }`}
-                        >
-                          {c.channel_code}
-                          {c.unitsymbol ? (
-                            <span
-                              className={on ? "opacity-80" : "text-slate-400"}
-                            >
-                              {" "}
-                              {c.unitsymbol}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
+                  {/* 通道按字典分组排列（后端已按 sort_order 排好）；按钮显示人话名，悬停看原始代号 */}
+                  {channelGroups.map((g) => (
+                    <div key={g.category} className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs text-slate-300">{g.category}</span>
+                      {g.items.map((c) => {
+                        const on = channels.includes(c.channel_code);
+                        return (
+                          <button
+                            key={c.channel_code}
+                            onClick={() => toggleChannel(c.channel_code)}
+                            title={`${c.channel_code}${c.channel_name ? ` · ${c.channel_name}` : ""} · ${c.n_points} 点${c.notes ? `\n${c.notes}` : ""}`}
+                            className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                              on
+                                ? "border-blue-500 bg-blue-500 text-white"
+                                : c.is_preferred
+                                  ? "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                  : "border-dashed border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                            }`}
+                          >
+                            {c.display_name || c.channel_code}
+                            {c.unitsymbol ? (
+                              <span
+                                className={on ? "opacity-80" : "text-slate-400"}
+                              >
+                                {" "}
+                                {c.unitsymbol}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
                   {/* 细胞指标虚拟通道：叠到工艺趋势图上一起看 */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                   {!channelsQ.isLoading && (
                     <span className="mx-1 self-center text-xs text-slate-300">
                       细胞
@@ -615,6 +639,7 @@ export default function Home() {
                       </button>
                     );
                   })}
+                  </div>
                 </div>
                 {cellMetrics.length > 0 &&
                   cellGrowthQ.isSuccess &&

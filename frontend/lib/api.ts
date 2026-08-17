@@ -79,11 +79,18 @@ export interface Batch {
 
 export interface Channel {
   channel_code: string;
-  channel_name: string | null;
+  channel_name: string | null; // 源系统长名（Lucullus logiportname）
   unitsymbol: string | null;
   n_points: number;
   t_min_h: number | null;
   t_max_h: number | null;
+  // 以下来自通道字典 cmc_analytics.dim.channel_dict（后端合并；字典缺行时 display_name = channel_code）
+  display_name: string; // 人话名，如「溶氧设定值」
+  category: string | null; // 分组：培养参数 / 气路 / 加料泵 / 液位/压力 / 阶段/其它
+  canonical_key: string | null; // 同一物理量归并键（跨站/别名共用）
+  is_preferred: boolean; // 同 canonical_key 内首选通道；别名为 false
+  sort_order: number; // 字典排序
+  notes: string | null;
 }
 
 export interface SeriesPoint {

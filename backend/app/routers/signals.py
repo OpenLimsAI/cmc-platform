@@ -8,6 +8,7 @@ import re
 from fastapi import APIRouter, Query
 from sqlalchemy import text
 
+from ..channel_dict import get_channel_dict
 from ..db import engine
 
 router = APIRouter(prefix="/api", tags=["signals"])
@@ -94,7 +95,11 @@ async def list_batches(
 
 @router.get("/batches/{source_instance}/{procid}/channels")
 async def list_channels(source_instance: str, procid: int):
-    """某批次有哪些通道，以及每个通道的点数、时间范围。"""
+    """某批次有哪些通道，以及每个通道的点数、时间范围。
+
+    并合并通道字典（cmc_analytics.dim.channel_dict）：display_name / category / sort_order 等。
+    字典缺行或读不到时，display_name 回退为 channel_code，其余为 None——前端照常显示原始代号。
+    """
     sql = text(f"""
         SELECT channel_code, channel_name, unitsymbol,
                count(*) AS n_points,
@@ -106,7 +111,27 @@ async def list_channels(source_instance: str, procid: int):
     """)
     async with engine().connect() as conn:
         rows = (await conn.execute(sql, {"si": source_instance, "pid": procid})).mappings().all()
-    return [dict(r) for r in rows]
+    cdict = await get_channel_dict()
+    out = []
+    for r in rows:
+        d = dict(r)
+        meta = cdict.get(d["channel_code"])
+        d["display_name"] = meta.display_name if meta else d["channel_code"]
+        d["category"] = meta.category if meta else None
+        d["canonical_key"] = meta.canonical_key if meta else None
+        d["is_preferred"] = meta.is_preferred if meta else True
+        d["sort_order"] = meta.sort_order if meta else 9999
+        d["notes"] = meta.notes if meta else None
+        out.append(d)
+    out.sort(key=lambda d: (d["sort_order"], d["channel_code"]))
+    return out
+
+
+@router.get("/channel-dict")
+async def channel_dict():
+    """通道字典全表（cmc_analytics.dim.channel_dict）。未配置 analytics 连接时返回空列表。"""
+    cdict = await get_channel_dict()
+    return sorted((m.__dict__ for m in cdict.values()), key=lambda m: (m["sort_order"], m["channel_code"]))
 
 
 @router.get("/series")
