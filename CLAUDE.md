@@ -101,3 +101,10 @@ Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8030`）
 - `docs/mdm_contracts.md` — admin 与 MDM 的接口（**历史快照**：原 `cmc_mdm` 独立库方案，现已归并到 `cmc_analytics.mdm.*`，文本未刷新仅作参考）
 - `docs/README.md` — 项目说明
 - `docs/legacy/` — tt-lims-platform 历史文档（仅参考）
+
+## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
+
+- 本系统已挂在统一门户之下：正式入口 **http://172.19.0.105:5100/lims**（Linux 上本系统前后端只听 127.0.0.1，老端口内网不可达）。Mac 本地同样经 `localhost:5100/lims`。
+- 前端**自己认前缀** `/lims`：`next.config.ts` `basePath:'/lims'`；`lib/auth.ts` 有 BASE/withBase/stripBase；`lib/api.ts` `BASE_URL` 默认 `/lims`。API 一律相对路径 `/lims/api/...`，由门户 nginx 剥掉前缀转给后端（后端路由不变）。**不要**写死 host:端口，**不要**用不带前缀的绝对路径跳转/引资源。
+- 登录态用**全公司统一 key**：`localStorage['cmab_access_token']`（MDM JWT）+ `localStorage['cmab_user']`（MDM 登录响应 user 对象）；同源共享 → 门户登录一次这里免登。别再改回私有 key。 `frontend/.env.local` 的 `NEXT_PUBLIC_API_BASE_URL` 必须是 `/lims`（不进 git，Mac/Linux 都已改）。跳转用 `router`（自动带 basePath），直接 `window.location` 要 `withBase`。
+- 门户侧配置/路由/部署脚本在 `~/code/cmab-hub`（`nginx/hub-locations.conf`、`deploy/linux/`），约定见其 `CLAUDE.md`。
