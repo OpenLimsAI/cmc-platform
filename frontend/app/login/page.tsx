@@ -26,7 +26,7 @@ function LoginInner() {
     setError("")
     try {
       const data = await login(username.trim(), password)
-      setToken(data.access_token)
+      setToken(data.access_token, data.user) // 同时落 cmab_user，供门户/其他子系统共用
       // redirect 只允许站内相对路径，防开放重定向（"//evil.com" 也要挡）
       const raw = searchParams.get("redirect") || "/dashboard/overview"
       router.replace(raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard/overview")

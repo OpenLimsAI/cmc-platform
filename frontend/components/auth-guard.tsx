@@ -18,9 +18,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
     if (!getToken()) {
-      router.replace(
-        `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
-      )
+      // pathname 来自 usePathname（不含 basePath），别用 window.location.pathname（含 /lims，回跳会双前缀）
+      router.replace(`/login?redirect=${encodeURIComponent(pathname + window.location.search)}`)
       return
     }
     setReady(true)

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import api, { logout } from "@/lib/api"
-import { getToken, getUser, isAdmin, type AuthUser } from "@/lib/auth"
+import { getToken, getUser, isAdmin, withBase, type AuthUser } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Pencil, Check, X, Upload, Plus } from "lucide-react"
 
@@ -429,7 +429,7 @@ export default function AdminPage() {
         <button
           className="text-sm text-gray-400 hover:text-gray-600"
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 登出后整页刷新以清空全部内存态，属有意为之
-          onClick={async () => { await logout(); window.location.href = "/login" }}
+          onClick={async () => { await logout(); window.location.href = withBase("/login") }}
         >
           退出登录
         </button>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { logout } from "@/lib/api"
-import { getUser, isAdmin, type AuthUser } from "@/lib/auth"
+import { getUser, isAdmin, withBase, type AuthUser } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
@@ -36,7 +36,7 @@ export function Navbar() {
   const handleLogout = async () => {
     await logout()
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 登出后整页刷新以清空全部内存态，属有意为之
-    window.location.href = "/login"
+    window.location.href = withBase("/login")
   }
 
   return (

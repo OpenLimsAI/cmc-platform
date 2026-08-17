@@ -6,14 +6,36 @@ export interface AuthUser {
   roles: string[]
 }
 
-const TOKEN_KEY = "lims_token"
+// ★ 全公司统一令牌 key（cmab-hub 统一门户 2026-08-17 拍板）：
+//   localStorage['cmab_access_token'] = MDM access token 原文；localStorage['cmab_user'] = 登录返回的 user 对象
+//   各子系统同源挂在 5100 之下、都读同一个 key → 门户登录一次，到处免登。
+const TOKEN_KEY = "cmab_access_token"
+const USER_KEY = "cmab_user"
+const LEGACY_TOKEN_KEY = "lims_token" // 旧 key：读到就迁移一次然后删掉
+if (typeof window !== "undefined") {
+  const old = localStorage.getItem(LEGACY_TOKEN_KEY)
+  if (old && !localStorage.getItem(TOKEN_KEY)) localStorage.setItem(TOKEN_KEY, old)
+  localStorage.removeItem(LEGACY_TOKEN_KEY)
+}
+
+// 子路径前缀（= next.config basePath "/lims"）。Next 的 Link/router 会自动带上，
+// 只有直接操作 window.location 时才需要手动补/去前缀。
+export const BASE = "/lims"
+export const withBase = (p: string) => `${BASE}${p.startsWith("/") ? p : `/${p}`}`
+export const stripBase = (p: string) => (p.startsWith(BASE) ? p.slice(BASE.length) || "/" : p)
 
 export const getToken = (): string | null =>
   typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY)
 
-export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token)
+export const setToken = (token: string, user?: unknown) => {
+  localStorage.setItem(TOKEN_KEY, token)
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user))
+}
 
-export const clearAuth = () => localStorage.removeItem(TOKEN_KEY)
+export const clearAuth = () => {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
 
 /** 解 JWT payload（不验签）；解析失败返回 null。
  * JWT 是 base64url（-/_、无填充），atob 只认标准 base64，必须先转换；

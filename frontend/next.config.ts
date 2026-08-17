@@ -9,6 +9,10 @@ const devExtraOrigins = (process.env.DEV_EXTRA_ORIGINS ?? "")
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  // 挂在统一门户 cmab-hub 的 /lims 子路径下（5100/lims → 本 dev server :5130），HUB 不剥前缀，
+  // Next 自己靠 basePath 认前缀（页面路由、_next 静态资源、Link/router 全自动带上）。
+  // API 走相对路径 /lims/api/v1/...（见 lib/api.ts；HUB 剥掉 /lims 转给后端 :8030/api/）。
+  basePath: "/lims",
   allowedDevOrigins: devExtraOrigins,
 };
 

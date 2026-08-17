@@ -1,9 +1,11 @@
 // API 客户端：封装对后端的请求，所有接口调用从此处导出
 // 认证：请求自动带 MDM JWT（Bearer）；access 快过期时用 HttpOnly refresh Cookie 无感续期（对齐 labops 接法）
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
-import { clearAuth, decodeJwtPayload, getToken, setToken } from "@/lib/auth"
+import { BASE, clearAuth, decodeJwtPayload, getToken, setToken, stripBase, withBase } from "@/lib/auth"
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8030"
+// 默认 "/lims"：所有 "/api/v1/..." 调用实际发到 /lims/api/v1/...，经统一门户 nginx（5100）剥掉 /lims 到后端 8030。
+// 一律相对路径、同源，不写死 host:端口（.env.local 里也请写 /lims）。
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || BASE
 
 // FastAPI 期望数组参数为 ?groups=TT1&groups=TT5，axios 默认序列化为 groups[]=TT1，需覆盖。
 // axios 会把 params 对象原样交给自定义 serializer，必须自己滤掉 undefined/null，
@@ -38,9 +40,12 @@ function tokenExpMs(token: string): number {
 
 function forceLogout() {
   clearAuth()
-  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 非组件模块拿不到 router，且登出需整页刷新清空内存态
-    window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
+  if (typeof window !== "undefined") {
+    const path = stripBase(window.location.pathname) // 去掉 /lims 前缀，redirect 只存站内相对路径
+    if (!path.startsWith("/login")) {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 非组件模块拿不到 router，且登出需整页刷新清空内存态
+      window.location.href = withBase(`/login?redirect=${encodeURIComponent(path + window.location.search)}`)
+    }
   }
 }
 
