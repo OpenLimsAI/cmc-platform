@@ -49,7 +49,6 @@ body {
   flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 32px 28px 48px;
   display: flex; flex-direction: column; justify-content: center;
 }
-.hub-main .hub-section-title { color: #fff; margin: 0 0 20px; font-size: 18px; font-weight: 600; letter-spacing: 1px; text-align: center; }
 .hub-note { display: block; text-align: center; margin-top: 24px; font-size: 12px; color: rgba(255, 255, 255, 0.7); }
 
 /* ── 图标墙：固定一行 4 个正方形磁贴，整体居中 ── */

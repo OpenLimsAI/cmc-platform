@@ -56,8 +56,6 @@ export default function HubPage() {
           />
         )}
 
-        <h2 className="hub-section-title">我的应用</h2>
-
         {visible.length === 0 ? (
           <Alert
             type="info"
