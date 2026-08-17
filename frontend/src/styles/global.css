@@ -51,22 +51,14 @@ body {
 }
 .hub-note { display: block; text-align: center; margin-top: 24px; font-size: 12px; color: rgba(255, 255, 255, 0.7); }
 
-/* ── 问候语（图标墙上方）── 字体预览开关 data-font：1 细黑体（默认）2 楷体 3 细宋体；只用系统自带字体（内网无外链）*/
-.hub-greeting { text-align: center; margin-bottom: 40px; color: #fff; }
-.hub-greeting h1 { margin: 0 0 10px; line-height: 1.2; }
-.hub-greeting p { margin: 0; font-size: 14px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.68); }
-.hub-greeting[data-font="1"] h1 {
-  font-size: 34px; font-weight: 300; letter-spacing: 3px;
+/* ── 问候语（图标墙上方，2026-08-17 定稿：细黑体、大字）── 只用系统自带字体（内网无外链）*/
+.hub-greeting { text-align: center; margin-bottom: 44px; color: #fff; }
+.hub-greeting h1 {
+  margin: 0 0 12px; line-height: 1.2;
+  font-size: 44px; font-weight: 300; letter-spacing: 4px;
   font-family: "PingFang SC", "Microsoft YaHei Light", "Microsoft YaHei", "Noto Sans CJK SC", -apple-system, sans-serif;
 }
-.hub-greeting[data-font="2"] h1 {
-  font-size: 38px; font-weight: 400; letter-spacing: 3px;
-  font-family: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Noto Serif CJK SC", serif;
-}
-.hub-greeting[data-font="3"] h1 {
-  font-size: 34px; font-weight: 300; letter-spacing: 3px;
-  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", "宋体", serif;
-}
+.hub-greeting p { margin: 0; font-size: 15px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.68); }
 
 /* ── 图标墙：固定一行 4 个正方形磁贴，整体居中 ── */
 .tile-grid {

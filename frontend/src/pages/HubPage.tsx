@@ -1,6 +1,6 @@
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
 import { Alert, Button, Space, Tooltip } from 'antd'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 import { authApi } from '@/api/auth'
 import { canAccess } from '@/auth/access'
@@ -21,9 +21,6 @@ function greeting(): { hello: string; sub: string } {
 export default function HubPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  // 临时：问候语字体预览开关 ?font=1|2|3（1 细黑体 2 楷体 3 细宋体，默认 1），负责人选定后收口
-  const [params] = useSearchParams()
-  const font = params.get('font') || '1'
 
   const visible = HUB_APPS.filter((a) => canAccess(a, user))
   const hiddenCount = HUB_APPS.filter((a) => a.status !== 'hidden').length - visible.length
@@ -69,7 +66,7 @@ export default function HubPage() {
           />
         )}
 
-        <div className="hub-greeting" data-font={font}>
+        <div className="hub-greeting">
           <h1>
             {greeting().hello}
             {user?.full_name ? `，${user.full_name}` : ''}
