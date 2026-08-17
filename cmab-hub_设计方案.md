@@ -115,13 +115,14 @@ apps:
 ## 10. 待办清单（交给门户窗口）
 
 - [x] HUB 前端脚手架：登录页（走 MDM）+ 图标墙 + 按权限显隐图标。（2026-08-17 完成，见 `frontend/`）
-- [ ] 与 MDM 窗口对齐：提供"我可访问的应用/角色"接口 + 统一令牌形态。
+- [x] 与 MDM 窗口对齐：统一令牌形态已拍板并落地（`cmab_access_token`/`cmab_user`，§5）；"我可访问的应用"未新开接口——直接用登录响应里的 `roles` 判定显隐已够用，MDM 零改动。
 - [x] 应用注册表配置（§6）落地。（已随脚手架落地为 `frontend/src/config/apps.ts`）
-- [x] nginx 单入口反代配置（§4 的 5100 path 路由）。（2026-08-17 完成：`nginx/` 目录；Mac brew nginx 已上线 5100，Linux 待仓库落地后软链，见 `nginx/README.md`）
+- [x] nginx 单入口反代配置（§4 的 5100 path 路由）。（2026-08-17 完成：`nginx/` 目录；Mac brew nginx 与 Linux `/etc/nginx/conf.d/cmab-hub.conf` 均已上线，见 `nginx/README.md`）
 - [x] 逐个子系统改子路径 base（§7）：✅ MDM / LabOps / 批号 / usp / LIMS（2026-08-17）；成本模型未纳入本轮（注册表标 planned）。
-- [~] **SSO 验证**：Mac 上 2026-08-17 实测门户登录 → MDM / LabOps / usp / LIMS 全部免登 ✅；Linux 部署后再验一遍。
+- [x] **SSO 验证**：2026-08-17 Mac 与 Linux 均实测——门户登录一次，MDM / LabOps / 批号 / usp / LIMS 五个系统全部免登 ✅（负责人亲测）。
 - [x] `PORTS.md` 把 5100 状态从「规划中」改「在用」。（2026-08-17）
-- [x] 部署（Mac nginx + Linux `/opt/cmab-hub` nginx/systemd）。（2026-08-17；子系统只听本机；防火墙脚本待负责人执行）
+- [x] 部署（Mac nginx + Linux `/opt/cmab-hub` nginx/systemd）。（2026-08-17；子系统前后端只听本机；ufw 防火墙已由负责人启用，只放行 13568/5100/3001）
+- [x] 界面定稿（2026-08-17）：深蓝轻渐变 + 磨砂玻璃磁贴 + 时段问候语，图标新标签页打开。见项目 `CLAUDE.md` 决策 7。
 
 ## 11. 与批号系统的关系
 

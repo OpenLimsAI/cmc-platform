@@ -23,21 +23,21 @@
 
 ## 老网址（IP:端口 直连）还能用吗
 
-能，作为过渡/兜底保留，但**不免登**（不同端口 = 不同站点，SSO 只在 5100 门内有效）。要点：
+配置层面保留了兼容（下面三点），但 **2026-08-17 起 Linux 上各子系统已只听 127.0.0.1 + ufw 只放行 5100，老网址在内网实际已不可达**——这是负责人的决定（不留后门、逼大家用 5100）。若将来要放开某个端口：改回监听 0.0.0.0 + `ufw allow`，且**不免登**（不同端口 = 不同站点）。要点：
 - 根路径自动跳到子路径：`IP:5110/` → `/labops/`（子系统 nginx `location = /` 302）；Next 看板由 `next.config redirects` 跳到 `/usp`、`/lims`。
 - 直连时前端调的是 `/xxx/api/...`，所以子系统自己也得会转：Vite 项目在子系统 nginx 加 `location /xxx/api/ { proxy_pass 后端/api/; }`（MDM/LabOps 片段已含）；Next 项目用 `next.config rewrites`（已加）。
 - Mac 上 Vite dev 直连根路径会显示 Vite 的"请访问 /xxx/"提示页而非自动跳转，属开发态正常。
 
-## 子系统改造进度
+## 子系统改造进度（2026-08-17 全部完成并上线 Linux）
 
-| 子系统 | 前端改造 | 统一 key | Linux 子系统 nginx | 备注 |
+| 子系统 | 前端改造 | 统一 key | Linux 子系统 nginx / 监听 | 部署脚本 |
 |---|---|---|---|---|
-| MDM | ✅ 2026-08-17 | ✅（旧 key 自动迁移） | 副本在 `cmab-mdm-platform/deploy/nginx/linux-host/`，待部署时 cp | 抄写模板：`frontend/src/shared/base.ts` |
-| LabOps | ✅ 2026-08-17 | ✅（旧 key 自动迁移） | 片段在 `cmc-labops/DEPLOY.md` §4b，部署时改 `/etc/nginx/conf.d/cmc-labops.conf` | Mac 上 SSO 实测通过（门户登录→LabOps 免登） |
-| 批号管理 | ✅ 2026-08-17 | ✅（旧 rbr_* 自动迁移） | ✅ 已部署（`deploy/linux/25_batch.sh`，5180 只听本机） | |
-| 上游看板（Next） | ✅ 2026-08-17 basePath:'/usp' | ✅（旧 key 自动迁移） | —（Linux 也是 next dev/start，自认前缀） | 本机 `.env.local` 已改 `/usp`；Linux 上 `.env.local` 也要改 |
-| LIMS 看板（Next） | ✅ 2026-08-17 basePath:'/lims' | ✅（旧 key 自动迁移） | —（同上） | 本机 `.env.local` 已改 `/lims`；Linux 上也要改 |
-| 成本模型 | ⬜ | ⬜ | ⬜ | |
+| MDM | ✅ `/mdm/` | ✅（旧 `cmab-mdm-auth` 自动迁移） | ✅ 受管副本 `cmab-mdm-platform/deploy/nginx/linux-host/`；15173/18000 只听本机 | `deploy/linux/10_mdm.sh` |
+| LabOps | ✅ `/labops/` | ✅（旧 `token/user` 自动迁移） | ✅ conf 由脚本写入（对齐 `cmc-labops/DEPLOY.md` §4b）；5110 只听本机 | `deploy/linux/20_labops.sh` |
+| 批号管理 | ✅ `/batch/` | ✅（旧 `rbr_*` 自动迁移） | ✅ conf 由脚本写入；5180 只听本机 | `deploy/linux/25_batch.sh` |
+| 上游看板（Next） | ✅ `basePath:'/usp'` | ✅（旧 `usp_dashboard_token` 自动迁移） | ✅ next start `-H 127.0.0.1`；`.env.local` = `/usp`；5170/8070 只听本机 | `deploy/linux/30_usp.sh` |
+| LIMS 看板（Next） | ✅ `basePath:'/lims'` | ✅（旧 `lims_token` 自动迁移） | ✅ 同上；`.env.local` = `/lims`；5130/8030 只听本机 | `deploy/linux/40_lims.sh` |
+| 成本模型 | ⬜ 未纳入（注册表 planned） | ⬜ | ⬜ | — |
 
 上游一律写 `localhost` 不写 `127.0.0.1`（Mac 上 Vite dev 只听 IPv6）。
 
@@ -53,14 +53,19 @@ nginx -t && brew services start nginx           # 开机自启（launchd: homebr
 
 改了 `nginx/*.conf` 后：`nginx -t && brew services restart nginx`。日志：`/opt/homebrew/var/log/nginx/{access,error}.log`。
 
-## Linux 正式（待 GitHub 仓库建好、`/opt/cmab-hub` 拉下来后执行）
+## Linux 正式（已完成 2026-08-17）
 
 ```bash
+# 首次（已做）：
 sudo mkdir -p /opt/cmab-hub && sudo chown prometheus:prometheus /opt/cmab-hub
-git clone <repo> /opt/cmab-hub
+git clone git@github.com:qingcheng81/cmab-hub.git /opt/cmab-hub
 cd /opt/cmab-hub/frontend && pnpm install && pnpm build
 sudo ln -sfn /opt/cmab-hub/nginx/cmab-hub.linux.conf /etc/nginx/conf.d/cmab-hub.conf
-sudo nginx -t && sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl restart nginx
+# 日常更新门户前端：
+cd /opt/cmab-hub && git pull && cd frontend && pnpm build     # 静态包立即生效
+# 改了 nginx/*.conf：sudo nginx -t && sudo systemctl restart nginx（改 listen 地址必须 restart，reload 不生效）
 ```
 
-Linux 现有 `/etc/nginx/conf.d/{cmab-mdm,cmc-labops,rd-batch-registry}.conf` 各听自己端口伺服静态包，**不用动**；HUB 只是在前面再加一道门。
+各子系统的 Linux 改造（拉码、重建、子系统 nginx 加 `/xxx/`、前后端只听 127.0.0.1）在 `deploy/linux/10~40_*.sh`，可重复跑；
+`50_firewall.sh` 是 ufw 规则（13568/5100/3001），需负责人亲自执行。所有被改的 conf / unit / `.env.local` 都有 `.bak-20260817-*`。
