@@ -1,0 +1,131 @@
+{
+ "page_meta": {
+  "limit": 20,
+  "next": null,
+  "offset": 0,
+  "previous": null,
+  "total_count": 1
+ },
+ "molecules": [
+  {
+   "molecule_chembl_id": "CHEMBL3833393",
+   "pref_name": "EMICIZUMAB",
+   "molecule_type": "Antibody",
+   "max_phase": "4.0",
+   "first_approval": 2017,
+   "usan_stem": "-mab; -mab",
+   "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+   "molecule_synonyms": [
+    {
+     "molecule_synonym": "ACE-910",
+     "syn_type": "RESEARCH_CODE",
+     "synonyms": "ACE-910"
+    },
+    {
+     "molecule_synonym": "ACE910",
+     "syn_type": "RESEARCH_CODE",
+     "synonyms": "ACE910"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "ATC",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "EMA",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "FDA",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "INN",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "MERCK_INDEX",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "OTHER",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab",
+     "syn_type": "USAN",
+     "synonyms": "EMICIZUMAB"
+    },
+    {
+     "molecule_synonym": "Emicizumab kxwh",
+     "syn_type": "OTHER",
+     "synonyms": "EMICIZUMAB KXWH"
+    },
+    {
+     "molecule_synonym": "Emicizumab-kxwh",
+     "syn_type": "OTHER",
+     "synonyms": "EMICIZUMAB-KXWH"
+    },
+    {
+     "molecule_synonym": "Hemlibra",
+     "syn_type": "TRADE_NAME",
+     "synonyms": "Hemlibra"
+    }
+   ],
+   "molecule_hierarchy": {
+    "active_chembl_id": "CHEMBL3833393",
+    "molecule_chembl_id": "CHEMBL3833393",
+    "parent_chembl_id": "CHEMBL3833393"
+   },
+   "cross_references": [
+    {
+     "xref_id": "emicizumab",
+     "xref_name": "emicizumab",
+     "xref_src": "DailyMed"
+    },
+    {
+     "xref_id": "human/EPAR/hemlibra",
+     "xref_name": "hemlibra",
+     "xref_src": "EMA"
+    }
+   ],
+   "atc_classifications": [
+    "B02BX06"
+   ],
+   "biotherapeutic": {
+    "description": null,
+    "biocomponents": [
+     {
+      "component_id": 29649,
+      "component_type": "Protein",
+      "description": "Light chain",
+      "sequence": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+     },
+     {
+      "component_id": 29650,
+      "component_type": "Protein",
+      "description": "Heavy chain: anti-FX",
+      "sequence": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+     },
+     {
+      "component_id": 29651,
+      "component_type": "Protein",
+      "description": "Heavy chain: anti-FIXa",
+      "sequence": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+     },
+     {
+      "component_id": 29648,
+      "component_type": null,
+      "description": "Disulfide bridges location",
+      "sequence": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+     }
+    ]
+   }
+  }
+ ]
+}

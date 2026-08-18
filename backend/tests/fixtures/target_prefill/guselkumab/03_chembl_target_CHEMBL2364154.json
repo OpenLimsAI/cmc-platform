@@ -1,0 +1,114 @@
+{
+ "cross_references": [],
+ "organism": "Homo sapiens",
+ "pref_name": "Interleukin-23",
+ "species_group_flag": false,
+ "target_chembl_id": "CHEMBL2364154",
+ "target_type": "PROTEIN COMPLEX",
+ "tax_id": 9606,
+ "target_components": [
+  {
+   "accession": "P29460",
+   "component_type": "PROTEIN",
+   "component_description": "Interleukin-12 subunit beta",
+   "relationship": "PROTEIN SUBUNIT",
+   "target_component_synonyms": [
+    {
+     "component_synonym": "CLMF p40",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Cytotoxic lymphocyte maturation factor 40 kDa subunit",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "IL-12B",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "IL12B",
+     "syn_type": "GENE_SYMBOL"
+    },
+    {
+     "component_synonym": "IL-12 subunit p40",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Interleukin-12 subunit beta",
+     "syn_type": "UNIPROT"
+    }
+   ],
+   "target_component_xrefs": [
+    {
+     "xref_id": "HGNC:5970",
+     "xref_name": "IL12B",
+     "xref_src_db": "HGNC"
+    },
+    {
+     "xref_id": "P29460",
+     "xref_name": "Interleukin-12 subunit beta",
+     "xref_src_db": "UniProt"
+    }
+   ]
+  },
+  {
+   "accession": "Q9NPF7",
+   "component_type": "PROTEIN",
+   "component_description": "Interleukin-23 subunit alpha",
+   "relationship": "PROTEIN SUBUNIT",
+   "target_component_synonyms": [
+    {
+     "component_synonym": "IL-23-A",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "IL23A",
+     "syn_type": "GENE_SYMBOL"
+    },
+    {
+     "component_synonym": "IL-23p19",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "IL-23 subunit alpha",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Interleukin-23 subunit alpha",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Interleukin-23 subunit p19",
+     "syn_type": "UNIPROT"
+    }
+   ],
+   "target_component_xrefs": [
+    {
+     "xref_id": "HGNC:15488",
+     "xref_name": "IL23A",
+     "xref_src_db": "HGNC"
+    },
+    {
+     "xref_id": "Q6NZ80",
+     "xref_name": "Interleukin-23 subunit alpha",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q6NZ82",
+     "xref_name": "Interleukin-23 subunit alpha",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q9H2A5",
+     "xref_name": "Interleukin-23 subunit alpha",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q9NPF7",
+     "xref_name": "Interleukin-23 subunit alpha",
+     "xref_src_db": "UniProt"
+    }
+   ]
+  }
+ ]
+}

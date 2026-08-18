@@ -48,9 +48,10 @@ CREATE SCHEMA IF NOT EXISTS prs    AUTHORIZATION cmab_app;
 CREATE SCHEMA IF NOT EXISTS ars    AUTHORIZATION cmab_app;
 CREATE SCHEMA IF NOT EXISTS mm     AUTHORIZATION cmab_app;
 CREATE SCHEMA IF NOT EXISTS ref    AUTHORIZATION cmab_app;
+-- eqp / tgt 由 alembic 迁移（0040 / 0050）创建，此处只补 search_path
 
 -- 设置默认 search_path
-ALTER DATABASE cmab_mdm SET search_path TO public, srs, prs, ars, mm, ref, auth, meta, audit;
+ALTER DATABASE cmab_mdm SET search_path TO public, srs, prs, ars, mm, ref, eqp, tgt, auth, meta, audit;
 
 -- 审计 schema 给审计账号只读权限（在表创建后会再次执行）
 GRANT USAGE ON SCHEMA audit TO cmab_audit_reader;

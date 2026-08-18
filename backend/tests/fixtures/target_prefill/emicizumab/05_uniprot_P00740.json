@@ -1,0 +1,496 @@
+{
+ "primaryAccession": "P00740",
+ "secondaryAccessions": [
+  "A8K9N4",
+  "F2RM36",
+  "Q5FBE1",
+  "Q5JYJ8"
+ ],
+ "uniProtkbId": "FA9_HUMAN",
+ "entryType": "UniProtKB reviewed (Swiss-Prot)",
+ "proteinDescription": {
+  "recommendedName": {
+   "fullName": {
+    "evidences": [
+     {
+      "evidenceCode": "ECO:0000303",
+      "source": "PubMed",
+      "id": "3857619"
+     }
+    ],
+    "value": "Coagulation factor IX"
+   },
+   "ecNumbers": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "12444082"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20121197"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20121198"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "2592373"
+      }
+     ],
+     "value": "3.4.21.22"
+    }
+   ]
+  },
+  "alternativeNames": [
+   {
+    "fullName": {
+     "value": "Christmas factor"
+    }
+   },
+   {
+    "fullName": {
+     "value": "Plasma thromboplastin component"
+    },
+    "shortNames": [
+     {
+      "value": "PTC"
+     }
+    ]
+   }
+  ],
+  "contains": [
+   {
+    "recommendedName": {
+     "fullName": {
+      "value": "Coagulation factor IXa light chain"
+     }
+    }
+   },
+   {
+    "recommendedName": {
+     "fullName": {
+      "value": "Coagulation factor IXa heavy chain"
+     }
+    }
+   }
+  ],
+  "flag": "Precursor"
+ },
+ "genes": [
+  {
+   "geneName": {
+    "value": "F9"
+   }
+  }
+ ],
+ "organism": {
+  "scientificName": "Homo sapiens",
+  "commonName": "Human",
+  "taxonId": 9606,
+  "lineage": [
+   "Eukaryota",
+   "Metazoa",
+   "Chordata",
+   "Craniata",
+   "Vertebrata",
+   "Euteleostomi",
+   "Mammalia",
+   "Eutheria",
+   "Euarchontoglires",
+   "Primates",
+   "Haplorrhini",
+   "Catarrhini",
+   "Hominidae",
+   "Homo"
+  ]
+ },
+ "keywords": [
+  {
+   "id": "KW-0002",
+   "category": "Technical term",
+   "name": "3D-structure"
+  },
+  {
+   "id": "KW-0025",
+   "category": "Coding sequence diversity",
+   "name": "Alternative splicing"
+  },
+  {
+   "id": "KW-0094",
+   "category": "Biological process",
+   "name": "Blood coagulation"
+  },
+  {
+   "id": "KW-0106",
+   "category": "Ligand",
+   "name": "Calcium"
+  },
+  {
+   "id": "KW-0165",
+   "category": "PTM",
+   "name": "Cleavage on pair of basic residues"
+  },
+  {
+   "id": "KW-0903",
+   "category": "Technical term",
+   "name": "Direct protein sequencing"
+  },
+  {
+   "id": "KW-0225",
+   "category": "Disease",
+   "name": "Disease variant"
+  },
+  {
+   "id": "KW-1015",
+   "category": "PTM",
+   "name": "Disulfide bond"
+  },
+  {
+   "id": "KW-0245",
+   "category": "Domain",
+   "name": "EGF-like domain"
+  },
+  {
+   "id": "KW-0301",
+   "category": "PTM",
+   "name": "Gamma-carboxyglutamic acid"
+  },
+  {
+   "id": "KW-0325",
+   "category": "PTM",
+   "name": "Glycoprotein"
+  },
+  {
+   "id": "KW-0355",
+   "category": "Disease",
+   "name": "Hemophilia"
+  },
+  {
+   "id": "KW-0356",
+   "category": "Biological process",
+   "name": "Hemostasis"
+  },
+  {
+   "id": "KW-0378",
+   "category": "Molecular function",
+   "name": "Hydrolase"
+  },
+  {
+   "id": "KW-0379",
+   "category": "PTM",
+   "name": "Hydroxylation"
+  },
+  {
+   "id": "KW-0460",
+   "category": "Ligand",
+   "name": "Magnesium"
+  },
+  {
+   "id": "KW-0479",
+   "category": "Ligand",
+   "name": "Metal-binding"
+  },
+  {
+   "id": "KW-0582",
+   "category": "Technical term",
+   "name": "Pharmaceutical"
+  },
+  {
+   "id": "KW-0597",
+   "category": "PTM",
+   "name": "Phosphoprotein"
+  },
+  {
+   "id": "KW-0645",
+   "category": "Molecular function",
+   "name": "Protease"
+  },
+  {
+   "id": "KW-1267",
+   "category": "Technical term",
+   "name": "Proteomics identification"
+  },
+  {
+   "id": "KW-1185",
+   "category": "Technical term",
+   "name": "Reference proteome"
+  },
+  {
+   "id": "KW-0677",
+   "category": "Domain",
+   "name": "Repeat"
+  },
+  {
+   "id": "KW-0964",
+   "category": "Cellular component",
+   "name": "Secreted"
+  },
+  {
+   "id": "KW-0720",
+   "category": "Molecular function",
+   "name": "Serine protease"
+  },
+  {
+   "id": "KW-0732",
+   "category": "Domain",
+   "name": "Signal"
+  },
+  {
+   "id": "KW-0765",
+   "category": "PTM",
+   "name": "Sulfation"
+  },
+  {
+   "id": "KW-0792",
+   "category": "Disease",
+   "name": "Thrombophilia"
+  },
+  {
+   "id": "KW-0865",
+   "category": "PTM",
+   "name": "Zymogen"
+  }
+ ],
+ "comments": [
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "1730085"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "19846852"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20121197"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20121198"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "2592373"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "39880037"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "8295821"
+      }
+     ],
+     "value": "Factor IX is a vitamin K-dependent plasma protein that participates in the intrinsic pathway of blood coagulation by converting factor X to its active form in the presence of Ca(2+) ions, phospholipids, and factor VIIIa (PubMed:8295821, PubMed:2592373, PubMed:20121197, PubMed:20121198, PubMed:1730085, PubMed:19846852, PubMed:39880037)"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "10692472"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20004170"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20080729"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20121197"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20121198"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "22961984"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "2592373"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "34502392"
+      }
+     ],
+     "value": "Heterodimer of a light chain and a heavy chain; disulfide-linked (PubMed:20080729, PubMed:20121197, PubMed:20121198). Interacts (inactive and activated) with F11 (activated) in calcium-dependent manner (PubMed:22961984). Interacts with SERPINC1 (PubMed:20080729). Interacts (activated) with iripin-8, a serine protease inhibitor from Ixodes ricinus saliva (PubMed:34502392). Interacts (inactive and activated) with nitrophorin-2, an anticoagulant protein from Rhodnius prolixus (PubMed:10692472)"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "subcellularLocations": [
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "19846852"
+       },
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "2592373"
+       },
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "3857619"
+       },
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "8295821"
+       },
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "9169594"
+       }
+      ],
+      "value": "Secreted",
+      "id": "SL-0243"
+     }
+    }
+   ]
+  }
+ ],
+ "features": [
+  {
+   "type": "Signal",
+   "location": {
+    "start": {
+     "value": 1,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 28,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255"
+    }
+   ]
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 47,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 461,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Coagulation factor IX",
+   "featureId": "PRO_0000027756"
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 47,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 191,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Coagulation factor IXa light chain",
+   "featureId": "PRO_0000027757"
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 227,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 461,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Coagulation factor IXa heavy chain",
+   "featureId": "PRO_0000027759"
+  },
+  {
+   "type": "Domain",
+   "location": {
+    "start": {
+     "value": 47,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 92,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Gla",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255",
+     "source": "PROSITE-ProRule",
+     "id": "PRU00463"
+    }
+   ]
+  }
+ ],
+ "sequence": {
+  "length": 461,
+  "molWeight": 51778,
+  "crc64": "C4720C1234477EF5",
+  "md5": "2B99750237983B896C113434DB224772"
+ },
+ "entryAudit": {
+  "firstPublicDate": "1986-07-21",
+  "lastAnnotationUpdateDate": "2026-06-10",
+  "lastSequenceUpdateDate": "2005-06-07",
+  "entryVersion": 288,
+  "sequenceVersion": 2
+ }
+}

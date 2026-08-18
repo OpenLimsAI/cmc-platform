@@ -1,0 +1,295 @@
+{
+ "primaryAccession": "P29460",
+ "secondaryAccessions": null,
+ "uniProtkbId": "IL12B_HUMAN",
+ "entryType": "UniProtKB reviewed (Swiss-Prot)",
+ "proteinDescription": {
+  "recommendedName": {
+   "fullName": {
+    "value": "Interleukin-12 subunit beta"
+   },
+   "shortNames": [
+    {
+     "value": "IL-12B"
+    }
+   ]
+  },
+  "alternativeNames": [
+   {
+    "fullName": {
+     "value": "Cytotoxic lymphocyte maturation factor 40 kDa subunit"
+    },
+    "shortNames": [
+     {
+      "value": "CLMF p40"
+     }
+    ]
+   },
+   {
+    "fullName": {
+     "value": "IL-12 subunit p40"
+    }
+   },
+   {
+    "fullName": {
+     "value": "NK cell stimulatory factor chain 2"
+    },
+    "shortNames": [
+     {
+      "value": "NKSF2"
+     }
+    ]
+   }
+  ],
+  "flag": "Precursor"
+ },
+ "genes": [
+  {
+   "geneName": {
+    "value": "IL12B"
+   },
+   "synonyms": [
+    {
+     "value": "NKSF2"
+    }
+   ]
+  }
+ ],
+ "organism": {
+  "scientificName": "Homo sapiens",
+  "commonName": "Human",
+  "taxonId": 9606,
+  "lineage": [
+   "Eukaryota",
+   "Metazoa",
+   "Chordata",
+   "Craniata",
+   "Vertebrata",
+   "Euteleostomi",
+   "Mammalia",
+   "Eutheria",
+   "Euarchontoglires",
+   "Primates",
+   "Haplorrhini",
+   "Catarrhini",
+   "Hominidae",
+   "Homo"
+  ]
+ },
+ "keywords": [
+  {
+   "id": "KW-0002",
+   "category": "Technical term",
+   "name": "3D-structure"
+  },
+  {
+   "id": "KW-0202",
+   "category": "Molecular function",
+   "name": "Cytokine"
+  },
+  {
+   "id": "KW-0903",
+   "category": "Technical term",
+   "name": "Direct protein sequencing"
+  },
+  {
+   "id": "KW-1015",
+   "category": "PTM",
+   "name": "Disulfide bond"
+  },
+  {
+   "id": "KW-0325",
+   "category": "PTM",
+   "name": "Glycoprotein"
+  },
+  {
+   "id": "KW-0393",
+   "category": "Domain",
+   "name": "Immunoglobulin domain"
+  },
+  {
+   "id": "KW-1267",
+   "category": "Technical term",
+   "name": "Proteomics identification"
+  },
+  {
+   "id": "KW-1185",
+   "category": "Technical term",
+   "name": "Reference proteome"
+  },
+  {
+   "id": "KW-0964",
+   "category": "Cellular component",
+   "name": "Secreted"
+  },
+  {
+   "id": "KW-0732",
+   "category": "Domain",
+   "name": "Signal"
+  }
+ ],
+ "comments": [
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "11114383"
+      }
+     ],
+     "value": "Cytokine that can act as a growth factor for activated T and NK cells, enhance the lytic activity of NK/lymphokine-activated killer cells, and stimulate the production of IFN-gamma by resting PBMC"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "11114383"
+      }
+     ],
+     "value": "Associates with IL23A to form the IL-23 interleukin, a heterodimeric cytokine which functions in innate and adaptive immunity. IL-23 may constitute with IL-17 an acute response to infection in peripheral tissues. IL-23 binds to a heterodimeric receptor complex composed of IL12RB1 and IL23R, activates the Jak-Stat signaling cascade, stimulates memory rather than naive T-cells and promotes production of pro-inflammatory cytokines. IL-23 induces autoimmune inflammation and thus may be responsible for autoimmune inflammatory diseases and may be important for tumorigenesis"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000250",
+       "source": "UniProtKB",
+       "id": "P43432"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "10899108"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "18680750"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "18708069"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "7836910"
+      }
+     ],
+     "value": "Heterodimer with IL12A; disulfide-linked. The heterodimer is known as interleukin IL-12. Heterodimer with IL23A; disulfide-linked. The heterodimer is known as interleukin IL-23. Also secreted as a monomer. Interacts with NBR1; this interaction promotes IL-12 secretion (By similarity)"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "subcellularLocations": [
+    {
+     "location": {
+      "value": "Secreted",
+      "id": "SL-0243"
+     }
+    }
+   ]
+  }
+ ],
+ "features": [
+  {
+   "type": "Signal",
+   "location": {
+    "start": {
+     "value": 1,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 22,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000269",
+     "source": "PubMed",
+     "id": "2204066"
+    }
+   ]
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 23,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 328,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Interleukin-12 subunit beta",
+   "featureId": "PRO_0000010930"
+  },
+  {
+   "type": "Domain",
+   "location": {
+    "start": {
+     "value": 23,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 106,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Ig-like C2-type"
+  },
+  {
+   "type": "Domain",
+   "location": {
+    "start": {
+     "value": 237,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 328,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Fibronectin type-III",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255",
+     "source": "PROSITE-ProRule",
+     "id": "PRU00316"
+    }
+   ]
+  }
+ ],
+ "sequence": {
+  "length": 328,
+  "molWeight": 37169,
+  "crc64": "118FA801B8F5BB2F",
+  "md5": "6B899920020B6C34D11802CAB8A9FB1D"
+ },
+ "entryAudit": {
+  "firstPublicDate": "1993-04-01",
+  "lastAnnotationUpdateDate": "2026-06-10",
+  "lastSequenceUpdateDate": "1993-04-01",
+  "entryVersion": 248,
+  "sequenceVersion": 1
+ }
+}

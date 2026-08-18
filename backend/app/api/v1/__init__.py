@@ -17,6 +17,7 @@ from app.api.v1 import (
     search,
     substances,
     system,
+    targets,
 )
 
 api_router = APIRouter()
@@ -28,6 +29,8 @@ api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 api_router.include_router(materials.router, prefix="/materials", tags=["materials"])
 # EQP 设备主数据域（下游 CMC LabOps Portal 的数据上游）
 api_router.include_router(equipments.router, prefix="/equipments", tags=["equipments"])
+# 靶点域 tgt（docs/decisions/2026-08-17-target-domain.md）
+api_router.include_router(targets.router, prefix="/targets", tags=["targets"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 # V1.2 评审 API11:B 部分立即做（2026-05-13）
 api_router.include_router(lookups.router, prefix="/lookups", tags=["lookups"])

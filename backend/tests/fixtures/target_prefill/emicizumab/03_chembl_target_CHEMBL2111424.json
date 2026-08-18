@@ -1,0 +1,124 @@
+{
+ "cross_references": [],
+ "organism": "Homo sapiens",
+ "pref_name": "Coagulation factor IX and X",
+ "species_group_flag": false,
+ "target_chembl_id": "CHEMBL2111424",
+ "target_type": "SELECTIVITY GROUP",
+ "tax_id": 9606,
+ "target_components": [
+  {
+   "accession": "P00740",
+   "component_type": "PROTEIN",
+   "component_description": "Coagulation factor IX",
+   "relationship": "COMPARATIVE PROTEIN",
+   "target_component_synonyms": [
+    {
+     "component_synonym": "Christmas factor",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Coagulation factor IX",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Coagulation factor IXa heavy chain",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Coagulation factor IXa light chain",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "F9",
+     "syn_type": "GENE_SYMBOL"
+    },
+    {
+     "component_synonym": "Plasma thromboplastin component",
+     "syn_type": "UNIPROT"
+    }
+   ],
+   "target_component_xrefs": [
+    {
+     "xref_id": "A8K9N4",
+     "xref_name": "Coagulation factor IX",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "F2RM36",
+     "xref_name": "Coagulation factor IX",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q5FBE1",
+     "xref_name": "Coagulation factor IX",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q5JYJ8",
+     "xref_name": "Coagulation factor IX",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "P00740",
+     "xref_name": "Coagulation factor IX",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "HGNC:3551",
+     "xref_name": "F9",
+     "xref_src_db": "HGNC"
+    }
+   ]
+  },
+  {
+   "accession": "P00742",
+   "component_type": "PROTEIN",
+   "component_description": "Coagulation factor X",
+   "relationship": "COMPARATIVE PROTEIN",
+   "target_component_synonyms": [
+    {
+     "component_synonym": "Activated factor Xa heavy chain",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Coagulation factor X",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "F10",
+     "syn_type": "GENE_SYMBOL"
+    },
+    {
+     "component_synonym": "Factor X heavy chain",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Factor X light chain",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Stuart factor",
+     "syn_type": "UNIPROT"
+    }
+   ],
+   "target_component_xrefs": [
+    {
+     "xref_id": "Q14340",
+     "xref_name": "Coagulation factor X",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "P00742",
+     "xref_name": "Coagulation factor X",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "HGNC:3528",
+     "xref_name": "F10",
+     "xref_src_db": "HGNC"
+    }
+   ]
+  }
+ ]
+}

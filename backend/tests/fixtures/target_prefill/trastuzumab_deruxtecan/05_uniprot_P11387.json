@@ -1,0 +1,416 @@
+{
+ "primaryAccession": "P11387",
+ "secondaryAccessions": [
+  "A8KA78",
+  "E1P5W3",
+  "O43256",
+  "Q12855",
+  "Q12856",
+  "Q15610",
+  "Q5TFY3",
+  "Q9UJN0"
+ ],
+ "uniProtkbId": "TOP1_HUMAN",
+ "entryType": "UniProtKB reviewed (Swiss-Prot)",
+ "proteinDescription": {
+  "recommendedName": {
+   "fullName": {
+    "value": "DNA topoisomerase 1"
+   },
+   "ecNumbers": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000255",
+       "source": "PROSITE-ProRule",
+       "id": "PRU10130"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "14594810"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "16033260"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "2833744"
+      }
+     ],
+     "value": "5.6.2.1"
+    }
+   ]
+  },
+  "alternativeNames": [
+   {
+    "fullName": {
+     "value": "DNA topoisomerase I"
+    }
+   }
+  ]
+ },
+ "genes": [
+  {
+   "geneName": {
+    "value": "TOP1"
+   }
+  }
+ ],
+ "organism": {
+  "scientificName": "Homo sapiens",
+  "commonName": "Human",
+  "taxonId": 9606,
+  "lineage": [
+   "Eukaryota",
+   "Metazoa",
+   "Chordata",
+   "Craniata",
+   "Vertebrata",
+   "Euteleostomi",
+   "Mammalia",
+   "Eutheria",
+   "Euarchontoglires",
+   "Primates",
+   "Haplorrhini",
+   "Catarrhini",
+   "Hominidae",
+   "Homo"
+  ]
+ },
+ "keywords": [
+  {
+   "id": "KW-0002",
+   "category": "Technical term",
+   "name": "3D-structure"
+  },
+  {
+   "id": "KW-0007",
+   "category": "PTM",
+   "name": "Acetylation"
+  },
+  {
+   "id": "KW-0090",
+   "category": "Biological process",
+   "name": "Biological rhythms"
+  },
+  {
+   "id": "KW-0160",
+   "category": "Coding sequence diversity",
+   "name": "Chromosomal rearrangement"
+  },
+  {
+   "id": "KW-0903",
+   "category": "Technical term",
+   "name": "Direct protein sequencing"
+  },
+  {
+   "id": "KW-0238",
+   "category": "Molecular function",
+   "name": "DNA-binding"
+  },
+  {
+   "id": "KW-0945",
+   "category": "Biological process",
+   "name": "Host-virus interaction"
+  },
+  {
+   "id": "KW-0413",
+   "category": "Molecular function",
+   "name": "Isomerase"
+  },
+  {
+   "id": "KW-1017",
+   "category": "PTM",
+   "name": "Isopeptide bond"
+  },
+  {
+   "id": "KW-0539",
+   "category": "Cellular component",
+   "name": "Nucleus"
+  },
+  {
+   "id": "KW-0597",
+   "category": "PTM",
+   "name": "Phosphoprotein"
+  },
+  {
+   "id": "KW-1267",
+   "category": "Technical term",
+   "name": "Proteomics identification"
+  },
+  {
+   "id": "KW-0656",
+   "category": "Disease",
+   "name": "Proto-oncogene"
+  },
+  {
+   "id": "KW-1185",
+   "category": "Technical term",
+   "name": "Reference proteome"
+  },
+  {
+   "id": "KW-0799",
+   "category": "Molecular function",
+   "name": "Topoisomerase"
+  },
+  {
+   "id": "KW-0832",
+   "category": "PTM",
+   "name": "Ubl conjugation"
+  }
+ ],
+ "comments": [
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000250",
+       "source": "UniProtKB",
+       "id": "Q13472"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "14594810"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "16033260"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "19168442"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "22904072"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "2833744"
+      }
+     ],
+     "value": "Releases the supercoiling and torsional tension of DNA introduced during the DNA replication and transcription by transiently cleaving and rejoining one strand of the DNA duplex. Introduces a single-strand break via transesterification at a target site in duplex DNA. The scissile phosphodiester is attacked by the catalytic tyrosine of the enzyme, resulting in the formation of a DNA-(3'-phosphotyrosyl)-enzyme intermediate and the expulsion of a 5'-OH DNA strand. The free DNA strand then rotates around the intact phosphodiester bond on the opposing strand, thus removing DNA supercoils. Finally, in the religation step, the DNA 5'-OH attacks the covalent intermediate to expel the active-site tyrosine and restore the DNA phosphodiester backbone (By similarity). Regulates the alternative splicing of tissue factor (F3) pre-mRNA in endothelial cells. Involved in the circadian transcription of the core circadian clock component BMAL1 by altering the chromatin structure around the ROR response elements (ROREs) on the BMAL1 promoter"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "10841763"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "12209008"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "12533542"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "15165849"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "16033260"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "23213405"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "26030138"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "9488644"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "9488652"
+      }
+     ],
+     "value": "Monomer. Interacts with ERCC6 (PubMed:26030138). Interacts with TPRN; TPRN interacts with a number of DNA damage response proteins, is recruited to sites of DNA damage and may play a role in DNA damage repair (PubMed:23213405)"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "18003733"
+      }
+     ],
+     "value": "(Microbial infection) Interacts with SV40 Large T antigen; this interactions allows viral DNA replication"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "note": {
+    "texts": [
+     {
+      "value": "Diffuse nuclear localization with some enrichment in nucleoli. On CPT treatment, cleared from nucleoli into nucleoplasm. Sumoylated forms found in both nucleoplasm and nucleoli"
+     }
+    ]
+   },
+   "subcellularLocations": [
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "12149243"
+       }
+      ],
+      "value": "Nucleus, nucleolus",
+      "id": "SL-0188"
+     }
+    },
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "12149243"
+       }
+      ],
+      "value": "Nucleus, nucleoplasm",
+      "id": "SL-0190"
+     }
+    }
+   ]
+  }
+ ],
+ "features": [
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 2,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 765,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "DNA topoisomerase 1",
+   "featureId": "PRO_0000145201"
+  },
+  {
+   "type": "Domain",
+   "location": {
+    "start": {
+     "value": 432,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 765,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Topo IB-type catalytic",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255",
+     "source": "PROSITE-ProRule",
+     "id": "PRU01382"
+    }
+   ]
+  },
+  {
+   "type": "Region",
+   "location": {
+    "start": {
+     "value": 1,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 199,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Disordered",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000256",
+     "source": "SAM",
+     "id": "MobiDB-lite"
+    }
+   ]
+  },
+  {
+   "type": "Region",
+   "location": {
+    "start": {
+     "value": 425,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 426,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Interaction with DNA"
+  },
+  {
+   "type": "Region",
+   "location": {
+    "start": {
+     "value": 488,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 493,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Interaction with DNA"
+  }
+ ],
+ "sequence": {
+  "length": 765,
+  "molWeight": 90726,
+  "crc64": "6FBED540BCF7BE28",
+  "md5": "7911E311A28C83E4163D69CC48645357"
+ },
+ "entryAudit": {
+  "firstPublicDate": "1989-07-01",
+  "lastAnnotationUpdateDate": "2026-06-10",
+  "lastSequenceUpdateDate": "2000-12-01",
+  "entryVersion": 255,
+  "sequenceVersion": 2
+ }
+}

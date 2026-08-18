@@ -35,7 +35,7 @@ target_metadata = Base.metadata
 def include_name(name, type_, parent_names):
     """限定我们关心的 schema"""
     if type_ == "schema":
-        return name in {"auth", "meta", "audit", "srs", "prs", "ars", "mm", "ref"}
+        return name in {"auth", "meta", "audit", "srs", "prs", "ars", "mm", "ref", "eqp", "tgt"}
     return True
 
 

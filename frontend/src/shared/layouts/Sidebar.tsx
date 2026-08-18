@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge, Layout, Menu, Tooltip, Typography, theme } from 'antd';
 import {
+  AimOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   FolderOpenOutlined,
@@ -61,6 +62,13 @@ const MENU_ITEMS: MenuItem[] = [
     icon: <MicroscopeIcon />,
     path: '/equipments',
     permission: 'equipment:read',
+  },
+  {
+    key: 'targets',
+    label: '靶点',
+    icon: <AimOutlined />,
+    path: '/targets',
+    permission: 'target:read',
   },
   {
     key: 'audit',

@@ -102,6 +102,19 @@ const EquipmentEditPage = lazy(() =>
     default: m.EquipmentEditPage,
   })),
 );
+// 靶点域 tgt（docs/decisions/2026-08-17-target-domain.md）
+const TargetListPage = lazy(() =>
+  import('./modules/targets/pages/TargetListPage').then((m) => ({ default: m.TargetListPage })),
+);
+const TargetCreatePage = lazy(() =>
+  import('./modules/targets/pages/TargetCreatePage').then((m) => ({ default: m.TargetCreatePage })),
+);
+const TargetDetailPage = lazy(() =>
+  import('./modules/targets/pages/TargetDetailPage').then((m) => ({ default: m.TargetDetailPage })),
+);
+const TargetEditPage = lazy(() =>
+  import('./modules/targets/pages/TargetEditPage').then((m) => ({ default: m.TargetEditPage })),
+);
 const UserListPage = lazy(() =>
   import('./modules/admin/pages/UserListPage').then((m) => ({ default: m.UserListPage })),
 );
@@ -169,6 +182,12 @@ export default function App() {
             <Route path="/equipments/new" element={<EquipmentCreatePage />} />
             <Route path="/equipments/:code" element={<EquipmentDetailPage />} />
             <Route path="/equipments/:code/edit" element={<EquipmentEditPage />} />
+
+            {/* 靶点域 tgt */}
+            <Route path="/targets" element={<TargetListPage />} />
+            <Route path="/targets/new" element={<TargetCreatePage />} />
+            <Route path="/targets/:code" element={<TargetDetailPage />} />
+            <Route path="/targets/:code/edit" element={<TargetEditPage />} />
 
             {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
             <Route path="/admin/users" element={<UserListPage />} />

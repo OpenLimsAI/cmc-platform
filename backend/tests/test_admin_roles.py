@@ -75,6 +75,7 @@ async def test_get_role_detail(admin_client):
         "asset:read",
         "material:read",
         "equipment:read",
+        "target:read",  # 0050 靶点域：只读用户可查靶点
     }
 
 
@@ -95,6 +96,9 @@ async def test_get_role_detail_substance_steward(admin_client):
         "project:read",
         "asset:read",
         "material:read",
+        "target:read",
+        "target:update",
+        "target:approve",  # 0050 靶点域：管家可改可发布
     }
 
 
