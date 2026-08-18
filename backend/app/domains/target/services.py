@@ -458,3 +458,20 @@ class TargetService:
         await self.db.flush()
         await self.db.refresh(target)
         return TargetDetail.model_validate(target)
+
+    # ============================================================
+    # 审计日志：主表 + 关联表（ref.molecule_target 审计以 target_id 为 entity_id）
+    # ============================================================
+    async def get_audit_logs(self, code: str, page: int, page_size: int, include_children: bool = True):
+        from sqlalchemy import and_
+
+        from app.domains.audit.models import AuditLog
+        from app.domains.audit.services import AuditService
+
+        target = await self._get_target_or_404(code)
+        conditions = [and_(AuditLog.entity_schema == "tgt", AuditLog.entity_table == "target",
+                           AuditLog.entity_id == target.target_id)]
+        if include_children:
+            conditions.append(and_(AuditLog.entity_schema == "ref", AuditLog.entity_table == "molecule_target",
+                                   AuditLog.entity_id == target.target_id))
+        return await AuditService(self.db).get_entity_audit_logs(conditions, page, page_size)

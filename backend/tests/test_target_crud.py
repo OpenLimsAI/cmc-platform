@@ -217,3 +217,24 @@ async def test_idempotency_key_replay(admin_client, unique_suffix):
     r2 = await admin_client.post("/api/v1/targets", json=body, headers=headers)
     assert r1.status_code == 201 and r2.status_code in (200, 201)
     assert r1.json()["data"]["target_code"] == r2.json()["data"]["target_code"]
+
+
+@pytest.mark.asyncio
+async def test_target_audit_logs(admin_client, readonly_client, unique_suffix):
+    """审计 v3：创建 + 更新 + 发布都应在 /audit-logs 里可见（含字段级 diff）"""
+    code = (await admin_client.post("/api/v1/targets", json=_payload(unique_suffix))).json()["data"]["target_code"]
+    await admin_client.put(f"/api/v1/targets/{code}", json={"notes": "审计测试", "change_reason": "pytest 审计日志"})
+    await admin_client.post(f"/api/v1/targets/{code}:publish", json={"change_reason": "pytest 发布进审计"})
+    r = await admin_client.get(f"/api/v1/targets/{code}/audit-logs")
+    assert r.status_code == 200, r.text
+    items = r.json()["data"]
+    actions = [i["action"] for i in items]
+    assert "CREATE" in actions and actions.count("UPDATE") >= 2
+    assert all(i["entity_table"] == "target" and i["entity_code"] == code for i in items)
+    upd = next(i for i in items if i["action"] == "UPDATE" and any(c["field_name"] == "status" for c in i["changes"]))
+    st = next(c for c in upd["changes"] if c["field_name"] == "status")
+    assert st["old_value"] == "draft" and st["new_value"] == "published"
+    assert upd["reason"] == "pytest 发布进审计"
+    # readonly 无 audit:read
+    r = await readonly_client.get(f"/api/v1/targets/{code}/audit-logs")
+    assert r.status_code == 403

@@ -16,22 +16,14 @@ import {
 import { CloudSyncOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  targetsApi,
-  type MoleculeTargetLink,
-  type TargetAction,
-  type TargetSnapshotBrief,
-} from '@/api/targets';
+import { targetsApi, type TargetAction, type TargetSnapshotBrief } from '@/api/targets';
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import { StatusActionsBar } from '@/shared/components/StatusActionsBar';
-import {
-  MOLECULE_TARGET_ROLE_OPTIONS,
-  SNAPSHOT_SOURCE_LABELS,
-  TARGET_AVAILABLE_ACTIONS,
-  TARGET_STATUS_OPTIONS,
-} from '../constants';
+import { AuditLogPanel } from '@/shared/components/AuditLogPanel';
+import { SNAPSHOT_SOURCE_LABELS, TARGET_AVAILABLE_ACTIONS, TARGET_STATUS_OPTIONS } from '../constants';
 import { UniprotInfoPanel } from '../components/UniprotInfoPanel';
+import { MoleculeTargetPanel } from '../components/MoleculeTargetPanel';
 
 const { Title, Text } = Typography;
 
@@ -47,11 +39,6 @@ export function TargetDetailPage() {
   const { data: t, isLoading } = useQuery({
     queryKey: ['target', code],
     queryFn: () => targetsApi.get(code),
-    enabled: !!code,
-  });
-  const { data: links = [] } = useQuery({
-    queryKey: ['target-molecules', code],
-    queryFn: () => targetsApi.molecules(code),
     enabled: !!code,
   });
   const { data: snapshots = [] } = useQuery({
@@ -93,47 +80,6 @@ export function TargetDetailPage() {
 
   const statusDef = TARGET_STATUS_OPTIONS.find((o) => o.value === t.status);
   const mfKeywords = (t.keywords ?? []).filter((k) => k.category === 'Molecular function');
-
-  const linkColumns = [
-    {
-      title: '分子（物质）',
-      dataIndex: 'substance_code',
-      key: 'substance_code',
-      width: 150,
-      render: (c: string, row: MoleculeTargetLink) => (
-        <Link to={`/substances/${encodeURIComponent(c)}`}>
-          {c}
-          {row.substance_name ? ` · ${row.substance_name}` : ''}
-        </Link>
-      ),
-    },
-    {
-      title: '关系',
-      dataIndex: 'relation_role',
-      key: 'relation_role',
-      width: 130,
-      render: (r: string) => {
-        const def = MOLECULE_TARGET_ROLE_OPTIONS.find((o) => o.value === r);
-        return <Tag color={def?.color}>{def?.label ?? r}</Tag>;
-      },
-    },
-    { title: '作用机制（MoA）', dataIndex: 'moa', key: 'moa', ellipsis: true, render: (v: string | null) => v ?? '—' },
-    { title: '作用类型', dataIndex: 'action_type', key: 'action_type', width: 130, render: (v: string | null) => v ?? '—' },
-    {
-      title: '表位 / 结构域',
-      dataIndex: 'binding_epitope_or_domain',
-      key: 'binding_epitope_or_domain',
-      ellipsis: true,
-      render: (v: string | null) => v ?? '—',
-    },
-    {
-      title: '待确认',
-      dataIndex: 'needs_confirm',
-      key: 'needs_confirm',
-      width: 80,
-      render: (v: boolean) => (v ? <Tag color="orange">是</Tag> : <Tag>否</Tag>),
-    },
-  ];
 
   const snapColumns = [
     {
@@ -236,20 +182,9 @@ export function TargetDetailPage() {
         <UniprotInfoPanel data={t} />
       </Card>
 
-      <Card
-        title={`关联分子（${links.length}）`}
-        style={{ marginTop: 16 }}
-        extra={<Text type="secondary">一期只读展示；关联维护走 API（二期做面板）</Text>}
-      >
-        <Table<MoleculeTargetLink>
-          columns={linkColumns}
-          dataSource={links}
-          rowKey={(r) => `${r.substance_code}:${r.relation_role}`}
-          pagination={false}
-          size="small"
-          locale={{ emptyText: '暂无关联分子' }}
-        />
-      </Card>
+      <div style={{ marginTop: 16 }}>
+        <MoleculeTargetPanel mode="target" code={code} />
+      </div>
 
       <Card
         title={`外部源快照（${snapshots.length}）`}
@@ -263,6 +198,14 @@ export function TargetDetailPage() {
           pagination={false}
           size="small"
           locale={{ emptyText: '暂无快照（预填脚本 --attach-snapshots 可回填）' }}
+        />
+      </Card>
+
+      <Card title="审计历史" style={{ marginTop: 16 }}>
+        <AuditLogPanel
+          queryKey={['target-audit-logs', code]}
+          loadFn={(page, page_size, include_children) => targetsApi.auditLogs(code, { page, page_size, include_children })}
+          tableLabels={{ target: '靶点主表', molecule_target: '分子-靶点关联' }}
         />
       </Card>
 

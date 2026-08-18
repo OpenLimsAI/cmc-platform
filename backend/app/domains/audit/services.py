@@ -355,6 +355,61 @@ class AuditService:
         ]
         return items, total
 
+    # ----------- 通用：按 (schema, table, id 集合) 条件查审计（新域接入用，靶点域首用）-----------
+    async def get_entity_audit_logs(
+        self,
+        conditions: list,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[AuditLogItem], int]:
+        """conditions: 若干 sqlalchemy 条件（如 and_(AuditLog.entity_table=='target', AuditLog.entity_id==1)），
+        之间取 OR；返回分页 AuditLogItem（含字段级 diff）。"""
+        if not conditions:
+            return [], 0
+        where_clause = or_(*conditions)
+        total = (
+            await self.db.execute(select(func.count()).select_from(AuditLog).where(where_clause))
+        ).scalar_one()
+        page_result = await self.db.execute(
+            select(AuditLog)
+            .where(where_clause)
+            .order_by(AuditLog.log_id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        logs = list(page_result.scalars())
+        log_ids = [log.log_id for log in logs]
+        changes_by_log: dict[int, list[ChangeHistoryItem]] = {}
+        if log_ids:
+            ch_result = await self.db.execute(
+                select(ChangeHistory)
+                .where(ChangeHistory.audit_log_id.in_(log_ids))
+                .order_by(ChangeHistory.history_id)
+            )
+            for ch in ch_result.scalars():
+                changes_by_log.setdefault(ch.audit_log_id, []).append(
+                    ChangeHistoryItem(field_name=ch.field_name, old_value=ch.old_value, new_value=ch.new_value)
+                )
+        items = [
+            AuditLogItem(
+                log_id=log.log_id,
+                user_id=log.user_id,
+                username=log.username,
+                action=log.action,
+                entity_schema=log.entity_schema,
+                entity_table=log.entity_table,
+                entity_id=log.entity_id,
+                entity_code=log.entity_code,
+                reason=log.reason,
+                ip_address=str(log.ip_address) if log.ip_address else None,
+                request_id=log.request_id,
+                timestamp=log.timestamp,
+                changes=changes_by_log.get(log.log_id, []),
+            )
+            for log in logs
+        ]
+        return items, total
+
     # ----------- Phase 5.A / M5.3：全局审计 + 签名查询 -----------
 
     def _apply_audit_filters(self, stmt, filter: AuditLogFilter):

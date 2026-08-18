@@ -250,6 +250,25 @@ async def remove_target_molecule(
     return None
 
 
+# ============== 审计历史 ==============
+@router.get("/{code}/audit-logs", summary="Target 审计历史（主表 + 分子关联）")
+async def get_target_audit_logs(
+    code: str,
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    include_children: bool = Query(True, description="是否包含 ref.molecule_target 关联表的审计"),
+    user: User = Depends(require_permission("audit:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    items, total = await TargetService(db).get_audit_logs(code, page, page_size, include_children)
+    return success(
+        data=[i.model_dump(mode="json") for i in items],
+        request_id=_rid(request),
+        pagination=Pagination.make(page, page_size, total),
+    )
+
+
 # ============== 子资源：外部源快照 ==============
 @router.get("/{code}/snapshots", summary="Target 外部源快照列表（不含 payload）")
 async def list_target_snapshots(

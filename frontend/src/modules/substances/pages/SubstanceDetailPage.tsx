@@ -26,6 +26,7 @@ import { SubstanceTypeTag } from '@/shared/components/SubstanceTypeTag';
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import { AuditLogPanel } from '@/shared/components/AuditLogPanel';
+import { MoleculeTargetPanel } from '@/modules/targets/components/MoleculeTargetPanel';
 import { StatusActionsBar } from '@/shared/components/StatusActionsBar';
 import { StatusHistoryPanel } from '@/shared/components/StatusHistoryPanel';
 import { ACTION_LABELS, AVAILABLE_ACTIONS } from '../constants';
@@ -205,6 +206,12 @@ export function SubstanceDetailPage() {
           <XrefEditor substanceCode={sub.substance_code} xrefs={sub.xrefs ?? []} />
         </Card>
       ),
+    },
+    {
+      // 靶点域（tgt / ref.molecule_target）：分子↔靶点关联面板，与靶点详情页共用组件
+      key: 'targets',
+      label: '靶点',
+      children: <MoleculeTargetPanel mode="substance" code={sub.substance_code} />,
     },
     {
       key: 'relations',

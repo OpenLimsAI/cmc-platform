@@ -1,4 +1,5 @@
 import { api, unwrap, unwrapList } from './client';
+import type { AuditLogItem } from './types';
 
 // ============== 靶点域（tgt.target / ref.molecule_target / tgt.target_source_snapshot）==============
 // 设计决策：docs/decisions/2026-08-17-target-domain.md
@@ -128,6 +129,27 @@ export interface MoleculeTargetLink {
   updated_at: string;
 }
 
+export interface MoleculeTargetLinkCreatePayload {
+  substance_code: string;
+  relation_role: MoleculeTargetRole;
+  moa?: string | null;
+  action_type?: string | null;
+  binding_epitope_or_domain?: string | null;
+  chembl_mechanism_id?: number | null;
+  needs_confirm?: boolean;
+  notes?: string | null;
+}
+
+export interface MoleculeTargetLinkUpdatePayload {
+  change_reason?: string;
+  moa?: string | null;
+  action_type?: string | null;
+  binding_epitope_or_domain?: string | null;
+  chembl_mechanism_id?: number | null;
+  needs_confirm?: boolean;
+  notes?: string | null;
+}
+
 export interface TargetSnapshotBrief {
   snapshot_id: number;
   target_id: number;
@@ -197,9 +219,25 @@ export const targetsApi = {
       api.post(`/targets/${encodeURIComponent(code)}:refresh-uniprot`, { change_reason }, { timeout: 45000 }),
     ),
 
-  // 分子关联（只读展示；关联维护一期走 API / 二期做面板）
+  // 分子↔靶点关联（ref.molecule_target）
   molecules: (code: string) =>
     unwrap<MoleculeTargetLink[]>(api.get(`/targets/${encodeURIComponent(code)}/molecules`)),
+  targetsOfMolecule: (substanceCode: string) =>
+    unwrap<MoleculeTargetLink[]>(api.get(`/targets/by-molecule/${encodeURIComponent(substanceCode)}`)),
+  addMolecule: (code: string, payload: MoleculeTargetLinkCreatePayload) =>
+    unwrap<MoleculeTargetLink>(api.post(`/targets/${encodeURIComponent(code)}/molecules`, payload)),
+  updateMolecule: (code: string, substanceCode: string, role: MoleculeTargetRole, payload: MoleculeTargetLinkUpdatePayload) =>
+    unwrap<MoleculeTargetLink>(
+      api.put(`/targets/${encodeURIComponent(code)}/molecules/${encodeURIComponent(substanceCode)}/${role}`, payload),
+    ),
+  removeMolecule: (code: string, substanceCode: string, role: MoleculeTargetRole, change_reason: string) =>
+    api.delete(`/targets/${encodeURIComponent(code)}/molecules/${encodeURIComponent(substanceCode)}/${role}`, {
+      data: { change_reason },
+    }),
+
+  // 审计历史（主表 + 关联表）
+  auditLogs: (code: string, query: { page?: number; page_size?: number; include_children?: boolean } = {}) =>
+    unwrapList<AuditLogItem>(api.get(`/targets/${encodeURIComponent(code)}/audit-logs`, { params: query })),
 
   // 外部源快照
   snapshots: (code: string) =>
