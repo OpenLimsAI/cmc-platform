@@ -92,3 +92,6 @@ python3 poc/target_prefill/prefill_target.py
   keywords（KW 编号+类别，多值）、subcellular_locations（SL 编号+拓扑，多值）、cd_antigen_names、gene_synonyms、ec_numbers、
   domains、entry_type、protein_existence、tax_id、sequence_length/mol_weight/sequence_md5、uniprot_entry_version/fetched_at。
   全部由「拉取」自动带出、人不手填；详情页可「从 UniProt 重新拉取」整体覆盖并追加快照。第三节的 target_type/target_location 与第 6 条"枚举硬编码"对靶点主表不再适用。
+- **2026-08-18 物质编码计数归零（负责人决定）**：物质模块尚未正式上线，`substance` 序列此前被 5–6 月自动化测试刷到 8258
+  （8032~8257 为 6 月 8 日已删的测试数据）。当日在生产库将唯一真实物质 SUB-0008258 改为 **SUB-0000001**（审计留带原因的 UPDATE），
+  清除 ID 2~227 测试物质的审计记录（230 条日志 + 2419 条明细），序列置 1。只动物质相关对象；project/asset 序列（同为测试刷高）暂未处理。
