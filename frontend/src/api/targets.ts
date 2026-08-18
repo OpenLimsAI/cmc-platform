@@ -2,12 +2,49 @@ import { api, unwrap, unwrapList } from './client';
 
 // ============== 靶点域（tgt.target / ref.molecule_target / tgt.target_source_snapshot）==============
 // 设计决策：docs/decisions/2026-08-17-target-domain.md
-export type TargetType = '受体' | '配体·细胞因子' | '表面抗原' | '酶' | '其他';
-export type TargetLocation = '膜型' | '可溶型' | '两者都有' | '胞内';
 export type TargetStatus = 'draft' | 'published' | 'retired';
 export type TargetAction = 'publish' | 'retire';
 export type MoleculeTargetRole = 'antibody_target' | 'payload_target' | 'other';
 export type SnapshotSource = 'uniprot' | 'chembl_target' | 'chembl_molecule' | 'chembl_mechanism' | 'other';
+
+// ---- UniProt 标准子结构（0051）----
+export interface UniprotKeyword {
+  id: string | null; // KW-0675
+  name: string; // Receptor
+  category: string | null; // Molecular function / Cellular component / Biological process / ...
+}
+export interface UniprotSubcellularLocation {
+  id: string | null; // SL-0039
+  location: string; // Cell membrane
+  topology: string | null; // Single-pass type I membrane protein
+  topology_id: string | null;
+  orientation: string | null;
+  molecule: string | null;
+}
+export interface UniprotDomain {
+  type: string; // Domain / Region / Topological domain / Transmembrane / Signal / Chain
+  description: string | null;
+  start: number | null;
+  end: number | null;
+}
+
+/** UniProt 标准字段：全部由「拉取」自动带出，人不手填 */
+export interface TargetUniprotFields {
+  entry_type?: string | null;
+  protein_existence?: string | null;
+  cd_antigen_names?: string[] | null;
+  gene_synonyms?: string[] | null;
+  tax_id?: number | null;
+  keywords?: UniprotKeyword[] | null;
+  subcellular_locations?: UniprotSubcellularLocation[] | null;
+  ec_numbers?: string[] | null;
+  domains?: UniprotDomain[] | null;
+  sequence_length?: number | null;
+  mol_weight?: number | null;
+  sequence_md5?: string | null;
+  uniprot_entry_version?: number | null;
+  uniprot_fetched_at?: string | null;
+}
 
 export interface TargetBrief {
   target_code: string; // TGT-NNNNNN（系统取号）
@@ -15,33 +52,41 @@ export interface TargetBrief {
   uniprot_id: string | null;
   gene_symbol: string | null;
   organism: string | null;
-  target_type: TargetType;
-  target_location: TargetLocation;
+  entry_type: string | null;
+  cd_antigen_names: string[] | null;
+  keywords: UniprotKeyword[] | null;
+  subcellular_locations: UniprotSubcellularLocation[] | null;
   status: TargetStatus;
   created_at: string;
   updated_at: string;
 }
 
-export interface TargetDetail extends TargetBrief {
+export interface TargetDetail extends Required<TargetUniprotFields> {
   target_id: number;
+  target_code: string;
+  target_name: string;
+  uniprot_id: string | null;
+  gene_symbol: string | null;
+  organism: string | null;
   aliases: string[] | null;
+  status: TargetStatus;
   description: string | null;
   notes: string | null;
   extra: Record<string, unknown> | null;
+  created_at: string;
   created_by: number;
+  updated_at: string;
   updated_by: number;
   deleted_at: string | null;
   deleted_by: number | null;
 }
 
-export interface TargetCreatePayload {
+export interface TargetCreatePayload extends TargetUniprotFields {
   target_name: string;
   uniprot_id?: string | null;
   gene_symbol?: string | null;
   organism?: string | null;
   aliases?: string[] | null;
-  target_type: TargetType;
-  target_location: TargetLocation;
   description?: string | null;
   notes?: string | null;
 }
@@ -52,8 +97,10 @@ export interface TargetUpdatePayload extends Partial<TargetCreatePayload> {
 
 export interface TargetListQuery {
   q?: string;
-  target_type?: string;
-  target_location?: string;
+  keyword?: string;
+  keyword_category?: string;
+  location?: string;
+  entry_type?: string;
   status?: string;
   uniprot_id?: string;
   page?: number;
@@ -93,13 +140,13 @@ export interface TargetSnapshotBrief {
 }
 
 export interface TargetPrefillHints {
-  target_type_reason: string | null;
-  target_location_reason: string | null;
   entry_type: string | null;
   entry_version: number | null;
   tax_id: number | null;
   sequence_length: number | null;
   is_human: boolean | null;
+  is_reviewed: boolean | null;
+  redirected_from: string | null;
 }
 
 export interface TargetSnapshotCreatePayload {
@@ -140,6 +187,12 @@ export const targetsApi = {
   changeStatus: (code: string, action: TargetAction, change_reason: string) =>
     unwrap<TargetDetail>(
       api.post(`/targets/${encodeURIComponent(code)}:${action}`, { change_reason }),
+    ),
+
+  // 按当前 uniprot_id 重新拉取并覆盖标准字段 + 追加快照
+  refreshUniprot: (code: string, change_reason: string) =>
+    unwrap<TargetDetail>(
+      api.post(`/targets/${encodeURIComponent(code)}:refresh-uniprot`, { change_reason }, { timeout: 45000 }),
     ),
 
   // 分子关联（只读展示；关联维护一期走 API / 二期做面板）

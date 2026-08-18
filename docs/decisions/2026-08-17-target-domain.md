@@ -88,3 +88,7 @@ python3 poc/target_prefill/prefill_target.py
 
 - 一期已上线（migration 0050，commit 8d30ed3）；Linux 出网验证：直连、无需代理；ChEMBL 官方 REST 当日故障，Step 2 待其恢复补跑。
 - 应负责人要求增加"新建靶点页按 UniProt accession 一键拉取"（`GET /targets/prefill/uniprot`）：只调 UniProt 单条、不落库；保存时同步存 UniProt 快照。这不是决策 7 里砍掉的"INN 全链路预填向导"（那条仍留二期），只是减少手填字段。
+- **2026-08-18 负责人二次决策：废除自定义"靶点类型 5 选 1 / 靶点定位 4 选 1"（不是标准分类），改为 UniProt 标准字段（migration 0051）**：
+  keywords（KW 编号+类别，多值）、subcellular_locations（SL 编号+拓扑，多值）、cd_antigen_names、gene_synonyms、ec_numbers、
+  domains、entry_type、protein_existence、tax_id、sequence_length/mol_weight/sequence_md5、uniprot_entry_version/fetched_at。
+  全部由「拉取」自动带出、人不手填；详情页可「从 UniProt 重新拉取」整体覆盖并追加快照。第三节的 target_type/target_location 与第 6 条"枚举硬编码"对靶点主表不再适用。

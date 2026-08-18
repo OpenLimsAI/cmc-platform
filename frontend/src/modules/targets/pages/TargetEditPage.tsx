@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { targetsApi, type TargetUpdatePayload } from '@/api/targets';
 import { TargetFormFields } from '../components/TargetFormFields';
+import { UniprotInfoPanel } from '../components/UniprotInfoPanel';
 
 const { Title, Text } = Typography;
 
@@ -22,13 +23,11 @@ export function TargetEditPage() {
   useEffect(() => {
     if (t) {
       form.setFieldsValue({
-        target_name: t.target_name,
         uniprot_id: t.uniprot_id ?? undefined,
+        target_name: t.target_name,
         gene_symbol: t.gene_symbol ?? undefined,
         organism: t.organism ?? undefined,
         aliases: t.aliases ?? [],
-        target_type: t.target_type,
-        target_location: t.target_location,
         description: t.description ?? undefined,
         notes: t.notes ?? undefined,
       });
@@ -48,25 +47,27 @@ export function TargetEditPage() {
     },
   });
 
-  const onFinish = async () => {
-    const v = await form.validateFields();
-    mutation.mutate({
-      target_name: v.target_name,
-      uniprot_id: v.uniprot_id || null,
-      gene_symbol: v.gene_symbol || null,
-      organism: v.organism || null,
-      aliases: v.aliases?.length ? v.aliases : null,
-      target_type: v.target_type,
-      target_location: v.target_location,
-      description: v.description || null,
-      notes: v.notes || null,
-      change_reason: v.change_reason,
-    });
-  };
-
   if (isLoading || !t) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
   }
+  const hasUniprot = !!t.uniprot_id;
+
+  const onFinish = async () => {
+    const v = await form.validateFields();
+    // 有 UniProt 号：标准字段只能靠「重新拉取」改，这里只改备注；无 UniProt 号：兜底字段可改
+    const payload: TargetUpdatePayload = hasUniprot
+      ? { notes: v.notes || null, change_reason: v.change_reason }
+      : {
+          target_name: v.target_name,
+          gene_symbol: v.gene_symbol || null,
+          organism: v.organism || null,
+          aliases: v.aliases?.length ? v.aliases : null,
+          description: v.description || null,
+          notes: v.notes || null,
+          change_reason: v.change_reason,
+        };
+    mutation.mutate(payload);
+  };
 
   return (
     <div>
@@ -82,11 +83,20 @@ export function TargetEditPage() {
         <Title level={3} style={{ margin: 0 }}>
           编辑靶点 {t.target_code}
         </Title>
-        <Text type="secondary">编码与状态不可在此修改；发布/退役在详情页操作</Text>
+        <Text type="secondary">
+          {hasUniprot
+            ? 'UniProt 标准字段只读（要更新请在详情页「从 UniProt 重新拉取」）；这里只能改备注。'
+            : '无 UniProt 号的兜底靶点：可修改名称/基因/物种/别名/描述。'}
+        </Text>
       </Card>
       <Card>
-        <Form form={form} layout="vertical" style={{ maxWidth: 880 }}>
-          <TargetFormFields />
+        <Form form={form} layout="vertical" style={{ maxWidth: 960 }}>
+          <TargetFormFields lockAccession fetched={hasUniprot} />
+          {hasUniprot && (
+            <Card size="small" title="UniProt 标准字段（只读）" style={{ marginBottom: 16 }}>
+              <UniprotInfoPanel data={t} compact />
+            </Card>
+          )}
           <Form.Item
             name="change_reason"
             label="变更原因"

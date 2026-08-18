@@ -1,27 +1,29 @@
 import { Button, Col, Form, Input, Row, Select, Space, Typography } from 'antd';
 import { CloudDownloadOutlined } from '@ant-design/icons';
-import type { TargetPrefillHints } from '@/api/targets';
-import { TARGET_LOCATION_OPTIONS, TARGET_TYPE_OPTIONS } from '../constants';
 
 const { Text } = Typography;
-
-interface Props {
-  /** 传入则显示「拉取」按钮：按 UniProt accession 自动预填（新建页用；编辑页不传）*/
-  onFetchUniprot?: (accession: string) => void;
-  fetching?: boolean;
-  /** 上次拉取返回的依据（类型/定位为启发式建议）*/
-  hints?: TargetPrefillHints | null;
-}
 
 // UniProt accession 官方正则（与后端 schemas.UNIPROT_ACCESSION_RE 一致）
 export const UNIPROT_ACCESSION_RE = /^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})$/i;
 
+interface Props {
+  /** 传入则显示「拉取」按钮：按 UniProt accession 自动预填（新建页用）*/
+  onFetchUniprot?: (accession: string) => void;
+  fetching?: boolean;
+  /** 已从 UniProt 拉取成功：标准字段只读，手填字段收起 */
+  fetched?: boolean;
+  /** 编辑模式：accession 不可改（要换号请新建/重新拉取）*/
+  lockAccession?: boolean;
+}
+
 /**
- * 靶点表单字段（新建 / 编辑共用）。
- * 一期不做外部 API 预填向导：由 `app.scripts.prefill_targets` 离线产出预填 JSON，
- * 人工对照 summary.md 在此表单核对录入（决策 #7）。
+ * 靶点表单（新建 / 编辑共用）。
+ * 0051 起：靶点字段对齐 UniProt 标准，全部由「拉取」自动带出；这里只有
+ *   - UniProt accession（唯一需要人输入的）
+ *   - 兜底字段（名称 / 基因 / 物种 / 别名 / 描述）—— 仅在没有 UniProt 号的特殊靶点时手填
+ *   - 备注
  */
-export function TargetFormFields({ onFetchUniprot, fetching, hints }: Props) {
+export function TargetFormFields({ onFetchUniprot, fetching, fetched, lockAccession }: Props) {
   const form = Form.useFormInstance();
   const doFetch = () => {
     const v = (form.getFieldValue('uniprot_id') as string | undefined)?.trim().toUpperCase();
@@ -34,23 +36,14 @@ export function TargetFormFields({ onFetchUniprot, fetching, hints }: Props) {
   return (
     <>
       <Row gutter={16}>
-        <Col span={12}>
-          <Form.Item
-            name="target_name"
-            label="靶点名称"
-            rules={[{ required: true, message: '请填写靶点名称' }, { max: 255 }]}
-            extra="建议用 UniProt recommendedName，如 Programmed cell death protein 1"
-          >
-            <Input placeholder="Programmed cell death protein 1" />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
+        <Col span={10}>
           <Form.Item
             label="UniProt accession"
+            required={!lockAccession}
             extra={
-              onFetchUniprot
-                ? '填好后点「拉取」或回车：自动带出名称/基因/别名/建议类型定位；已存在（含次级号）会提示去建关联'
-                : '查重锚点：已存在（含次级 accession）会被拒绝，请改为建立分子-靶点关联'
+              lockAccession
+                ? '编码锚点不可改；UniProt 内容有更新请用详情页「从 UniProt 重新拉取」'
+                : '填好后点「拉取」或回车，其余字段自动带出。已存在（含次级/旧号）会提示去建关联'
             }
           >
             <Space.Compact style={{ width: '100%' }}>
@@ -67,102 +60,57 @@ export function TargetFormFields({ onFetchUniprot, fetching, hints }: Props) {
                 ]}
                 normalize={(v?: string) => v?.trim().toUpperCase()}
               >
-                <Input placeholder="Q15116" onPressEnter={onFetchUniprot ? doFetch : undefined} />
+                <Input
+                  placeholder="Q15116"
+                  disabled={lockAccession}
+                  onPressEnter={onFetchUniprot ? doFetch : undefined}
+                  style={{ fontFamily: 'monospace' }}
+                />
               </Form.Item>
               {onFetchUniprot && (
-                <Button icon={<CloudDownloadOutlined />} loading={fetching} onClick={doFetch}>
+                <Button type="primary" icon={<CloudDownloadOutlined />} loading={fetching} onClick={doFetch}>
                   拉取
                 </Button>
               )}
             </Space.Compact>
           </Form.Item>
         </Col>
-        <Col span={6}>
-          <Form.Item name="gene_symbol" label="基因符号" rules={[{ max: 64 }]}>
-            <Input placeholder="PDCD1" />
-          </Form.Item>
-        </Col>
       </Row>
 
-      <Row gutter={16}>
-        <Col span={8}>
-          <Form.Item
-            name="target_type"
-            label="靶点类型"
-            rules={[{ required: true, message: '请选择靶点类型' }]}
-            extra={
-              hints?.target_type_reason ? (
-                <Text type="warning">建议值依据：{hints.target_type_reason}（请人工确认）</Text>
-              ) : (
-                '拉取/预填给的是启发式建议值，请对照依据人工确认'
-              )
-            }
-          >
-            <Select
-              placeholder="选择类型"
-              options={TARGET_TYPE_OPTIONS}
-              optionRender={(opt) => {
-                const o = TARGET_TYPE_OPTIONS.find((x) => x.value === opt.value);
-                return (
-                  <div>
-                    <div>{o?.label}</div>
-                    <div style={{ fontSize: 12, color: '#999', whiteSpace: 'normal' }}>{o?.hint}</div>
-                  </div>
-                );
-              }}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item
-            name="target_location"
-            label="靶点定位"
-            rules={[{ required: true, message: '请选择靶点定位' }]}
-            extra={
-              hints?.target_location_reason ? (
-                <Text type="warning">建议值依据：{hints.target_location_reason}（请人工确认）</Text>
-              ) : undefined
-            }
-          >
-            <Select
-              placeholder="选择定位"
-              options={TARGET_LOCATION_OPTIONS}
-              optionRender={(opt) => {
-                const o = TARGET_LOCATION_OPTIONS.find((x) => x.value === opt.value);
-                return (
-                  <div>
-                    <div>{o?.label}</div>
-                    <div style={{ fontSize: 12, color: '#999', whiteSpace: 'normal' }}>{o?.hint}</div>
-                  </div>
-                );
-              }}
-            />
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item name="organism" label="物种" rules={[{ max: 128 }]}>
-            <Input placeholder="Homo sapiens" />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Form.Item
-        name="aliases"
-        label="别名 / 次级 accession"
-        extra={
-          <Text type="secondary">
-            回车添加多个：短名、别名、CD 号、UniProt 次级 accession（次级 accession 参与查重）
+      {/* 兜底字段：无 UniProt 号（非蛋白/未收录靶点）时才需要手填；拉取成功后收起（值仍在表单里） */}
+      {!fetched && (
+        <>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            没有 UniProt 号的特殊靶点，才需要在下面手填名称/基因/物种；有 UniProt 号请直接「拉取」。
           </Text>
-        }
-      >
-        <Select mode="tags" tokenSeparators={[',', ';']} placeholder="PD-1, CD279, O00517 …" open={false} />
-      </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="target_name" label="靶点名称" rules={[{ required: true, message: '请填写靶点名称或先拉取 UniProt' }, { max: 255 }]}>
+                <Input placeholder="Programmed cell death protein 1" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="gene_symbol" label="基因符号" rules={[{ max: 64 }]}>
+                <Input placeholder="PDCD1" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="organism" label="物种" rules={[{ max: 128 }]}>
+                <Input placeholder="Homo sapiens" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="aliases" label="别名">
+            <Select mode="tags" tokenSeparators={[',', ';']} placeholder="回车添加多个" open={false} />
+          </Form.Item>
+          <Form.Item name="description" label="功能描述">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </>
+      )}
 
-      <Form.Item name="description" label="功能描述">
-        <Input.TextArea rows={3} placeholder="UniProt FUNCTION 摘要或人工描述" />
-      </Form.Item>
-      <Form.Item name="notes" label="备注">
-        <Input.TextArea rows={2} />
+      <Form.Item name="notes" label="备注（人工）">
+        <Input.TextArea rows={2} placeholder="内部约定叫法、项目备注等" />
       </Form.Item>
     </>
   );

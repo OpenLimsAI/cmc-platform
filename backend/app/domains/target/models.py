@@ -1,7 +1,9 @@
 """靶点域 ORM 模型（tgt.target / tgt.target_source_snapshot / ref.molecule_target）
 
 设计决策：docs/decisions/2026-08-17-target-domain.md
-  - 主表 tgt.target：靶点"是什么"的稳定主属性，锚点 uniprot_id（未删除行内唯一）
+  - 主表 tgt.target：靶点"是什么"的稳定主属性，锚点 uniprot_id（未删除行内唯一）；
+    0051 起字段直接对齐 UniProt 标准（keywords / subcellular_locations / cd_antigen_names / ec_numbers…），
+    自定义"类型/定位"枚举已废除
   - 快照表 tgt.target_source_snapshot：外部源（UniProt / ChEMBL）裁剪后的原始 JSON，append-only，不挂审计
   - 关联表 ref.molecule_target：分子（= srs.substance）↔ 靶点，PK (molecule_id, target_id, relation_role)
   - 轻档审核：status draft/published/retired，无状态机表、无电签（对标 mm/eqp）
@@ -14,6 +16,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -24,8 +27,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
-TARGET_TYPES = ("受体", "配体·细胞因子", "表面抗原", "酶", "其他")
-TARGET_LOCATIONS = ("膜型", "可溶型", "两者都有", "胞内")
 TARGET_STATUSES = ("draft", "published", "retired")
 MOLECULE_TARGET_ROLES = ("antibody_target", "payload_target", "other")
 SNAPSHOT_SOURCES = ("uniprot", "chembl_target", "chembl_molecule", "chembl_mechanism", "other")
@@ -37,14 +38,6 @@ class Target(Base):
     __tablename__ = "target"
     __table_args__ = (
         UniqueConstraint("target_code", name="uq_tgt_target_code"),
-        CheckConstraint(
-            "target_type IN ('受体','配体·细胞因子','表面抗原','酶','其他')",
-            name="ck_target_type",
-        ),
-        CheckConstraint(
-            "target_location IN ('膜型','可溶型','两者都有','胞内')",
-            name="ck_target_location",
-        ),
         CheckConstraint(
             "status IN ('draft','published','retired')",
             name="ck_target_status",
@@ -62,8 +55,22 @@ class Target(Base):
     organism: Mapped[str | None] = mapped_column(String(128), default="Homo sapiens")
     # 别名 / 短名 / 次级 accession（list[str]）——查重需同时匹配主+次级 accession
     aliases: Mapped[list | None] = mapped_column(JSONB)
-    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    target_location: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    # ---- UniProt 标准字段（0051；全部自动拉取，可空以容纳无 UniProt 号的特殊靶点）----
+    entry_type: Mapped[str | None] = mapped_column(String(64))          # UniProtKB reviewed (Swiss-Prot) / unreviewed (TrEMBL)
+    protein_existence: Mapped[str | None] = mapped_column(String(64))   # "1: Evidence at protein level"
+    cd_antigen_names: Mapped[list | None] = mapped_column(JSONB)        # ["CD279"]
+    gene_synonyms: Mapped[list | None] = mapped_column(JSONB)           # ["SGRF"]
+    tax_id: Mapped[int | None] = mapped_column(Integer)                 # 9606
+    keywords: Mapped[list | None] = mapped_column(JSONB)                # [{"id","name","category"}]
+    subcellular_locations: Mapped[list | None] = mapped_column(JSONB)   # [{"id","location","topology","topology_id","molecule"}]
+    ec_numbers: Mapped[list | None] = mapped_column(JSONB)              # ["2.7.10.1"]
+    domains: Mapped[list | None] = mapped_column(JSONB)                 # [{"type","description","start","end"}]
+    sequence_length: Mapped[int | None] = mapped_column(Integer)
+    mol_weight: Mapped[int | None] = mapped_column(Integer)             # Da
+    sequence_md5: Mapped[str | None] = mapped_column(String(32))
+    uniprot_entry_version: Mapped[int | None] = mapped_column(Integer)
+    uniprot_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
 

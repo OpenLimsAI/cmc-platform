@@ -20,24 +20,62 @@ def _normalize_accession(v: str | None) -> str | None:
     return v
 
 
-TargetType = Literal["受体", "配体·细胞因子", "表面抗原", "酶", "其他"]
-TargetLocation = Literal["膜型", "可溶型", "两者都有", "胞内"]
 TargetStatus = Literal["draft", "published", "retired"]
 MoleculeTargetRole = Literal["antibody_target", "payload_target", "other"]
 SnapshotSource = Literal["uniprot", "chembl_target", "chembl_molecule", "chembl_mechanism", "other"]
 
 
+# ============== UniProt 标准子结构 ==============
+class UniprotKeyword(BaseModel):
+    id: str | None = None          # KW-0675
+    name: str                      # Receptor
+    category: str | None = None    # Molecular function / Cellular component / Biological process / ...
+
+
+class UniprotSubcellularLocation(BaseModel):
+    id: str | None = None          # SL-0039
+    location: str                  # Cell membrane
+    topology: str | None = None    # Single-pass type I membrane protein
+    topology_id: str | None = None # SL-9905
+    orientation: str | None = None
+    molecule: str | None = None    # 同种型/剪接体说明（若有）
+
+
+class UniprotDomain(BaseModel):
+    type: str                      # Domain / Region / Topological domain / Transmembrane / Signal / Chain
+    description: str | None = None
+    start: int | None = None
+    end: int | None = None
+
+
 # ============== tgt.target ==============
-class TargetBase(BaseModel):
+class TargetUniprotFields(BaseModel):
+    """UniProt 标准字段（0051）：新建/更新时随预填一起提交；正常情况下由「拉取」自动带出，人不手填。"""
+
     model_config = ConfigDict(from_attributes=True)
 
-    target_name: str = Field(..., max_length=255, description="靶点名称（UniProt recommendedName 或人工）")
+    entry_type: str | None = Field(None, max_length=64)
+    protein_existence: str | None = Field(None, max_length=64)
+    cd_antigen_names: list[str] | None = None
+    gene_synonyms: list[str] | None = None
+    tax_id: int | None = None
+    keywords: list[UniprotKeyword] | None = None
+    subcellular_locations: list[UniprotSubcellularLocation] | None = None
+    ec_numbers: list[str] | None = None
+    domains: list[UniprotDomain] | None = None
+    sequence_length: int | None = None
+    mol_weight: int | None = None
+    sequence_md5: str | None = Field(None, max_length=32)
+    uniprot_entry_version: int | None = None
+    uniprot_fetched_at: datetime | None = None
+
+
+class TargetBase(TargetUniprotFields):
+    target_name: str = Field(..., max_length=255, description="靶点名称（UniProt recommendedName；无 UniProt 号时人工填）")
     uniprot_id: str | None = Field(None, max_length=16, description="UniProt 主 accession（查重锚点）")
     gene_symbol: str | None = Field(None, max_length=64)
     organism: str | None = Field("Homo sapiens", max_length=128)
-    aliases: list[str] | None = Field(None, description="别名/短名/次级 accession 列表")
-    target_type: TargetType
-    target_location: TargetLocation
+    aliases: list[str] | None = Field(None, description="短名/别名/次级 accession 列表（次级 accession 参与查重）")
     description: str | None = None
     notes: str | None = None
     extra: dict | None = None
@@ -52,8 +90,9 @@ class TargetCreate(TargetBase):
     """POST 请求体：target_code 由系统 TGT-NNNNNN 取号，status 默认 draft"""
 
 
-class TargetUpdate(BaseModel):
-    """PUT 请求体（target_code / status 不在此改；status 走 :publish / :retire）"""
+class TargetUpdate(TargetUniprotFields):
+    """PUT 请求体（target_code / status 不在此改；status 走 :publish / :retire）
+    UniProt 字段一般由 :refresh-uniprot 整体刷新，PUT 主要改 notes / 兜底字段。"""
 
     change_reason: str | None = None
 
@@ -62,8 +101,6 @@ class TargetUpdate(BaseModel):
     gene_symbol: str | None = Field(None, max_length=64)
     organism: str | None = Field(None, max_length=128)
     aliases: list[str] | None = None
-    target_type: TargetType | None = None
-    target_location: TargetLocation | None = None
     description: str | None = None
     notes: str | None = None
     extra: dict | None = None
@@ -84,6 +121,12 @@ class TargetStatusChange(BaseModel):
     change_reason: str = Field(..., min_length=5, max_length=2000)
 
 
+class TargetRefreshUniprot(BaseModel):
+    """:refresh-uniprot 请求体：按当前 uniprot_id 重新拉取并整体覆盖 UniProt 字段 + 存新快照"""
+
+    change_reason: str = Field(..., min_length=5, max_length=2000)
+
+
 class TargetBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,8 +135,10 @@ class TargetBrief(BaseModel):
     uniprot_id: str | None = None
     gene_symbol: str | None = None
     organism: str | None = None
-    target_type: TargetType
-    target_location: TargetLocation
+    entry_type: str | None = None
+    cd_antigen_names: list[str] | None = None
+    keywords: list[UniprotKeyword] | None = None
+    subcellular_locations: list[UniprotSubcellularLocation] | None = None
     status: TargetStatus
     created_at: datetime
     updated_at: datetime
@@ -113,8 +158,10 @@ class TargetDetail(TargetBase):
 
 class TargetFilter(BaseModel):
     q: str | None = None
-    target_type: str | None = None
-    target_location: str | None = None
+    keyword: str | None = None            # 关键词名精确（如 Receptor / Cytokine）
+    keyword_category: str | None = None   # 配合 keyword 限定类别（如 Molecular function）
+    location: str | None = None           # 亚细胞定位名（如 Cell membrane / Secreted），前缀匹配
+    entry_type: str | None = None
     status: str | None = None
     uniprot_id: str | None = None
 
@@ -202,25 +249,25 @@ class TargetSnapshotDetail(TargetSnapshotBrief):
 
 
 # ============== UniProt 单条预填（GET /targets/prefill/uniprot）==============
-class TargetPrefillForm(BaseModel):
+class TargetPrefillForm(TargetUniprotFields):
+    """与 TargetCreate 字段一致（不含 notes/extra），可直接回填表单 / 提交"""
+
     target_name: str | None = None
     uniprot_id: str | None = None
     gene_symbol: str | None = None
     organism: str | None = None
     aliases: list[str] | None = None
-    target_type: TargetType | None = None
-    target_location: TargetLocation | None = None
     description: str | None = None
 
 
 class TargetPrefillHints(BaseModel):
-    target_type_reason: str | None = None
-    target_location_reason: str | None = None
     entry_type: str | None = None
     entry_version: int | None = None
     tax_id: int | None = None
     sequence_length: int | None = None
     is_human: bool | None = None
+    is_reviewed: bool | None = None       # Swiss-Prot 人工审阅
+    redirected_from: str | None = None    # 输入的是次级/旧号，UniProt 已重定向到主号
 
 
 class TargetPrefillResponse(BaseModel):

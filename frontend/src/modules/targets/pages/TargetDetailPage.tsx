@@ -13,7 +13,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { CloudSyncOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -29,10 +29,9 @@ import {
   MOLECULE_TARGET_ROLE_OPTIONS,
   SNAPSHOT_SOURCE_LABELS,
   TARGET_AVAILABLE_ACTIONS,
-  TARGET_LOCATION_OPTIONS,
   TARGET_STATUS_OPTIONS,
-  TARGET_TYPE_OPTIONS,
 } from '../constants';
+import { UniprotInfoPanel } from '../components/UniprotInfoPanel';
 
 const { Title, Text } = Typography;
 
@@ -42,6 +41,8 @@ export function TargetDetailPage() {
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const [refreshOpen, setRefreshOpen] = useState(false);
+  const [refreshReason, setRefreshReason] = useState('');
 
   const { data: t, isLoading } = useQuery({
     queryKey: ['target', code],
@@ -71,13 +72,27 @@ export function TargetDetailPage() {
     },
   });
 
+  const refreshMutation = useMutation({
+    mutationFn: () => targetsApi.refreshUniprot(code, refreshReason),
+    onSuccess: (d) => {
+      message.success(`已从 UniProt 重新拉取（v${d.uniprot_entry_version ?? '?'}），并追加快照`);
+      queryClient.invalidateQueries({ queryKey: ['target', code] });
+      queryClient.invalidateQueries({ queryKey: ['target-snapshots', code] });
+      queryClient.invalidateQueries({ queryKey: ['targets'] });
+      setRefreshOpen(false);
+      setRefreshReason('');
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.message ?? '重新拉取失败');
+    },
+  });
+
   if (isLoading || !t) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
   }
 
-  const typeDef = TARGET_TYPE_OPTIONS.find((o) => o.value === t.target_type);
-  const locDef = TARGET_LOCATION_OPTIONS.find((o) => o.value === t.target_location);
   const statusDef = TARGET_STATUS_OPTIONS.find((o) => o.value === t.status);
+  const mfKeywords = (t.keywords ?? []).filter((k) => k.category === 'Molecular function');
 
   const linkColumns = [
     {
@@ -158,12 +173,17 @@ export function TargetDetailPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Title level={3} style={{ margin: 0 }}>
-              {t.target_code} — {t.target_name} <Tag color={typeDef?.color}>{t.target_type}</Tag>
-              <Tag color={locDef?.color}>{t.target_location}</Tag>
+              {t.target_code} — {t.target_name}{' '}
+              {t.cd_antigen_names?.map((c) => (
+                <Tag key={c} color="geekblue">{c}</Tag>
+              ))}
+              {mfKeywords.slice(0, 3).map((k) => (
+                <Tag key={k.id ?? k.name} color="blue">{k.name}</Tag>
+              ))}
               <Tag color={statusDef?.color}>{statusDef?.label ?? t.status}</Tag>
             </Title>
             <Text type="secondary">
-              靶点主属性（是什么）；监管/市场状态不在 MDM。草稿需人工核对后发布。
+              靶点主属性按 UniProt 标准自动维护；监管/市场状态不在 MDM。草稿需人工核对后发布。
             </Text>
           </div>
           <Space>
@@ -180,6 +200,11 @@ export function TargetDetailPage() {
               entityTypeLabel="靶点"
             />
             <PermissionGuard permission="target:update">
+              {t.uniprot_id && (
+                <Button icon={<CloudSyncOutlined />} onClick={() => setRefreshOpen(true)}>
+                  从 UniProt 重新拉取
+                </Button>
+              )}
               <Button icon={<EditOutlined />} onClick={() => navigate(`/targets/${encodeURIComponent(code)}/edit`)}>
                 编辑
               </Button>
@@ -192,32 +217,13 @@ export function TargetDetailPage() {
       </Card>
 
       <Card>
-        <Descriptions bordered size="small" column={2}>
+        <Descriptions bordered size="small" column={2} style={{ marginBottom: 12 }}>
           <Descriptions.Item label="靶点编码">{t.target_code}</Descriptions.Item>
           <Descriptions.Item label="状态">{statusDef?.label ?? t.status}</Descriptions.Item>
-          <Descriptions.Item label="靶点名称" span={2}>
+          <Descriptions.Item label="靶点名称（UniProt 推荐名）" span={2}>
             {t.target_name}
           </Descriptions.Item>
-          <Descriptions.Item label="UniProt accession">
-            {t.uniprot_id ? (
-              <a href={`https://www.uniprot.org/uniprotkb/${t.uniprot_id}/entry`} target="_blank" rel="noreferrer">
-                {t.uniprot_id}
-              </a>
-            ) : (
-              '—'
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="基因符号">{t.gene_symbol ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="靶点类型">{t.target_type}</Descriptions.Item>
-          <Descriptions.Item label="靶点定位">{t.target_location}</Descriptions.Item>
-          <Descriptions.Item label="物种">{t.organism ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="别名 / 次级 accession">
-            {t.aliases?.length ? t.aliases.map((a) => <Tag key={a}>{a}</Tag>) : '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="功能描述" span={2}>
-            {t.description ?? '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="备注" span={2}>
+          <Descriptions.Item label="备注（人工）" span={2}>
             {t.notes ?? '—'}
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
@@ -227,6 +233,7 @@ export function TargetDetailPage() {
             <TimeDisplay value={t.updated_at} />
           </Descriptions.Item>
         </Descriptions>
+        <UniprotInfoPanel data={t} />
       </Card>
 
       <Card
@@ -258,6 +265,30 @@ export function TargetDetailPage() {
           locale={{ emptyText: '暂无快照（预填脚本 --attach-snapshots 可回填）' }}
         />
       </Card>
+
+      <Modal
+        open={refreshOpen}
+        title={`从 UniProt 重新拉取: ${t.uniprot_id}`}
+        onCancel={() => setRefreshOpen(false)}
+        onOk={() => {
+          if (refreshReason.trim().length < 5) {
+            message.warning('请填写变更原因（至少 5 个字符）');
+            return;
+          }
+          refreshMutation.mutate();
+        }}
+        confirmLoading={refreshMutation.isPending}
+        okText="拉取并覆盖"
+      >
+        <p>按当前 accession 重新抓取 UniProt，整体覆盖名称/基因/CD 号/关键词/定位/结构域/序列等标准字段（备注与状态不变），并追加一条新快照。</p>
+        <Input.TextArea
+          rows={2}
+          placeholder="变更原因（必填，≥5 字符），如：UniProt 条目更新到 v210"
+          value={refreshReason}
+          onChange={(e) => setRefreshReason(e.target.value)}
+          maxLength={2000}
+        />
+      </Modal>
 
       <Modal
         open={deleteOpen}

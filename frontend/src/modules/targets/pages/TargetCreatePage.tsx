@@ -9,6 +9,7 @@ import {
   type TargetSnapshotCreatePayload,
 } from '@/api/targets';
 import { TargetFormFields } from '../components/TargetFormFields';
+import { UniprotInfoPanel } from '../components/UniprotInfoPanel';
 
 const { Title, Text } = Typography;
 
@@ -18,26 +19,17 @@ export function TargetCreatePage() {
   const [prefill, setPrefill] = useState<TargetPrefillResponse | null>(null);
   const [snapshot, setSnapshot] = useState<TargetSnapshotCreatePayload | null>(null);
 
-  // 按 UniProt accession 拉一条 → 填表单（不落库）
+  // 按 UniProt accession 拉一条 → 全部标准字段进表单（不落库）
   const fetchMutation = useMutation({
     mutationFn: (accession: string) => targetsApi.prefillUniprot(accession),
     onSuccess: (r) => {
       setPrefill(r);
       setSnapshot(r.snapshot);
-      form.setFieldsValue({
-        target_name: r.form.target_name,
-        uniprot_id: r.form.uniprot_id,
-        gene_symbol: r.form.gene_symbol,
-        organism: r.form.organism,
-        aliases: r.form.aliases ?? [],
-        target_type: r.form.target_type,
-        target_location: r.form.target_location,
-        description: r.form.description,
-      });
+      form.setFieldsValue({ ...r.form, aliases: r.form.aliases ?? [] });
       if (r.existing) {
-        message.warning(`库里已有 ${r.existing.target_code}（${r.existing.target_name}），保存会被拒绝，请改为建立分子-靶点关联`, 8);
+        message.warning(`库里已有 ${r.existing.target_code}（${r.existing.target_name}），请改为建立分子-靶点关联`, 8);
       } else {
-        message.success(`已从 UniProt 拉取 ${r.accession}，请核对类型/定位后保存`);
+        message.success(`已从 UniProt 拉取 ${r.accession}，核对无误后保存`);
       }
     },
     onError: (err: any) => {
@@ -53,7 +45,7 @@ export function TargetCreatePage() {
         try {
           await targetsApi.addSnapshot(detail.target_code, snapshot);
         } catch {
-          message.warning('靶点已创建，但 UniProt 快照保存失败（可稍后用脚本回填）');
+          message.warning('靶点已创建，但 UniProt 快照保存失败（可在详情页「重新拉取」补上）');
         }
       }
       message.success(`靶点 ${detail.target_code} 创建成功（草稿）`);
@@ -66,18 +58,20 @@ export function TargetCreatePage() {
 
   const onFinish = async () => {
     const v = await form.validateFields();
+    const base = prefill && !prefill.existing ? prefill.form : {};
     mutation.mutate({
-      target_name: v.target_name,
+      ...base,
+      target_name: v.target_name || base.target_name || '',
       uniprot_id: v.uniprot_id || null,
-      gene_symbol: v.gene_symbol || null,
-      organism: v.organism || 'Homo sapiens',
-      aliases: v.aliases?.length ? v.aliases : null,
-      target_type: v.target_type,
-      target_location: v.target_location,
-      description: v.description || null,
+      gene_symbol: v.gene_symbol ?? base.gene_symbol ?? null,
+      organism: v.organism ?? base.organism ?? 'Homo sapiens',
+      aliases: v.aliases?.length ? v.aliases : (base.aliases ?? null),
+      description: v.description ?? base.description ?? null,
       notes: v.notes || null,
     });
   };
+
+  const fetched = !!prefill && !prefill.existing;
 
   return (
     <div>
@@ -90,7 +84,7 @@ export function TargetCreatePage() {
           新建靶点
         </Title>
         <Text type="secondary">
-          最省事的填法：只填 UniProt accession → 点「拉取」→ 核对类型/定位 → 保存。编码 TGT-NNNNNN 由系统生成，新建为草稿，详情页「发布」。
+          只需填 UniProt accession → 「拉取」→ 核对 → 保存。名称/基因/CD 号/关键词/亚细胞定位/EC 号/结构域/序列信息全部按 UniProt 标准自动带出，人不手填。编码 TGT-NNNNNN 系统生成，新建为草稿。
         </Text>
       </Card>
 
@@ -109,27 +103,34 @@ export function TargetCreatePage() {
           }
         />
       )}
-      {prefill && !prefill.existing && (
+      {fetched && (
         <Alert
-          type="info"
+          type={prefill.hints.is_human === false || prefill.hints.is_reviewed === false ? 'warning' : 'success'}
           showIcon
           style={{ marginBottom: 16 }}
-          message={`已从 UniProt 拉取 ${prefill.accession}（${prefill.hints.entry_type ?? ''}，版本 ${prefill.hints.entry_version ?? '?'}，${prefill.hints.sequence_length ?? '?'} aa）`}
+          message={`已从 UniProt 拉取 ${prefill.accession}${prefill.hints.redirected_from ? `（由旧号 ${prefill.hints.redirected_from} 重定向）` : ''}`}
           description={
-            prefill.hints.is_human === false
-              ? `注意：物种 tax_id=${prefill.hints.tax_id}，不是人源蛋白，请确认是否要录入。`
-              : '名称/基因/别名/功能描述已带出；类型与定位是启发式建议，依据显示在字段下方，请人工确认。保存时会一并存下 UniProt 原文快照。'
+            <>
+              {prefill.hints.is_human === false && <div>⚠ 物种 taxId={prefill.hints.tax_id}，不是人源蛋白，请确认是否要录入。</div>}
+              {prefill.hints.is_reviewed === false && <div>⚠ TrEMBL 自动注释条目（非 Swiss-Prot 人工审阅），可信度较低。</div>}
+              <div>请核对下方 UniProt 信息，无误点「保存」；保存时会一并存下 UniProt 原文快照。</div>
+            </>
           }
         />
       )}
 
       <Card>
-        <Form form={form} layout="vertical" style={{ maxWidth: 880 }} initialValues={{ organism: 'Homo sapiens' }}>
+        <Form form={form} layout="vertical" style={{ maxWidth: 960 }} initialValues={{ organism: 'Homo sapiens' }}>
           <TargetFormFields
             onFetchUniprot={(acc) => fetchMutation.mutate(acc)}
             fetching={fetchMutation.isPending}
-            hints={prefill?.hints ?? null}
+            fetched={fetched}
           />
+          {fetched && (
+            <Card size="small" title="UniProt 标准字段（自动带出，只读）" style={{ marginBottom: 16 }}>
+              <UniprotInfoPanel data={prefill.form} />
+            </Card>
+          )}
           <Space>
             <Button type="primary" loading={mutation.isPending} onClick={onFinish} disabled={!!prefill?.existing}>
               保存（草稿）

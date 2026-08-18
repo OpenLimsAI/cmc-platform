@@ -8,6 +8,7 @@ async SQLAlchemy 约定：不 try/except IntegrityError，一律 pre-check；upd
 from datetime import UTC, datetime
 
 from sqlalchemy import Text, cast, func, or_, select, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -68,14 +69,22 @@ class TargetService:
                         Target.target_name.ilike(kw),
                         Target.uniprot_id.ilike(kw),
                         Target.gene_symbol.ilike(kw),
-                        # aliases 是 JSONB 数组：转文本模糊匹配（数据量小，够用）
+                        # JSONB 数组转文本模糊匹配（数据量小，够用）
                         cast(Target.aliases, Text).ilike(kw),
+                        cast(Target.cd_antigen_names, Text).ilike(kw),
+                        cast(Target.gene_synonyms, Text).ilike(kw),
                     )
                 )
-        if filter.target_type:
-            stmt = stmt.where(Target.target_type.in_([s.strip() for s in filter.target_type.split(",")]))
-        if filter.target_location:
-            stmt = stmt.where(Target.target_location.in_([s.strip() for s in filter.target_location.split(",")]))
+        if filter.keyword:
+            kw_obj: dict = {"name": filter.keyword.strip()}
+            if filter.keyword_category:
+                kw_obj["category"] = filter.keyword_category.strip()
+            stmt = stmt.where(Target.keywords.contains(cast([kw_obj], JSONB)))
+        if filter.location:
+            # 亚细胞定位名前缀/包含匹配（如 "Cell membrane" / "Secreted" / "Nucleus"）
+            stmt = stmt.where(cast(Target.subcellular_locations, Text).ilike(f"%{filter.location.strip()}%"))
+        if filter.entry_type:
+            stmt = stmt.where(Target.entry_type.ilike(f"%{filter.entry_type.strip()}%"))
         if filter.status:
             stmt = stmt.where(Target.status.in_([s.strip() for s in filter.status.split(",")]))
         if filter.uniprot_id:
@@ -136,21 +145,15 @@ class TargetService:
     async def create(self, payload: TargetCreate, current_user: User) -> TargetDetail:
         uniprot_id = payload.uniprot_id.strip().upper() if payload.uniprot_id else None
         await self._ensure_uniprot_unique(uniprot_id)
+        data = payload.model_dump(exclude_unset=False, mode="json", exclude={"uniprot_id"})
         target = Target(
             target_code=None,  # 由 tgt.fn_target_assign_code 触发器取号 TGT-NNNNNN
-            target_name=payload.target_name,
             uniprot_id=uniprot_id,
-            gene_symbol=payload.gene_symbol,
-            organism=payload.organism,
-            aliases=payload.aliases,
-            target_type=payload.target_type,
-            target_location=payload.target_location,
             status="draft",
-            description=payload.description,
-            notes=payload.notes,
-            extra=payload.extra,
             created_by=current_user.user_id,
             updated_by=current_user.user_id,
+            **{k: v for k, v in data.items() if k != "uniprot_fetched_at"},
+            uniprot_fetched_at=payload.uniprot_fetched_at,
         )
         self.db.add(target)
         await self.db.flush()
@@ -161,7 +164,9 @@ class TargetService:
     async def update(self, code: str, payload: TargetUpdate, current_user: User) -> TargetDetail:
         await _set_change_reason(self.db, payload.change_reason)
         target = await self._get_target_or_404(code)
-        update_data = payload.model_dump(exclude_unset=True, exclude={"change_reason"})
+        update_data = payload.model_dump(exclude_unset=True, mode="json", exclude={"change_reason", "uniprot_fetched_at"})
+        if payload.model_fields_set & {"uniprot_fetched_at"}:
+            update_data["uniprot_fetched_at"] = payload.uniprot_fetched_at
         if "uniprot_id" in update_data and update_data["uniprot_id"]:
             update_data["uniprot_id"] = update_data["uniprot_id"].strip().upper()
             await self._ensure_uniprot_unique(update_data["uniprot_id"], exclude_id=target.target_id)
@@ -425,3 +430,31 @@ class TargetService:
             existing=TargetBrief.model_validate(existing) if existing else None,
             **data,
         )
+
+    async def refresh_from_uniprot(self, code: str, reason: str, current_user: User, *, transport=None) -> TargetDetail:
+        """按当前 uniprot_id 重新拉取 UniProt，整体覆盖标准字段并追加快照（notes / status 不动）。"""
+        await _set_change_reason(self.db, reason)
+        target = await self._get_target_or_404(code)
+        if not target.uniprot_id:
+            raise BadRequestError(f"target {code} 没有 uniprot_id，无法从 UniProt 刷新")
+        pre = await self.prefill_from_uniprot(target.uniprot_id, transport=transport)
+        form = pre.form.model_dump(mode="json", exclude_none=False)
+        fetched_at = pre.form.uniprot_fetched_at
+        for k, v in form.items():
+            if k in ("uniprot_id", "uniprot_fetched_at"):
+                continue
+            setattr(target, k, v)
+        target.uniprot_fetched_at = fetched_at
+        target.updated_by = current_user.user_id
+        await self.db.flush()
+        snap = TargetSourceSnapshot(
+            target_id=target.target_id,
+            source=pre.snapshot.source, source_id=pre.snapshot.source_id,
+            source_version=pre.snapshot.source_version, source_url=pre.snapshot.source_url,
+            fetched_at=pre.snapshot.fetched_at, payload=pre.snapshot.payload, license=pre.snapshot.license,
+            created_by=current_user.user_id,
+        )
+        self.db.add(snap)
+        await self.db.flush()
+        await self.db.refresh(target)
+        return TargetDetail.model_validate(target)

@@ -20,6 +20,7 @@ from app.domains.target.schemas import (
     TargetCreate,
     TargetDelete,
     TargetFilter,
+    TargetRefreshUniprot,
     TargetSnapshotCreate,
     TargetStatusChange,
     TargetUpdate,
@@ -40,8 +41,10 @@ def _rid(request: Request):
 async def list_targets(
     request: Request,
     q: str | None = None,
-    target_type: str | None = None,
-    target_location: str | None = None,
+    keyword: str | None = Query(None, description="UniProt 关键词名，如 Receptor / Cytokine"),
+    keyword_category: str | None = Query(None, description="关键词类别，如 Molecular function"),
+    location: str | None = Query(None, description="亚细胞定位名，如 Cell membrane / Secreted"),
+    entry_type: str | None = Query(None, description="Swiss-Prot / TrEMBL"),
     status: str | None = None,
     uniprot_id: str | None = None,
     page: int = Query(1, ge=1),
@@ -51,8 +54,8 @@ async def list_targets(
     db: AsyncSession = Depends(get_db),
 ):
     filter = TargetFilter(
-        q=q, target_type=target_type, target_location=target_location,
-        status=status, uniprot_id=uniprot_id,
+        q=q, keyword=keyword, keyword_category=keyword_category, location=location,
+        entry_type=entry_type, status=status, uniprot_id=uniprot_id,
     )
     items, total = await TargetService(db).list_targets(filter, page, page_size, sort)
     return success(
@@ -178,6 +181,18 @@ async def retire_target(
 ):
     detail = await TargetService(db).change_status(code, "retire", payload.change_reason, user)
     return success(data=detail.model_dump(mode="json"), message="已退役", request_id=_rid(request))
+
+
+@router.post("/{code}:refresh-uniprot", summary="按当前 uniprot_id 重新拉取 UniProt，覆盖标准字段并追加快照")
+async def refresh_target_from_uniprot(
+    code: str,
+    payload: TargetRefreshUniprot,
+    request: Request,
+    user: User = Depends(require_permission("target:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    detail = await TargetService(db).refresh_from_uniprot(code, payload.change_reason, user)
+    return success(data=detail.model_dump(mode="json"), message="已从 UniProt 刷新", request_id=_rid(request))
 
 
 # ============== 子资源：分子关联 ref.molecule_target ==============

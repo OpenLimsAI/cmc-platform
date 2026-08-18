@@ -11,10 +11,10 @@ import httpx
 import pytest
 from app.domains.target.prefill import (
     binding_subunit_hint,
+    extract_uniprot,
+    location_hint,
     pick_molecule,
     prefill_inn,
-    suggest_target_location,
-    suggest_target_type,
     trim_uniprot_payload,
 )
 from app.shared.http_client import ExternalHttpClient, ExternalHttpError
@@ -60,6 +60,16 @@ def _client(case: str, **kw) -> tuple[ExternalHttpClient, dict]:
 
 async def _no_hit(_acc: str):
     return None
+
+
+def _fresh_session_factory():
+    """service 层单测用：每个测试自建 engine（NullPool），避免全局 engine 绑定到已关闭的 event loop"""
+    from app.core.config import settings
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 
 # ----------------------------------------------------------------------------- http_client
@@ -112,19 +122,23 @@ def test_pick_molecule_exact_then_synonym_then_manual():
     assert m is None and "人工" in why
 
 
-def test_suggestions_from_uniprot_fixtures():
-    pd1 = _load("trastuzumab_deruxtecan", "05_uniprot_P04626.json")  # HER2
-    assert suggest_target_type(pd1)[0] == "受体"
-    assert suggest_target_location(pd1)[0] == "膜型"
-    top1 = _load("trastuzumab_deruxtecan", "05_uniprot_P11387.json")
-    assert suggest_target_type(top1)[0] == "酶"
-    assert suggest_target_location(top1)[0] == "胞内"
-    il12b = _load("guselkumab", "05_uniprot_P29460.json")
-    assert suggest_target_type(il12b)[0] == "配体·细胞因子"
-    assert suggest_target_location(il12b)[0] == "可溶型"
-    fix = _load("emicizumab", "05_uniprot_P00740.json")
-    assert suggest_target_type(fix)[0] == "酶"
-    assert suggest_target_location(fix)[0] == "可溶型"
+def test_extract_uniprot_standard_fields():
+    her2 = extract_uniprot(_load("trastuzumab_deruxtecan", "05_uniprot_P04626.json"))
+    assert her2["uniprot_id"] == "P04626" and her2["gene_symbol"] == "ERBB2"
+    assert her2["cd_antigen_names"] == ["CD340"] and her2["ec_numbers"] == ["2.7.10.1"]
+    names = {k["name"] for k in her2["keywords"]}
+    assert {"Receptor", "Kinase", "Membrane"} <= names
+    assert all(k["id"].startswith("KW-") for k in her2["keywords"])
+    locs = {(sl["id"], sl["location"]) for sl in her2["subcellular_locations"]}
+    assert ("SL-0039", "Cell membrane") in locs
+    assert any(sl["topology"] == "Single-pass type I membrane protein" for sl in her2["subcellular_locations"])
+    assert her2["sequence_length"] == 1255 and her2["mol_weight"] == 137910 and len(her2["sequence_md5"]) == 32
+    assert her2["_location_hint"] == "膜型"  # 仅内部用于 ADC 角色
+    top1 = extract_uniprot(_load("trastuzumab_deruxtecan", "05_uniprot_P11387.json"))
+    assert top1["_location_hint"] == "胞内"
+    il12b = extract_uniprot(_load("guselkumab", "05_uniprot_P29460.json"))
+    assert "Cytokine" in {k["name"] for k in il12b["keywords"]}
+    assert location_hint(_load("guselkumab", "05_uniprot_P29460.json"))[0] == "可溶型"
 
 
 def test_binding_subunit_hint():
@@ -164,10 +178,11 @@ async def test_prefill_guselkumab_mixed_hit_and_complex():
     assert bridge["P29460"]["target_code"] == "<NEW:P29460>" and bridge["P29460"]["_binding_subunit_hint"] == "UNLIKELY"
     assert all(b["needs_confirm"] for b in bridge.values())
     assert any("PROTEIN COMPLEX" in w for w in r["warnings"])
-    # 预填字段名与 API 请求体一致
+    # 预填字段名与 API 请求体一致（UniProt 标准字段）
     new = pf["targets_new"][0]
-    assert {"target_name", "uniprot_id", "gene_symbol", "target_type", "target_location", "aliases"} <= set(new)
-    assert new["target_type"] in ["受体", "配体·细胞因子", "表面抗原", "酶", "其他"]
+    assert {"target_name", "uniprot_id", "gene_symbol", "aliases", "keywords", "subcellular_locations",
+            "cd_antigen_names", "entry_type", "sequence_length", "uniprot_entry_version"} <= set(new)
+    assert "Cytokine" in {k["name"] for k in new["keywords"]}
     # 只对未命中的 P29460 抓了 UniProt
     assert [c["url"] for c in client.calls if "uniprot" in c["url"]] == ["https://rest.uniprot.org/uniprotkb/P29460.json"]
 
@@ -236,9 +251,11 @@ def test_build_uniprot_prefill_shape():
     u = _load("guselkumab", "05_uniprot_P29460.json")
     r = build_uniprot_prefill(u, "P29460", fetched_at="2026-08-17T13:30:47+00:00")
     assert r["form"]["uniprot_id"] == "P29460" and r["form"]["gene_symbol"] == "IL12B"
-    assert r["form"]["target_type"] == "配体·细胞因子" and r["form"]["target_location"] == "可溶型"
+    assert "Cytokine" in {k["name"] for k in r["form"]["keywords"]}
+    assert r["form"]["subcellular_locations"][0]["location"] == "Secreted"
     assert "IL-12 subunit p40" in r["form"]["aliases"]
-    assert r["hints"]["is_human"] is True and "Cytokine" in r["hints"]["target_type_reason"]
+    assert r["form"]["uniprot_fetched_at"] == "2026-08-17T13:30:47+00:00"
+    assert r["hints"]["is_human"] is True and r["hints"]["is_reviewed"] is True
     assert r["snapshot"]["source"] == "uniprot" and r["snapshot"]["source_id"] == "P29460"
     assert r["snapshot"]["fetched_at"] == "2026-08-17T13:30:47+00:00"
     assert "references" not in r["snapshot"]["payload"]
@@ -247,24 +264,26 @@ def test_build_uniprot_prefill_shape():
 @pytest.mark.asyncio
 async def test_service_prefill_from_uniprot_with_mock_transport():
     """service 层：MockTransport 打桩 UniProt；查重命中走 existing（不出网）"""
-    from app.core.database import AsyncSessionLocal
     from app.domains.target.services import TargetService
 
     entry = _load("trastuzumab_deruxtecan", "05_uniprot_P04626.json")
     transport = httpx.MockTransport(
         lambda r: httpx.Response(200, json=entry) if r.url.path.endswith("/P04626.json") else httpx.Response(404)
     )
-    async with AsyncSessionLocal() as db:
+    engine, session_factory = _fresh_session_factory()
+    async with session_factory() as db:
         svc = TargetService(db)
         r = await svc.prefill_from_uniprot("p04626", transport=transport)
         assert r.accession == "P04626"
         assert r.form.target_name == "Receptor tyrosine-protein kinase erbB-2"
-        assert r.form.target_type == "受体" and r.form.target_location == "膜型"
+        assert r.form.cd_antigen_names == ["CD340"] and r.form.ec_numbers == ["2.7.10.1"]
+        assert any(k.name == "Receptor" for k in r.form.keywords or [])
         assert r.snapshot.source_id == "P04626"
 
         from app.core.exceptions import NotFoundError
         with pytest.raises(NotFoundError):
             await svc.prefill_from_uniprot("A0A000", transport=transport)
+    await engine.dispose()
 
 
 @pytest.mark.asyncio
@@ -274,3 +293,35 @@ async def test_prefill_endpoint_validation_and_permission(admin_client, readonly
     assert r.status_code == 400, r.text
     r = await readonly_client.get("/api/v1/targets/prefill/uniprot?accession=Q15116")
     assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_service_refresh_from_uniprot_overwrites_fields_and_adds_snapshot():
+    """service 层：refresh-uniprot 用 MockTransport 拉新版本 → 标准字段覆盖 + 追加快照"""
+    from app.domains.auth.models import User
+    from app.domains.target.models import TargetSourceSnapshot
+    from app.domains.target.schemas import TargetCreate
+    from app.domains.target.services import TargetService
+    from sqlalchemy import select
+
+    entry = _load("guselkumab", "05_uniprot_P29460.json")
+    entry["entryAudit"] = {**(entry.get("entryAudit") or {}), "entryVersion": 999}
+    transport = httpx.MockTransport(
+        lambda r: httpx.Response(200, json=entry) if r.url.path.endswith("/P29460.json") else httpx.Response(404)
+    )
+    engine, session_factory = _fresh_session_factory()
+    async with session_factory() as db:
+        admin = (await db.execute(select(User).where(User.username == "admin"))).scalar_one()
+        svc = TargetService(db)
+        created = await svc.create(TargetCreate(target_name="占位 IL12B", uniprot_id="P29460"), admin)
+        assert created.keywords is None
+        refreshed = await svc.refresh_from_uniprot(created.target_code, "pytest 刷新 UniProt", admin, transport=transport)
+        assert refreshed.target_name == "Interleukin-12 subunit beta"
+        assert refreshed.uniprot_entry_version == 999
+        assert "Cytokine" in {k.name for k in refreshed.keywords or []}
+        snaps = (await db.execute(
+            select(TargetSourceSnapshot).where(TargetSourceSnapshot.target_id == created.target_id)
+        )).scalars().all()
+        assert len(snaps) == 1 and snaps[0].source_version == "999"
+        await db.rollback()  # 不留数据
+    await engine.dispose()

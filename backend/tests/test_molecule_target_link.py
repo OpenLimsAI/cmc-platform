@@ -23,11 +23,7 @@ async def _new_substance(client, suffix: str) -> str:
 
 
 async def _new_target(client, suffix: str, **over) -> str:
-    body = {
-        "target_name": f"pytest link target {suffix}",
-        "target_type": "受体",
-        "target_location": "膜型",
-    }
+    body = {"target_name": f"pytest link target {suffix}"}
     body.update(over)
     r = await client.post("/api/v1/targets", json=body)
     assert r.status_code == 201, r.text

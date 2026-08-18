@@ -78,7 +78,7 @@ make docs-check       # CI 文档一致性校验
 ## 靶点域（tgt / ref.molecule_target）
 
 - 靶点域设计决策见 `docs/decisions/2026-08-17-target-domain.md`，**开发前必读**（7 项拍板决策 + PoC 实测结论 + 一期改动边界）。PoC 产物在 `poc/target_prefill/`。
-- 一期已落地（2026-08-18，migration 0050）：`tgt.target` / `tgt.target_source_snapshot` / `ref.molecule_target`；后端 `app/domains/target/`（`prefill.py` 为链路纯逻辑）+ `api/v1/targets.py`；前端 `src/modules/targets/`；外部只读 HTTP 封装 `app/shared/http_client.py`（httpx+tenacity，域名白名单）。
+- 一期已落地（2026-08-18，migration 0050/0051）：靶点字段按 UniProt 标准自动维护（无自定义类型/定位枚举）；`tgt.target` / `tgt.target_source_snapshot` / `ref.molecule_target`；后端 `app/domains/target/`（`prefill.py` 为链路纯逻辑）+ `api/v1/targets.py`；前端 `src/modules/targets/`；外部只读 HTTP 封装 `app/shared/http_client.py`（httpx+tenacity，域名白名单）。
 - 新权限码 `target:{create,read,update,approve}`：dev/prod 库用 `python -m app.scripts.seed_target_permissions` 幂等补齐（禁重跑 make seed）。
 - 批量预填：`python -m app.scripts.prefill_targets --inn <INN...> --out data/target_prefill`（离线出 prefill_form.json + summary.md/csv，人工在表单核对录入；Mac 上加 `--no-proxy`）；录完后 `--attach-snapshots` 回填快照。测试用 MockTransport 打桩，不许真出网。
 

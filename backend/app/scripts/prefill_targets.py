@@ -110,10 +110,12 @@ def _write_summary(out_dir: Path, results: list[dict[str, Any]]) -> None:
         for t in pf.get("targets_existing_hit") or []:
             md.append(f"- ✅ 已有靶点命中：{t.get('target_code')} {t.get('target_name')} ({t.get('uniprot_id')}) → 只建关联")
         if pf.get("targets_new"):
-            md += ["", "| 新靶点 | uniprot_id | gene | 建议 target_type | 依据 | 建议 target_location | 依据 |", "|---|---|---|---|---|---|---|"]
+            md += ["", "| 新靶点 | uniprot_id | gene | CD 号 | 分子功能关键词 | 亚细胞定位 | 条目类型 |", "|---|---|---|---|---|---|---|"]
             for t in pf["targets_new"]:
-                md.append(f"| {t['target_name']} | {t['uniprot_id']} | {t.get('gene_symbol') or ''} | {t['target_type']} | "
-                          f"{(t.get('_target_type_reason') or '')[:60]} | {t['target_location']} | {(t.get('_target_location_reason') or '')[:60]} |")
+                mf = ", ".join(k["name"] for k in (t.get("keywords") or []) if k.get("category") == "Molecular function")
+                locs = "; ".join(sl["location"] + (f" [{sl['topology']}]" if sl.get("topology") else "") for sl in (t.get("subcellular_locations") or []))
+                md.append(f"| {t['target_name']} | {t['uniprot_id']} | {t.get('gene_symbol') or ''} | {', '.join(t.get('cd_antigen_names') or [])} | "
+                          f"{mf} | {locs[:80]} | {t.get('entry_type') or ''} |")
         if pf.get("bridge_molecule_target"):
             md += ["", "| 关联 | uniprot_id | target_code | relation_role | MoA | action | 表位/域 | 需确认 | 原因 |", "|---|---|---|---|---|---|---|---|---|"]
             for b in pf["bridge_molecule_target"]:

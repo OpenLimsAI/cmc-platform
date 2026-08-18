@@ -5,6 +5,7 @@
   - target_code 由触发器取号 TGT-NNNNNN
   - uniprot_id 查重同时匹配主 + 次级 accession（aliases）
   - status draft → published → retired（:publish / :retire，需 change_reason，无电签）
+  - 0051：字段对齐 UniProt 标准（keywords / subcellular_locations / cd_antigen_names…），无自定义枚举
   - 软删需 change_reason ≥5 字符
 """
 import uuid
@@ -16,8 +17,6 @@ def _payload(suffix: str, **over):
     base = {
         "target_name": f"pytest target {suffix}",
         "gene_symbol": f"GENE{suffix[:6].upper()}",
-        "target_type": "受体",
-        "target_location": "膜型",
     }
     base.update(over)
     return base
@@ -83,10 +82,42 @@ async def test_invalid_uniprot_accession_rejected(admin_client, unique_suffix):
 
 
 @pytest.mark.asyncio
-async def test_enum_check(admin_client, unique_suffix):
-    r = await admin_client.post("/api/v1/targets", json=_payload(unique_suffix, target_type="不存在"))
+async def test_uniprot_standard_fields_roundtrip(admin_client, unique_suffix):
+    """0051：keywords / subcellular_locations / cd_antigen_names / ec_numbers / domains 等标准字段往返"""
+    body = _payload(
+        unique_suffix,
+        cd_antigen_names=["CD279"],
+        gene_synonyms=["PD1", "SLEB2"],
+        tax_id=9606,
+        entry_type="UniProtKB reviewed (Swiss-Prot)",
+        protein_existence="1: Evidence at protein level",
+        keywords=[{"id": "KW-0675", "name": "Receptor", "category": "Molecular function"},
+                  {"id": "KW-0472", "name": "Membrane", "category": "Cellular component"}],
+        subcellular_locations=[{"id": "SL-0039", "location": "Cell membrane",
+                                "topology": "Single-pass type I membrane protein", "topology_id": "SL-9905"}],
+        ec_numbers=["2.7.10.1"],
+        domains=[{"type": "Domain", "description": "Ig-like V-type", "start": 35, "end": 145}],
+        sequence_length=288, mol_weight=31647, sequence_md5="ABCDEF0123456789ABCDEF0123456789",
+        uniprot_entry_version=207, uniprot_fetched_at="2026-08-18T05:00:00+00:00",
+    )
+    r = await admin_client.post("/api/v1/targets", json=body)
+    assert r.status_code == 201, r.text
+    d = r.json()["data"]
+    assert d["cd_antigen_names"] == ["CD279"]
+    assert d["keywords"][0]["name"] == "Receptor" and d["keywords"][0]["id"] == "KW-0675"
+    assert d["subcellular_locations"][0]["topology"] == "Single-pass type I membrane protein"
+    assert d["ec_numbers"] == ["2.7.10.1"] and d["domains"][0]["end"] == 145
+    assert d["uniprot_entry_version"] == 207 and d["uniprot_fetched_at"].startswith("2026-08-18T05:00:00")
+    # 列表精简项也带 keywords / cd
+    lst = await admin_client.get(f"/api/v1/targets?uniprot_id=&q=GENE{unique_suffix[:6].upper()}")
+    assert lst.json()["data"][0]["cd_antigen_names"] == ["CD279"]
+
+
+@pytest.mark.asyncio
+async def test_bad_nested_field_rejected(admin_client, unique_suffix):
+    r = await admin_client.post("/api/v1/targets", json=_payload(unique_suffix, keywords=[{"category": "x"}]))  # 缺 name
     assert r.status_code == 400
-    r = await admin_client.post("/api/v1/targets", json=_payload(unique_suffix, target_location="太空"))
+    r = await admin_client.post("/api/v1/targets", json=_payload(unique_suffix, tax_id="human"))
     assert r.status_code == 400
 
 
@@ -96,10 +127,10 @@ async def test_update_and_soft_delete(admin_client, unique_suffix):
 
     upd = await admin_client.put(
         f"/api/v1/targets/{code}",
-        json={"target_location": "两者都有", "notes": "膜结合前体可脱落", "change_reason": "pytest 修正定位"},
+        json={"notes": "膜结合前体可脱落", "cd_antigen_names": ["CD340"], "change_reason": "pytest 补 CD 号"},
     )
     assert upd.status_code == 200, upd.text
-    assert upd.json()["data"]["target_location"] == "两者都有"
+    assert upd.json()["data"]["cd_antigen_names"] == ["CD340"]
 
     got = await admin_client.get(f"/api/v1/targets/{code}")
     assert got.json()["data"]["notes"] == "膜结合前体可脱落"
@@ -139,15 +170,24 @@ async def test_publish_retire_lifecycle(admin_client, unique_suffix):
 async def test_list_filters_and_search(admin_client, unique_suffix):
     await admin_client.post(
         "/api/v1/targets",
-        json=_payload(unique_suffix, target_type="酶", target_location="胞内", aliases=[f"ALIAS{unique_suffix}"]),
+        json=_payload(
+            unique_suffix,
+            aliases=[f"ALIAS{unique_suffix}"],
+            entry_type="UniProtKB reviewed (Swiss-Prot)",
+            keywords=[{"id": "KW-0202", "name": "Cytokine", "category": "Molecular function"}],
+            subcellular_locations=[{"id": "SL-0243", "location": "Secreted"}],
+        ),
     )
     r = await admin_client.get(f"/api/v1/targets?q=ALIAS{unique_suffix}")
     assert r.status_code == 200
     assert r.json()["meta"]["pagination"]["total"] == 1
-    r = await admin_client.get(f"/api/v1/targets?q=pytest+target+{unique_suffix}&target_type=酶&target_location=胞内&status=draft")
-    assert r.json()["meta"]["pagination"]["total"] == 1
-    r = await admin_client.get(f"/api/v1/targets?q=pytest+target+{unique_suffix}&target_type=受体")
-    assert r.json()["meta"]["pagination"]["total"] == 0
+    base = f"/api/v1/targets?q=pytest+target+{unique_suffix}"
+    assert (await admin_client.get(f"{base}&keyword=Cytokine")).json()["meta"]["pagination"]["total"] == 1
+    assert (await admin_client.get(f"{base}&keyword=Cytokine&keyword_category=Molecular+function")).json()["meta"]["pagination"]["total"] == 1
+    assert (await admin_client.get(f"{base}&keyword=Receptor")).json()["meta"]["pagination"]["total"] == 0
+    assert (await admin_client.get(f"{base}&location=Secreted")).json()["meta"]["pagination"]["total"] == 1
+    assert (await admin_client.get(f"{base}&location=Nucleus")).json()["meta"]["pagination"]["total"] == 0
+    assert (await admin_client.get(f"{base}&entry_type=Swiss-Prot&status=draft")).json()["meta"]["pagination"]["total"] == 1
 
 
 @pytest.mark.asyncio

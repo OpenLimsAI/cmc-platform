@@ -9,13 +9,13 @@ PoC 实测结论（docs/decisions/2026-08-17-target-domain.md §四）在此固�
   - PROTEIN COMPLEX 用 binding_site_comment 提示 LIKELY / UNLIKELY 结合亚基
   - ADC（molecule_type 含 conjugate）：靶点定位=胞内 → payload_target，否则 antibody_target
   - 分子搜索：pref_name 精确 → 同义词精确 → NEEDS_MANUAL_PICK
-  - target_type / target_location 只是启发式建议，附依据，needs_confirm 强制为真
+  - 0051 起靶点字段直接对齐 UniProt 标准（keywords / subcellular_locations / cd_antigen_names…），
+    不再产生自定义"类型/定位"建议值；仅内部用定位启发式判断 ADC 载荷靶点角色
 
 外部 I/O（HTTP / DB）全部通过 Fetcher / lookup 回调注入，便于测试打桩。
 """
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -28,8 +28,6 @@ ALLOWED_HOSTS = ("www.ebi.ac.uk", "rest.uniprot.org")
 CHEMBL_LICENSE = "CC BY-SA 3.0 (ChEMBL)"
 UNIPROT_LICENSE = "CC BY 4.0 (UniProt)"
 
-TARGET_TYPE_ENUM = ["受体", "配体·细胞因子", "表面抗原", "酶", "其他"]
-TARGET_LOCATION_ENUM = ["膜型", "可溶型", "两者都有", "胞内"]
 
 
 class Fetcher(Protocol):
@@ -103,37 +101,8 @@ def _kw(entry: dict[str, Any], category: str) -> list[str]:
     return [k.get("name") for k in entry.get("keywords") or [] if k.get("category") == category]
 
 
-_ENZYME_KW = {"Hydrolase", "Transferase", "Kinase", "Protease", "Oxidoreductase", "Lyase", "Isomerase", "Ligase",
-              "Serine protease", "Metalloprotease", "Glycosidase", "Nuclease", "Phosphatase"}
-
-
-def suggest_target_type(entry: dict[str, Any]) -> tuple[str, str]:
-    """启发式建议 target_type（5 选 1）；返回 (值, 依据)。仅供预填，必须人工确认。"""
-    mf = set(_kw(entry, "Molecular function"))
-    pd = entry.get("proteinDescription") or {}
-    name = ((pd.get("recommendedName") or {}).get("fullName") or {}).get("value", "") or ""
-    gene = ((entry.get("genes") or [{}])[0].get("geneName") or {}).get("value", "") or ""
-    hit = mf & {"Cytokine", "Growth factor", "Hormone", "Chemokine"}
-    if hit:
-        return "配体·细胞因子", f"UniProt keyword(Molecular function) ∈ {sorted(hit)}"
-    hit = mf & {"Receptor", "G-protein coupled receptor", "Ion channel", "Transducer"}
-    if hit:
-        return "受体", f"UniProt keyword(Molecular function) ∈ {sorted(hit)}"
-    cd_names = [c.get("value") for c in pd.get("cdAntigenNames") or []]
-    if cd_names:
-        # 有 CD 编号（如 PD-1=CD279）→ 表面抗原；HER2=CD340 也有 CD 号，但 Receptor 规则在前
-        return "表面抗原", f"UniProt proteinDescription.cdAntigenNames={cd_names}"
-    if mf & _ENZYME_KW or "EC " in json.dumps(pd.get("recommendedName") or {}):
-        return "酶", f"UniProt keyword ∈ {sorted(mf & _ENZYME_KW)} 或 recommendedName 含 EC 号"
-    if re.match(r"^CD\d+", gene) or "antigen" in name.lower():
-        return "表面抗原", f"名称/基因名启发（gene={gene}, name={name!r}）"
-    if "receptor" in name.lower():
-        return "受体", f"名称启发（name={name!r}）"
-    return "其他", f"无规则命中（Molecular function keywords={sorted(mf)}）"
-
-
-def suggest_target_location(entry: dict[str, Any]) -> tuple[str, str]:
-    """启发式建议 target_location（4 选 1）：看 SUBCELLULAR LOCATION + Cellular component keywords。"""
+def location_hint(entry: dict[str, Any]) -> tuple[str, str]:
+    """内部启发式（膜型/可溶型/两者都有/胞内）：只用于 ADC 载荷靶点角色判断，不再作为业务字段。"""
     locs: list[str] = []
     for c in entry.get("comments") or []:
         if c.get("commentType") == "SUBCELLULAR LOCATION":
@@ -160,7 +129,52 @@ def suggest_target_location(entry: dict[str, Any]) -> tuple[str, str]:
     return "膜型", f"无法判定（{txt!r}），默认膜型，需人工确认"
 
 
+def _uniprot_keywords(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    return [{"id": k.get("id"), "name": k.get("name"), "category": k.get("category")}
+            for k in entry.get("keywords") or [] if k.get("name")]
+
+
+def _uniprot_subcellular_locations(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    seen: set[tuple] = set()
+    for c in entry.get("comments") or []:
+        if c.get("commentType") != "SUBCELLULAR LOCATION":
+            continue
+        molecule = c.get("molecule")
+        for sl in c.get("subcellularLocations") or []:
+            loc = sl.get("location") or {}
+            top = sl.get("topology") or {}
+            ori = sl.get("orientation") or {}
+            key = (loc.get("id"), loc.get("value"), top.get("value"), molecule)
+            if key in seen or not loc.get("value"):
+                continue
+            seen.add(key)
+            out.append({
+                "id": loc.get("id"), "location": loc.get("value"),
+                "topology": top.get("value"), "topology_id": top.get("id"),
+                "orientation": ori.get("value") or None, "molecule": molecule,
+            })
+    return out
+
+
+_DOMAIN_FEATURE_TYPES = ("Domain", "Region", "Topological domain", "Transmembrane", "Signal", "Chain")
+
+
+def _uniprot_domains(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    out = []
+    for f in entry.get("features") or []:
+        if f.get("type") not in _DOMAIN_FEATURE_TYPES:
+            continue
+        loc = f.get("location") or {}
+        out.append({
+            "type": f.get("type"), "description": f.get("description") or None,
+            "start": (loc.get("start") or {}).get("value"), "end": (loc.get("end") or {}).get("value"),
+        })
+    return out
+
+
 def extract_uniprot(entry: dict[str, Any]) -> dict[str, Any]:
+    """UniProt JSON → 靶点标准字段（与 tgt.target 0051 列一一对应）+ 少量审核辅助。"""
     pd = entry.get("proteinDescription") or {}
     rec = pd.get("recommendedName") or {}
     alt = [((a.get("fullName") or {}).get("value")) for a in pd.get("alternativeNames") or []]
@@ -170,26 +184,33 @@ def extract_uniprot(entry: dict[str, Any]) -> dict[str, Any]:
         if c.get("commentType") == "FUNCTION":
             func = " ".join(t.get("value", "") for t in c.get("texts") or [])
             break
-    ttype, ttype_why = suggest_target_type(entry)
-    tloc, tloc_why = suggest_target_location(entry)
+    seq = entry.get("sequence") or {}
+    loc_hint, loc_hint_why = location_hint(entry)
     return {
         "uniprot_id": entry.get("primaryAccession"),
         "uniprot_entry_name": entry.get("uniProtkbId"),
         "entry_type": entry.get("entryType"),
+        "protein_existence": entry.get("proteinExistence"),
         "secondary_accessions": entry.get("secondaryAccessions") or [],
         "recommended_name": (rec.get("fullName") or {}).get("value"),
         "short_names": [s.get("value") for s in rec.get("shortNames") or []],
-        "alternative_names": alt,
-        "cd_antigen_names": [c.get("value") for c in pd.get("cdAntigenNames") or []],
+        "alternative_names": [a for a in alt if a],
+        "cd_antigen_names": [c.get("value") for c in pd.get("cdAntigenNames") or [] if c.get("value")],
+        "ec_numbers": [e.get("value") for e in rec.get("ecNumbers") or [] if e.get("value")],
         "gene_symbol": ((genes[0].get("geneName") or {}).get("value")) if genes else None,
-        "gene_synonyms": [s.get("value") for s in (genes[0].get("synonyms") or [])] if genes else [],
+        "gene_synonyms": [s.get("value") for s in (genes[0].get("synonyms") or []) if s.get("value")] if genes else [],
         "organism": (entry.get("organism") or {}).get("scientificName"),
         "tax_id": (entry.get("organism") or {}).get("taxonId"),
-        "sequence_length": (entry.get("sequence") or {}).get("length"),
-        "function_text": func[:1000],
+        "keywords": _uniprot_keywords(entry),
+        "subcellular_locations": _uniprot_subcellular_locations(entry),
+        "domains": _uniprot_domains(entry),
+        "sequence_length": seq.get("length"),
+        "mol_weight": seq.get("molWeight"),
+        "sequence_md5": seq.get("md5"),
+        "function_text": func[:2000],
         "entry_version": (entry.get("entryAudit") or {}).get("entryVersion"),
-        "suggested_target_type": ttype, "suggested_target_type_reason": ttype_why,
-        "suggested_target_location": tloc, "suggested_target_location_reason": tloc_why,
+        # 内部辅助（ADC 载荷角色判断），不入库
+        "_location_hint": loc_hint, "_location_hint_reason": loc_hint_why,
     }
 
 
@@ -202,6 +223,7 @@ def trim_uniprot_payload(entry: dict[str, Any]) -> dict[str, Any]:
         "secondaryAccessions": entry.get("secondaryAccessions"),
         "uniProtkbId": entry.get("uniProtkbId"),
         "entryType": entry.get("entryType"),
+        "proteinExistence": entry.get("proteinExistence"),
         "proteinDescription": entry.get("proteinDescription"),
         "genes": entry.get("genes"),
         "organism": entry.get("organism"),
@@ -392,30 +414,16 @@ async def prefill_inn(inn: str, fetcher: Fetcher, lookup: Lookup) -> dict[str, A
                     target_code = f"<NEW:{acc}>"
                     dedup_action = "NEW_TARGET_PREFILLED_FROM_UNIPROT"
                     if not any(t.get("uniprot_id") == acc for t in prefill_targets):
-                        aliases = sorted({*(ux.get("short_names") or []), *(ux.get("alternative_names") or []),
-                                          *(ux.get("cd_antigen_names") or []), *(ux.get("secondary_accessions") or []),
-                                          *(x for x in c.get("uniprot_xref") or [] if x != acc)} - {None, ""})
+                        form = uniprot_form_fields(ux, c, tinfo, fetched_at)
                         prefill_targets.append({
-                            # ---- 直接对应 POST /targets 请求体 ----
-                            "target_name": ux.get("recommended_name") or c.get("component_description"),
-                            "uniprot_id": acc,
-                            "gene_symbol": ux.get("gene_symbol") or c.get("gene_symbol"),
-                            "organism": ux.get("organism") or (tinfo or {}).get("organism"),
-                            "aliases": aliases,
-                            "target_type": ux.get("suggested_target_type"),
-                            "target_location": ux.get("suggested_target_location"),
-                            "description": (ux.get("function_text") or "")[:500] or None,
+                            # ---- 直接对应 POST /targets 请求体（UniProt 标准字段全部自动带出）----
+                            **form,
                             # ---- 审核辅助 ----
-                            "_target_type_reason": ux.get("suggested_target_type_reason"),
-                            "_target_location_reason": ux.get("suggested_target_location_reason"),
-                            "_target_type_enum": TARGET_TYPE_ENUM,
-                            "_target_location_enum": TARGET_LOCATION_ENUM,
                             "_chembl_target_id": tid,
                             "_chembl_target_pref_name": (tinfo or {}).get("pref_name"),
                             "_chembl_target_type": (tinfo or {}).get("target_type_chembl"),
-                            "_uniprot_entry_version": ux.get("entry_version"),
-                            "_needs_manual_confirm": True,
-                            "_confirm_reason": "target_type / target_location 为启发式建议",
+                            "_uniprot_error": ux.get("_error"),
+                            "_needs_manual_confirm": bool(ux.get("_error")),
                         })
                 needs = len(mechs) > 1 or len(protein_comps) > 1
                 reasons: list[str] = []
@@ -432,7 +440,7 @@ async def prefill_inn(inn: str, fetcher: Fetcher, lookup: Lookup) -> dict[str, A
                         reasons.append(f"ChEMBL target 为 {ttype_chembl}，含 {len(protein_comps)} 个蛋白，双抗/多靶各建一条 bridge，需确认")
                 relation_role = "antibody_target"
                 if is_adc:
-                    loc = (uniprot_cache.get(acc) or {}).get("suggested_target_location")
+                    loc = (uniprot_cache.get(acc) or {}).get("_location_hint")
                     if loc == "胞内":
                         relation_role = "payload_target"
                         reasons.append("ADC 载荷（payload）作用靶点（UniProt 定位=胞内）")
@@ -476,41 +484,62 @@ async def prefill_inn(inn: str, fetcher: Fetcher, lookup: Lookup) -> dict[str, A
         return result
 
 
-# ----------------------------------------------------------------------------- 单条 UniProt 预填（新建靶点页「拉取」按钮）
-def build_uniprot_prefill(entry: dict[str, Any], accession: str, fetched_at: str | None = None) -> dict[str, Any]:
-    """把一条 UniProt JSON 变成新建靶点表单的预填 + 依据 + 可直接落库的快照体。"""
-    ux = extract_uniprot(entry)
+# ----------------------------------------------------------------------------- UniProt → 表单字段
+def uniprot_form_fields(ux: dict[str, Any], comp: dict[str, Any] | None = None,
+                        tinfo: dict[str, Any] | None = None, fetched_at: str | None = None) -> dict[str, Any]:
+    """extract_uniprot 的结果 → 与 POST /targets 请求体同名的字段 dict（UniProt 标准字段全量）。"""
+    comp = comp or {}
     aliases = sorted(
         {*(ux.get("short_names") or []), *(ux.get("alternative_names") or []),
-         *(ux.get("cd_antigen_names") or []), *(ux.get("gene_synonyms") or []),
-         *(ux.get("secondary_accessions") or [])} - {None, ""}
+         *(ux.get("secondary_accessions") or []),
+         *(x for x in comp.get("uniprot_xref") or [] if x != ux.get("uniprot_id"))} - {None, ""}
     )
-    fetched = fetched_at or now_iso()
     return {
-        "form": {
-            "target_name": ux.get("recommended_name") or ux.get("uniprot_entry_name"),
-            "uniprot_id": entry.get("primaryAccession") or accession,
-            "gene_symbol": ux.get("gene_symbol"),
-            "organism": ux.get("organism"),
-            "aliases": aliases,
-            "target_type": ux.get("suggested_target_type"),
-            "target_location": ux.get("suggested_target_location"),
-            "description": (ux.get("function_text") or "")[:1000] or None,
-        },
+        "target_name": ux.get("recommended_name") or comp.get("component_description") or ux.get("uniprot_entry_name"),
+        "uniprot_id": ux.get("uniprot_id"),
+        "gene_symbol": ux.get("gene_symbol") or comp.get("gene_symbol"),
+        "gene_synonyms": ux.get("gene_synonyms") or None,
+        "organism": ux.get("organism") or (tinfo or {}).get("organism"),
+        "tax_id": ux.get("tax_id") or (tinfo or {}).get("tax_id"),
+        "aliases": aliases or None,
+        "cd_antigen_names": ux.get("cd_antigen_names") or None,
+        "entry_type": ux.get("entry_type"),
+        "protein_existence": ux.get("protein_existence"),
+        "keywords": ux.get("keywords") or None,
+        "subcellular_locations": ux.get("subcellular_locations") or None,
+        "ec_numbers": ux.get("ec_numbers") or None,
+        "domains": ux.get("domains") or None,
+        "sequence_length": ux.get("sequence_length"),
+        "mol_weight": ux.get("mol_weight"),
+        "sequence_md5": ux.get("sequence_md5"),
+        "uniprot_entry_version": ux.get("entry_version"),
+        "uniprot_fetched_at": fetched_at or now_iso(),
+        "description": (ux.get("function_text") or "")[:2000] or None,
+    }
+
+
+# ----------------------------------------------------------------------------- 单条 UniProt 预填（新建靶点页「拉取」按钮）
+def build_uniprot_prefill(entry: dict[str, Any], accession: str, fetched_at: str | None = None) -> dict[str, Any]:
+    """把一条 UniProt JSON 变成新建靶点表单的预填 + 提示 + 可直接落库的快照体。"""
+    ux = extract_uniprot(entry)
+    fetched = fetched_at or now_iso()
+    primary = entry.get("primaryAccession") or accession
+    return {
+        "form": uniprot_form_fields(ux, fetched_at=fetched),
         "hints": {
-            "target_type_reason": ux.get("suggested_target_type_reason"),
-            "target_location_reason": ux.get("suggested_target_location_reason"),
             "entry_type": ux.get("entry_type"),
             "entry_version": ux.get("entry_version"),
             "tax_id": ux.get("tax_id"),
             "sequence_length": ux.get("sequence_length"),
             "is_human": ux.get("tax_id") == 9606,
+            "is_reviewed": "reviewed" in (ux.get("entry_type") or "").lower() and "unreviewed" not in (ux.get("entry_type") or "").lower(),
+            "redirected_from": accession if primary != accession else None,
         },
         "snapshot": {
             "source": "uniprot",
-            "source_id": entry.get("primaryAccession") or accession,
+            "source_id": primary,
             "source_version": str(ux.get("entry_version") or ""),
-            "source_url": f"{UNIPROT_BASE}/{entry.get('primaryAccession') or accession}.json",
+            "source_url": f"{UNIPROT_BASE}/{primary}.json",
             "fetched_at": fetched,
             "payload": trim_uniprot_payload(entry),
             "license": UNIPROT_LICENSE,
