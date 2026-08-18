@@ -1,0 +1,25 @@
+{
+  "inn": "notarealinnxyz",
+  "fetched_at": "2026-08-17T13:31:40+00:00",
+  "steps": [
+    {
+      "step": "1_chembl_molecule_search",
+      "http_status": 200,
+      "total_count": 0,
+      "result": "NO_MATCH"
+    }
+  ],
+  "warnings": [],
+  "outcome": "REJECTED_NO_MOLECULE",
+  "user_message": "ChEMBL 查无「notarealinnxyz」（total_count=0）。请检查 INN 拼写；若为新分子/未收录，请走人工录入。",
+  "http_calls": [
+    {
+      "step": "1_chembl_molecule_search",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=notarealinnxyz&limit=20",
+      "http_status": 200,
+      "elapsed_s": 2.38,
+      "attempt": 1,
+      "ok": true
+    }
+  ]
+}

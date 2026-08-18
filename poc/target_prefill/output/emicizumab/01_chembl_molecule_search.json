@@ -1,0 +1,165 @@
+{
+  "molecules": [
+    {
+      "atc_classifications": [
+        "B02BX06"
+      ],
+      "availability_type": 1,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 29649,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCKASRNIERQLAWYQQKPGQAPELLIYQASRKESGVPDRFSGSRYGTDFTLTISSLQPEDIATYYCQQYSDPPLTFGGGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 29650,
+            "component_type": "Protein",
+            "description": "Heavy chain: anti-FX",
+            "organism": null,
+            "sequence": "QVQLVQSGSELKKPGASVKVSCKASGYTFTDNNMDWVRQAPGQGLEWMGDINTRSGGSIYNEEFQDRVIMTVDKSTDTAYMELSSLRSEDTATYHCARRKSYGYYLDEWGEGTLVTVSSASTKGPSVFPLAPCSRSTSESTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYTCNVDHKPSNTKVDKRVESKYGPPCPPCPAPEFLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSQEDPEVQFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKGLPSSIEKTISKAKGQPREPQVYTLPPSQEEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQEGNVFSCSVMHEALHNHYTQESLSLSP",
+            "tax_id": null
+          },
+          {
+            "component_id": 29651,
+            "component_type": "Protein",
+            "description": "Heavy chain: anti-FIXa",
+            "organism": null,
+            "sequence": "QVQLVESGGGLVQPGGSLRLSCAASGFTFSYYDIQWVRQAPGKGLEWVSSISPSGQSTYYRREVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCARRTGREYGGGWYFDYWGQGTLVTVSSASTKGPSVFPLAPCSRSTSESTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYTCNVDHKPSNTKVDKRVESKYGPPCPPCPAPEFLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSQEDPEVQFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKGLPSSIEKTISKAKGQPREPQVYTLPPSQKEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQEGNVFSCSVMHEALHNRYTQKSLSLSP",
+            "tax_id": null
+          },
+          {
+            "component_id": 29648,
+            "component_type": null,
+            "description": "Disulfide bridges location",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88'''$ 133''-214''' $ 134'-194' $ 134'''-194'''$ 137-214' $ 146''-202'' $ 150-206 $ 229-225'' $ 232'228'' $ 260''-320'' $ 264-324 $366''-424'' $ 370-428",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL3833393"
+      },
+      "black_box_warning": 1,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "emicizumab",
+          "xref_name": "emicizumab",
+          "xref_src": "DailyMed"
+        },
+        {
+          "xref_id": "human/EPAR/hemlibra",
+          "xref_name": "hemlibra",
+          "xref_src": "EMA"
+        }
+      ],
+      "dosed_ingredient": true,
+      "first_approval": 2017,
+      "first_in_class": 1,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "4.0",
+      "molecule_chembl_id": "CHEMBL3833393",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL3833393",
+        "molecule_chembl_id": "CHEMBL3833393",
+        "parent_chembl_id": "CHEMBL3833393"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "ACE-910",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "ACE-910"
+        },
+        {
+          "molecule_synonym": "ACE910",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "ACE910"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "ATC",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "EMA",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "FDA",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "INN",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "MERCK_INDEX",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "OTHER",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab",
+          "syn_type": "USAN",
+          "synonyms": "EMICIZUMAB"
+        },
+        {
+          "molecule_synonym": "Emicizumab kxwh",
+          "syn_type": "OTHER",
+          "synonyms": "EMICIZUMAB KXWH"
+        },
+        {
+          "molecule_synonym": "Emicizumab-kxwh",
+          "syn_type": "OTHER",
+          "synonyms": "EMICIZUMAB-KXWH"
+        },
+        {
+          "molecule_synonym": "Hemlibra",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "Hemlibra"
+        }
+      ],
+      "molecule_type": "Antibody",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": true,
+      "polymer_flag": 0,
+      "pref_name": "EMICIZUMAB",
+      "prodrug": 0,
+      "score": 41.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": true,
+      "topical": false,
+      "usan_stem": "-mab; -mab",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-mab (-umab); -mab (-zumab)",
+      "usan_year": 2016,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    }
+  ],
+  "page_meta": {
+    "limit": 20,
+    "next": null,
+    "offset": 0,
+    "previous": null,
+    "total_count": 1
+  }
+}

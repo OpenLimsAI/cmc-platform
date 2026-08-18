@@ -1,0 +1,2560 @@
+{
+  "molecules": [
+    {
+      "atc_classifications": [
+        "L01FD04"
+      ],
+      "availability_type": 1,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 30655,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 214'-223 $ 214'''-223'' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 29675,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "Asn-300 $ Asn-300''''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31318,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "Asn-300 $ Asn-300''",
+            "tax_id": null
+          },
+          {
+            "component_id": 29667,
+            "component_type": null,
+            "description": "Modified residues",
+            "organism": null,
+            "sequence": "(SMILES):CC[C@@]1(O)C(=O)OCC2=C1C=C1N(CC3=C4[C@H](CCC5=C(C)C(F)=CC(N=C13)=C45)NC(=O)COCNC(=O)CNC(=O)[C@H](CC1=CC=CC=C1)NC(=O)CNC(=O)CNC(=O)CCCCCN1C(=O)CC(SC[C@H](N)C(O)=O)C1=O)C2=O",
+            "tax_id": null
+          },
+          {
+            "component_id": 30446,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL4297844"
+      },
+      "black_box_warning": 1,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "human/EPAR/enhertu",
+          "xref_name": "enhertu",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "TRASTUZUMAB%20DERUXTECAN",
+          "xref_name": "TRASTUZUMAB DERUXTECAN",
+          "xref_src": "USAN"
+        },
+        {
+          "xref_id": "fam-trastuzumab%20deruxtecan-nxki",
+          "xref_name": "fam-trastuzumab deruxtecan-nxki",
+          "xref_src": "DailyMed"
+        }
+      ],
+      "dosed_ingredient": true,
+      "first_approval": 2019,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "4.0",
+      "molecule_chembl_id": "CHEMBL4297844",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL4297844",
+        "molecule_chembl_id": "CHEMBL4297844",
+        "parent_chembl_id": "CHEMBL4297844"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "DS-8201",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS-8201"
+        },
+        {
+          "molecule_synonym": "DS-8201a",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS-8201a"
+        },
+        {
+          "molecule_synonym": "Ds-8201a",
+          "syn_type": "OTHER",
+          "synonyms": "DS-8201A"
+        },
+        {
+          "molecule_synonym": "Enhertu",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "Enhertu"
+        },
+        {
+          "molecule_synonym": "Fam-trastuzumab deruxtecan-nxki",
+          "syn_type": "FDA",
+          "synonyms": "FAM-TRASTUZUMAB DERUXTECAN-NXKI"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan",
+          "syn_type": "ATC",
+          "synonyms": "TRASTUZUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan",
+          "syn_type": "EMA",
+          "synonyms": "TRASTUZUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan",
+          "syn_type": "USAN",
+          "synonyms": "TRASTUZUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan nxki",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB DERUXTECAN NXKI"
+        },
+        {
+          "molecule_synonym": "Trastuzumab deruxtecan-nxki",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB DERUXTECAN-NXKI"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": true,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB DERUXTECAN",
+      "prodrug": 0,
+      "score": 74.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": true,
+      "topical": false,
+      "usan_stem": "-mab; -mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab (-umab); -mab (-zumab); -tecan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [
+        "L01FD01"
+      ],
+      "availability_type": 1,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 29092,
+            "component_type": "Protein",
+            "description": "Sequence",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSRDELTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          }
+        ],
+        "description": "Immunoglobulin G1-kappa, anti-[Homo sapiens ERBB2 (epidermal growth factor receptor 2, HER-2, p185c-erbB2, NEU, EGFR2)], humanized monoclonal antibody conjugated to maytansinoid DM1; gamma1 heavy chain (1-449) [humanized VH (Homo sapiens IGHV3-66*01 (81.60%) -(IGHD)-IGHJ6*01 T123>L) [8.8.13] (1-120) - Homo sapiens IGHG1*03 (121-449) CH1 R120>K], (223-214')-disulfide with kappa light chain (1’-214’) [humanized V-KAPPA (Homo sapiens IGKV1-39*01 (86.30%) -IGKJ1*01) [6.3.9] (1'-107') - Homo sapiens IGKC*01 (108'-214')]; (229-229\"\":232-232\"\")-bisdisulfide dimer; conjugated, on an average of 3 to 4 lysyl, to maytansinoid DM1 via a succinimidyl-4-(N-maleimidomethyl) cyclohexane-1-carboxylate (SMCC) linker.",
+        "helm_notation": "PEPTIDE1{D.I.Q.M.T.Q.S.P.S.S.L.S.A.S.V.G.D.R.V.T.I.T.C.R.A.S.Q.D.V.N.T.A.V.A.W.Y.Q.Q.K.P.G.K.A.P.K.L.L.I.Y.S.A.S.F.L.Y.S.G.V.P.S.R.F.S.G.S.R.S.G.T.D.F.T.L.T.I.S.S.L.Q.P.E.D.F.A.T.Y.Y.C.Q.Q.H.Y.T.T.P.P.T.F.G.Q.G.T.K.V.E.I.K.R.T.V.A.A.P.S.V.F.I.F.P.P.S.D.E.Q.L.K.S.G.T.A.S.V.V.C.L.L.N.N.F.Y.P.R.E.A.K.V.Q.W.K.V.D.N.A.L.Q.S.G.N.S.Q.E.S.V.T.E.Q.D.S.K.D.S.T.Y.S.L.S.S.T.L.T.L.S.K.A.D.Y.E.K.H.K.V.Y.A.C.E.V.T.H.Q.G.L.S.S.P.V.T.K.S.F.N.R.G.E.C}|PEPTIDE2{E.V.Q.L.V.E.S.G.G.G.L.V.Q.P.G.G.S.L.R.L.S.C.A.A.S.G.F.N.I.K.D.T.Y.I.H.W.V.R.Q.A.P.G.K.G.L.E.W.V.A.R.I.Y.P.T.N.G.Y.T.R.Y.A.D.S.V.K.G.R.F.T.I.S.A.D.T.S.K.N.T.A.Y.L.Q.M.N.S.L.R.A.E.D.T.A.V.Y.Y.C.S.R.W.G.G.D.G.F.Y.A.M.D.Y.W.G.Q.G.T.L.V.T.V.S.S.A.S.T.K.G.P.S.V.F.P.L.A.P.S.S.K.S.T.S.G.G.T.A.A.L.G.C.L.V.K.D.Y.F.P.E.P.V.T.V.S.W.N.S.G.A.L.T.S.G.V.H.T.F.P.A.V.L.Q.S.S.G.L.Y.S.L.S.S.V.V.T.V.P.S.S.S.L.G.T.Q.T.Y.I.C.N.V.N.H.K.P.S.N.T.K.V.D.K.K.V.E.P.P.K.S.C.D.K.T.H.T.C.P.P.C.P.A.P.E.L.L.G.G.P.S.V.F.L.F.P.P.K.P.K.D.T.L.M.I.S.R.T.P.E.V.T.C.V.V.V.D.V.S.H.E.D.P.E.V.K.F.N.W.Y.V.D.G.V.E.V.H.N.A.K.T.K.P.R.E.E.Q.Y.N.S.T.Y.R.V.V.S.V.L.T.V.L.H.Q.D.W.L.N.G.K.E.Y.K.C.K.V.S.N.K.A.L.P.A.P.I.E.K.T.I.S.K.A.K.G.Q.P.R.E.P.Q.V.Y.T.L.P.P.S.R.D.E.L.T.K.N.Q.V.S.L.T.C.L.V.K.G.F.Y.P.S.D.I.A.V.E.W.E.S.N.G.Q.P.E.N.N.Y.K.T.T.P.P.V.L.D.S.D.G.S.F.F.L.Y.S.K.L.T.V.D.K.S.R.W.Q.Q.G.N.V.F.S.C.S.V.M.H.E.A.L.H.N.H.Y.T.Q.K.S.L.S.L.S.P.G.K}|PEPTIDE3{E.V.Q.L.V.E.S.G.G.G.L.V.Q.P.G.G.S.L.R.L.S.C.A.A.S.G.F.N.I.K.D.T.Y.I.H.W.V.R.Q.A.P.G.K.G.L.E.W.V.A.R.I.Y.P.T.N.G.Y.T.R.Y.A.D.S.V.K.G.R.F.T.I.S.A.D.T.S.K.N.T.A.Y.L.Q.M.N.S.L.R.A.E.D.T.A.V.Y.Y.C.S.R.W.G.G.D.G.F.Y.A.M.D.Y.W.G.Q.G.T.L.V.T.V.S.S.A.S.T.K.G.P.S.V.F.P.L.A.P.S.S.K.S.T.S.G.G.T.A.A.L.G.C.L.V.K.D.Y.F.P.E.P.V.T.V.S.W.N.S.G.A.L.T.S.G.V.H.T.F.P.A.V.L.Q.S.S.G.L.Y.S.L.S.S.V.V.T.V.P.S.S.S.L.G.T.Q.T.Y.I.C.N.V.N.H.K.P.S.N.T.K.V.D.K.K.V.E.P.P.K.S.C.D.K.T.H.T.C.P.P.C.P.A.P.E.L.L.G.G.P.S.V.F.L.F.P.P.K.P.K.D.T.L.M.I.S.R.T.P.E.V.T.C.V.V.V.D.V.S.H.E.D.P.E.V.K.F.N.W.Y.V.D.G.V.E.V.H.N.A.K.T.K.P.R.E.E.Q.Y.N.S.T.Y.R.V.V.S.V.L.T.V.L.H.Q.D.W.L.N.G.K.E.Y.K.C.K.V.S.N.K.A.L.P.A.P.I.E.K.T.I.S.K.A.K.G.Q.P.R.E.P.Q.V.Y.T.L.P.P.S.R.D.E.L.T.K.N.Q.V.S.L.T.C.L.V.K.G.F.Y.P.S.D.I.A.V.E.W.E.S.N.G.Q.P.E.N.N.Y.K.T.T.P.P.V.L.D.S.D.G.S.F.F.L.Y.S.K.L.T.V.D.K.S.R.W.Q.Q.G.N.V.F.S.C.S.V.M.H.E.A.L.H.N.H.Y.T.Q.K.S.L.S.L.S.P.G.K}|PEPTIDE4{D.I.Q.M.T.Q.S.P.S.S.L.S.A.S.V.G.D.R.V.T.I.T.C.R.A.S.Q.D.V.N.T.A.V.A.W.Y.Q.Q.K.P.G.K.A.P.K.L.L.I.Y.S.A.S.F.L.Y.S.G.V.P.S.R.F.S.G.S.R.S.G.T.D.F.T.L.T.I.S.S.L.Q.P.E.D.F.A.T.Y.Y.C.Q.Q.H.Y.T.T.P.P.T.F.G.Q.G.T.K.V.E.I.K.R.T.V.A.A.P.S.V.F.I.F.P.P.S.D.E.Q.L.K.S.G.T.A.S.V.V.C.L.L.N.N.F.Y.P.R.E.A.K.V.Q.W.K.V.D.N.A.L.Q.S.G.N.S.Q.E.S.V.T.E.Q.D.S.K.D.S.T.Y.S.L.S.S.T.L.T.L.S.K.A.D.Y.E.K.H.K.V.Y.A.C.E.V.T.H.Q.G.L.S.S.P.V.T.K.S.F.N.R.G.E.C}$PEPTIDE1,PEPTIDE1,23:R3-88:R3|PEPTIDE2,PEPTIDE2,371:R3-429:R3|PEPTIDE4,PEPTIDE4,134:R3-194:R3|PEPTIDE1,PEPTIDE1,134:R3-194:R3|PEPTIDE3,PEPTIDE3,265:R3-325:R3|PEPTIDE3,PEPTIDE4,224:R3-214:R3|PEPTIDE2,PEPTIDE3,233:R3-233:R3|PEPTIDE2,PEPTIDE2,265:R3-325:R3|PEPTIDE2,PEPTIDE2,147:R3-203:R3|PEPTIDE2,PEPTIDE3,230:R3-230:R3|PEPTIDE2,PEPTIDE1,224:R3-214:R3|PEPTIDE3,PEPTIDE3,147:R3-203:R3|PEPTIDE2,PEPTIDE2,22:R3-96:R3|PEPTIDE3,PEPTIDE3,22:R3-96:R3|PEPTIDE3,PEPTIDE3,371:R3-429:R3|PEPTIDE4,PEPTIDE4,23:R3-88:R3$$$",
+        "molecule_chembl_id": "CHEMBL1201585"
+      },
+      "black_box_warning": 1,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "trastuzumab-dkst",
+          "xref_name": "trastuzumab-dkst",
+          "xref_src": "DailyMed"
+        },
+        {
+          "xref_id": "human/EPAR/ogivri",
+          "xref_name": "ogivri",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/herwenda",
+          "xref_name": "herwenda",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/kanjinti",
+          "xref_name": "kanjinti",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/herceptin",
+          "xref_name": "herceptin",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/zercepac",
+          "xref_name": "zercepac",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/trazimera",
+          "xref_name": "trazimera",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/ontruzant",
+          "xref_name": "ontruzant",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "human/EPAR/herzuma",
+          "xref_name": "herzuma",
+          "xref_src": "EMA"
+        },
+        {
+          "xref_id": "trastuzumab-pkrb",
+          "xref_name": "trastuzumab-pkrb",
+          "xref_src": "DailyMed"
+        },
+        {
+          "xref_id": "trastuzumab-anns",
+          "xref_name": "trastuzumab-anns",
+          "xref_src": "DailyMed"
+        },
+        {
+          "xref_id": "trastuzumab",
+          "xref_name": "trastuzumab",
+          "xref_src": "DailyMed"
+        }
+      ],
+      "dosed_ingredient": true,
+      "first_approval": 1998,
+      "first_in_class": 0,
+      "helm_notation": "PEPTIDE1{D.I.Q.M.T.Q.S.P.S.S.L.S.A.S.V.G.D.R.V.T.I.T.C.R.A.S.Q.D.V.N.T.A.V.A.W.Y.Q.Q.K.P.G.K.A.P.K.L.L.I.Y.S.A.S.F.L.Y.S.G.V.P.S.R.F.S.G.S.R.S.G.T.D.F.T.L.T.I.S.S.L.Q.P.E.D.F.A.T.Y.Y.C.Q.Q.H.Y.T.T.P.P.T.F.G.Q.G.T.K.V.E.I.K.R.T.V.A.A.P.S.V.F.I.F.P.P.S.D.E.Q.L.K.S.G.T.A.S.V.V.C.L.L.N.N.F.Y.P.R.E.A.K.V.Q.W.K.V.D.N.A.L.Q.S.G.N.S.Q.E.S.V.T.E.Q.D.S.K.D.S.T.Y.S.L.S.S.T.L.T.L.S.K.A.D.Y.E.K.H.K.V.Y.A.C.E.V.T.H.Q.G.L.S.S.P.V.T.K.S.F.N.R.G.E.C}|PEPTIDE2{E.V.Q.L.V.E.S.G.G.G.L.V.Q.P.G.G.S.L.R.L.S.C.A.A.S.G.F.N.I.K.D.T.Y.I.H.W.V.R.Q.A.P.G.K.G.L.E.W.V.A.R.I.Y.P.T.N.G.Y.T.R.Y.A.D.S.V.K.G.R.F.T.I.S.A.D.T.S.K.N.T.A.Y.L.Q.M.N.S.L.R.A.E.D.T.A.V.Y.Y.C.S.R.W.G.G.D.G.F.Y.A.M.D.Y.W.G.Q.G.T.L.V.T.V.S.S.A.S.T.K.G.P.S.V.F.P.L.A.P.S.S.K.S.T.S.G.G.T.A.A.L.G.C.L.V.K.D.Y.F.P.E.P.V.T.V.S.W.N.S.G.A.L.T.S.G.V.H.T.F.P.A.V.L.Q.S.S.G.L.Y.S.L.S.S.V.V.T.V.P.S.S.S.L.G.T.Q.T.Y.I.C.N.V.N.H.K.P.S.N.T.K.V.D.K.K.V.E.P.P.K.S.C.D.K.T.H.T.C.P.P.C.P.A.P.E.L.L.G.G.P.S.V.F.L.F.P.P.K.P.K.D.T.L.M.I.S.R.T.P.E.V.T.C.V.V.V.D.V.S.H.E.D.P.E.V.K.F.N.W.Y.V.D.G.V.E.V.H.N.A.K.T.K.P.R.E.E.Q.Y.N.S.T.Y.R.V.V.S.V.L.T.V.L.H.Q.D.W.L.N.G.K.E.Y.K.C.K.V.S.N.K.A.L.P.A.P.I.E.K.T.I.S.K.A.K.G.Q.P.R.E.P.Q.V.Y.T.L.P.P.S.R.D.E.L.T.K.N.Q.V.S.L.T.C.L.V.K.G.F.Y.P.S.D.I.A.V.E.W.E.S.N.G.Q.P.E.N.N.Y.K.T.T.P.P.V.L.D.S.D.G.S.F.F.L.Y.S.K.L.T.V.D.K.S.R.W.Q.Q.G.N.V.F.S.C.S.V.M.H.E.A.L.H.N.H.Y.T.Q.K.S.L.S.L.S.P.G.K}|PEPTIDE3{E.V.Q.L.V.E.S.G.G.G.L.V.Q.P.G.G.S.L.R.L.S.C.A.A.S.G.F.N.I.K.D.T.Y.I.H.W.V.R.Q.A.P.G.K.G.L.E.W.V.A.R.I.Y.P.T.N.G.Y.T.R.Y.A.D.S.V.K.G.R.F.T.I.S.A.D.T.S.K.N.T.A.Y.L.Q.M.N.S.L.R.A.E.D.T.A.V.Y.Y.C.S.R.W.G.G.D.G.F.Y.A.M.D.Y.W.G.Q.G.T.L.V.T.V.S.S.A.S.T.K.G.P.S.V.F.P.L.A.P.S.S.K.S.T.S.G.G.T.A.A.L.G.C.L.V.K.D.Y.F.P.E.P.V.T.V.S.W.N.S.G.A.L.T.S.G.V.H.T.F.P.A.V.L.Q.S.S.G.L.Y.S.L.S.S.V.V.T.V.P.S.S.S.L.G.T.Q.T.Y.I.C.N.V.N.H.K.P.S.N.T.K.V.D.K.K.V.E.P.P.K.S.C.D.K.T.H.T.C.P.P.C.P.A.P.E.L.L.G.G.P.S.V.F.L.F.P.P.K.P.K.D.T.L.M.I.S.R.T.P.E.V.T.C.V.V.V.D.V.S.H.E.D.P.E.V.K.F.N.W.Y.V.D.G.V.E.V.H.N.A.K.T.K.P.R.E.E.Q.Y.N.S.T.Y.R.V.V.S.V.L.T.V.L.H.Q.D.W.L.N.G.K.E.Y.K.C.K.V.S.N.K.A.L.P.A.P.I.E.K.T.I.S.K.A.K.G.Q.P.R.E.P.Q.V.Y.T.L.P.P.S.R.D.E.L.T.K.N.Q.V.S.L.T.C.L.V.K.G.F.Y.P.S.D.I.A.V.E.W.E.S.N.G.Q.P.E.N.N.Y.K.T.T.P.P.V.L.D.S.D.G.S.F.F.L.Y.S.K.L.T.V.D.K.S.R.W.Q.Q.G.N.V.F.S.C.S.V.M.H.E.A.L.H.N.H.Y.T.Q.K.S.L.S.L.S.P.G.K}|PEPTIDE4{D.I.Q.M.T.Q.S.P.S.S.L.S.A.S.V.G.D.R.V.T.I.T.C.R.A.S.Q.D.V.N.T.A.V.A.W.Y.Q.Q.K.P.G.K.A.P.K.L.L.I.Y.S.A.S.F.L.Y.S.G.V.P.S.R.F.S.G.S.R.S.G.T.D.F.T.L.T.I.S.S.L.Q.P.E.D.F.A.T.Y.Y.C.Q.Q.H.Y.T.T.P.P.T.F.G.Q.G.T.K.V.E.I.K.R.T.V.A.A.P.S.V.F.I.F.P.P.S.D.E.Q.L.K.S.G.T.A.S.V.V.C.L.L.N.N.F.Y.P.R.E.A.K.V.Q.W.K.V.D.N.A.L.Q.S.G.N.S.Q.E.S.V.T.E.Q.D.S.K.D.S.T.Y.S.L.S.S.T.L.T.L.S.K.A.D.Y.E.K.H.K.V.Y.A.C.E.V.T.H.Q.G.L.S.S.P.V.T.K.S.F.N.R.G.E.C}$PEPTIDE1,PEPTIDE1,23:R3-88:R3|PEPTIDE2,PEPTIDE2,371:R3-429:R3|PEPTIDE4,PEPTIDE4,134:R3-194:R3|PEPTIDE1,PEPTIDE1,134:R3-194:R3|PEPTIDE3,PEPTIDE3,265:R3-325:R3|PEPTIDE3,PEPTIDE4,224:R3-214:R3|PEPTIDE2,PEPTIDE3,233:R3-233:R3|PEPTIDE2,PEPTIDE2,265:R3-325:R3|PEPTIDE2,PEPTIDE2,147:R3-203:R3|PEPTIDE2,PEPTIDE3,230:R3-230:R3|PEPTIDE2,PEPTIDE1,224:R3-214:R3|PEPTIDE3,PEPTIDE3,147:R3-203:R3|PEPTIDE2,PEPTIDE2,22:R3-96:R3|PEPTIDE3,PEPTIDE3,22:R3-96:R3|PEPTIDE3,PEPTIDE3,371:R3-429:R3|PEPTIDE4,PEPTIDE4,23:R3-88:R3$$$",
+      "inorganic_flag": 0,
+      "max_phase": "4.0",
+      "molecule_chembl_id": "CHEMBL1201585",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL1201585",
+        "molecule_chembl_id": "CHEMBL1201585",
+        "parent_chembl_id": "CHEMBL1201585"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "4D5V8",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "4D5V8"
+        },
+        {
+          "molecule_synonym": "ABP 980",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "ABP 980"
+        },
+        {
+          "molecule_synonym": "ABP-980",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "ABP-980"
+        },
+        {
+          "molecule_synonym": "ABP980",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "ABP980"
+        },
+        {
+          "molecule_synonym": "Abp-980 (trastuzumab biosimilar)",
+          "syn_type": "OTHER",
+          "synonyms": "ABP-980 (TRASTUZUMAB BIOSIMILAR)"
+        },
+        {
+          "molecule_synonym": "Bmab-200",
+          "syn_type": "OTHER",
+          "synonyms": "BMAB-200"
+        },
+        {
+          "molecule_synonym": "Canhera",
+          "syn_type": "OTHER",
+          "synonyms": "CANHERA"
+        },
+        {
+          "molecule_synonym": "Dmb-3111",
+          "syn_type": "OTHER",
+          "synonyms": "DMB-3111"
+        },
+        {
+          "molecule_synonym": "DMB-3111 (TRASTUZUMAB BIOSIMILAR)",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DMB-3111 (TRASTUZUMAB BIOSIMILAR)"
+        },
+        {
+          "molecule_synonym": "EG-12014",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "EG-12014"
+        },
+        {
+          "molecule_synonym": "EG12014",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "EG12014"
+        },
+        {
+          "molecule_synonym": "Eg12014 trastuzumab biosimilar",
+          "syn_type": "OTHER",
+          "synonyms": "EG12014 TRASTUZUMAB BIOSIMILAR"
+        },
+        {
+          "molecule_synonym": "Eg-12014 (trastuzumab biosimilar)",
+          "syn_type": "OTHER",
+          "synonyms": "EG-12014 (TRASTUZUMAB BIOSIMILAR)"
+        },
+        {
+          "molecule_synonym": "Herceptin",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "HERCEPTIN"
+        },
+        {
+          "molecule_synonym": "Hercessi",
+          "syn_type": "OTHER",
+          "synonyms": "HERCESSI"
+        },
+        {
+          "molecule_synonym": "Herwenda",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "HERWENDA"
+        },
+        {
+          "molecule_synonym": "Herzuma",
+          "syn_type": "OTHER",
+          "synonyms": "HERZUMA"
+        },
+        {
+          "molecule_synonym": "Herzuma",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "HERZUMA"
+        },
+        {
+          "molecule_synonym": "Hlx 02",
+          "syn_type": "OTHER",
+          "synonyms": "HLX 02"
+        },
+        {
+          "molecule_synonym": "HLX-02",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "HLX-02"
+        },
+        {
+          "molecule_synonym": "Hlx02",
+          "syn_type": "OTHER",
+          "synonyms": "HLX02"
+        },
+        {
+          "molecule_synonym": "Hlx-02 trastuzumab biosimilar",
+          "syn_type": "OTHER",
+          "synonyms": "HLX-02 TRASTUZUMAB BIOSIMILAR"
+        },
+        {
+          "molecule_synonym": "Kadcyla",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "KADCYLA"
+        },
+        {
+          "molecule_synonym": "Kanjinti",
+          "syn_type": "OTHER",
+          "synonyms": "KANJINTI"
+        },
+        {
+          "molecule_synonym": "Kanjinti",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "KANJINTI"
+        },
+        {
+          "molecule_synonym": "Ogivri",
+          "syn_type": "OTHER",
+          "synonyms": "OGIVRI"
+        },
+        {
+          "molecule_synonym": "Ogivri",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "OGIVRI"
+        },
+        {
+          "molecule_synonym": "Ontruzant",
+          "syn_type": "OTHER",
+          "synonyms": "ONTRUZANT"
+        },
+        {
+          "molecule_synonym": "Ontruzant",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "ONTRUZANT"
+        },
+        {
+          "molecule_synonym": "Pf-05280014",
+          "syn_type": "OTHER",
+          "synonyms": "PF-05280014"
+        },
+        {
+          "molecule_synonym": "R-597",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "R-597"
+        },
+        {
+          "molecule_synonym": "Rhumab her2",
+          "syn_type": "OTHER",
+          "synonyms": "RHUMAB HER2"
+        },
+        {
+          "molecule_synonym": "RHUMABHER2",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "RHUMABHER2"
+        },
+        {
+          "molecule_synonym": "RO-0452317",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "RO-0452317"
+        },
+        {
+          "molecule_synonym": "RO0452317",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "RO0452317"
+        },
+        {
+          "molecule_synonym": "Sb-3 (trastuzumab biosimilar)",
+          "syn_type": "OTHER",
+          "synonyms": "SB-3 (TRASTUZUMAB BIOSIMILAR)"
+        },
+        {
+          "molecule_synonym": "SYD-977",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "SYD-977"
+        },
+        {
+          "molecule_synonym": "SYD977",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "SYD977"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "ATC",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "BAN",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "BNF",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "EMA",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "FDA",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "MERCK_INDEX",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab",
+          "syn_type": "USAN",
+          "synonyms": "TRASTUZUMAB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab anns",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB ANNS"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-anns",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-ANNS"
+        },
+        {
+          "molecule_synonym": "Trastuzumab beta",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB BETA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab biosimilar (abp-980)",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB BIOSIMILAR (ABP-980)"
+        },
+        {
+          "molecule_synonym": "Trastuzumab biosimilar (amgen)",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB BIOSIMILAR (AMGEN)"
+        },
+        {
+          "molecule_synonym": "Trastuzumab biosimilar (ct-p6)",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB BIOSIMILAR (CT-P6)"
+        },
+        {
+          "molecule_synonym": "Trastuzumab biosimilar (pfizer)",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB BIOSIMILAR (PFIZER)"
+        },
+        {
+          "molecule_synonym": "Trastuzumab biosimilar (sb-3)",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB BIOSIMILAR (SB-3)"
+        },
+        {
+          "molecule_synonym": "Trastuzumab component of herceptin hylecta",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "TRASTUZUMAB COMPONENT OF HERCEPTIN HYLECTA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab component of phesgo",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "TRASTUZUMAB COMPONENT OF PHESGO"
+        },
+        {
+          "molecule_synonym": "Trastuzumab dkst",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB DKST"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-dkst",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-DKST"
+        },
+        {
+          "molecule_synonym": "Trastuzumab dttb",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB DTTB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-dttb",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-DTTB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab (herceptin)",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB (HERCEPTIN)"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-oysk",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-OYSK"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-pfizer",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-PFIZER"
+        },
+        {
+          "molecule_synonym": "Trastuzumab pkrb",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB PKRB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-pkrb",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-PKRB"
+        },
+        {
+          "molecule_synonym": "Trastuzumab qyyp",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB QYYP"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-qyyp",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-QYYP"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-strf",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-STRF"
+        },
+        {
+          "molecule_synonym": "Trastuzumab-zzxf",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB-ZZXF"
+        },
+        {
+          "molecule_synonym": "Trazimera",
+          "syn_type": "OTHER",
+          "synonyms": "TRAZIMERA"
+        },
+        {
+          "molecule_synonym": "Trazimera",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "TRAZIMERA"
+        },
+        {
+          "molecule_synonym": "Zercepac",
+          "syn_type": "OTHER",
+          "synonyms": "ZERCEPAC"
+        },
+        {
+          "molecule_synonym": "Zercepac",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "ZERCEPAC"
+        }
+      ],
+      "molecule_type": "Antibody",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": true,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB",
+      "prodrug": 0,
+      "score": 37.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": true,
+      "topical": false,
+      "usan_stem": "-mab; -mab",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-mab (-umab); -mab (-zumab)",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [
+        "L01FX35"
+      ],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31288,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "451 $ 451''",
+            "tax_id": null
+          },
+          {
+            "component_id": 30812,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "QVQLVQSGAEVKKPGASVKVSCKASGYTFTTAGMQWVRQAPGQGLEWMGWINTHSGVPKYAEDFKGRVTISADTSTSTAYLQLSSLKSEDTAVYYCARSGFGSSYWYFDVWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKRVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          },
+          {
+            "component_id": 30814,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCKASQDVSTAVAWYQQKPGKAPKLLIYSASYRYTGVPSRFSGSGSGTDFTLTISSLQPEDFAVYYCQQHYITPLTFGQGTKLEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 30813,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 148-204 $ 148''-204'' $ 224-214' $ 224''-214''' $ 230-230'' $ 233-233'' $ 265-325 $ 265''-325'' $ 371-429 $ 371''-429''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL4297939"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": -1,
+      "cross_references": [
+        {
+          "xref_id": "https://searchusan.ama-assn.org/finder/usan/search/DATOPOTAMAB%20DERUXTECAN/relevant/1/",
+          "xref_name": "DATOPOTAMAB DERUXTECAN",
+          "xref_src": "USAN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "3.0",
+      "molecule_chembl_id": "CHEMBL4297939",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL4297939",
+        "molecule_chembl_id": "CHEMBL4297939",
+        "parent_chembl_id": "CHEMBL4297939"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "ADC DS-1062A",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "ADC DS-1062A"
+        },
+        {
+          "molecule_synonym": "Dato-DXd",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "Dato-DXd"
+        },
+        {
+          "molecule_synonym": "Datopotamab deruxtecan",
+          "syn_type": "ATC",
+          "synonyms": "DATOPOTAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Datopotamab deruxtecan",
+          "syn_type": "INN",
+          "synonyms": "DATOPOTAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Datopotamab deruxtecan",
+          "syn_type": "OTHER",
+          "synonyms": "DATOPOTAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Datopotamab deruxtecan",
+          "syn_type": "USAN",
+          "synonyms": "DATOPOTAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Ds-1062",
+          "syn_type": "OTHER",
+          "synonyms": "DS-1062"
+        },
+        {
+          "molecule_synonym": "DS-1062",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS-1062"
+        },
+        {
+          "molecule_synonym": "DS1062",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS1062"
+        },
+        {
+          "molecule_synonym": "DS-1062a",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS-1062a"
+        },
+        {
+          "molecule_synonym": "Ds-1062a",
+          "syn_type": "OTHER",
+          "synonyms": "DS-1062A"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "DATOPOTAMAB DERUXTECAN",
+      "prodrug": 0,
+      "score": 37.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab; -tecan",
+      "usan_year": 2022,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [
+        "L01FD03"
+      ],
+      "availability_type": 1,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 30443,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+            "tax_id": null
+          }
+        ],
+        "description": "Trastuzumab Emtansine (humanized mab)",
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL1743082"
+      },
+      "black_box_warning": 1,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "ado-trastuzumab%20emtansine",
+          "xref_name": "ado-trastuzumab emtansine",
+          "xref_src": "DailyMed"
+        },
+        {
+          "xref_id": "human/EPAR/kadcyla",
+          "xref_name": "kadcyla",
+          "xref_src": "EMA"
+        }
+      ],
+      "dosed_ingredient": true,
+      "first_approval": 2013,
+      "first_in_class": 1,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "4.0",
+      "molecule_chembl_id": "CHEMBL1743082",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL1743082",
+        "molecule_chembl_id": "CHEMBL1743082",
+        "parent_chembl_id": "CHEMBL1743082"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Ado-trastuzumab emtansine",
+          "syn_type": "FDA",
+          "synonyms": "ADO-TRASTUZUMAB EMTANSINE"
+        },
+        {
+          "molecule_synonym": "Kadcyla",
+          "syn_type": "TRADE_NAME",
+          "synonyms": "KADCYLA"
+        },
+        {
+          "molecule_synonym": "PRO-132365",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "PRO-132365"
+        },
+        {
+          "molecule_synonym": "RG-3502",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "RG-3502"
+        },
+        {
+          "molecule_synonym": "T-dm1",
+          "syn_type": "OTHER",
+          "synonyms": "T-DM1"
+        },
+        {
+          "molecule_synonym": "TDM-1",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "TDM-1"
+        },
+        {
+          "molecule_synonym": "TDM1",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "TDM1"
+        },
+        {
+          "molecule_synonym": "Trastuzumab emtansina",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB EMTANSINA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab emtansine",
+          "syn_type": "ATC",
+          "synonyms": "TRASTUZUMAB EMTANSINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab emtansine",
+          "syn_type": "EMA",
+          "synonyms": "TRASTUZUMAB EMTANSINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab emtansine",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB EMTANSINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab emtansine",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB EMTANSINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab emtansine",
+          "syn_type": "USAN",
+          "synonyms": "TRASTUZUMAB EMTANSINE"
+        },
+        {
+          "molecule_synonym": "TRASTUZUMAB-MCC-DM1 T-DM1",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "TRASTUZUMAB-MCC-DM1 T-DM1"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": true,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB EMTANSINE",
+      "prodrug": 0,
+      "score": 35.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": true,
+      "topical": false,
+      "usan_stem": "-mab; -mab; -tansine",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; maytansinoid derivatives",
+      "usan_substem": "-mab (-umab); -mab (-zumab); -tansine",
+      "usan_year": 2009,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [
+        "L01FD05"
+      ],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 29675,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "Asn-300 $ Asn-300''''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 30443,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+            "tax_id": null
+          },
+          {
+            "component_id": 30655,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 214'-223 $ 214'''-223'' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31318,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "Asn-300 $ Asn-300''",
+            "tax_id": null
+          },
+          {
+            "component_id": 29054,
+            "component_type": null,
+            "description": "Modified residues",
+            "organism": null,
+            "sequence": "N1(SMILES)CC(C)[C@H](NC(=O)OCCOCCN1C(=O)C=CC1=O)N(=O)C[C@@H](CCCNC(N)=O)C(=O)NC1=CC=C(COC(=O)N(C)CCN(CCOCCO)C(=O)OC2=CC3=C([C@H](CCl)CN3C(=O)C3=CN4C=C(NC(=O)C5=CC=C(O)C=C5)C=CC4=N3)C3=C(C)C=CC=C23)C=C1 |r,c:16,82,85,88,91,94,100,t:35,37,57,59,69,72,77,79,96|",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL4298178"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "https://searchusan.ama-assn.org/finder/usan/search/TRASTUZUMAB%20DUOCARMAZINE/relevant/1/",
+          "xref_name": "TRASTUZUMAB DUOCARMAZINE",
+          "xref_src": "USAN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "3.0",
+      "molecule_chembl_id": "CHEMBL4298178",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL4298178",
+        "molecule_chembl_id": "CHEMBL4298178",
+        "parent_chembl_id": "CHEMBL4298178"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "SYD-985",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "SYD-985"
+        },
+        {
+          "molecule_synonym": "SYD985",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "SYD985"
+        },
+        {
+          "molecule_synonym": "Trastuzumab duocarmazina",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB DUOCARMAZINA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab duocarmazine",
+          "syn_type": "ATC",
+          "synonyms": "TRASTUZUMAB DUOCARMAZINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab duocarmazine",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB DUOCARMAZINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab duocarmazine",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB DUOCARMAZINE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab duocarmazine",
+          "syn_type": "USAN",
+          "synonyms": "TRASTUZUMAB DUOCARMAZINE"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB DUOCARMAZINE",
+      "prodrug": 0,
+      "score": 34.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -mab",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-mab (-umab); -mab (-zumab)",
+      "usan_year": 2018,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [
+        "L01FX36"
+      ],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 30363,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "QVQLQQWGAGLLKPSETLSLTCAVYGGSFSGYYWSWIRQPPGKGLEWIGEINHSGSTNYNPSLKSRVTISVETSKNQFSLKLSSVTAADTAVYYCARDKWTWYFDLWGRGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKRVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          },
+          {
+            "component_id": 30362,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIEMTQSPDSLAVSLGERATINCRSSQSVLYSSSNRNYLAWYQQNPGQPPKLLIYWASTRESGVPDRFSGSGSGTDFTLTISSLQAEDVAVYYCQQYYSTPRTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 30361,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-95 $ 22''-95'' $ 23'-94' $ 23'''-94''' $ 140'-200' $ 140'''-200''' $ 144-200 $ 144''-200'' $ 220-220' $ 220''-220''' $ 226-226'' $ 229-229'' $ 261-321 $ 261''-321'' $ 367-425 $ 367''-425''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31414,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "297 $ 297''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL4594611"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "https://searchusan.ama-assn.org/finder/usan/search/PATRITUMAB%20DERUXTECAN/relevant/1/",
+          "xref_name": "PATRITUMAB DERUXTECAN",
+          "xref_src": "USAN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "3.0",
+      "molecule_chembl_id": "CHEMBL4594611",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL4594611",
+        "molecule_chembl_id": "CHEMBL4594611",
+        "parent_chembl_id": "CHEMBL4594611"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Patritumab deruxtecan",
+          "syn_type": "ATC",
+          "synonyms": "PATRITUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Patritumab deruxtecan",
+          "syn_type": "INN",
+          "synonyms": "PATRITUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Patritumab deruxtecan",
+          "syn_type": "OTHER",
+          "synonyms": "PATRITUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Patritumab deruxtecan",
+          "syn_type": "USAN",
+          "synonyms": "PATRITUMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "U3 1402",
+          "syn_type": "OTHER",
+          "synonyms": "U3 1402"
+        },
+        {
+          "molecule_synonym": "U3 1402",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "U3 1402"
+        },
+        {
+          "molecule_synonym": "U3-1402",
+          "syn_type": "OTHER",
+          "synonyms": "U3-1402"
+        },
+        {
+          "molecule_synonym": "U3-1402",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "U3-1402"
+        },
+        {
+          "molecule_synonym": "U31402",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "U31402"
+        },
+        {
+          "molecule_synonym": "U3-1402A",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "U3-1402A"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "PATRITUMAB DERUXTECAN",
+      "prodrug": 0,
+      "score": 34.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab (-umab); -tecan",
+      "usan_year": 2022,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31027,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232''$ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31028,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRESGSRSGTDFTLTISSLQPBDEFATYYCQHYTTPPTEGQGTKVELKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSENRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31335,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31026,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGENIKDTYTHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGEYAMDYWGQGTLVTVSSASTKGPSVEPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLEPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKENWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPBNNYKTTPPVLDSDGSFFLYSKLTVDKSRWQGNVEFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL6068184"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "130",
+          "xref_name": "TRASTUZUMAB ENVEDOTIN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "3.0",
+      "molecule_chembl_id": "CHEMBL6068184",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL6068184",
+        "molecule_chembl_id": "CHEMBL6068184",
+        "parent_chembl_id": "CHEMBL6068184"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "DP-303C",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DP-303C"
+        },
+        {
+          "molecule_synonym": "Dp303c",
+          "syn_type": "OTHER",
+          "synonyms": "DP303C"
+        },
+        {
+          "molecule_synonym": "Trastuzumab envedotin",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB ENVEDOTIN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab envedotina",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB ENVEDOTINA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab envedotine",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB ENVEDOTINE"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB ENVEDOTIN",
+      "prodrug": 0,
+      "score": 33.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-dotin; -mab; -mab",
+      "usan_stem_definition": "synthetic analogs of the dolastatin series; monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-dotin; -mab (-umab); -mab (-zumab)",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 30444,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLOMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLOSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLEPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVESCSVMHEALHNHYTQKSLSLSPG",
+            "tax_id": null
+          },
+          {
+            "component_id": 30445,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQOKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLOPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSOESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5095315"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "127",
+          "xref_name": "TRASTUZUMAB IMBOTOLIMOD",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL5095315",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5095315",
+        "molecule_chembl_id": "CHEMBL5095315",
+        "parent_chembl_id": "CHEMBL5095315"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Bdc 1001",
+          "syn_type": "OTHER",
+          "synonyms": "BDC 1001"
+        },
+        {
+          "molecule_synonym": "BDC-1001",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "BDC-1001"
+        },
+        {
+          "molecule_synonym": "BDC1001",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "BDC1001"
+        },
+        {
+          "molecule_synonym": "Trastuzumab imbotolimod",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB IMBOTOLIMOD"
+        },
+        {
+          "molecule_synonym": "Trastuzumab imbotolimod",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB IMBOTOLIMOD"
+        },
+        {
+          "molecule_synonym": "Trastuzumab imbotolimod",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB IMBOTOLIMOD"
+        },
+        {
+          "molecule_synonym": "Trastuzumab imbotolimod",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB IMBOTOLIMOD"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB IMBOTOLIMOD",
+      "prodrug": 0,
+      "score": 32.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-imod; -mab; -mab",
+      "usan_stem_definition": "immunomodulators: immunomodulators, toll-like receptor agonists; monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-imod (-tolimod); -mab (-umab); -mab (-zumab)",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31087,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23''''-88''' $ 133'-193' $ 133'''-193''' $ 149-205 $ 149''-205'' $ 225-213' $ 225''-213''' $ 231-231'' $ 234-234'' $ 266-326 $ 266''-326'' $ 372-430 $ 372''-430''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31319,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "302 $ 302''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31088,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCKASQNIYKNLAWYQQKPGKAPKLLIYDANTLQTGVPSRFSGSGSGSDFTLTISSLQPEDFATYFCQQYYSGWAFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31086,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVQSGAEVKKPGASVKVSCKASGYTFTRNFMHWVRQAPGQGLEWMGWIYPGDGETEYAQKFQGRVTITADTSTSTAYMELSSLRSEDTAVYYCARGVYGGFAGGYFDFWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKRVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5095329"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": -1,
+      "cross_references": [
+        {
+          "xref_id": "127",
+          "xref_name": "RALUDOTATUG DERUXTECAN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL5095329",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5095329",
+        "molecule_chembl_id": "CHEMBL5095329",
+        "parent_chembl_id": "CHEMBL5095329"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Ds 6000a",
+          "syn_type": "OTHER",
+          "synonyms": "DS 6000A"
+        },
+        {
+          "molecule_synonym": "DS-6000A",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS-6000A"
+        },
+        {
+          "molecule_synonym": "DS6000A",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS6000A"
+        },
+        {
+          "molecule_synonym": "Raludotatug deruxtecan",
+          "syn_type": "INN",
+          "synonyms": "RALUDOTATUG DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Raludotatug deruxtecan",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "RALUDOTATUG DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Raludotatug deruxtecan",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "RALUDOTATUG DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Raludotatug deruxtecan",
+          "syn_type": "OTHER",
+          "synonyms": "RALUDOTATUG DERUXTECAN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "RALUDOTATUG DERUXTECAN",
+      "prodrug": 0,
+      "score": 32.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-tecan",
+      "usan_stem_definition": "antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-tecan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 29792,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "EIVLTQSPATLSLSPGERATLSCRASSRLIYMHWYQQKPGQAPRPLIYATSNLASGIPARFSGSGSGTDFTLTISSLEPEDFAVYYCQQWNSNPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31319,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "302 $ 302''",
+            "tax_id": null
+          },
+          {
+            "component_id": 30338,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "302 $ 302'",
+            "tax_id": null
+          },
+          {
+            "component_id": 29790,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "QVQLVQSGAEVKKPGSSVKVSCKASGYTFTNYVMHWVRQAPGQGLEWMGYINPYNDDVKYNEKFKGRVTITADESTSTAYMELSSLRSEDTAVYYCARWGYYGSPLYYFDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKRVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          },
+          {
+            "component_id": 30357,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-87' $ 23'''-87''' $ 133'-193' $ 133'''-193''' $ 149-205 $ 149''-205'' $ 225-213' $ 225''-213''' $ 231-231'' $ 234-234'' $ 266-326 $ 266''-326'' $ 372-430 $ 372''-430''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5095331"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "126",
+          "xref_name": "IFINATAMAB DERUXTECAN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "3.0",
+      "molecule_chembl_id": "CHEMBL5095331",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5095331",
+        "molecule_chembl_id": "CHEMBL5095331",
+        "parent_chembl_id": "CHEMBL5095331"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Ds 7300a",
+          "syn_type": "OTHER",
+          "synonyms": "DS 7300A"
+        },
+        {
+          "molecule_synonym": "DS-7300A",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS-7300A"
+        },
+        {
+          "molecule_synonym": "DS7300A",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DS7300A"
+        },
+        {
+          "molecule_synonym": "Ifinatamab deruxtecan",
+          "syn_type": "INN",
+          "synonyms": "IFINATAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Ifinatamab deruxtecan",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "IFINATAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Ifinatamab deruxtecan",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "IFINATAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Ifinatamab deruxtecan",
+          "syn_type": "OTHER",
+          "synonyms": "IFINATAMAB DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "Mabx-9001a cysteinyl-deruxtecan",
+          "syn_type": "OTHER",
+          "synonyms": "MABX-9001A CYSTEINYL-DERUXTECAN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "IFINATAMAB DERUXTECAN",
+      "prodrug": 0,
+      "score": 32.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab; -tecan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31031,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300 ''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 30446,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5314712"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "127",
+          "xref_name": "TRASTUZUMAB REZETECAN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL5314712",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5314712",
+        "molecule_chembl_id": "CHEMBL5314712",
+        "parent_chembl_id": "CHEMBL5314712"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Shr a1811",
+          "syn_type": "OTHER",
+          "synonyms": "SHR A1811"
+        },
+        {
+          "molecule_synonym": "Trastuzumab rezetecan",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB REZETECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab rezetecan",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB REZETECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab rezetecan",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB REZETECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab rezetecan",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB REZETECAN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB REZETECAN",
+      "prodrug": 0,
+      "score": 32.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab (-umab); -mab (-zumab); -tecan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 30446,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          },
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31335,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5315030"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "128",
+          "xref_name": "TRASTUZUMAB VEDOTIN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "3.0",
+      "molecule_chembl_id": "CHEMBL5315030",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5315030",
+        "molecule_chembl_id": "CHEMBL5315030",
+        "parent_chembl_id": "CHEMBL5315030"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Mrg 002",
+          "syn_type": "OTHER",
+          "synonyms": "MRG 002"
+        },
+        {
+          "molecule_synonym": "MRG-002",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "MRG-002"
+        },
+        {
+          "molecule_synonym": "Mrg002",
+          "syn_type": "OTHER",
+          "synonyms": "MRG002"
+        },
+        {
+          "molecule_synonym": "Trastuzumab--vcmmae conjugate",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB--VCMMAE CONJUGATE"
+        },
+        {
+          "molecule_synonym": "Trastuzumab vedotin",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB VEDOTIN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab vedotin",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB VEDOTIN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab vedotina",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB VEDOTINA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab vedotine",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB VEDOTINE"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB VEDOTIN",
+      "prodrug": 0,
+      "score": 32.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-dotin; -mab; -mab",
+      "usan_stem_definition": "synthetic analogs of the dolastatin series; monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-dotin; -mab (-umab); -mab (-zumab)",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": null,
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "https://searchusan.ama-assn.org/finder/usan/search/DERUXTECAN/relevant/1/",
+          "xref_name": "DERUXTECAN",
+          "xref_src": "USAN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "1.0",
+      "molecule_chembl_id": "CHEMBL4594266",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL4594266",
+        "molecule_chembl_id": "CHEMBL4594266",
+        "parent_chembl_id": "CHEMBL4594266"
+      },
+      "molecule_properties": {
+        "alogp": null,
+        "aromatic_rings": null,
+        "full_molformula": "C52H58FN9O13",
+        "full_mwt": "1036.08",
+        "hba": null,
+        "hbd": null,
+        "heavy_atoms": null,
+        "mw_freebase": "1036.08",
+        "np_likeness_score": null,
+        "num_ro5_violations": null,
+        "psa": null,
+        "qed_weighted": null,
+        "ro3_pass": null,
+        "rtb": null
+      },
+      "molecule_structures": {
+        "canonical_smiles": "CC[C@@]1(O)C(=O)OCc2c1cc1n(c2=O)Cc2c-1nc1cc(F)c(C)c3c1c2[C@@H](NC(=O)COCNC(=O)CNC(=O)[C@H](Cc1ccccc1)NC(=O)CNC(=O)CNC(=O)CCCCCN1C(=O)CCC1=O)CC3",
+        "molfile": "\n     RDKit          2D\n\n 75 82  0  0  0  0  0  0  0  0999 V2000\n   -8.5714    0.2323    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -9.2859   -0.1802    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -9.2859   -1.0052    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -8.5714   -1.4177    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.8570   -1.0052    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.8570   -0.1802    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.1425   -1.4177    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.4280   -1.0052    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.4280   -0.1802    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.7136    0.2323    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.7136   -1.4177    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.9991   -1.0052    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.7136   -2.2427    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.2846   -1.4177    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.5702   -1.0052    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.8557   -1.4177    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.1412   -1.0052    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -1.4268   -1.4177    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.7123   -1.0052    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.0022   -1.4177    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.7166   -1.0052    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.9785   -0.1422    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.5702   -0.1802    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n    0.0022   -2.2427    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.7136    1.0573    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.4280    1.4698    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.1425    1.0573    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.1425    0.2323    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.1425    2.7074    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.8570    2.2949    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.8570    1.4698    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.4280    2.2949    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.7136    2.7074    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.9991    1.4698    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.9991    2.2949    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.2846    2.7074    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.2846    1.0573    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.5702    1.4698    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -3.5702    2.2949    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.7856    1.2149    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.3007    1.8823    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.7855    2.5497    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.0976    1.4376    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.3873    0.7701    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.0518    0.0164    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.7687   -0.0698    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.2536    0.5976    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.9180    1.3513    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.2380    2.1913    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    0.2469    2.8587    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.0674    2.7725    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    1.4030    2.0188    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.0741    0.5114    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.5590    1.1788    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    2.2234    1.9325    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n    2.5590   -0.1560    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    3.3436    0.0989    0.0000 N   0  0  0  0  0  0  0  0  0  0  0  0\n    3.3436    0.9239    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    4.0581   -0.3136    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    4.7726    0.0989    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    4.7726    0.9239    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    4.0581    1.3364    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    5.4870   -0.3137    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    6.2015    0.0988    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n    6.2015    0.9238    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    5.4871    1.3363    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.1425    3.5324    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -2.5307    0.4303    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -1.0585    2.2775    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -0.2024    3.5506    0.0000 F   0  0  0  0  0  0  0  0  0  0  0  0\n    4.0581   -1.1386    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n    6.9552    1.2594    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n    5.9720    2.0038    0.0000 O   0  0  0  0  0  0  0  0  0  0  0  0\n    5.0021    2.0038    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n    5.1737    2.8108    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n  1  2  2  0\n  2  3  1  0\n  3  4  2  0\n  4  5  1  0\n  5  6  2  0\n  1  6  1  0\n  7  8  1  0\n  8  9  1  6\n  5  7  1  0\n 11 12  1  0\n  8 11  1  0\n 10  9  1  0\n 11 13  2  0\n 12 14  1  0\n 14 15  1  0\n 16 17  1  0\n 15 16  1  0\n 18 19  1  0\n 17 18  1  0\n 20 21  1  0\n 19 20  1  0\n 10 22  2  0\n 15 23  2  0\n 20 24  2  0\n 10 25  1  0\n 26 27  1  0\n 27 28  2  0\n 26 25  1  0\n 29 30  1  0\n 30 31  1  0\n 29 32  1  0\n 31 27  1  0\n 34 35  1  0\n 33 35  1  0\n 33 32  1  0\n 37 38  1  0\n 38 39  1  0\n 36 39  2  0\n 34 37  1  0\n 40 41  1  0\n 41 42  1  0\n 38 40  1  0\n 39 42  1  0\n 43 44  1  0\n 44 45  1  0\n 45 46  1  0\n 46 47  1  0\n 47 48  1  0\n 43 48  1  0\n 49 50  1  0\n 50 51  2  0\n 51 52  1  0\n 43 49  2  0\n 48 52  2  0\n 53 54  1  0\n 54 55  2  0\n 52 55  1  0\n 47 53  2  0\n 56 57  1  0\n 57 58  1  0\n 54 58  1  0\n 53 56  1  0\n 59 60  1  0\n 60 61  2  0\n 61 62  1  0\n 57 59  1  0\n 58 62  2  0\n 63 64  1  0\n 64 65  1  0\n 65 66  1  0\n 60 63  1  0\n 61 66  1  0\n 29 67  2  0\n 40 68  2  0\n 49 69  1  0\n 50 70  1  0\n 46 21  1  1\n 59 71  2  0\n 65 72  2  0\n 66 73  1  0\n 66 74  1  1\n 74 75  1  0\nM  END\n> <chembl_id>\nCHEMBL4594266\n\n> <chembl_pref_name>\nDERUXTECAN",
+        "standard_inchi": "InChI=1S/C52H58FN9O13/c1-3-52(73)33-19-38-48-31(24-62(38)50(71)32(33)25-75-51(52)72)47-35(14-13-30-28(2)34(53)20-36(60-48)46(30)47)58-43(67)26-74-27-57-41(65)22-56-49(70)37(18-29-10-6-4-7-11-29)59-42(66)23-55-40(64)21-54-39(63)12-8-5-9-17-61-44(68)15-16-45(61)69/h4,6-7,10-11,19-20,35,37,73H,3,5,8-9,12-18,21-27H2,1-2H3,(H,54,63)(H,55,64)(H,56,70)(H,57,65)(H,58,67)(H,59,66)/t35-,37-,52-/m0/s1",
+        "standard_inchi_key": "RKZSKPQVOKHTCP-MCZRLCSDSA-N"
+      },
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Deruxtecan",
+          "syn_type": "USAN",
+          "synonyms": "DERUXTECAN"
+        },
+        {
+          "molecule_synonym": "MAAA-1162a (pyrrole derivative)",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "MAAA-1162a (pyrrole derivative)"
+        }
+      ],
+      "molecule_type": "Small molecule",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "DERUXTECAN",
+      "prodrug": 0,
+      "score": 30.0,
+      "structure_type": "MOL",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-tecan",
+      "usan_stem_definition": "antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-tecan",
+      "usan_year": 2019,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 30443,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31335,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5314886"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "129",
+          "xref_name": "TRASTUZUMAB BRENGITECAN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL5314886",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5314886",
+        "molecule_chembl_id": "CHEMBL5314886",
+        "parent_chembl_id": "CHEMBL5314886"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Trastuzumab brengitecan",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB BRENGITECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab brengitecan",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB BRENGITECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab brengitecan",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB BRENGITECAN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB BRENGITECAN",
+      "prodrug": 0,
+      "score": 30.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab (-umab); -mab (-zumab); -tecan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31029,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSIRLSCAASGENIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRETISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVEPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVELFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKENWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVESCSVMHEALHNHYTQKSLSLSPG",
+            "tax_id": null
+          },
+          {
+            "component_id": 31335,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL6068309"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "131",
+          "xref_name": "TRASTUZUMAB PAMIRTECAN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL6068309",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL6068309",
+        "molecule_chembl_id": "CHEMBL6068309",
+        "parent_chembl_id": "CHEMBL6068309"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "DB-1303",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "DB-1303"
+        },
+        {
+          "molecule_synonym": "Trastuzumab pamirtecan",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB PAMIRTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab pamirtecan",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB PAMIRTECAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab pamirtecan",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB PAMIRTECAN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB PAMIRTECAN",
+      "prodrug": 0,
+      "score": 30.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; antineoplastics (camptothecin derivatives)",
+      "usan_substem": "-mab (-umab); -mab (-zumab); -tecan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 29847,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          },
+          {
+            "component_id": 30443,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPG",
+            "tax_id": null
+          },
+          {
+            "component_id": 31335,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5095155"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "126",
+          "xref_name": "TRASTUZUMAB CORIXETAN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL5095155",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5095155",
+        "molecule_chembl_id": "CHEMBL5095155",
+        "parent_chembl_id": "CHEMBL5095155"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Trastuzumab corixetan",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB CORIXETAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab corixetan",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB CORIXETAN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab corixetan",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB CORIXETAN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB CORIXETAN",
+      "prodrug": 0,
+      "score": 28.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-mab; -mab; -xetan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; chelating agents",
+      "usan_substem": "-mab (-umab); -mab (-zumab); -xetan",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": {
+        "biocomponents": [
+          {
+            "component_id": 31335,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence": "300 $ 300''",
+            "tax_id": null
+          },
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence": "DIQMTQSPSSLSASVGDRVTITCRASQDVNTAVAWYQQKPGKAPKLLIYSASFLYSGVPSRFSGSRSGTDFTLTISSLQPEDFATYYCQQHYTTPPTFGQGTKVEIKRTVAAPSVFIFPPSDEQLKSGTASVVCLLNNFYPREAKVQWKVDNALQSGNSQESVTEQDSKDSTYSLSSTLTLSKADYEKHKVYACEVTHQGLSSPVTKSFNRGEC",
+            "tax_id": null
+          },
+          {
+            "component_id": 30446,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence": "EVQLVESGGGLVQPGGSLRLSCAASGFNIKDTYIHWVRQAPGKGLEWVARIYPTNGYTRYADSVKGRFTISADTSKNTAYLQMNSLRAEDTAVYYCSRWGGDGFYAMDYWGQGTLVTVSSASTKGPSVFPLAPSSKSTSGGTAALGCLVKDYFPEPVTVSWNSGALTSGVHTFPAVLQSSGLYSLSSVVTVPSSSLGTQTYICNVNHKPSNTKVDKKVEPKSCDKTHTCPPCPAPELLGGPSVFLFPPKPKDTLMISRTPEVTCVVVDVSHEDPEVKFNWYVDGVEVHNAKTKPREEQYNSTYRVVSVLTVLHQDWLNGKEYKCKVSNKALPAPIEKTISKAKGQPREPQVYTLPPSREEMTKNQVSLTCLVKGFYPSDIAVEWESNGQPENNYKTTPPVLDSDGSFFLYSKLTVDKSRWQQGNVFSCSVMHEALHNHYTQKSLSLSPGK",
+            "tax_id": null
+          },
+          {
+            "component_id": 31447,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence": "22-96 $ 22''-96'' $ 23'-88' $ 23'''-88''' $ 134'-194' $ 134'''-194''' $ 147-203 $ 147''-203'' $ 223-214' $ 223''-214''' $ 229-229'' $ 232-232'' $ 264-324 $ 264''-324'' $ 370-428 $ 370''-428''",
+            "tax_id": null
+          }
+        ],
+        "description": null,
+        "helm_notation": null,
+        "molecule_chembl_id": "CHEMBL5314782"
+      },
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [
+        {
+          "xref_id": "128",
+          "xref_name": "TRASTUZUMAB BOTIDOTIN",
+          "xref_src": "INN"
+        }
+      ],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "2.0",
+      "molecule_chembl_id": "CHEMBL5314782",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL5314782",
+        "molecule_chembl_id": "CHEMBL5314782",
+        "parent_chembl_id": "CHEMBL5314782"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "A 166",
+          "syn_type": "OTHER",
+          "synonyms": "A 166"
+        },
+        {
+          "molecule_synonym": "A-166",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "A-166"
+        },
+        {
+          "molecule_synonym": "A166",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "A166"
+        },
+        {
+          "molecule_synonym": "Trastuzumab botidotin",
+          "syn_type": "INN",
+          "synonyms": "TRASTUZUMAB BOTIDOTIN"
+        },
+        {
+          "molecule_synonym": "Trastuzumab botidotina",
+          "syn_type": "INN_SPANISH",
+          "synonyms": "TRASTUZUMAB BOTIDOTINA"
+        },
+        {
+          "molecule_synonym": "Trastuzumab botidotine",
+          "syn_type": "INN_FRENCH",
+          "synonyms": "TRASTUZUMAB BOTIDOTINE"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB BOTIDOTIN",
+      "prodrug": 0,
+      "score": 28.0,
+      "structure_type": "SEQ",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-dotin; -mab; -mab",
+      "usan_stem_definition": "synthetic analogs of the dolastatin series; monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-dotin; -mab (-umab); -mab (-zumab)",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    },
+    {
+      "atc_classifications": [],
+      "availability_type": null,
+      "biotherapeutic": null,
+      "black_box_warning": 0,
+      "chemical_probe": 0,
+      "chirality": 1,
+      "cross_references": [],
+      "dosed_ingredient": false,
+      "first_approval": null,
+      "first_in_class": 0,
+      "helm_notation": null,
+      "inorganic_flag": 0,
+      "max_phase": "1.0",
+      "molecule_chembl_id": "CHEMBL6068604",
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL6068604",
+        "molecule_chembl_id": "CHEMBL6068604",
+        "parent_chembl_id": "CHEMBL6068604"
+      },
+      "molecule_properties": null,
+      "molecule_structures": null,
+      "molecule_synonyms": [
+        {
+          "molecule_synonym": "Fs-1502",
+          "syn_type": "OTHER",
+          "synonyms": "FS-1502"
+        },
+        {
+          "molecule_synonym": "IKS-014",
+          "syn_type": "RESEARCH_CODE",
+          "synonyms": "IKS-014"
+        },
+        {
+          "molecule_synonym": "Lcb-14",
+          "syn_type": "OTHER",
+          "synonyms": "LCB-14"
+        },
+        {
+          "molecule_synonym": "Lcb14-0110",
+          "syn_type": "OTHER",
+          "synonyms": "LCB14-0110"
+        },
+        {
+          "molecule_synonym": "Trastuzumab mafodotin",
+          "syn_type": "OTHER",
+          "synonyms": "TRASTUZUMAB MAFODOTIN"
+        }
+      ],
+      "molecule_type": "Antibody drug conjugate",
+      "natural_product": 0,
+      "oral": false,
+      "orphan": 0,
+      "parenteral": false,
+      "polymer_flag": 0,
+      "pref_name": "TRASTUZUMAB MAFODOTIN",
+      "prodrug": 0,
+      "score": 28.0,
+      "structure_type": "NONE",
+      "therapeutic_flag": false,
+      "topical": false,
+      "usan_stem": "-dotin; -mab; -mab",
+      "usan_stem_definition": "synthetic analogs of the dolastatin series; monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "usan_substem": "-dotin; -mab (-umab); -mab (-zumab)",
+      "usan_year": null,
+      "veterinary": 0,
+      "withdrawn_flag": false
+    }
+  ],
+  "page_meta": {
+    "limit": 20,
+    "next": null,
+    "offset": 0,
+    "previous": null,
+    "total_count": 18
+  }
+}

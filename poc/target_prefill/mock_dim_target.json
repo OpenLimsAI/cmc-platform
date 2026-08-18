@@ -1,0 +1,13 @@
+{
+  "_comment": "模拟 dim.target 现有数据（正式表尚不存在）。查重锚点 = uniprot_id。预置 Q9NPF7=IL-23A 用于验证 guselkumab 命中→只建关联分支。",
+  "records": [
+    {
+      "target_code": "TGT-000001",
+      "target_name": "Interleukin-23 subunit alpha",
+      "uniprot_id": "Q9NPF7",
+      "target_type": "配体·细胞因子",
+      "target_location": "可溶型",
+      "status": "published"
+    }
+  ]
+}

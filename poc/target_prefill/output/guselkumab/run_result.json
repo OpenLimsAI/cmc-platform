@@ -1,0 +1,547 @@
+{
+  "inn": "guselkumab",
+  "fetched_at": "2026-08-17T13:30:47+00:00",
+  "steps": [
+    {
+      "step": "1_chembl_molecule_search",
+      "http_status": 200,
+      "total_count": 1,
+      "pick_reason": "pref_name 精确匹配 INN",
+      "candidates": [
+        {
+          "molecule_chembl_id": "CHEMBL2364648",
+          "pref_name": "GUSELKUMAB",
+          "molecule_type": "Antibody",
+          "max_phase": "4.0",
+          "score": 41.0,
+          "inn_synonym_hit": true,
+          "syn_type_of_hit": "USAN"
+        }
+      ]
+    },
+    {
+      "step": "2_chembl_mechanism",
+      "http_status": 200,
+      "mechanism_count": 1,
+      "mechanisms": [
+        {
+          "mec_id": 5950,
+          "mechanism_of_action": "Interleukin-23 inhibitor",
+          "action_type": "INHIBITOR",
+          "target_chembl_id": "CHEMBL2364154",
+          "binding_site_comment": "Alpha (p19) subunit is binding site",
+          "direct_interaction": 1,
+          "molecular_mechanism": 1,
+          "disease_efficacy": 1,
+          "max_phase": 4
+        }
+      ]
+    },
+    {
+      "step": "3_chembl_target",
+      "targets": [
+        {
+          "target_chembl_id": "CHEMBL2364154",
+          "http_status": 200,
+          "pref_name": "Interleukin-23",
+          "target_type_chembl": "PROTEIN COMPLEX",
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "top_level_cross_references": [],
+          "components": [
+            {
+              "accession": "P29460",
+              "component_type": "PROTEIN",
+              "component_description": "Interleukin-12 subunit beta",
+              "relationship": "PROTEIN SUBUNIT",
+              "gene_symbol": "IL12B",
+              "uniprot_xref": [
+                "P29460"
+              ]
+            },
+            {
+              "accession": "Q9NPF7",
+              "component_type": "PROTEIN",
+              "component_description": "Interleukin-23 subunit alpha",
+              "relationship": "PROTEIN SUBUNIT",
+              "gene_symbol": "IL23A",
+              "uniprot_xref": [
+                "Q6NZ80",
+                "Q6NZ82",
+                "Q9H2A5",
+                "Q9NPF7"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "4_dedup_dim_target",
+      "dedup": [
+        {
+          "uniprot_id": "P29460",
+          "hit": false
+        },
+        {
+          "uniprot_id": "Q9NPF7",
+          "hit": true,
+          "existing_target_code": "TGT-000001"
+        }
+      ]
+    },
+    {
+      "step": "5_uniprot",
+      "fetched": [
+        {
+          "uniprot_id": "P29460",
+          "http_status": 200,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "target CHEMBL2364154（Interleukin-23）为 PROTEIN COMPLEX，含 2 个亚基；dim.target 以 UniProt 为锚点会拆成 2 条，请人工确认抗体实际结合的亚基（可参考 mechanism.binding_site_comment）。"
+  ],
+  "outcome": "OK_MIXED_HIT_LINK_AND_NEW_TARGET",
+  "molecule": {
+    "chembl_id": "CHEMBL2364648",
+    "pref_name": "GUSELKUMAB",
+    "molecule_type": "Antibody",
+    "max_phase": "4.0",
+    "first_approval": 2017,
+    "usan_stem": "-mab",
+    "usan_stem_definition": "monoclonal antibodies: fully human",
+    "synonyms": [
+      [
+        "Guselkumab",
+        "ATC"
+      ],
+      [
+        "Guselkumab",
+        "BNF"
+      ],
+      [
+        "Guselkumab",
+        "EMA"
+      ],
+      [
+        "Guselkumab",
+        "FDA"
+      ],
+      [
+        "Guselkumab",
+        "INN"
+      ],
+      [
+        "Guselkumab",
+        "MERCK_INDEX"
+      ],
+      [
+        "Guselkumab",
+        "OTHER"
+      ],
+      [
+        "CNTO 1959",
+        "RESEARCH_CODE"
+      ],
+      [
+        "CNTO-1959",
+        "RESEARCH_CODE"
+      ],
+      [
+        "Tremfya",
+        "TRADE_NAME"
+      ],
+      [
+        "Guselkumab",
+        "USAN"
+      ]
+    ],
+    "research_codes": [
+      "CNTO 1959",
+      "CNTO-1959"
+    ],
+    "trade_names": [
+      "Tremfya"
+    ],
+    "molecule_hierarchy": {
+      "active_chembl_id": "CHEMBL2364648",
+      "molecule_chembl_id": "CHEMBL2364648",
+      "parent_chembl_id": "CHEMBL2364648"
+    },
+    "biotherapeutic": {
+      "helm_notation": null,
+      "description": "Guselkumab (human mab)",
+      "biocomponents": [
+        {
+          "component_id": 29801,
+          "component_type": "Protein",
+          "description": "Heavy chain",
+          "organism": null,
+          "sequence_len": 446
+        },
+        {
+          "component_id": 29748,
+          "component_type": "Protein",
+          "description": "Light chain",
+          "organism": null,
+          "sequence_len": 217
+        }
+      ]
+    },
+    "cross_references": [
+      [
+        "DailyMed",
+        "guselkumab"
+      ],
+      [
+        "EMA",
+        "human/EPAR/tremfya"
+      ]
+    ],
+    "atc_classifications": [
+      "L04AC16"
+    ]
+  },
+  "prefill_form": {
+    "_note": "预填表单：所有字段供人工审核；不自动落库。target_code=<NEW:...> 表示待编码服务分配。",
+    "molecule": {
+      "chembl_id": "CHEMBL2364648",
+      "pref_name": "GUSELKUMAB",
+      "molecule_type": "Antibody",
+      "max_phase": "4.0",
+      "first_approval": 2017,
+      "usan_stem": "-mab",
+      "usan_stem_definition": "monoclonal antibodies: fully human",
+      "synonyms": [
+        [
+          "Guselkumab",
+          "ATC"
+        ],
+        [
+          "Guselkumab",
+          "BNF"
+        ],
+        [
+          "Guselkumab",
+          "EMA"
+        ],
+        [
+          "Guselkumab",
+          "FDA"
+        ],
+        [
+          "Guselkumab",
+          "INN"
+        ],
+        [
+          "Guselkumab",
+          "MERCK_INDEX"
+        ],
+        [
+          "Guselkumab",
+          "OTHER"
+        ],
+        [
+          "CNTO 1959",
+          "RESEARCH_CODE"
+        ],
+        [
+          "CNTO-1959",
+          "RESEARCH_CODE"
+        ],
+        [
+          "Tremfya",
+          "TRADE_NAME"
+        ],
+        [
+          "Guselkumab",
+          "USAN"
+        ]
+      ],
+      "research_codes": [
+        "CNTO 1959",
+        "CNTO-1959"
+      ],
+      "trade_names": [
+        "Tremfya"
+      ],
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL2364648",
+        "molecule_chembl_id": "CHEMBL2364648",
+        "parent_chembl_id": "CHEMBL2364648"
+      },
+      "biotherapeutic": {
+        "helm_notation": null,
+        "description": "Guselkumab (human mab)",
+        "biocomponents": [
+          {
+            "component_id": 29801,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence_len": 446
+          },
+          {
+            "component_id": 29748,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence_len": 217
+          }
+        ]
+      },
+      "cross_references": [
+        [
+          "DailyMed",
+          "guselkumab"
+        ],
+        [
+          "EMA",
+          "human/EPAR/tremfya"
+        ]
+      ],
+      "atc_classifications": [
+        "L04AC16"
+      ],
+      "raw_refs": {
+        "chembl_molecule_raw_file": "output/guselkumab/01_chembl_molecule_search.json",
+        "fetched_at": "2026-08-17T13:30:47+00:00"
+      }
+    },
+    "targets_new": [
+      {
+        "target_code": "<NEW:P29460>",
+        "target_name": "Interleukin-12 subunit beta",
+        "uniprot_id": "P29460",
+        "target_type": "配体·细胞因子",
+        "target_type_reason": "UniProt keyword(Molecular function) ∈ ['Cytokine']",
+        "target_type_enum": [
+          "受体",
+          "配体·细胞因子",
+          "表面抗原",
+          "酶",
+          "其他"
+        ],
+        "target_location": "可溶型",
+        "target_location_reason": "UniProt 定位含 Secreted/extracellular：Secreted | Secreted",
+        "target_location_enum": [
+          "膜型",
+          "可溶型",
+          "两者都有",
+          "胞内"
+        ],
+        "gene_symbol": "IL12B",
+        "organism": "Homo sapiens",
+        "aliases": [
+          "IL-12B",
+          "Cytotoxic lymphocyte maturation factor 40 kDa subunit",
+          "IL-12 subunit p40",
+          "NK cell stimulatory factor chain 2"
+        ],
+        "chembl_target_id": "CHEMBL2364154",
+        "chembl_target_pref_name": "Interleukin-23",
+        "chembl_target_type": "PROTEIN COMPLEX",
+        "uniprot_extract": {
+          "uniprot_id": "P29460",
+          "uniprot_entry_name": "IL12B_HUMAN",
+          "entry_type": "UniProtKB reviewed (Swiss-Prot)",
+          "secondary_accessions": null,
+          "recommended_name": "Interleukin-12 subunit beta",
+          "short_names": [
+            "IL-12B"
+          ],
+          "alternative_names": [
+            "Cytotoxic lymphocyte maturation factor 40 kDa subunit",
+            "IL-12 subunit p40",
+            "NK cell stimulatory factor chain 2"
+          ],
+          "gene_symbol": "IL12B",
+          "gene_synonyms": [
+            "NKSF2"
+          ],
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "sequence_length": 328,
+          "mol_weight_da": 37169,
+          "function_text": "Cytokine that can act as a growth factor for activated T and NK cells, enhance the lytic activity of NK/lymphokine-activated killer cells, and stimulate the production of IFN-gamma by resting PBMC",
+          "keywords": [
+            [
+              "Technical term",
+              "3D-structure"
+            ],
+            [
+              "Molecular function",
+              "Cytokine"
+            ],
+            [
+              "Technical term",
+              "Direct protein sequencing"
+            ],
+            [
+              "PTM",
+              "Disulfide bond"
+            ],
+            [
+              "PTM",
+              "Glycoprotein"
+            ],
+            [
+              "Domain",
+              "Immunoglobulin domain"
+            ],
+            [
+              "Technical term",
+              "Proteomics identification"
+            ],
+            [
+              "Technical term",
+              "Reference proteome"
+            ],
+            [
+              "Cellular component",
+              "Secreted"
+            ],
+            [
+              "Domain",
+              "Signal"
+            ]
+          ],
+          "domains_and_regions": [
+            {
+              "type": "Signal",
+              "description": "",
+              "start": 1,
+              "end": 22
+            },
+            {
+              "type": "Chain",
+              "description": "Interleukin-12 subunit beta",
+              "start": 23,
+              "end": 328
+            },
+            {
+              "type": "Domain",
+              "description": "Ig-like C2-type",
+              "start": 23,
+              "end": 106
+            },
+            {
+              "type": "Domain",
+              "description": "Fibronectin type-III",
+              "start": 237,
+              "end": 328
+            }
+          ],
+          "entry_audit": {
+            "firstPublicDate": "1993-04-01",
+            "lastAnnotationUpdateDate": "2026-06-10",
+            "lastSequenceUpdateDate": "1993-04-01",
+            "entryVersion": 248,
+            "sequenceVersion": 1
+          },
+          "suggested_target_type": "配体·细胞因子",
+          "suggested_target_type_reason": "UniProt keyword(Molecular function) ∈ ['Cytokine']",
+          "suggested_target_location": "可溶型",
+          "suggested_target_location_reason": "UniProt 定位含 Secreted/extracellular：Secreted | Secreted",
+          "_http_status": 200
+        },
+        "raw_refs": {
+          "uniprot_raw_file": "output/guselkumab/05_uniprot_P29460.json",
+          "chembl_target_raw_file": "output/guselkumab/03_chembl_target_CHEMBL2364154.json",
+          "fetched_at": "2026-08-17T13:30:47+00:00"
+        },
+        "needs_manual_confirm": true,
+        "confirm_reason": "target_type / target_location 为启发式建议"
+      }
+    ],
+    "targets_existing_hit": [
+      {
+        "target_code": "TGT-000001",
+        "target_name": "Interleukin-23 subunit alpha",
+        "uniprot_id": "Q9NPF7",
+        "target_type": "配体·细胞因子",
+        "target_location": "可溶型",
+        "status": "published"
+      }
+    ],
+    "bridge_molecule_target": [
+      {
+        "molecule_chembl_id": "CHEMBL2364648",
+        "molecule_inn": "guselkumab",
+        "target_code": "<NEW:P29460>",
+        "uniprot_id": "P29460",
+        "target_chembl_id": "CHEMBL2364154",
+        "target_pref_name_chembl": "Interleukin-23",
+        "component_description": "Interleukin-12 subunit beta",
+        "moa": "Interleukin-23 inhibitor",
+        "action_type": "INHIBITOR",
+        "binding_site_or_domain": "Alpha (p19) subunit is binding site",
+        "direct_interaction": 1,
+        "dedup_action": "NEW_TARGET_PREFILLED_FROM_UNIPROT",
+        "binding_subunit_hint": "UNLIKELY",
+        "adc_role_hint": null,
+        "needs_manual_confirm": true,
+        "confirm_reason": "ChEMBL target 为 PROTEIN COMPLEX，含 2 个亚基，需确认结合亚基（binding_site_comment 提示：UNLIKELY）",
+        "chembl_mechanism_raw_file": "output/guselkumab/02_chembl_mechanism.json",
+        "fetched_at": "2026-08-17T13:30:47+00:00"
+      },
+      {
+        "molecule_chembl_id": "CHEMBL2364648",
+        "molecule_inn": "guselkumab",
+        "target_code": "TGT-000001",
+        "uniprot_id": "Q9NPF7",
+        "target_chembl_id": "CHEMBL2364154",
+        "target_pref_name_chembl": "Interleukin-23",
+        "component_description": "Interleukin-23 subunit alpha",
+        "moa": "Interleukin-23 inhibitor",
+        "action_type": "INHIBITOR",
+        "binding_site_or_domain": "Alpha (p19) subunit is binding site",
+        "direct_interaction": 1,
+        "dedup_action": "HIT_EXISTING_TARGET_ONLY_LINK",
+        "binding_subunit_hint": "LIKELY",
+        "adc_role_hint": null,
+        "needs_manual_confirm": true,
+        "confirm_reason": "ChEMBL target 为 PROTEIN COMPLEX，含 2 个亚基，需确认结合亚基（binding_site_comment 提示：LIKELY）",
+        "chembl_mechanism_raw_file": "output/guselkumab/02_chembl_mechanism.json",
+        "fetched_at": "2026-08-17T13:30:47+00:00"
+      }
+    ]
+  },
+  "http_calls": [
+    {
+      "step": "1_chembl_molecule_search",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=guselkumab&limit=20",
+      "http_status": 200,
+      "elapsed_s": 2.245,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "2_chembl_mechanism",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL2364648",
+      "http_status": 200,
+      "elapsed_s": 3.272,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "3_chembl_target",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL2364154.json",
+      "http_status": 200,
+      "elapsed_s": 2.413,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "5_uniprot_entry",
+      "url": "https://rest.uniprot.org/uniprotkb/P29460.json",
+      "http_status": 200,
+      "elapsed_s": 2.83,
+      "attempt": 1,
+      "ok": true
+    }
+  ]
+}

@@ -75,6 +75,10 @@ make docs-check       # CI 文档一致性校验
 - 宿主端口:前端 15173 / 后端 18000 / postgres 15432 / redis 16379(可被 `HOST_*_PORT` 覆盖)。
 - dev 种子账号:`admin/__REDACTED_SEED_PASSWORD_1__`、`qingcheng/__REDACTED_SEED_PASSWORD_2__`、`researcher/__REDACTED_SEED_PASSWORD_5__`、`qa_reviewer/__REDACTED_SEED_PASSWORD_3__`、`readonly/__REDACTED_SEED_PASSWORD_4__`。
 
+## 靶点域（tgt / ref.molecule_target）
+
+- 靶点域设计决策见 `docs/decisions/2026-08-17-target-domain.md`，**开发前必读**（7 项拍板决策 + PoC 实测结论 + 一期改动边界）。PoC 产物在 `poc/target_prefill/`。
+
 ## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
 
 - 本系统已挂在统一门户之下：正式入口 **http://172.19.0.105:5100/mdm/**（Linux 上本系统前后端只听 127.0.0.1，老端口内网不可达）。Mac 本地同样经 `localhost:5100/mdm/`。

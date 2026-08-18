@@ -1,0 +1,191 @@
+{
+  "generated_at": "2026-08-17T13:31:43+00:00",
+  "cases": [
+    {
+      "inn": "guselkumab",
+      "outcome": "OK_MIXED_HIT_LINK_AND_NEW_TARGET",
+      "molecule_chembl_id": "CHEMBL2364648",
+      "molecule_type": "Antibody",
+      "mechanisms": 1,
+      "targets_new": 1,
+      "targets_existing_hit": 1,
+      "bridge_records": 2,
+      "bridge_needs_confirm": 2,
+      "warnings": [
+        "target CHEMBL2364154（Interleukin-23）为 PROTEIN COMPLEX，含 2 个亚基；dim.target 以 UniProt 为锚点会拆成 2 条，请人工确认抗体实际结合的亚基（可参考 mechanism.binding_site_comment）。"
+      ],
+      "http_calls": [
+        [
+          "1_chembl_molecule_search",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=guselkumab&limit=20"
+        ],
+        [
+          "2_chembl_mechanism",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL2364648"
+        ],
+        [
+          "3_chembl_target",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL2364154.json"
+        ],
+        [
+          "5_uniprot_entry",
+          200,
+          "https://rest.uniprot.org/uniprotkb/P29460.json"
+        ]
+      ],
+      "user_message": null,
+      "error": null
+    },
+    {
+      "inn": "pembrolizumab",
+      "outcome": "OK_NEW_TARGET_PREFILLED",
+      "molecule_chembl_id": "CHEMBL3137343",
+      "molecule_type": "Antibody",
+      "mechanisms": 1,
+      "targets_new": 1,
+      "targets_existing_hit": 0,
+      "bridge_records": 1,
+      "bridge_needs_confirm": 0,
+      "warnings": [],
+      "http_calls": [
+        [
+          "1_chembl_molecule_search",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=pembrolizumab&limit=20"
+        ],
+        [
+          "2_chembl_mechanism",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL3137343"
+        ],
+        [
+          "3_chembl_target",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL3307223.json"
+        ],
+        [
+          "5_uniprot_entry",
+          200,
+          "https://rest.uniprot.org/uniprotkb/Q15116.json"
+        ]
+      ],
+      "user_message": null,
+      "error": null
+    },
+    {
+      "inn": "emicizumab",
+      "outcome": "OK_NEW_TARGET_PREFILLED",
+      "molecule_chembl_id": "CHEMBL3833393",
+      "molecule_type": "Antibody",
+      "mechanisms": 1,
+      "targets_new": 2,
+      "targets_existing_hit": 0,
+      "bridge_records": 2,
+      "bridge_needs_confirm": 2,
+      "warnings": [
+        "target CHEMBL2111424（Coagulation factor IX and X）为 SELECTIVITY GROUP（ChEMBL 把 2 个蛋白合并为一组，常见于双抗/多靶）；每个组分各建一条 bridge，请人工确认。"
+      ],
+      "http_calls": [
+        [
+          "1_chembl_molecule_search",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=emicizumab&limit=20"
+        ],
+        [
+          "2_chembl_mechanism",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL3833393"
+        ],
+        [
+          "3_chembl_target",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL2111424.json"
+        ],
+        [
+          "5_uniprot_entry",
+          200,
+          "https://rest.uniprot.org/uniprotkb/P00740.json"
+        ],
+        [
+          "5_uniprot_entry",
+          200,
+          "https://rest.uniprot.org/uniprotkb/P00742.json"
+        ]
+      ],
+      "user_message": null,
+      "error": null
+    },
+    {
+      "inn": "trastuzumab deruxtecan",
+      "outcome": "OK_NEW_TARGET_PREFILLED",
+      "molecule_chembl_id": "CHEMBL4297844",
+      "molecule_type": "Antibody drug conjugate",
+      "mechanisms": 2,
+      "targets_new": 2,
+      "targets_existing_hit": 0,
+      "bridge_records": 2,
+      "bridge_needs_confirm": 2,
+      "warnings": [
+        "该分子有 2 条 mechanism 记录（多靶点/双特异性），每条靶点关联均需人工确认。"
+      ],
+      "http_calls": [
+        [
+          "1_chembl_molecule_search",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=trastuzumab+deruxtecan&limit=20"
+        ],
+        [
+          "2_chembl_mechanism",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL4297844"
+        ],
+        [
+          "3_chembl_target",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL1824.json"
+        ],
+        [
+          "3_chembl_target",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL1781.json"
+        ],
+        [
+          "5_uniprot_entry",
+          200,
+          "https://rest.uniprot.org/uniprotkb/P04626.json"
+        ],
+        [
+          "5_uniprot_entry",
+          200,
+          "https://rest.uniprot.org/uniprotkb/P11387.json"
+        ]
+      ],
+      "user_message": null,
+      "error": null
+    },
+    {
+      "inn": "notarealinnxyz",
+      "outcome": "REJECTED_NO_MOLECULE",
+      "molecule_chembl_id": null,
+      "molecule_type": null,
+      "mechanisms": 0,
+      "targets_new": 0,
+      "targets_existing_hit": 0,
+      "bridge_records": 0,
+      "bridge_needs_confirm": 0,
+      "warnings": [],
+      "http_calls": [
+        [
+          "1_chembl_molecule_search",
+          200,
+          "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=notarealinnxyz&limit=20"
+        ]
+      ],
+      "user_message": "ChEMBL 查无「notarealinnxyz」（total_count=0）。请检查 INN 拼写；若为新分子/未收录，请走人工录入。",
+      "error": null
+    }
+  ]
+}
