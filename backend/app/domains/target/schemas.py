@@ -66,6 +66,8 @@ class TargetUniprotFields(BaseModel):
     sequence_length: int | None = None
     mol_weight: int | None = None
     sequence_md5: str | None = Field(None, max_length=32)
+    sequence_crc64: str | None = Field(None, max_length=16)
+    sequence: str | None = Field(None, description="完整单字母氨基酸序列（UniProt canonical）")
     uniprot_entry_version: int | None = None
     uniprot_fetched_at: datetime | None = None
 

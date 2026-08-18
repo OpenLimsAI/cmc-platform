@@ -207,6 +207,8 @@ def extract_uniprot(entry: dict[str, Any]) -> dict[str, Any]:
         "sequence_length": seq.get("length"),
         "mol_weight": seq.get("molWeight"),
         "sequence_md5": seq.get("md5"),
+        "sequence_crc64": seq.get("crc64"),
+        "sequence": seq.get("value"),
         "function_text": func[:2000],
         "entry_version": (entry.get("entryAudit") or {}).get("entryVersion"),
         # 内部辅助（ADC 载荷角色判断），不入库
@@ -230,7 +232,7 @@ def trim_uniprot_payload(entry: dict[str, Any]) -> dict[str, Any]:
         "keywords": entry.get("keywords"),
         "comments": [c for c in entry.get("comments") or [] if c.get("commentType") in keep_comments],
         "features": [f for f in entry.get("features") or [] if f.get("type") in keep_features],
-        "sequence": {k: v for k, v in (entry.get("sequence") or {}).items() if k != "value"},
+        "sequence": entry.get("sequence"),
         "entryAudit": entry.get("entryAudit"),
     }
 
@@ -512,6 +514,8 @@ def uniprot_form_fields(ux: dict[str, Any], comp: dict[str, Any] | None = None,
         "sequence_length": ux.get("sequence_length"),
         "mol_weight": ux.get("mol_weight"),
         "sequence_md5": ux.get("sequence_md5"),
+        "sequence_crc64": ux.get("sequence_crc64"),
+        "sequence": ux.get("sequence"),
         "uniprot_entry_version": ux.get("entry_version"),
         "uniprot_fetched_at": fetched_at or now_iso(),
         "description": (ux.get("function_text") or "")[:2000] or None,

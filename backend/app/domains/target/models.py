@@ -69,6 +69,8 @@ class Target(Base):
     sequence_length: Mapped[int | None] = mapped_column(Integer)
     mol_weight: Mapped[int | None] = mapped_column(Integer)             # Da
     sequence_md5: Mapped[str | None] = mapped_column(String(32))
+    sequence_crc64: Mapped[str | None] = mapped_column(String(16))
+    sequence: Mapped[str | None] = mapped_column(Text)                  # 完整单字母序列（UniProt canonical）
     uniprot_entry_version: Mapped[int | None] = mapped_column(Integer)
     uniprot_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

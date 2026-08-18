@@ -42,6 +42,8 @@ export interface TargetUniprotFields {
   sequence_length?: number | null;
   mol_weight?: number | null;
   sequence_md5?: string | null;
+  sequence_crc64?: string | null;
+  sequence?: string | null; // 完整单字母序列（UniProt canonical）
   uniprot_entry_version?: number | null;
   uniprot_fetched_at?: string | null;
 }

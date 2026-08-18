@@ -133,6 +133,7 @@ def test_extract_uniprot_standard_fields():
     assert ("SL-0039", "Cell membrane") in locs
     assert any(sl["topology"] == "Single-pass type I membrane protein" for sl in her2["subcellular_locations"])
     assert her2["sequence_length"] == 1255 and her2["mol_weight"] == 137910 and len(her2["sequence_md5"]) == 32
+    assert her2["sequence_crc64"] == "39E9DFDA04DCF962"
     assert her2["_location_hint"] == "膜型"  # 仅内部用于 ADC 角色
     top1 = extract_uniprot(_load("trastuzumab_deruxtecan", "05_uniprot_P11387.json"))
     assert top1["_location_hint"] == "胞内"
@@ -157,7 +158,7 @@ def test_trim_uniprot_payload_drops_bulk():
     t = trim_uniprot_payload(u)
     assert "references" not in t and "uniProtKBCrossReferences" not in t
     assert t["primaryAccession"] == "P04626"
-    assert "value" not in t["sequence"]
+    assert t["sequence"]["md5"] == "D89A90920775435179A0D5281A800F78"  # 序列块完整保留（含 value）
 
 
 # ----------------------------------------------------------------------------- 全链路（离线）

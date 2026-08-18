@@ -1,4 +1,5 @@
-import { Descriptions, Table, Tag, Typography } from 'antd';
+import { Button, Descriptions, Table, Tag, Typography, message } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 import type { TargetUniprotFields, UniprotDomain, UniprotKeyword } from '@/api/targets';
 import { KEYWORD_CATEGORY_LABELS, KEYWORD_CATEGORY_ORDER } from '../constants';
 
@@ -13,6 +14,18 @@ const CATEGORY_COLOR: Record<string, string> = {
   PTM: 'magenta',
   Disease: 'red',
 };
+
+/** UniProt 风格：每行 60 个残基、每 10 个一组、行首位置号 */
+function formatSequence(seq: string): string {
+  const lines: string[] = [];
+  const width = String(seq.length).length;
+  for (let i = 0; i < seq.length; i += 60) {
+    const chunk = seq.slice(i, i + 60);
+    const groups = chunk.match(/.{1,10}/g) ?? [];
+    lines.push(`${String(i + 1).padStart(width, ' ')}  ${groups.join(' ')}`);
+  }
+  return lines.join('\n');
+}
 
 function groupKeywords(keywords: UniprotKeyword[] | null | undefined) {
   const groups = new Map<string, UniprotKeyword[]>();
@@ -112,15 +125,72 @@ export function UniprotInfoPanel({ data, compact }: Props) {
             —
           </Descriptions.Item>
         )}
-        <Descriptions.Item label="序列">
+        <Descriptions.Item label="序列长度 / 分子量">
           {data.sequence_length ? `${data.sequence_length} aa` : '—'}
-          {data.mol_weight ? ` · ${(data.mol_weight / 1000).toFixed(1)} kDa` : ''}
-          {data.sequence_md5 ? <Text type="secondary"> · MD5 {data.sequence_md5.slice(0, 8)}…</Text> : null}
+          {data.mol_weight != null ? ` · ${data.mol_weight.toLocaleString('en-US')} Da` : ''}
         </Descriptions.Item>
         <Descriptions.Item label="UniProt 版本 / 拉取时间">
           {data.uniprot_entry_version ? `v${data.uniprot_entry_version}` : '—'}
           {data.uniprot_fetched_at ? ` · ${new Date(data.uniprot_fetched_at).toLocaleString()}` : ''}
         </Descriptions.Item>
+        <Descriptions.Item label="序列校验">
+          <Text code copyable={data.sequence_md5 ? { text: data.sequence_md5 } : false}>
+            MD5 {data.sequence_md5 ?? '—'}
+          </Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="CRC64">
+          <Text code copyable={data.sequence_crc64 ? { text: data.sequence_crc64 } : false}>
+            {data.sequence_crc64 ?? '—'}
+          </Text>
+        </Descriptions.Item>
+        {!compact && (
+          <Descriptions.Item label={`完整序列（${data.sequence?.length ?? 0} aa）`} span={2}>
+            {data.sequence ? (
+              <div>
+                <div style={{ marginBottom: 6 }}>
+                  <Button
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(data.sequence ?? '');
+                      message.success('序列已复制');
+                    }}
+                  >
+                    复制序列
+                  </Button>{' '}
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      const fasta = `>${data.uniprot_id ?? 'target'}${data.gene_symbol ? ` ${data.gene_symbol}` : ''}\n${data.sequence!.replace(/(.{60})/g, '$1\n')}`;
+                      navigator.clipboard.writeText(fasta);
+                      message.success('FASTA 已复制');
+                    }}
+                  >
+                    复制 FASTA
+                  </Button>
+                </div>
+                <pre
+                  style={{
+                    margin: 0,
+                    padding: 8,
+                    background: '#fafafa',
+                    border: '1px solid #f0f0f0',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontSize: 12,
+                    lineHeight: '18px',
+                    whiteSpace: 'pre',
+                    overflowX: 'auto',
+                    maxHeight: 320,
+                  }}
+                >
+                  {formatSequence(data.sequence)}
+                </pre>
+              </div>
+            ) : (
+              '—'
+            )}
+          </Descriptions.Item>
+        )}
         {!compact && (
           <Descriptions.Item label="功能描述（FUNCTION）" span={2}>
             {data.description ?? '—'}

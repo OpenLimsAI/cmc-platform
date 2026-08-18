@@ -98,6 +98,7 @@ async def test_uniprot_standard_fields_roundtrip(admin_client, unique_suffix):
         ec_numbers=["2.7.10.1"],
         domains=[{"type": "Domain", "description": "Ig-like V-type", "start": 35, "end": 145}],
         sequence_length=288, mol_weight=31647, sequence_md5="ABCDEF0123456789ABCDEF0123456789",
+        sequence_crc64="0123456789ABCDEF", sequence="MQIPQAPWPVVWAVLQLGWRPGWFLDSPDRPWNPPTFSPALLVVTEGDNATFTCSFSNTSESFVLNWYRMSPSNQTDKLAAFPEDRSQPGQDCRFRVTQLPNGRDFHMSVVRARRNDSGTYLCGAISLAPKAQIKESLRAELRVTERRAEVPTAHPSPSPRPAGQFQTLV",
         uniprot_entry_version=207, uniprot_fetched_at="2026-08-18T05:00:00+00:00",
     )
     r = await admin_client.post("/api/v1/targets", json=body)
@@ -108,6 +109,7 @@ async def test_uniprot_standard_fields_roundtrip(admin_client, unique_suffix):
     assert d["subcellular_locations"][0]["topology"] == "Single-pass type I membrane protein"
     assert d["ec_numbers"] == ["2.7.10.1"] and d["domains"][0]["end"] == 145
     assert d["uniprot_entry_version"] == 207 and d["uniprot_fetched_at"].startswith("2026-08-18T05:00:00")
+    assert d["sequence"].startswith("MQIPQAPWPVVW") and d["sequence_crc64"] == "0123456789ABCDEF"
     # 列表精简项也带 keywords / cd
     lst = await admin_client.get(f"/api/v1/targets?uniprot_id=&q=GENE{unique_suffix[:6].upper()}")
     assert lst.json()["data"][0]["cd_antigen_names"] == ["CD279"]
