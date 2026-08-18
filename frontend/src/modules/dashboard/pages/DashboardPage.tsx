@@ -89,22 +89,22 @@ export function DashboardPage() {
       onClick: () => navigate('/substances'),
     },
     {
-      title: '项目',
-      value: totals?.project ?? 0,
-      icon: <FolderOpenOutlined style={{ fontSize: 28, color: '#52C41A' }} />,
-      onClick: () => navigate('/projects'),
-    },
-    {
       title: '资产',
       value: totals?.asset ?? 0,
       icon: <GoldOutlined style={{ fontSize: 28, color: '#FAAD14' }} />,
       onClick: () => navigate('/assets'),
     },
     {
-      title: '物料',
-      value: totals?.material ?? 0,
-      icon: <InboxOutlined style={{ fontSize: 28, color: '#722ED1' }} />,
-      onClick: () => navigate('/materials'),
+      title: '项目',
+      value: totals?.project ?? 0,
+      icon: <FolderOpenOutlined style={{ fontSize: 28, color: '#52C41A' }} />,
+      onClick: () => navigate('/projects'),
+    },
+    {
+      title: '靶点',
+      value: totals?.target ?? 0,
+      icon: <AimOutlined style={{ fontSize: 28, color: '#2F54EB' }} />,
+      onClick: () => navigate('/targets'),
     },
     {
       title: '设备',
@@ -113,10 +113,10 @@ export function DashboardPage() {
       onClick: () => navigate('/equipments'),
     },
     {
-      title: '靶点',
-      value: totals?.target ?? 0,
-      icon: <AimOutlined style={{ fontSize: 28, color: '#2F54EB' }} />,
-      onClick: () => navigate('/targets'),
+      title: '物料',
+      value: totals?.material ?? 0,
+      icon: <InboxOutlined style={{ fontSize: 28, color: '#722ED1' }} />,
+      onClick: () => navigate('/materials'),
     },
   ];
 
