@@ -1,7 +1,17 @@
-import { Col, Form, Input, Row, Select, Typography } from 'antd';
+import { Button, Col, Form, Input, Row, Select, Space, Typography } from 'antd';
+import { CloudDownloadOutlined } from '@ant-design/icons';
+import type { TargetPrefillHints } from '@/api/targets';
 import { TARGET_LOCATION_OPTIONS, TARGET_TYPE_OPTIONS } from '../constants';
 
 const { Text } = Typography;
+
+interface Props {
+  /** 传入则显示「拉取」按钮：按 UniProt accession 自动预填（新建页用；编辑页不传）*/
+  onFetchUniprot?: (accession: string) => void;
+  fetching?: boolean;
+  /** 上次拉取返回的依据（类型/定位为启发式建议）*/
+  hints?: TargetPrefillHints | null;
+}
 
 // UniProt accession 官方正则（与后端 schemas.UNIPROT_ACCESSION_RE 一致）
 export const UNIPROT_ACCESSION_RE = /^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})$/i;
@@ -11,7 +21,16 @@ export const UNIPROT_ACCESSION_RE = /^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](
  * 一期不做外部 API 预填向导：由 `app.scripts.prefill_targets` 离线产出预填 JSON，
  * 人工对照 summary.md 在此表单核对录入（决策 #7）。
  */
-export function TargetFormFields() {
+export function TargetFormFields({ onFetchUniprot, fetching, hints }: Props) {
+  const form = Form.useFormInstance();
+  const doFetch = () => {
+    const v = (form.getFieldValue('uniprot_id') as string | undefined)?.trim().toUpperCase();
+    if (!v || !UNIPROT_ACCESSION_RE.test(v)) {
+      form.setFields([{ name: 'uniprot_id', errors: ['请先填写合法的 UniProt accession（如 Q15116）'] }]);
+      return;
+    }
+    onFetchUniprot?.(v);
+  };
   return (
     <>
       <Row gutter={16}>
@@ -27,20 +46,35 @@ export function TargetFormFields() {
         </Col>
         <Col span={6}>
           <Form.Item
-            name="uniprot_id"
             label="UniProt accession"
-            rules={[
-              {
-                validator: (_, v: string | undefined) =>
-                  !v || UNIPROT_ACCESSION_RE.test(v.trim())
-                    ? Promise.resolve()
-                    : Promise.reject(new Error('不是合法的 UniProt accession（如 Q15116 / P04626）')),
-              },
-            ]}
-            extra="查重锚点：已存在（含次级 accession）会被拒绝，请改为建立分子-靶点关联"
-            normalize={(v?: string) => v?.trim().toUpperCase()}
+            extra={
+              onFetchUniprot
+                ? '填好后点「拉取」或回车：自动带出名称/基因/别名/建议类型定位；已存在（含次级号）会提示去建关联'
+                : '查重锚点：已存在（含次级 accession）会被拒绝，请改为建立分子-靶点关联'
+            }
           >
-            <Input placeholder="Q15116" />
+            <Space.Compact style={{ width: '100%' }}>
+              <Form.Item
+                name="uniprot_id"
+                noStyle
+                rules={[
+                  {
+                    validator: (_, v: string | undefined) =>
+                      !v || UNIPROT_ACCESSION_RE.test(v.trim())
+                        ? Promise.resolve()
+                        : Promise.reject(new Error('不是合法的 UniProt accession（如 Q15116 / P04626）')),
+                  },
+                ]}
+                normalize={(v?: string) => v?.trim().toUpperCase()}
+              >
+                <Input placeholder="Q15116" onPressEnter={onFetchUniprot ? doFetch : undefined} />
+              </Form.Item>
+              {onFetchUniprot && (
+                <Button icon={<CloudDownloadOutlined />} loading={fetching} onClick={doFetch}>
+                  拉取
+                </Button>
+              )}
+            </Space.Compact>
           </Form.Item>
         </Col>
         <Col span={6}>
@@ -56,7 +90,13 @@ export function TargetFormFields() {
             name="target_type"
             label="靶点类型"
             rules={[{ required: true, message: '请选择靶点类型' }]}
-            extra="预填脚本给的是启发式建议值，请对照依据人工确认"
+            extra={
+              hints?.target_type_reason ? (
+                <Text type="warning">建议值依据：{hints.target_type_reason}（请人工确认）</Text>
+              ) : (
+                '拉取/预填给的是启发式建议值，请对照依据人工确认'
+              )
+            }
           >
             <Select
               placeholder="选择类型"
@@ -78,6 +118,11 @@ export function TargetFormFields() {
             name="target_location"
             label="靶点定位"
             rules={[{ required: true, message: '请选择靶点定位' }]}
+            extra={
+              hints?.target_location_reason ? (
+                <Text type="warning">建议值依据：{hints.target_location_reason}（请人工确认）</Text>
+              ) : undefined
+            }
           >
             <Select
               placeholder="选择定位"

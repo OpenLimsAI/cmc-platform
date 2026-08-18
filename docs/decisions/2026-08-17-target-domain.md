@@ -83,3 +83,8 @@ python3 poc/target_prefill/prefill_target.py
 
 - PoC 产物：`poc/target_prefill/`（脚本 / test_report.md / compatibility_assessment.md）
 - 工作量基线：传统口径一期 8–10 人日，Claude Code 实际瓶颈是决策与 review 时间
+
+## 补充（2026-08-18，一期落地后）
+
+- 一期已上线（migration 0050，commit 8d30ed3）；Linux 出网验证：直连、无需代理；ChEMBL 官方 REST 当日故障，Step 2 待其恢复补跑。
+- 应负责人要求增加"新建靶点页按 UniProt accession 一键拉取"（`GET /targets/prefill/uniprot`）：只调 UniProt 单条、不落库；保存时同步存 UniProt 快照。这不是决策 7 里砍掉的"INN 全链路预填向导"（那条仍留二期），只是减少手填字段。

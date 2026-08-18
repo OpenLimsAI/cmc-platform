@@ -92,6 +92,34 @@ export interface TargetSnapshotBrief {
   created_by: number;
 }
 
+export interface TargetPrefillHints {
+  target_type_reason: string | null;
+  target_location_reason: string | null;
+  entry_type: string | null;
+  entry_version: number | null;
+  tax_id: number | null;
+  sequence_length: number | null;
+  is_human: boolean | null;
+}
+
+export interface TargetSnapshotCreatePayload {
+  source: SnapshotSource;
+  source_id?: string | null;
+  source_version?: string | null;
+  source_url?: string | null;
+  fetched_at: string;
+  payload: Record<string, unknown>;
+  license?: string | null;
+}
+
+export interface TargetPrefillResponse {
+  accession: string;
+  existing: TargetBrief | null; // 库里已有（含次级 accession）→ 应建关联而非新建
+  form: Partial<TargetCreatePayload>;
+  hints: TargetPrefillHints;
+  snapshot: TargetSnapshotCreatePayload;
+}
+
 export const targetsApi = {
   list: (query: TargetListQuery = {}) =>
     unwrapList<TargetBrief>(api.get('/targets', { params: query })),
@@ -118,7 +146,15 @@ export const targetsApi = {
   molecules: (code: string) =>
     unwrap<MoleculeTargetLink[]>(api.get(`/targets/${encodeURIComponent(code)}/molecules`)),
 
-  // 外部源快照（只读展示）
+  // 外部源快照
   snapshots: (code: string) =>
     unwrap<TargetSnapshotBrief[]>(api.get(`/targets/${encodeURIComponent(code)}/snapshots`)),
+  addSnapshot: (code: string, payload: TargetSnapshotCreatePayload) =>
+    unwrap<TargetSnapshotBrief>(api.post(`/targets/${encodeURIComponent(code)}/snapshots`, payload)),
+
+  // 按 UniProt accession 拉一条做表单预填（只读，不落库；后端出网，约 2–5 秒）
+  prefillUniprot: (accession: string) =>
+    unwrap<TargetPrefillResponse>(
+      api.get('/targets/prefill/uniprot', { params: { accession }, timeout: 45000 }),
+    ),
 };

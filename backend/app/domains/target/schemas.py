@@ -199,3 +199,33 @@ class TargetSnapshotBrief(BaseModel):
 
 class TargetSnapshotDetail(TargetSnapshotBrief):
     payload: dict
+
+
+# ============== UniProt 单条预填（GET /targets/prefill/uniprot）==============
+class TargetPrefillForm(BaseModel):
+    target_name: str | None = None
+    uniprot_id: str | None = None
+    gene_symbol: str | None = None
+    organism: str | None = None
+    aliases: list[str] | None = None
+    target_type: TargetType | None = None
+    target_location: TargetLocation | None = None
+    description: str | None = None
+
+
+class TargetPrefillHints(BaseModel):
+    target_type_reason: str | None = None
+    target_location_reason: str | None = None
+    entry_type: str | None = None
+    entry_version: int | None = None
+    tax_id: int | None = None
+    sequence_length: int | None = None
+    is_human: bool | None = None
+
+
+class TargetPrefillResponse(BaseModel):
+    accession: str
+    existing: TargetBrief | None = Field(None, description="库里已有同号靶点（含次级 accession）→ 应建关联而非新建")
+    form: TargetPrefillForm
+    hints: TargetPrefillHints
+    snapshot: TargetSnapshotCreate = Field(..., description="保存靶点后可直接 POST 到 /targets/{code}/snapshots")

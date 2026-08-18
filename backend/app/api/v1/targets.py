@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.exceptions import BadRequestError
 from app.core.responses import Pagination, success
 from app.domains.auth.models import User
 from app.domains.target.schemas import (
@@ -92,6 +93,23 @@ async def create_target(
 
 
 # 注意：静态路径要放在 /{code} 之前
+@router.get("/prefill/uniprot", summary="按 UniProt accession 拉取一条，返回新建靶点表单预填（只读，不落库）")
+async def prefill_target_from_uniprot(
+    request: Request,
+    accession: str = Query(..., min_length=6, max_length=16, description="UniProt accession，如 Q15116"),
+    user: User = Depends(require_permission("target:create")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.domains.target.schemas import _normalize_accession
+
+    try:
+        acc = _normalize_accession(accession)
+    except ValueError as e:
+        raise BadRequestError(str(e)) from e
+    data = await TargetService(db).prefill_from_uniprot(acc or "")
+    return success(data=data.model_dump(mode="json"), request_id=_rid(request))
+
+
 @router.get("/by-molecule/{substance_code}", summary="某分子（substance）的全部靶点关联")
 async def list_targets_of_molecule(
     substance_code: str,

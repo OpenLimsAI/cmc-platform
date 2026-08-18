@@ -227,3 +227,50 @@ async def test_prefill_external_error_is_reported_not_raised():
         r = await prefill_inn("guselkumab", client, _no_hit)
     assert r["outcome"] == "ERROR_EXTERNAL_CALL"
     assert r["error"]["url"].endswith("/molecule/search.json")
+
+
+# ----------------------------------------------------------------------------- 单条 UniProt 预填（新建页「拉取」）
+def test_build_uniprot_prefill_shape():
+    from app.domains.target.prefill import build_uniprot_prefill
+
+    u = _load("guselkumab", "05_uniprot_P29460.json")
+    r = build_uniprot_prefill(u, "P29460", fetched_at="2026-08-17T13:30:47+00:00")
+    assert r["form"]["uniprot_id"] == "P29460" and r["form"]["gene_symbol"] == "IL12B"
+    assert r["form"]["target_type"] == "配体·细胞因子" and r["form"]["target_location"] == "可溶型"
+    assert "IL-12 subunit p40" in r["form"]["aliases"]
+    assert r["hints"]["is_human"] is True and "Cytokine" in r["hints"]["target_type_reason"]
+    assert r["snapshot"]["source"] == "uniprot" and r["snapshot"]["source_id"] == "P29460"
+    assert r["snapshot"]["fetched_at"] == "2026-08-17T13:30:47+00:00"
+    assert "references" not in r["snapshot"]["payload"]
+
+
+@pytest.mark.asyncio
+async def test_service_prefill_from_uniprot_with_mock_transport():
+    """service 层：MockTransport 打桩 UniProt；查重命中走 existing（不出网）"""
+    from app.core.database import AsyncSessionLocal
+    from app.domains.target.services import TargetService
+
+    entry = _load("trastuzumab_deruxtecan", "05_uniprot_P04626.json")
+    transport = httpx.MockTransport(
+        lambda r: httpx.Response(200, json=entry) if r.url.path.endswith("/P04626.json") else httpx.Response(404)
+    )
+    async with AsyncSessionLocal() as db:
+        svc = TargetService(db)
+        r = await svc.prefill_from_uniprot("p04626", transport=transport)
+        assert r.accession == "P04626"
+        assert r.form.target_name == "Receptor tyrosine-protein kinase erbB-2"
+        assert r.form.target_type == "受体" and r.form.target_location == "膜型"
+        assert r.snapshot.source_id == "P04626"
+
+        from app.core.exceptions import NotFoundError
+        with pytest.raises(NotFoundError):
+            await svc.prefill_from_uniprot("A0A000", transport=transport)
+
+
+@pytest.mark.asyncio
+async def test_prefill_endpoint_validation_and_permission(admin_client, readonly_client):
+    """HTTP 层只测不出网的分支：非法 accession → 400；只读用户 → 403"""
+    r = await admin_client.get("/api/v1/targets/prefill/uniprot?accession=XYZ123")
+    assert r.status_code == 400, r.text
+    r = await readonly_client.get("/api/v1/targets/prefill/uniprot?accession=Q15116")
+    assert r.status_code == 403

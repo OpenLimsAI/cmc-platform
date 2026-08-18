@@ -474,3 +474,45 @@ async def prefill_inn(inn: str, fetcher: Fetcher, lookup: Lookup) -> dict[str, A
         result["outcome"] = "ERROR_EXTERNAL_CALL"
         result["error"] = {"url": e.url, "http_status": e.status, "detail": e.detail}
         return result
+
+
+# ----------------------------------------------------------------------------- 单条 UniProt 预填（新建靶点页「拉取」按钮）
+def build_uniprot_prefill(entry: dict[str, Any], accession: str, fetched_at: str | None = None) -> dict[str, Any]:
+    """把一条 UniProt JSON 变成新建靶点表单的预填 + 依据 + 可直接落库的快照体。"""
+    ux = extract_uniprot(entry)
+    aliases = sorted(
+        {*(ux.get("short_names") or []), *(ux.get("alternative_names") or []),
+         *(ux.get("cd_antigen_names") or []), *(ux.get("gene_synonyms") or []),
+         *(ux.get("secondary_accessions") or [])} - {None, ""}
+    )
+    fetched = fetched_at or now_iso()
+    return {
+        "form": {
+            "target_name": ux.get("recommended_name") or ux.get("uniprot_entry_name"),
+            "uniprot_id": entry.get("primaryAccession") or accession,
+            "gene_symbol": ux.get("gene_symbol"),
+            "organism": ux.get("organism"),
+            "aliases": aliases,
+            "target_type": ux.get("suggested_target_type"),
+            "target_location": ux.get("suggested_target_location"),
+            "description": (ux.get("function_text") or "")[:1000] or None,
+        },
+        "hints": {
+            "target_type_reason": ux.get("suggested_target_type_reason"),
+            "target_location_reason": ux.get("suggested_target_location_reason"),
+            "entry_type": ux.get("entry_type"),
+            "entry_version": ux.get("entry_version"),
+            "tax_id": ux.get("tax_id"),
+            "sequence_length": ux.get("sequence_length"),
+            "is_human": ux.get("tax_id") == 9606,
+        },
+        "snapshot": {
+            "source": "uniprot",
+            "source_id": entry.get("primaryAccession") or accession,
+            "source_version": str(ux.get("entry_version") or ""),
+            "source_url": f"{UNIPROT_BASE}/{entry.get('primaryAccession') or accession}.json",
+            "fetched_at": fetched,
+            "payload": trim_uniprot_payload(entry),
+            "license": UNIPROT_LICENSE,
+        },
+    }

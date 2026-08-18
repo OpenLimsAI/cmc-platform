@@ -10,10 +10,16 @@ from datetime import UTC, datetime
 from sqlalchemy import Text, cast, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ConflictError, NotFoundError, OperationNotAllowedError
+from app.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    NotFoundError,
+    OperationNotAllowedError,
+)
 from app.domains.auth.models import User
 from app.domains.srs.models import Substance
 from app.domains.target.models import MoleculeTargetLink, Target, TargetSourceSnapshot
+from app.domains.target.prefill import UNIPROT_BASE, build_uniprot_prefill
 from app.domains.target.schemas import (
     MoleculeTargetLinkCreate,
     MoleculeTargetLinkOut,
@@ -22,6 +28,7 @@ from app.domains.target.schemas import (
     TargetCreate,
     TargetDetail,
     TargetFilter,
+    TargetPrefillResponse,
     TargetSnapshotBrief,
     TargetSnapshotCreate,
     TargetSnapshotDetail,
@@ -396,3 +403,25 @@ class TargetService:
         await self.db.flush()
         await self.db.refresh(snap)
         return TargetSnapshotBrief.model_validate(snap)
+
+    # ============================================================
+    # UniProt 单条预填（新建靶点页「拉取」）：只读外部 GET，不落库
+    # ============================================================
+    async def prefill_from_uniprot(self, accession: str, *, transport=None) -> TargetPrefillResponse:
+        from app.shared.http_client import ExternalHttpClient, ExternalHttpError
+
+        acc = accession.strip().upper()
+        existing = await self.find_by_accession(acc)
+        try:
+            async with ExternalHttpClient({"rest.uniprot.org"}, timeout_s=20.0, retries=2, transport=transport) as client:
+                status, entry = await client.get_json(f"{UNIPROT_BASE}/{acc}.json")
+        except ExternalHttpError as e:
+            raise BadRequestError(f"UniProt 拉取失败：{e.detail or e.status}") from e
+        if status == 404 or not entry:
+            raise NotFoundError(f"UniProt 无此 accession: {acc}")
+        data = build_uniprot_prefill(entry, acc)
+        return TargetPrefillResponse(
+            accession=acc,
+            existing=TargetBrief.model_validate(existing) if existing else None,
+            **data,
+        )
