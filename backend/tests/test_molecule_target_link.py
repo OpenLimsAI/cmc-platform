@@ -168,3 +168,41 @@ async def test_snapshot_append_only(admin_client, readonly_client, unique_suffix
 
     r = await readonly_client.post(f"/api/v1/targets/{tcode}/snapshots", json=payload)
     assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_global_search_and_dashboard_include_targets(admin_client, unique_suffix):
+    """靶点接入全局搜索（编码/名称/UniProt/基因/CD 号/别名）+ 仪表盘计数"""
+    gene = f"GN{unique_suffix[:6].upper()}"
+    tcode = await _new_target(admin_client, unique_suffix, gene_symbol=gene, cd_antigen_names=[f"CD9{unique_suffix[:3]}"],
+                              aliases=[f"alias-{unique_suffix}"])
+    for q, field in [(gene, "gene_symbol"), (f"CD9{unique_suffix[:3]}", "cd_antigen"), (f"alias-{unique_suffix}", "alias"), (tcode, "code")]:
+        r = await admin_client.get("/api/v1/search", params={"q": q, "limit": 10})
+        assert r.status_code == 200, r.text
+        grp = r.json()["data"]["results"]["target"]
+        assert any(h["code"] == tcode and h["matched_field"] == field for h in grp["items"]), (q, grp)
+    # types 过滤只要 target
+    r = await admin_client.get("/api/v1/search", params={"q": tcode, "types": "target"})
+    res = r.json()["data"]["results"]
+    assert res["target"]["total"] == 1 and res["substance"]["total"] == 0
+    # 仪表盘
+    d = (await admin_client.get("/api/v1/dashboard/summary")).json()["data"]
+    assert d["totals"]["target"] >= 1
+    assert "target_by_status" in d["distributions"] and "target" in d["trend_30d"]
+
+
+@pytest.mark.asyncio
+async def test_substance_list_target_column_and_filter_from_links(admin_client, unique_suffix):
+    """物质列表的靶点列/筛选改由 ref.molecule_target 驱动（旧自由文本列兼容）"""
+    scode = await _new_substance(admin_client, unique_suffix)
+    gene = f"TG{unique_suffix[:6].upper()}"
+    tcode = await _new_target(admin_client, unique_suffix, gene_symbol=gene, uniprot_id=None)
+    r = await admin_client.post(f"/api/v1/targets/{tcode}/molecules",
+                                json={"substance_code": scode, "relation_role": "payload_target"})
+    assert r.status_code == 201, r.text
+    lst = await admin_client.get("/api/v1/substances", params={"target": gene})
+    items = lst.json()["data"]
+    assert [s["substance_code"] for s in items] == [scode]
+    assert items[0]["target"] == f"{gene}(载荷)"
+    lst = await admin_client.get("/api/v1/substances", params={"target": "no-such-target-xyz"})
+    assert lst.json()["meta"]["pagination"]["total"] == 0

@@ -119,7 +119,27 @@ class SubstanceService:
             statuses = [s.strip() for s in filter.status.split(",")]
             stmt = stmt.where(Substance.status.in_(statuses))
         if filter.target:
-            stmt = stmt.where(Substance.target.ilike(f"%{filter.target}%"))
+            # 靶点筛选：优先匹配 ref.molecule_target 关联的靶点（名称/基因/UniProt/CD 号），
+            # 兼容旧的 substance.target 自由文本列（存量 0，过渡期保留）
+            from sqlalchemy import Text, cast, exists
+
+            from app.domains.target.models import MoleculeTargetLink, Target
+
+            tkw = f"%{filter.target}%"
+            linked = exists().where(
+                MoleculeTargetLink.molecule_id == Substance.substance_id,
+                MoleculeTargetLink.deleted_at.is_(None),
+                MoleculeTargetLink.target_id == Target.target_id,
+                Target.deleted_at.is_(None),
+                or_(
+                    Target.target_name.ilike(tkw),
+                    Target.gene_symbol.ilike(tkw),
+                    Target.uniprot_id.ilike(tkw),
+                    cast(Target.cd_antigen_names, Text).ilike(tkw),
+                    cast(Target.aliases, Text).ilike(tkw),
+                ),
+            )
+            stmt = stmt.where(or_(linked, Substance.target.ilike(tkw)))
         if filter.confidentiality:
             stmt = stmt.where(Substance.confidentiality == filter.confidentiality)
 
@@ -207,6 +227,31 @@ class SubstanceService:
             )
             material_count_map = {sid: cnt for sid, cnt in mat_count_result.all() if sid}
 
+        # 靶点域：本页物质已关联的靶点（基因符号优先，缺则名称），覆盖旧自由文本列
+        target_map: dict[int, str] = {}
+        if substances:
+            from app.domains.target.models import MoleculeTargetLink, Target
+
+            sub_ids = [s.substance_id for s in substances]
+            tgt_result = await self.db.execute(
+                select(MoleculeTargetLink.molecule_id, MoleculeTargetLink.relation_role,
+                       Target.gene_symbol, Target.target_name)
+                .join(Target, Target.target_id == MoleculeTargetLink.target_id)
+                .where(
+                    MoleculeTargetLink.molecule_id.in_(sub_ids),
+                    MoleculeTargetLink.deleted_at.is_(None),
+                    Target.deleted_at.is_(None),
+                )
+                .order_by(MoleculeTargetLink.molecule_id, MoleculeTargetLink.created_at)
+            )
+            names_by_sub: dict[int, list[str]] = {}
+            for sid, role, gene, name in tgt_result.all():
+                label = gene or name
+                if role == "payload_target":
+                    label = f"{label}(载荷)"
+                names_by_sub.setdefault(sid, []).append(label)
+            target_map = {sid: ", ".join(dict.fromkeys(names)) for sid, names in names_by_sub.items()}
+
         items: list[SubstanceBrief] = []
         for sub in substances:
             xrefs_for_sub = xref_map.get(sub.substance_id, {})
@@ -217,7 +262,7 @@ class SubstanceService:
                     internal_code=sub.internal_code,
                     preferred_name=sub.preferred_name,
                     preferred_name_en=sub.preferred_name_en,
-                    target=sub.target,
+                    target=target_map.get(sub.substance_id) or sub.target,
                     status=sub.status,
                     confidentiality=sub.confidentiality,
                     inn=xrefs_for_sub.get("INN"),

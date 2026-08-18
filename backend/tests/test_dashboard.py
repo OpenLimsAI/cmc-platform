@@ -20,7 +20,7 @@ async def test_summary_shape(admin_client):
     data = r.json()["data"]
     assert set(data.keys()) == {"totals", "distributions", "trend_30d"}
     assert set(data["totals"].keys()) == {
-        "substance", "project", "asset", "material", "equipment"
+        "substance", "project", "asset", "material", "equipment", "target"
     }
     # 10 个分布
     assert set(data["distributions"].keys()) == {
@@ -34,10 +34,12 @@ async def test_summary_shape(admin_client):
         "material_by_grade",
         "equipment_by_category",
         "equipment_by_status",
+        "target_by_status",
+        "target_by_entry_type",
     }
-    # 5 域趋势
+    # 6 域趋势（0050 起含靶点）
     assert set(data["trend_30d"].keys()) == {
-        "substance", "project", "asset", "material", "equipment"
+        "substance", "project", "asset", "material", "equipment", "target"
     }
 
 

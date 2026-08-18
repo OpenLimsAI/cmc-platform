@@ -294,9 +294,9 @@ async def test_search_response_structure(admin_client):
     assert data["query"] == "SUB-"
     assert isinstance(data["total"], int)
     assert set(data["results"].keys()) == {
-        "substance", "project", "asset", "material", "equipment"
+        "substance", "project", "asset", "material", "equipment", "target"
     }
-    for group_key in ("substance", "project", "asset", "material", "equipment"):
+    for group_key in ("substance", "project", "asset", "material", "equipment", "target"):
         group = data["results"][group_key]
         assert set(group.keys()) == {"total", "items"}
         assert isinstance(group["total"], int)

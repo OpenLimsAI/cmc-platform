@@ -41,8 +41,6 @@ interface FormShape {
   internal_code?: string;
   preferred_name: string;
   preferred_name_en?: string;
-  target?: string;
-  target_type?: string;
   modality?: string;
   is_proprietary: boolean;
   confidentiality: Confidentiality;
@@ -76,8 +74,6 @@ export function SubstanceEditPage() {
       internal_code: sub.internal_code ?? undefined,
       preferred_name: sub.preferred_name,
       preferred_name_en: sub.preferred_name_en ?? undefined,
-      target: sub.target ?? undefined,
-      target_type: sub.target_type ?? undefined,
       modality: sub.modality ?? undefined,
       is_proprietary: sub.is_proprietary,
       confidentiality: sub.confidentiality,
@@ -148,8 +144,6 @@ export function SubstanceEditPage() {
       internal_code: v.internal_code?.trim() || undefined,
       preferred_name: v.preferred_name.trim(),
       preferred_name_en: v.preferred_name_en?.trim() || undefined,
-      target: v.target?.trim() || undefined,
-      target_type: v.target_type?.trim() || undefined,
       modality: v.modality?.trim() || undefined,
       is_proprietary: v.is_proprietary,
       confidentiality: v.confidentiality,
@@ -242,13 +236,13 @@ export function SubstanceEditPage() {
             <Input />
           </Form.Item>
 
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="靶点已改为在详情页「靶点」Tab 关联维护（UniProt 标准），此处不再手填。"
+          />
           <Space size="large" style={{ display: 'flex', width: '100%' }}>
-            <Form.Item name="target" label="靶点" style={{ flex: 1 }} rules={[{ max: 128 }]}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="target_type" label="靶点类型" style={{ flex: 1 }} rules={[{ max: 64 }]}>
-              <Input />
-            </Form.Item>
             <Form.Item name="modality" label="模态描述" style={{ flex: 1 }} rules={[{ max: 64 }]}>
               <Input />
             </Form.Item>

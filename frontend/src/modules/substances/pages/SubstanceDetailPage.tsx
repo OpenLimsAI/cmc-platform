@@ -3,6 +3,7 @@ import {
   Card,
   Descriptions,
   Tabs,
+  Tag,
   Typography,
   Space,
   Breadcrumb,
@@ -11,7 +12,7 @@ import {
   Button,
   message,
 } from 'antd';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeftOutlined,
@@ -21,6 +22,8 @@ import {
   ShareAltOutlined,
 } from '@ant-design/icons';
 import { substancesApi } from '@/api/substances';
+import { targetsApi } from '@/api/targets';
+import { useAuthStore } from '@/stores/authStore';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { SubstanceTypeTag } from '@/shared/components/SubstanceTypeTag';
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
@@ -60,6 +63,13 @@ export function SubstanceDetailPage() {
     queryKey: ['substance', code],
     queryFn: () => substancesApi.get(code!, 'protein,xrefs'),
     enabled: !!code,
+  });
+  // 靶点域：该分子已关联的靶点（基本信息 Tab 摘要 + 页头）；无 target:read 权限则不查
+  const canReadTarget = useAuthStore((st) => st.hasPermission('target:read'));
+  const { data: linkedTargets = [] } = useQuery({
+    queryKey: ['substance-targets', code],
+    queryFn: () => targetsApi.targetsOfMolecule(code!),
+    enabled: !!code && canReadTarget,
   });
 
   if (isLoading) {
@@ -102,8 +112,31 @@ export function SubstanceDetailPage() {
               <SubstanceTypeTag type={sub.substance_type} />
             </Descriptions.Item>
             <Descriptions.Item label="模态">{sub.modality || '—'}</Descriptions.Item>
-            <Descriptions.Item label="靶点">{sub.target || '—'}</Descriptions.Item>
-            <Descriptions.Item label="靶点类型">{sub.target_type || '—'}</Descriptions.Item>
+            <Descriptions.Item label="靶点" span={2}>
+              {linkedTargets.length ? (
+                <Space wrap size={[4, 4]}>
+                  {linkedTargets.map((l) => (
+                    <Tag key={`${l.target_code}-${l.relation_role}`} color={l.relation_role === 'payload_target' ? 'orange' : 'blue'}>
+                      <Link to={`/targets/${encodeURIComponent(l.target_code)}`}>
+                        {l.target_name}
+                      </Link>
+                      {l.relation_role === 'payload_target' ? '（载荷）' : ''}
+                    </Tag>
+                  ))}
+                  <Button type="link" size="small" onClick={() => setActiveTab('targets')}>
+                    维护 →
+                  </Button>
+                </Space>
+              ) : (
+                <Space>
+                  <Text type="secondary">未关联</Text>
+                  <Button type="link" size="small" onClick={() => setActiveTab('targets')}>
+                    去「靶点」Tab 关联 →
+                  </Button>
+                  {sub.target ? <Text type="secondary">（旧字段：{sub.target}）</Text> : null}
+                </Space>
+              )}
+            </Descriptions.Item>
             <Descriptions.Item label="状态">
               <StatusBadge type="substance" status={sub.status} />
             </Descriptions.Item>
@@ -322,7 +355,9 @@ export function SubstanceDetailPage() {
               <Text strong>{sub.substance_code}</Text>
               {sub.internal_code && <Text type="secondary">· {sub.internal_code}</Text>}
               {sub.modality && <Text type="secondary">· {sub.modality}</Text>}
-              {sub.target && <Text type="secondary">· 靶点: {sub.target}</Text>}
+              {linkedTargets.length > 0 && (
+                <Text type="secondary">· 靶点: {[...new Set(linkedTargets.map((l) => l.target_name))].join(' / ')}</Text>
+              )}
             </Space>
           </div>
           <Space>

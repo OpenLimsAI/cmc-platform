@@ -19,6 +19,7 @@ from app.domains.eqp.models import Equipment
 from app.domains.mm.models import Material
 from app.domains.prs.models import Project, ProjectMilestone
 from app.domains.srs.models import Substance
+from app.domains.target.models import Target
 
 
 async def _group_count(db: AsyncSession, table, col, *, where=None) -> list[dict]:
@@ -68,6 +69,7 @@ class DashboardService:
             ("asset", Asset),
             ("material", Material),
             ("equipment", Equipment),
+            ("target", Target),
         ]:
             r = await self.db.execute(
                 select(func.count()).select_from(table).where(table.deleted_at.is_(None))
@@ -95,6 +97,8 @@ class DashboardService:
             self.db, Equipment, Equipment.category
         )
         equipment_by_status = await _group_count(self.db, Equipment, Equipment.status)
+        target_by_status = await _group_count(self.db, Target, Target.status)
+        target_by_entry_type = await _group_count(self.db, Target, Target.entry_type)
 
         # 30 天趋势（5 域并行不需要，单 await 串行即可，dev 数据量小）
         trend_30d = {
@@ -103,6 +107,7 @@ class DashboardService:
             "asset": await _trend_30d(self.db, Asset),
             "material": await _trend_30d(self.db, Material),
             "equipment": await _trend_30d(self.db, Equipment),
+            "target": await _trend_30d(self.db, Target),
         }
 
         return {
@@ -118,6 +123,8 @@ class DashboardService:
                 "material_by_grade": material_by_grade,
                 "equipment_by_category": equipment_by_category,
                 "equipment_by_status": equipment_by_status,
+                "target_by_status": target_by_status,
+                "target_by_entry_type": target_by_entry_type,
             },
             "trend_30d": trend_30d,
         }

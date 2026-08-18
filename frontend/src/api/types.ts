@@ -260,6 +260,7 @@ export interface DashboardSummary {
     asset: number;
     material: number;
     equipment: number;
+    target: number;
   };
   distributions: {
     substance_by_type: DistributionItem[];
@@ -272,6 +273,8 @@ export interface DashboardSummary {
     material_by_grade: DistributionItem[];
     equipment_by_category: DistributionItem[];
     equipment_by_status: DistributionItem[];
+    target_by_status: DistributionItem[];
+    target_by_entry_type: DistributionItem[];
   };
   trend_30d: {
     substance: TrendPoint[];
@@ -279,6 +282,7 @@ export interface DashboardSummary {
     asset: TrendPoint[];
     material: TrendPoint[];
     equipment: TrendPoint[];
+    target: TrendPoint[];
   };
 }
 
@@ -1187,7 +1191,8 @@ export type SearchEntityType =
   | 'project'
   | 'asset'
   | 'material'
-  | 'equipment';
+  | 'equipment'
+  | 'target';
 export type SearchMatchedField =
   | 'code'
   | 'name'
@@ -1203,7 +1208,11 @@ export type SearchMatchedField =
   | 'manufacturer'
   | 'serial_no'
   | 'equipment_no'
-  | 'fixed_asset_no';
+  | 'fixed_asset_no'
+  | 'uniprot_id'
+  | 'gene_symbol'
+  | 'cd_antigen'
+  | 'alias';
 
 export interface SearchHit {
   entity_type: SearchEntityType;
@@ -1230,6 +1239,7 @@ export interface GlobalSearchResponse {
     asset: SearchGroup;
     material: SearchGroup;
     equipment: SearchGroup;
+    target: SearchGroup;
   };
 }
 

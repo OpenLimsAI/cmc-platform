@@ -1,5 +1,6 @@
 import { Card, Col, Row, Typography, Statistic, Space, theme } from 'antd';
 import {
+  AimOutlined,
   ExperimentOutlined,
   FolderOpenOutlined,
   GoldOutlined,
@@ -28,6 +29,7 @@ import {
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
 } from '@/modules/equipments/constants';
+import { TARGET_STATUS_OPTIONS } from '@/modules/targets/constants';
 import { DistributionPieCard } from '../components/DistributionPieCard';
 import { TrendLineCard } from '../components/TrendLineCard';
 import { ProjectGanttCard } from '../components/ProjectGanttCard';
@@ -109,6 +111,12 @@ export function DashboardPage() {
       value: totals?.equipment ?? 0,
       icon: <MicroscopeIcon style={{ fontSize: 28, color: '#13C2C2' }} />,
       onClick: () => navigate('/equipments'),
+    },
+    {
+      title: '靶点',
+      value: totals?.target ?? 0,
+      icon: <AimOutlined style={{ fontSize: 28, color: '#2F54EB' }} />,
+      onClick: () => navigate('/targets'),
     },
   ];
 
@@ -240,6 +248,30 @@ export function DashboardPage() {
                   title="设备状态分布"
                   data={summary.distributions.equipment_by_status}
                   labelMap={optionsToLabelMap(EQUIPMENT_STATUS_OPTIONS)}
+                />
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 16 }}>
+                <DistributionPieCard
+                  title="靶点状态分布"
+                  data={summary.distributions.target_by_status ?? []}
+                  labelMap={optionsToLabelMap(TARGET_STATUS_OPTIONS)}
+                />
+              </div>
+            </Col>
+            <Col xs={24} lg={12}>
+              <div style={{ marginBottom: 16 }}>
+                <DistributionPieCard
+                  title="靶点 UniProt 条目类型"
+                  data={summary.distributions.target_by_entry_type ?? []}
+                  labelMap={{
+                    'UniProtKB reviewed (Swiss-Prot)': 'Swiss-Prot（人工审阅）',
+                    'UniProtKB unreviewed (TrEMBL)': 'TrEMBL（自动注释）',
+                  }}
                 />
               </div>
             </Col>

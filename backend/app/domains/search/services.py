@@ -8,7 +8,7 @@
   - 权限：substance:read 才返回 substance；project:read 才返回 project；两者都没就空
   - 未引入 Elasticsearch；trgm GIN 索引已就位但此处用 ILIKE 简单查询，足够 M2.3
 """
-from sqlalchemy import select
+from sqlalchemy import Text, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.ars.models import Asset
@@ -18,6 +18,7 @@ from app.domains.mm.models import Material
 from app.domains.prs.models import Project
 from app.domains.search.schemas import GlobalSearchResponse, SearchGroup, SearchHit
 from app.domains.srs.models import Substance, SubstanceXref
+from app.domains.target.models import Target
 from app.shared.permissions import get_user_permissions
 
 
@@ -45,6 +46,7 @@ class GlobalSearchService:
                 "asset": SearchGroup(total=0, items=[]),
                 "material": SearchGroup(total=0, items=[]),
                 "equipment": SearchGroup(total=0, items=[]),
+                "target": SearchGroup(total=0, items=[]),
             },
         )
         if not q:
@@ -58,10 +60,11 @@ class GlobalSearchService:
         can_read_ast = is_sys_admin or "asset:read" in perms
         can_read_mat = is_sys_admin or "material:read" in perms
         can_read_eqp = is_sys_admin or "equipment:read" in perms
+        can_read_tgt = is_sys_admin or "target:read" in perms
         wanted = (
             set(types)
             if types
-            else {"substance", "project", "asset", "material", "equipment"}
+            else {"substance", "project", "asset", "material", "equipment", "target"}
         )
 
         sub_hits: list[SearchHit] = []
@@ -69,6 +72,7 @@ class GlobalSearchService:
         ast_hits: list[SearchHit] = []
         mat_hits: list[SearchHit] = []
         eqp_hits: list[SearchHit] = []
+        tgt_hits: list[SearchHit] = []
         if "substance" in wanted and can_read_sub:
             sub_hits = await self._search_substance(q, per_type_limit)
         if "project" in wanted and can_read_prj:
@@ -79,6 +83,8 @@ class GlobalSearchService:
             mat_hits = await self._search_material(q, per_type_limit)
         if "equipment" in wanted and can_read_eqp:
             eqp_hits = await self._search_equipment(q, per_type_limit)
+        if "target" in wanted and can_read_tgt:
+            tgt_hits = await self._search_target(q, per_type_limit)
 
         # 每组内部按权重排序 + 截断到 limit
         sub_hits.sort(key=lambda h: _rank(h, q))
@@ -86,24 +92,61 @@ class GlobalSearchService:
         ast_hits.sort(key=lambda h: _rank(h, q))
         mat_hits.sort(key=lambda h: _rank(h, q))
         eqp_hits.sort(key=lambda h: _rank(h, q))
+        tgt_hits.sort(key=lambda h: _rank(h, q))
         sub_hits = sub_hits[:limit]
         prj_hits = prj_hits[:limit]
         ast_hits = ast_hits[:limit]
         mat_hits = mat_hits[:limit]
         eqp_hits = eqp_hits[:limit]
+        tgt_hits = tgt_hits[:limit]
 
         return GlobalSearchResponse(
             query=q,
             total=len(sub_hits) + len(prj_hits) + len(ast_hits) + len(mat_hits)
-            + len(eqp_hits),
+            + len(eqp_hits) + len(tgt_hits),
             results={
                 "substance": SearchGroup(total=len(sub_hits), items=sub_hits),
                 "project": SearchGroup(total=len(prj_hits), items=prj_hits),
                 "asset": SearchGroup(total=len(ast_hits), items=ast_hits),
                 "material": SearchGroup(total=len(mat_hits), items=mat_hits),
                 "equipment": SearchGroup(total=len(eqp_hits), items=eqp_hits),
+                "target": SearchGroup(total=len(tgt_hits), items=tgt_hits),
             },
         )
+
+    async def _search_target(self, q: str, lim: int) -> list[SearchHit]:
+        """靶点：编码 / 名称 / UniProt / 基因 / CD 号 / 别名（JSONB 转文本模糊匹配）"""
+        pat = f"%{q}%"
+        result = await self.db.execute(
+            select(Target)
+            .where(
+                Target.deleted_at.is_(None),
+                (Target.target_code.ilike(pat))
+                | (Target.target_name.ilike(pat))
+                | (Target.uniprot_id.ilike(pat))
+                | (Target.gene_symbol.ilike(pat))
+                | (cast(Target.cd_antigen_names, Text).ilike(pat))
+                | (cast(Target.aliases, Text).ilike(pat))
+                | (cast(Target.gene_synonyms, Text).ilike(pat)),
+            )
+            .limit(lim)
+        )
+        items = []
+        for t in result.scalars():
+            field, snippet = _which_field_target(q, t)
+            mf = [k.get("name") for k in (t.keywords or []) if k.get("category") == "Molecular function"]
+            items.append(
+                SearchHit(
+                    entity_type="target",
+                    code=t.target_code,
+                    name=t.target_name,
+                    status=t.status,
+                    matched_field=field,  # type: ignore[arg-type]
+                    sub_type=(", ".join(mf[:2]) if mf else (t.cd_antigen_names or [None])[0]),
+                    snippet=snippet,
+                )
+            )
+        return items
 
     async def _search_substance(self, q: str, lim: int) -> list[SearchHit]:
         pat = f"%{q}%"
@@ -364,6 +407,25 @@ def _which_field_equipment(q: str, eq) -> str:
     if eq.serial_no and ql in eq.serial_no.lower():
         return "serial_no"
     return "name"
+
+
+def _which_field_target(q: str, t: Target) -> tuple[str, str | None]:
+    ql = q.lower()
+    if t.target_code and ql in t.target_code.lower():
+        return "code", None
+    if t.uniprot_id and ql in t.uniprot_id.lower():
+        return "uniprot_id", t.uniprot_id
+    if t.target_name and ql in t.target_name.lower():
+        return "name", None
+    if t.gene_symbol and ql in t.gene_symbol.lower():
+        return "gene_symbol", t.gene_symbol
+    for cd in t.cd_antigen_names or []:
+        if ql in str(cd).lower():
+            return "cd_antigen", cd
+    for a in [*(t.aliases or []), *(t.gene_synonyms or [])]:
+        if ql in str(a).lower():
+            return "alias", a
+    return "name", None
 
 
 def _rank(hit: SearchHit, q: str) -> tuple[int, int]:

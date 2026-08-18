@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Breadcrumb,
   Button,
   Card,
@@ -47,8 +48,6 @@ interface FormShape {
   internal_code?: string;
   preferred_name: string;
   preferred_name_en?: string;
-  target?: string;
-  target_type?: string;
   modality?: string;
   is_proprietary: boolean;
   confidentiality: Confidentiality;
@@ -131,8 +130,6 @@ export function SubstanceCreatePage() {
         internal_code: values.internal_code?.trim() || undefined,
         preferred_name: values.preferred_name.trim(),
         preferred_name_en: values.preferred_name_en?.trim() || undefined,
-        target: values.target?.trim() || undefined,
-        target_type: values.target_type?.trim() || undefined,
         modality: values.modality?.trim() || undefined,
         is_proprietary: values.is_proprietary,
         confidentiality: values.confidentiality,
@@ -256,13 +253,14 @@ export function SubstanceCreatePage() {
               <Input placeholder="如：Anti-HER2 monoclonal antibody" />
             </Form.Item>
 
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="靶点不在这里手填"
+              description="保存后到物质详情页「靶点」Tab 关联靶点（靶点按 UniProt 标准自动维护，可多个、可标注抗体/载荷角色与结合表位）。"
+            />
             <Space size="large" style={{ display: 'flex', width: '100%' }}>
-              <Form.Item name="target" label="靶点" style={{ flex: 1 }} rules={[{ max: 128 }]}>
-                <Input placeholder="如：HER2、PD-L1" />
-              </Form.Item>
-              <Form.Item name="target_type" label="靶点类型" style={{ flex: 1 }} rules={[{ max: 64 }]}>
-                <Input placeholder="如：受体、抗原、酶" />
-              </Form.Item>
               <Form.Item name="modality" label="模态描述" style={{ flex: 1 }} rules={[{ max: 64 }]}>
                 <Input placeholder="如：humanized IgG1 mAb" />
               </Form.Item>
@@ -472,7 +470,6 @@ function SummaryView({
       <Descriptions.Item label="内部代号">{values.internal_code || '—'}</Descriptions.Item>
       <Descriptions.Item label="首选名称">{values.preferred_name || '—'}</Descriptions.Item>
       <Descriptions.Item label="英文名">{values.preferred_name_en || '—'}</Descriptions.Item>
-      <Descriptions.Item label="靶点">{values.target || '—'}</Descriptions.Item>
       <Descriptions.Item label="模态">{values.modality || '—'}</Descriptions.Item>
       <Descriptions.Item label="保密等级">{values.confidentiality}</Descriptions.Item>
       <Descriptions.Item label="是否专有">{values.is_proprietary ? '是' : '否'}</Descriptions.Item>

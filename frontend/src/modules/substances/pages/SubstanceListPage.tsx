@@ -73,7 +73,7 @@ export function SubstanceListPage() {
       key: 'preferred_name',
       ellipsis: true,
     },
-    { title: '靶点', dataIndex: 'target', key: 'target', width: 100 },
+    { title: '靶点', dataIndex: 'target', key: 'target', width: 140, ellipsis: true, render: (v: string | null) => v || '—' },
     {
       title: '状态',
       dataIndex: 'status',
@@ -188,7 +188,7 @@ export function SubstanceListPage() {
           />
           {/* UI5（V1.1 §6.1.1 行 545）：靶点是常用筛选项 */}
           <Input
-            placeholder="靶点（如 PD-L1）"
+            placeholder="靶点（基因/名称/UniProt/CD 号）"
             allowClear
             style={{ width: 180 }}
             value={filters.target ?? ''}

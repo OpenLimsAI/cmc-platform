@@ -14,6 +14,7 @@ const ENTITY_LABEL: Record<string, string> = {
   asset: '资产',
   material: '物料',
   equipment: '设备',
+  target: '靶点',
 };
 
 const ENTITY_PATH: Record<string, string> = {
@@ -22,6 +23,7 @@ const ENTITY_PATH: Record<string, string> = {
   asset: '/assets',
   material: '/materials',
   equipment: '/equipments',
+  target: '/targets',
 };
 
 const ENTITY_COLOR: Record<string, string> = {
@@ -30,6 +32,7 @@ const ENTITY_COLOR: Record<string, string> = {
   asset: 'gold',
   material: 'purple',
   equipment: 'cyan',
+  target: 'blue',
 };
 
 const FIELD_LABEL: Record<string, string> = {
@@ -48,6 +51,10 @@ const FIELD_LABEL: Record<string, string> = {
   serial_no: '序列号',
   equipment_no: '设备编号',
   fixed_asset_no: '固资编号',
+  uniprot_id: 'UniProt',
+  gene_symbol: '基因',
+  cd_antigen: 'CD 号',
+  alias: '别名',
 };
 
 /**
@@ -78,13 +85,14 @@ export function GlobalSearchBox() {
     // G2-API6（V1.1 §8.3）+ M4.4：分组结构 {substance, project, asset, material} 各含 items
     if (!data) return [];
     const groups: Array<
-      ['substance' | 'project' | 'asset' | 'material' | 'equipment', SearchHit[]]
+      ['substance' | 'project' | 'asset' | 'material' | 'equipment' | 'target', SearchHit[]]
     > = [
       ['substance', data.results.substance.items],
       ['project', data.results.project.items],
       ['asset', data.results.asset.items],
       ['material', data.results.material.items],
       ['equipment', data.results.equipment.items],
+      ['target', data.results.target?.items ?? []],
     ];
     return groups
       .filter(([, list]) => list.length > 0)
@@ -148,7 +156,7 @@ export function GlobalSearchBox() {
         size="middle"
         allowClear
         prefix={<SearchOutlined style={{ color: token.colorTextSecondary }} />}
-        placeholder="搜索物质 / 项目 / 资产 / 物料 / 设备编码、名称、INN..."
+        placeholder="搜索物质 / 项目 / 资产 / 物料 / 设备 / 靶点（编码、名称、INN、UniProt、CD 号）..."
         onFocus={() => setOpen(true)}
       />
     </AutoComplete>
