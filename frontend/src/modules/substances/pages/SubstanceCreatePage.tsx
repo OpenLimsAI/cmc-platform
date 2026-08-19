@@ -403,7 +403,7 @@ export function SubstanceCreatePage() {
             <Form.Item
               name="internal_code"
               label="内部代号"
-              tooltip="公司内部代号，如 CMAB-203。留空时系统不自动填，仅自动分配业务编码 SUB-XXXXXXX"
+              tooltip="公司内部代号，如 CMAB-203。留空时系统不自动填，仅自动分配业务编码 SUB-XXXX"
               rules={[{ max: 64 }]}
             >
               <Input placeholder="CMAB-XXX（可选）" />

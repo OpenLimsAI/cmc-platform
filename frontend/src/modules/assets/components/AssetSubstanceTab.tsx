@@ -255,10 +255,10 @@ export function AssetSubstanceTab({ assetCode, assetStatus }: Props) {
             label="物质编码"
             name="substance_code"
             rules={[{ required: true, message: '必填' }]}
-            tooltip="输入物质编码或名称查询；选择下拉项后会自动填入 SUB-XXXXXXX"
+            tooltip="输入物质编码或名称查询；选择下拉项后会自动填入 SUB-XXXX"
           >
             <AutoComplete
-              placeholder="搜索 SUB-XXXXXXX、preferred name 或 INN..."
+              placeholder="搜索 SUB-XXXX、preferred name 或 INN..."
               onSearch={setSearchQ}
               options={(searchHits?.results.substance.items ?? []).map((h) => ({
                 value: h.code,
