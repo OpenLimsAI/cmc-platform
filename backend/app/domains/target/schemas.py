@@ -278,3 +278,81 @@ class TargetPrefillResponse(BaseModel):
     form: TargetPrefillForm
     hints: TargetPrefillHints
     snapshot: TargetSnapshotCreate = Field(..., description="保存靶点后可直接 POST 到 /targets/{code}/snapshots")
+
+
+# ============== INN 全链路预填（POST /targets/prefill/inn）+ 应用（:apply）==============
+class InnPrefillRequest(BaseModel):
+    inn: str = Field(..., min_length=2, max_length=128, description="国际非专利名，如 guselkumab")
+
+
+class InnPrefillCandidate(BaseModel):
+    """一条候选关联（= mechanism × target_component 展开后的一行）"""
+
+    uniprot_id: str | None = None
+    target_name: str | None = None
+    gene_symbol: str | None = None
+    existing: TargetBrief | None = Field(None, description="库里已有 → 只建关联")
+    new_target: TargetPrefillForm | None = Field(None, description="库里没有 → 可按此表单新建（UniProt 标准字段）")
+    relation_role: MoleculeTargetRole = "antibody_target"
+    moa: str | None = None
+    action_type: str | None = None
+    binding_epitope_or_domain: str | None = None
+    chembl_mechanism_id: int | None = None
+    chembl_target_id: str | None = None
+    chembl_target_type: str | None = None
+    binding_subunit_hint: str | None = None   # PROTEIN COMPLEX：LIKELY / UNLIKELY
+    needs_confirm: bool = False
+    confirm_reason: str | None = None
+    suggested_selected: bool = True           # 前端默认勾选建议（UNLIKELY 亚基默认不勾）
+
+
+class InnPrefillMolecule(BaseModel):
+    chembl_id: str | None = None
+    pref_name: str | None = None
+    molecule_type: str | None = None
+    max_phase: float | None = None
+    first_approval: int | None = None
+    research_codes: list[str] = []
+    trade_names: list[str] = []
+    usan_stem: str | None = None
+
+
+class InnPrefillResponse(BaseModel):
+    inn: str
+    outcome: str
+    user_message: str | None = None
+    molecule: InnPrefillMolecule | None = None
+    warnings: list[str] = []
+    candidates: list[InnPrefillCandidate] = []
+    # 供 :apply 落快照：accession → 快照体（uniprot / chembl_target）
+    snapshots: dict[str, list[TargetSnapshotCreate]] = {}
+    chembl_candidates: list[dict] = Field(default_factory=list, description="NEEDS_MANUAL_PICK 时的模糊候选")
+
+
+class InnApplyLink(BaseModel):
+    uniprot_id: str
+    relation_role: MoleculeTargetRole = "antibody_target"
+    moa: str | None = None
+    action_type: str | None = Field(None, max_length=64)
+    binding_epitope_or_domain: str | None = None
+    chembl_mechanism_id: int | None = None
+    needs_confirm: bool = False
+    notes: str | None = None
+    new_target: TargetPrefillForm | None = Field(None, description="库里没有时按此新建（服务端会再查重一次）")
+
+
+class InnApplyRequest(BaseModel):
+    substance_code: str = Field(..., max_length=32)
+    inn: str = Field(..., max_length=128)
+    molecule: InnPrefillMolecule | None = None
+    links: list[InnApplyLink] = Field(..., min_length=1)
+    snapshots: dict[str, list[TargetSnapshotCreate]] = {}
+    add_substance_xrefs: bool = Field(True, description="把 ChEMBL ID / INN / 商品名回填到物质标识符（已存在的跳过）")
+
+
+class InnApplyResult(BaseModel):
+    substance_code: str
+    created_targets: list[TargetBrief] = []
+    linked: list[MoleculeTargetLinkOut] = []
+    skipped: list[str] = []
+    xrefs_added: list[str] = []

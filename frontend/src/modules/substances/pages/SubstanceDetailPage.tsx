@@ -244,7 +244,13 @@ export function SubstanceDetailPage() {
       // 靶点域（tgt / ref.molecule_target）：分子↔靶点关联面板，与靶点详情页共用组件
       key: 'targets',
       label: '靶点',
-      children: <MoleculeTargetPanel mode="substance" code={sub.substance_code} />,
+      children: (
+        <MoleculeTargetPanel
+          mode="substance"
+          code={sub.substance_code}
+          defaultInn={sub.xrefs?.find((x) => x.xref_type === 'INN')?.xref_value ?? sub.preferred_name_en ?? null}
+        />
+      ),
     },
     {
       key: 'relations',

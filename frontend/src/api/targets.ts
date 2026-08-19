@@ -191,6 +191,71 @@ export interface TargetPrefillResponse {
   snapshot: TargetSnapshotCreatePayload;
 }
 
+// ---- INN 全链路预填（ChEMBL → UniProt）----
+export interface InnPrefillMolecule {
+  chembl_id: string | null;
+  pref_name: string | null;
+  molecule_type: string | null;
+  max_phase: number | null;
+  first_approval: number | null;
+  research_codes: string[];
+  trade_names: string[];
+  usan_stem: string | null;
+}
+export interface InnPrefillCandidate {
+  uniprot_id: string | null;
+  target_name: string | null;
+  gene_symbol: string | null;
+  existing: TargetBrief | null;
+  new_target: (Partial<TargetCreatePayload> & { target_name?: string | null }) | null;
+  relation_role: MoleculeTargetRole;
+  moa: string | null;
+  action_type: string | null;
+  binding_epitope_or_domain: string | null;
+  chembl_mechanism_id: number | null;
+  chembl_target_id: string | null;
+  binding_subunit_hint: string | null;
+  needs_confirm: boolean;
+  confirm_reason: string | null;
+  suggested_selected: boolean;
+}
+export interface InnPrefillResponse {
+  inn: string;
+  outcome: string;
+  user_message: string | null;
+  molecule: InnPrefillMolecule | null;
+  warnings: string[];
+  candidates: InnPrefillCandidate[];
+  snapshots: Record<string, TargetSnapshotCreatePayload[]>;
+  chembl_candidates: { molecule_chembl_id: string; pref_name: string; molecule_type: string; max_phase: number | null }[];
+}
+export interface InnApplyLink {
+  uniprot_id: string;
+  relation_role: MoleculeTargetRole;
+  moa?: string | null;
+  action_type?: string | null;
+  binding_epitope_or_domain?: string | null;
+  chembl_mechanism_id?: number | null;
+  needs_confirm?: boolean;
+  notes?: string | null;
+  new_target?: InnPrefillCandidate['new_target'];
+}
+export interface InnApplyRequest {
+  substance_code: string;
+  inn: string;
+  molecule: InnPrefillMolecule | null;
+  links: InnApplyLink[];
+  snapshots: Record<string, TargetSnapshotCreatePayload[]>;
+  add_substance_xrefs: boolean;
+}
+export interface InnApplyResult {
+  substance_code: string;
+  created_targets: TargetBrief[];
+  linked: MoleculeTargetLink[];
+  skipped: string[];
+  xrefs_added: string[];
+}
+
 export const targetsApi = {
   list: (query: TargetListQuery = {}) =>
     unwrapList<TargetBrief>(api.get('/targets', { params: query })),
@@ -234,6 +299,12 @@ export const targetsApi = {
     api.delete(`/targets/${encodeURIComponent(code)}/molecules/${encodeURIComponent(substanceCode)}/${role}`, {
       data: { change_reason },
     }),
+
+  // INN 全链路预填 + 应用（ChEMBL → UniProt；后端出网，约 5–20 秒）
+  prefillInn: (inn: string) =>
+    unwrap<InnPrefillResponse>(api.post('/targets/prefill/inn', { inn }, { timeout: 90000 })),
+  applyInn: (payload: InnApplyRequest) =>
+    unwrap<InnApplyResult>(api.post('/targets/prefill/inn:apply', payload, { timeout: 60000 })),
 
   // 审计历史（主表 + 关联表）
   auditLogs: (code: string, query: { page?: number; page_size?: number; include_children?: boolean } = {}) =>

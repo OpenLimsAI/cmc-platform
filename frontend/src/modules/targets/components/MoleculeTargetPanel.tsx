@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Form, Input, Modal, Select, Space, Spin, Switch, Table, Tag, Typography, message } from 'antd';
-import { DeleteOutlined, EditOutlined, LinkOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, LinkOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -12,6 +12,7 @@ import {
 import { substancesApi } from '@/api/substances';
 import { useAuthStore } from '@/stores/authStore';
 import { MOLECULE_TARGET_ROLE_OPTIONS } from '../constants';
+import { InnPrefillModal } from './InnPrefillModal';
 
 const { Text } = Typography;
 
@@ -21,13 +22,15 @@ interface Props {
   /** 'target'：在靶点详情页，列出/维护它的分子；'substance'：在物质详情页，列出/维护它的靶点 */
   mode: 'target' | 'substance';
   code: string; // targetCode 或 substanceCode
+  /** substance 模式：INN 预填的默认值（来自物质的 INN 标识符 / 英文名） */
+  defaultInn?: string | null;
 }
 
 /**
  * 分子↔靶点关联面板（ref.molecule_target），靶点详情页 / 物质详情页共用。
  * 关系角色：抗体结合靶点 / 载荷作用靶点（ADC）/ 其他；MoA、作用类型、表位/结构域人工或预填脚本给出。
  */
-export function MoleculeTargetPanel({ mode, code }: Props) {
+export function MoleculeTargetPanel({ mode, code, defaultInn }: Props) {
   const queryClient = useQueryClient();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canEdit = hasPermission('target:update');
@@ -41,6 +44,7 @@ export function MoleculeTargetPanel({ mode, code }: Props) {
   });
 
   const [addOpen, setAddOpen] = useState(false);
+  const [innOpen, setInnOpen] = useState(false);
   const [editing, setEditing] = useState<MoleculeTargetLink | null>(null);
   const [removing, setRemoving] = useState<MoleculeTargetLink | null>(null);
   const [removeReason, setRemoveReason] = useState('');
@@ -194,9 +198,16 @@ export function MoleculeTargetPanel({ mode, code }: Props) {
       title={mode === 'target' ? `关联分子（${links.length}）` : `作用靶点（${links.length}）`}
       extra={
         canEdit ? (
-          <Button size="small" type="primary" icon={<LinkOutlined />} onClick={() => setAddOpen(true)}>
-            {mode === 'target' ? '关联分子' : '关联靶点'}
-          </Button>
+          <Space size="small">
+            {mode === 'substance' && (
+              <Button size="small" icon={<ThunderboltOutlined />} onClick={() => setInnOpen(true)}>
+                按 INN 自动找靶点
+              </Button>
+            )}
+            <Button size="small" type="primary" icon={<LinkOutlined />} onClick={() => setAddOpen(true)}>
+              {mode === 'target' ? '关联分子' : '关联靶点'}
+            </Button>
+          </Space>
         ) : (
           <Text type="secondary">需要 target:update 权限才能维护</Text>
         )
@@ -213,6 +224,10 @@ export function MoleculeTargetPanel({ mode, code }: Props) {
           size="small"
           locale={{ emptyText: mode === 'target' ? '暂无关联分子' : '暂无关联靶点；点右上「关联靶点」' }}
         />
+      )}
+
+      {mode === 'substance' && (
+        <InnPrefillModal open={innOpen} onClose={() => setInnOpen(false)} substanceCode={code} defaultInn={defaultInn} />
       )}
 
       {/* 新建关联 */}

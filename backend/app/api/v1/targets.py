@@ -14,6 +14,8 @@ from app.core.exceptions import BadRequestError
 from app.core.responses import Pagination, success
 from app.domains.auth.models import User
 from app.domains.target.schemas import (
+    InnApplyRequest,
+    InnPrefillRequest,
     MoleculeTargetLinkCreate,
     MoleculeTargetLinkDelete,
     MoleculeTargetLinkUpdate,
@@ -27,7 +29,7 @@ from app.domains.target.schemas import (
 )
 from app.domains.target.services import TargetService
 from app.shared.idempotency import IdempotencyService
-from app.shared.permissions import require_permission
+from app.shared.permissions import get_user_permissions, require_permission
 
 router = APIRouter()
 
@@ -111,6 +113,31 @@ async def prefill_target_from_uniprot(
         raise BadRequestError(str(e)) from e
     data = await TargetService(db).prefill_from_uniprot(acc or "")
     return success(data=data.model_dump(mode="json"), request_id=_rid(request))
+
+
+@router.post("/prefill/inn", summary="按 INN 走 ChEMBL→UniProt 全链路，返回候选靶点/关联（只读，不落库；约 5–20 秒）")
+async def prefill_targets_from_inn(
+    payload: InnPrefillRequest,
+    request: Request,
+    user: User = Depends(require_permission("target:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await TargetService(db).prefill_from_inn(payload.inn.strip())
+    return success(data=data.model_dump(mode="json"), request_id=_rid(request))
+
+
+@router.post("/prefill/inn:apply", status_code=status.HTTP_201_CREATED,
+             summary="应用 INN 预填：缺的靶点建草稿（+快照）、全部建关联、回填物质标识符")
+async def apply_inn_prefill(
+    payload: InnApplyRequest,
+    request: Request,
+    user: User = Depends(require_permission("target:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    perms = await get_user_permissions(user, db)
+    can_create = "target:create" in perms or any(r.role_code == "SYS_ADMIN" for r in user.roles)
+    result = await TargetService(db).apply_inn_prefill(payload, user, can_create=can_create)
+    return success(data=result.model_dump(mode="json"), message="已应用 INN 预填", request_id=_rid(request))
 
 
 @router.get("/by-molecule/{substance_code}", summary="某分子（substance）的全部靶点关联")

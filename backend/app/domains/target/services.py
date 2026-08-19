@@ -20,8 +20,23 @@ from app.core.exceptions import (
 from app.domains.auth.models import User
 from app.domains.srs.models import Substance
 from app.domains.target.models import MoleculeTargetLink, Target, TargetSourceSnapshot
-from app.domains.target.prefill import UNIPROT_BASE, build_uniprot_prefill
+from app.domains.target.prefill import (
+    ALLOWED_HOSTS,
+    CHEMBL_BASE,
+    CHEMBL_LICENSE,
+    UNIPROT_BASE,
+    UNIPROT_LICENSE,
+    build_uniprot_prefill,
+    prefill_inn,
+    trim_chembl_target_payload,
+    trim_uniprot_payload,
+)
 from app.domains.target.schemas import (
+    InnApplyRequest,
+    InnApplyResult,
+    InnPrefillCandidate,
+    InnPrefillMolecule,
+    InnPrefillResponse,
     MoleculeTargetLinkCreate,
     MoleculeTargetLinkOut,
     MoleculeTargetLinkUpdate,
@@ -475,3 +490,158 @@ class TargetService:
             conditions.append(and_(AuditLog.entity_schema == "ref", AuditLog.entity_table == "molecule_target",
                                    AuditLog.entity_id == target.target_id))
         return await AuditService(self.db).get_entity_audit_logs(conditions, page, page_size)
+
+    # ============================================================
+    # INN 全链路预填（ChEMBL → UniProt）+ 应用（建靶点草稿 + 关联 + 快照 + 物质标识符）
+    # ============================================================
+    async def prefill_from_inn(self, inn: str, *, transport=None) -> InnPrefillResponse:
+        from app.shared.http_client import ExternalHttpClient
+
+        async def lookup(acc: str):
+            t = await self.find_by_accession(acc)
+            return {"target_code": t.target_code, "target_name": t.target_name, "uniprot_id": t.uniprot_id} if t else None
+
+        async with ExternalHttpClient(ALLOWED_HOSTS, timeout_s=30.0, retries=2, transport=transport) as client:
+            r = await prefill_inn(inn, client, lookup)
+
+        mol = r.get("molecule") or {}
+        molecule = InnPrefillMolecule(
+            chembl_id=mol.get("chembl_id"), pref_name=mol.get("pref_name"), molecule_type=mol.get("molecule_type"),
+            max_phase=mol.get("max_phase"), first_approval=mol.get("first_approval"),
+            research_codes=mol.get("research_codes") or [], trade_names=mol.get("trade_names") or [],
+            usan_stem=mol.get("usan_stem"),
+        ) if mol else None
+        pf = r.get("prefill_form") or {}
+        new_by_acc = {t["uniprot_id"]: t for t in pf.get("targets_new") or []}
+        candidates: list[InnPrefillCandidate] = []
+        for b in pf.get("bridge_molecule_target") or []:
+            acc = b.get("uniprot_id")
+            existing = await self.find_by_accession(acc) if acc else None
+            new_form = None
+            if not existing and acc in new_by_acc:
+                new_form = {k: v for k, v in new_by_acc[acc].items() if not k.startswith("_")}
+            hint = b.get("_binding_subunit_hint")
+            candidates.append(InnPrefillCandidate(
+                uniprot_id=acc,
+                target_name=(existing.target_name if existing else (new_form or {}).get("target_name") or b.get("_target_pref_name_chembl")),
+                gene_symbol=(existing.gene_symbol if existing else (new_form or {}).get("gene_symbol")),
+                existing=TargetBrief.model_validate(existing) if existing else None,
+                new_target=new_form,  # type: ignore[arg-type]
+                relation_role=b.get("relation_role") or "antibody_target",
+                moa=b.get("moa"), action_type=b.get("action_type"),
+                binding_epitope_or_domain=b.get("binding_epitope_or_domain"),
+                chembl_mechanism_id=b.get("chembl_mechanism_id"),
+                chembl_target_id=b.get("_target_chembl_id"), chembl_target_type=None,
+                binding_subunit_hint=hint,
+                needs_confirm=bool(b.get("needs_confirm")),
+                confirm_reason=b.get("_confirm_reason"),
+                suggested_selected=(hint != "UNLIKELY") and acc is not None,
+            ))
+        # 快照体：uniprot（裁剪）+ chembl_target（裁剪），按 accession 归组
+        raw = r.get("raw") or {}
+        fetched_at = r.get("fetched_at")
+        snapshots: dict[str, list] = {}
+        for acc, u in (raw.get("uniprot") or {}).items():
+            if u:
+                snapshots.setdefault(acc, []).append({
+                    "source": "uniprot", "source_id": acc,
+                    "source_version": str(((u.get("entryAudit") or {}).get("entryVersion")) or ""),
+                    "source_url": f"{UNIPROT_BASE}/{acc}.json", "fetched_at": fetched_at,
+                    "payload": trim_uniprot_payload(u), "license": UNIPROT_LICENSE,
+                })
+        for tid, t in (raw.get("chembl_target") or {}).items():
+            if not t:
+                continue
+            for c in t.get("target_components") or []:
+                acc = c.get("accession")
+                if acc:
+                    snapshots.setdefault(acc, []).append({
+                        "source": "chembl_target", "source_id": tid, "source_version": None,
+                        "source_url": f"{CHEMBL_BASE}/target/{tid}.json", "fetched_at": fetched_at,
+                        "payload": trim_chembl_target_payload(t), "license": CHEMBL_LICENSE,
+                    })
+        step1: dict = next((st for st in r.get("steps", []) if st.get("step") == "1_chembl_molecule_search"), {})
+        return InnPrefillResponse(
+            inn=inn, outcome=r.get("outcome") or "UNKNOWN", user_message=r.get("user_message"),
+            molecule=molecule, warnings=r.get("warnings") or [], candidates=candidates,
+            snapshots=snapshots,  # type: ignore[arg-type]
+            chembl_candidates=step1.get("candidates") or [] if r.get("outcome") == "NEEDS_MANUAL_PICK" else [],
+        )
+
+    async def apply_inn_prefill(self, payload: InnApplyRequest, current_user: User, *, can_create: bool) -> InnApplyResult:
+        """勾选后的候选一次落库：缺的靶点建草稿（+快照），全部建关联；可选回填物质标识符。"""
+        from app.domains.srs.models import SubstanceXref
+        from app.domains.target.schemas import TargetCreate
+
+        sub = await self._get_substance_or_404(payload.substance_code)
+        result = InnApplyResult(substance_code=sub.substance_code)
+        for link in payload.links:
+            acc = link.uniprot_id.strip().upper()
+            target = await self.find_by_accession(acc)
+            if target is None:
+                if link.new_target is None:
+                    result.skipped.append(f"{acc}: 库里没有且未提供新建表单")
+                    continue
+                if not can_create:
+                    result.skipped.append(f"{acc}: 缺少 target:create 权限，无法新建靶点")
+                    continue
+                form = link.new_target.model_dump(exclude_none=True)
+                form["uniprot_id"] = acc
+                if not form.get("target_name"):
+                    form["target_name"] = acc
+                created = await self.create(TargetCreate(**form), current_user)
+                target = await self._get_target_or_404(created.target_code)
+                for snap in payload.snapshots.get(acc, []):
+                    self.db.add(TargetSourceSnapshot(
+                        target_id=target.target_id, source=snap.source, source_id=snap.source_id,
+                        source_version=snap.source_version, source_url=snap.source_url,
+                        fetched_at=snap.fetched_at, payload=snap.payload, license=snap.license,
+                        created_by=current_user.user_id,
+                    ))
+                await self.db.flush()
+                result.created_targets.append(TargetBrief.model_validate(target))
+            # 关联（已存在同键则跳过）
+            dup = await self.db.execute(
+                select(MoleculeTargetLink).where(
+                    MoleculeTargetLink.molecule_id == sub.substance_id,
+                    MoleculeTargetLink.target_id == target.target_id,
+                    MoleculeTargetLink.relation_role == link.relation_role,
+                    MoleculeTargetLink.deleted_at.is_(None),
+                )
+            )
+            if dup.scalar_one_or_none():
+                result.skipped.append(f"{acc}: 已存在 {link.relation_role} 关联")
+                continue
+            out = await self.add_molecule(target.target_code, MoleculeTargetLinkCreate(
+                substance_code=sub.substance_code, relation_role=link.relation_role, moa=link.moa,
+                action_type=link.action_type, binding_epitope_or_domain=link.binding_epitope_or_domain,
+                chembl_mechanism_id=link.chembl_mechanism_id, needs_confirm=link.needs_confirm,
+                notes=link.notes or f"由 INN「{payload.inn}」自动预填（ChEMBL）",
+            ), current_user)
+            result.linked.append(out)
+
+        # 物质标识符回填（ChEMBL ID / INN / 商品名），已有同类型同值的跳过
+        if payload.add_substance_xrefs and payload.molecule:
+            wanted: list[tuple[str, str, str | None]] = []
+            if payload.molecule.chembl_id:
+                wanted.append(("ChEMBL", payload.molecule.chembl_id, "ChEMBL"))
+            wanted.append(("INN", payload.inn.strip(), "ChEMBL"))
+            for tn in payload.molecule.trade_names or []:
+                wanted.append(("TRADE_NAME", tn, "ChEMBL"))
+            existing = await self.db.execute(
+                select(SubstanceXref.xref_type, SubstanceXref.xref_value).where(
+                    SubstanceXref.substance_id == sub.substance_id, SubstanceXref.deleted_at.is_(None)
+                )
+            )
+            have = {(t, (v or "").lower()) for t, v in existing.all()}
+            for xtype, xval, xsrc in wanted:
+                if (xtype, xval.lower()) in have:
+                    continue
+                self.db.add(SubstanceXref(
+                    substance_id=sub.substance_id, xref_type=xtype, xref_value=xval, xref_source=xsrc,
+                    is_primary=False, created_by=current_user.user_id, updated_by=current_user.user_id,
+                ))
+                have.add((xtype, xval.lower()))
+                result.xrefs_added.append(f"{xtype}:{xval}")
+            await self.db.flush()
+        return result

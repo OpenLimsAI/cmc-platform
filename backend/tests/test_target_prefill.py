@@ -326,3 +326,81 @@ async def test_service_refresh_from_uniprot_overwrites_fields_and_adds_snapshot(
         assert len(snaps) == 1 and snaps[0].source_version == "999"
         await db.rollback()  # 不留数据
     await engine.dispose()
+
+
+# ----------------------------------------------------------------------------- INN 全链路预填 + 应用
+@pytest.mark.asyncio
+async def test_service_prefill_from_inn_with_fixture_transport():
+    """service 层：guselkumab 夹具 → 候选 2 条（p19 LIKELY 默认勾 / p40 UNLIKELY 默认不勾），快照按 accession 归组"""
+    from app.domains.target.services import TargetService
+
+    client, _ = _client("guselkumab")
+    engine, session_factory = _fresh_session_factory()
+    async with session_factory() as db:
+        svc = TargetService(db)
+        r = await svc.prefill_from_inn("guselkumab", transport=client._client._transport)  # noqa: SLF001
+        assert r.outcome in ("OK_NEW_TARGET_PREFILLED", "OK_MIXED_HIT_LINK_AND_NEW_TARGET")
+        assert r.molecule and r.molecule.chembl_id == "CHEMBL2364648" and "Tremfya" in r.molecule.trade_names
+        by_acc = {c.uniprot_id: c for c in r.candidates}
+        assert by_acc["Q9NPF7"].binding_subunit_hint == "LIKELY" and by_acc["Q9NPF7"].suggested_selected is True
+        assert by_acc["P29460"].binding_subunit_hint == "UNLIKELY" and by_acc["P29460"].suggested_selected is False
+        assert set(r.snapshots.keys()) >= {"P29460"}
+        assert {s.source for s in r.snapshots["P29460"]} == {"uniprot", "chembl_target"}
+    await engine.dispose()
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_apply_inn_prefill_endpoint(admin_client, unique_suffix):
+    """HTTP 层（不出网）：已有靶点只建关联 + 新靶点按表单新建（含快照）+ 物质标识符回填"""
+    scode = (await admin_client.post("/api/v1/substances", json={
+        "substance_type": "mab", "internal_code": f"TEST-INN-{unique_suffix}", "preferred_name": f"pytest inn {unique_suffix}",
+    })).json()["data"]["substance_code"]
+    # 已有靶点（用假 accession，避免撞真实）
+    from tests.test_target_crud import _fake_accession
+    acc_existing = _fake_accession(unique_suffix)
+    acc_new = _fake_accession(unique_suffix[::-1])
+    tcode = (await admin_client.post("/api/v1/targets", json={"target_name": f"existing {unique_suffix}", "uniprot_id": acc_existing})).json()["data"]["target_code"]
+
+    body = {
+        "substance_code": scode,
+        "inn": f"pytestmab{unique_suffix}",
+        "molecule": {"chembl_id": f"CHEMBL{unique_suffix[:6]}", "pref_name": "PYTESTMAB", "molecule_type": "Antibody",
+                     "max_phase": 4.0, "first_approval": 2020, "research_codes": ["PT-1"], "trade_names": ["Pytestra"], "usan_stem": "-mab"},
+        "links": [
+            {"uniprot_id": acc_existing, "relation_role": "antibody_target", "moa": "X inhibitor", "action_type": "INHIBITOR", "needs_confirm": False},
+            {"uniprot_id": acc_new, "relation_role": "payload_target", "moa": "Y inhibitor", "needs_confirm": True,
+             "new_target": {"target_name": f"new target {unique_suffix}", "gene_symbol": "NEWG", "organism": "Homo sapiens",
+                            "keywords": [{"id": "KW-0808", "name": "Transferase", "category": "Molecular function"}],
+                            "subcellular_locations": [{"id": "SL-0086", "location": "Cytoplasm"}]}},
+        ],
+        "snapshots": {acc_new: [{"source": "uniprot", "source_id": acc_new, "source_version": "1", "fetched_at": "2026-08-19T00:00:00+00:00",
+                                 "payload": {"primaryAccession": acc_new}, "license": "CC BY 4.0 (UniProt)"}]},
+        "add_substance_xrefs": True,
+    }
+    r = await admin_client.post("/api/v1/targets/prefill/inn:apply", json=body)
+    assert r.status_code == 201, r.text
+    d = r.json()["data"]
+    assert [t["uniprot_id"] for t in d["created_targets"]] == [acc_new]
+    assert len(d["linked"]) == 2 and {l["target_code"] for l in d["linked"]} >= {tcode}
+    assert set(d["xrefs_added"]) >= {f"ChEMBL:CHEMBL{unique_suffix[:6]}", f"INN:pytestmab{unique_suffix}", "TRADE_NAME:Pytestra"}
+    # 新靶点带快照 + 关联可见
+    new_code = d["created_targets"][0]["target_code"]
+    snaps = (await admin_client.get(f"/api/v1/targets/{new_code}/snapshots")).json()["data"]
+    assert [s["source"] for s in snaps] == ["uniprot"]
+    links = (await admin_client.get(f"/api/v1/targets/by-molecule/{scode}")).json()["data"]
+    assert sorted(l["relation_role"] for l in links) == ["antibody_target", "payload_target"]
+    # 再应用一次：关联已存在 → skipped，标识符不重复
+    r2 = await admin_client.post("/api/v1/targets/prefill/inn:apply", json=body)
+    assert r2.status_code == 201
+    d2 = r2.json()["data"]
+    assert len(d2["linked"]) == 0 and len(d2["skipped"]) == 2 and d2["xrefs_added"] == []
+    # 物质标识符里能看到 ChEMBL
+    sub = (await admin_client.get(f"/api/v1/substances/{scode}?include=xrefs")).json()["data"]
+    assert any(x["xref_type"] == "ChEMBL" for x in sub.get("xrefs") or [])
+
+
+@pytest.mark.asyncio
+async def test_prefill_inn_endpoint_permission(readonly_client):
+    r = await readonly_client.post("/api/v1/targets/prefill/inn", json={"inn": "guselkumab"})
+    assert r.status_code == 403
