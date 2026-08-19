@@ -12,7 +12,7 @@ import {
   Button,
   message,
 } from 'antd';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeftOutlined,
@@ -53,7 +53,8 @@ const { Title, Text, Paragraph } = Typography;
 export function SubstanceDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('basic');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'basic');
 
   const {
     data: sub,

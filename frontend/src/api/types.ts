@@ -490,6 +490,7 @@ export interface SubstanceCreatePayload {
   notes?: string;
   protein?: ProteinExtensionInput;
   xrefs?: SubstanceXrefInput[];
+  extra?: Record<string, unknown>;
 }
 
 export interface SubstanceUpdatePayload {

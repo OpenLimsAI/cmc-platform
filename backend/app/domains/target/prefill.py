@@ -85,9 +85,11 @@ def extract_molecule(m: dict[str, Any]) -> dict[str, Any]:
         "molecule_hierarchy": m.get("molecule_hierarchy"),
         "biotherapeutic": {
             "description": bio.get("description"),
+            "helm_notation": bio.get("helm_notation"),
             "biocomponents": [
                 {"component_id": c.get("component_id"), "component_type": c.get("component_type"),
-                 "description": c.get("description"), "sequence_len": len(c.get("sequence") or "")}
+                 "description": c.get("description"), "organism": c.get("organism"),
+                 "sequence": c.get("sequence"), "sequence_len": len(c.get("sequence") or "")}
                 for c in (bio.get("biocomponents") or [])
             ],
         } if bio else None,

@@ -4,6 +4,7 @@ import {
   Breadcrumb,
   Button,
   Card,
+  Checkbox,
   Descriptions,
   Form,
   Input,
@@ -17,10 +18,12 @@ import {
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { CloudDownloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { substancesApi } from '@/api/substances';
+import { targetsApi, type InnPrefillResponse } from '@/api/targets';
+import { useAuthStore } from '@/stores/authStore';
 import { applyFormErrors } from '@/shared/utils/formErrors';
 import type {
   Confidentiality,
@@ -76,11 +79,92 @@ export function SubstanceCreatePage() {
   const hcSeq = Form.useWatch(['protein', 'heavy_chain_sequence'], form);
   const lcSeq = Form.useWatch(['protein', 'light_chain_sequence'], form);
 
+  // ============== INN 一键预填（生物类似药立项）：ChEMBL 分子 + 机制 → UniProt 靶点 ==============
+  const canLinkTargets = useAuthStore((st) => st.hasPermission('target:update'));
+  const [innQuery, setInnQuery] = useState('');
+  const [innPrefill, setInnPrefill] = useState<InnPrefillResponse | null>(null);
+  const [innSelected, setInnSelected] = useState<Record<string, boolean>>({});
+  const innMutation = useMutation({
+    mutationFn: (q: string) => targetsApi.prefillInn(q),
+    onSuccess: (r) => {
+      setInnPrefill(r);
+      if (r.outcome === 'REJECTED_NO_MOLECULE') {
+        message.warning(r.user_message ?? 'ChEMBL 查无此 INN，请手填');
+        return;
+      }
+      if (r.outcome === 'NEEDS_MANUAL_PICK') {
+        message.warning(r.user_message ?? '需人工挑选分子');
+        return;
+      }
+      if (r.outcome === 'ERROR_EXTERNAL_CALL') {
+        message.error('外部接口调用失败，请稍后再试');
+        return;
+      }
+      const m = r.molecule;
+      if (!m) return;
+      const desc = (m.biotherapeutic_description ?? '').replace(/^.*?\((.*)\)\s*$/, '$1') || undefined; // "Guselkumab (human mab)" → "human mab"
+      const patch: Partial<FormShape> = {
+        preferred_name_en: r.inn ? r.inn.charAt(0).toUpperCase() + r.inn.slice(1) : undefined,
+        modality: desc,
+      };
+      if (m.is_simple_mab) patch.substance_type = 'mab';
+      form.setFieldsValue(patch as never);
+      if (m.heavy_chain_sequence || m.light_chain_sequence) {
+        form.setFieldValue(['protein', 'heavy_chain_sequence'], m.heavy_chain_sequence ?? undefined);
+        form.setFieldValue(['protein', 'light_chain_sequence'], m.light_chain_sequence ?? undefined);
+      }
+      // 标识符：INN / ChEMBL / 商品名 / 研发代号（OTHER + 来源）
+      const xrefs = [
+        { xref_type: 'INN', xref_value: r.inn, xref_source: 'ChEMBL', is_primary: true },
+        ...(m.chembl_id ? [{ xref_type: 'ChEMBL', xref_value: m.chembl_id, xref_source: 'ChEMBL', is_primary: false }] : []),
+        ...m.trade_names.map((t) => ({ xref_type: 'TRADE_NAME', xref_value: t, xref_source: 'ChEMBL', is_primary: false })),
+        ...m.research_codes.map((c) => ({ xref_type: 'OTHER', xref_value: c, xref_source: 'ChEMBL RESEARCH_CODE', is_primary: false })),
+      ];
+      form.setFieldValue('xrefs', xrefs);
+      setInnSelected(Object.fromEntries(r.candidates.map((c, i) => [`${c.uniprot_id ?? 'x'}-${i}`, c.suggested_selected && !!c.uniprot_id])));
+      const notes: string[] = [];
+      if (!m.is_simple_mab) notes.push(`ChEMBL 分子类型 ${m.molecule_type ?? '未知'}（非"1 重链 + 1 轻链"的单抗结构），物质类型请人工选择`);
+      message.success(`已从 ChEMBL 带出 ${m.chembl_id}：${notes.length ? notes.join('；') : '类型/英文名/模态/重轻链序列/标识符已填，靶点将在保存后自动关联'}`, 8);
+    },
+    onError: (err: any) => message.error(err?.response?.data?.message ?? 'INN 查询失败'),
+  });
+
   const createMutation = useMutation({
     mutationFn: (payload: SubstanceCreatePayload) => substancesApi.create(payload),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       message.success(`物质 ${data.substance_code} 创建成功`);
-      navigate(`/substances/${data.substance_code}`);
+      // 保存后自动关联 INN 预填选中的靶点（缺的建草稿 + 快照；标识符已在建物质时写入，故不再回填）
+      const links = (innPrefill?.candidates ?? [])
+        .map((c, i) => ({ c, key: `${c.uniprot_id ?? 'x'}-${i}` }))
+        .filter(({ c, key }) => innSelected[key] && c.uniprot_id);
+      if (innPrefill && links.length && canLinkTargets) {
+        try {
+          const r = await targetsApi.applyInn({
+            substance_code: data.substance_code,
+            inn: innPrefill.inn,
+            molecule: innPrefill.molecule,
+            links: links.map(({ c }) => ({
+              uniprot_id: c.uniprot_id!,
+              relation_role: c.relation_role,
+              moa: c.moa,
+              action_type: c.action_type,
+              binding_epitope_or_domain: c.binding_epitope_or_domain,
+              chembl_mechanism_id: c.chembl_mechanism_id,
+              needs_confirm: c.needs_confirm,
+              new_target: c.existing ? null : c.new_target,
+            })),
+            snapshots: innPrefill.snapshots,
+            add_substance_xrefs: false,
+          });
+          message.success(
+            `靶点已关联 ${r.linked.length} 条${r.created_targets.length ? `，新建靶点草稿 ${r.created_targets.map((t) => t.target_code).join('、')}` : ''}${r.skipped.length ? `；跳过 ${r.skipped.length} 项` : ''}`,
+            8,
+          );
+        } catch (e: any) {
+          message.warning(`物质已建成，但靶点自动关联失败：${e?.response?.data?.message ?? '请到详情页「靶点」Tab 手动关联'}`, 8);
+        }
+      }
+      navigate(`/substances/${data.substance_code}${innPrefill ? '?tab=targets' : ''}`);
     },
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
@@ -136,6 +220,26 @@ export function SubstanceCreatePage() {
         description: values.description?.trim() || undefined,
         notes: values.notes?.trim() || undefined,
       };
+      if (innPrefill?.molecule) {
+        const m = innPrefill.molecule;
+        payload.extra = {
+          chembl_prefill: {
+            inn: innPrefill.inn,
+            chembl_id: m.chembl_id,
+            molecule_type: m.molecule_type,
+            max_phase: m.max_phase,
+            first_approval: m.first_approval,
+            usan_stem: m.usan_stem,
+            biotherapeutic_description: m.biotherapeutic_description,
+            atc_classifications: m.atc_classifications,
+            synonyms: m.synonyms,
+            cross_references: m.cross_references,
+            biocomponents: m.biocomponents.map((c) => ({ ...c, sequence: undefined })),
+            fetched_at: m.fetched_at,
+            license: 'CC BY-SA 3.0 (ChEMBL)',
+          },
+        };
+      }
 
       if (needsProteinStep && values.protein) {
         const p = values.protein;
@@ -214,6 +318,73 @@ export function SubstanceCreatePage() {
         >
           {/* ============== Step 1: 基本信息 ============== */}
           <div style={{ display: currentStepKey === 'basic' ? 'block' : 'none' }}>
+            <Card size="small" style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}
+              title="INN 一键预填（生物类似药立项）"
+              extra={<Text type="secondary">ChEMBL（分子/序列/机制）+ UniProt（靶点），约 5–20 秒</Text>}
+            >
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  placeholder="输入原研药 INN，如 guselkumab / pembrolizumab / trastuzumab"
+                  value={innQuery}
+                  onChange={(e) => setInnQuery(e.target.value)}
+                  onPressEnter={() => innQuery.trim() && innMutation.mutate(innQuery.trim())}
+                />
+                <Button type="primary" icon={<CloudDownloadOutlined />} loading={innMutation.isPending}
+                  onClick={() => innQuery.trim() && innMutation.mutate(innQuery.trim())}>
+                  预填
+                </Button>
+              </Space.Compact>
+              <Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
+                自动带出：物质类型（单抗）、英文名、模态、重/轻链序列（第 2 步）、标识符（第 3 步）、靶点与机制（保存后自动关联）。
+                内部代号、中文名、表达系统/宿主细胞、同种型等仍需手填。创新药（双抗/ADC 等）请直接手填。
+              </Text>
+              {innPrefill?.molecule && (
+                <div style={{ marginTop: 10 }}>
+                  <Space wrap size={[6, 6]}>
+                    <Tag color="blue">{innPrefill.molecule.chembl_id}</Tag>
+                    <Tag>{innPrefill.molecule.molecule_type ?? '—'}</Tag>
+                    {innPrefill.molecule.is_simple_mab ? <Tag color="green">单抗（1 重链 + 1 轻链）</Tag> : <Tag color="orange">非标准单抗结构，类型请人工选</Tag>}
+                    {innPrefill.molecule.first_approval ? <Tag>首批 {innPrefill.molecule.first_approval}</Tag> : null}
+                    {innPrefill.molecule.trade_names.map((t) => <Tag key={t} color="purple">{t}</Tag>)}
+                    {innPrefill.molecule.heavy_chain_sequence ? <Tag>HC {innPrefill.molecule.heavy_chain_sequence.length} aa</Tag> : null}
+                    {innPrefill.molecule.light_chain_sequence ? <Tag>LC {innPrefill.molecule.light_chain_sequence.length} aa</Tag> : null}
+                  </Space>
+                  {innPrefill.warnings.map((w, i) => (
+                    <Alert key={i} type="warning" showIcon message={w} style={{ marginTop: 8 }} />
+                  ))}
+                  {innPrefill.candidates.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <Text strong>保存后将自动关联的靶点（可取消勾选）：</Text>
+                      <div style={{ marginTop: 4 }}>
+                        {innPrefill.candidates.map((c, i) => {
+                          const key = `${c.uniprot_id ?? 'x'}-${i}`;
+                          return (
+                            <div key={key} style={{ padding: '2px 0' }}>
+                              <Checkbox
+                                checked={!!innSelected[key]}
+                                disabled={!c.uniprot_id || !canLinkTargets}
+                                onChange={(e) => setInnSelected((m) => ({ ...m, [key]: e.target.checked }))}
+                              >
+                                <Text strong>{c.target_name ?? c.uniprot_id}</Text>
+                                {c.gene_symbol ? <Text type="secondary"> {c.gene_symbol}</Text> : null}{' '}
+                                <Text type="secondary">{c.uniprot_id}</Text>{' '}
+                                {c.existing ? <Tag color="green">已有 {c.existing.target_code}</Tag> : <Tag color="blue">将新建草稿</Tag>}
+                                {c.relation_role === 'payload_target' && <Tag color="orange">载荷靶点</Tag>}
+                                {c.binding_subunit_hint === 'LIKELY' && <Tag color="gold">结合亚基（可能）</Tag>}
+                                {c.binding_subunit_hint === 'UNLIKELY' && <Tag>非结合亚基（可能）</Tag>}
+                                <Text type="secondary"> · {c.moa ?? '—'}</Text>
+                              </Checkbox>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {!canLinkTargets && <Text type="secondary">（你没有 target:update 权限，靶点不会自动关联）</Text>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
             <Form.Item
               name="substance_type"
               label="物质类型"
@@ -258,7 +429,7 @@ export function SubstanceCreatePage() {
               showIcon
               style={{ marginBottom: 16 }}
               message="靶点不在这里手填"
-              description="保存后到物质详情页「靶点」Tab 关联靶点（靶点按 UniProt 标准自动维护，可多个、可标注抗体/载荷角色与结合表位）。"
+              description="用上方「INN 一键预填」可在保存后自动关联；或保存后到物质详情页「靶点」Tab 手动关联（靶点按 UniProt 标准自动维护）。"
             />
             <Space size="large" style={{ display: 'flex', width: '100%' }}>
               <Form.Item name="modality" label="模态描述" style={{ flex: 1 }} rules={[{ max: 64 }]}>

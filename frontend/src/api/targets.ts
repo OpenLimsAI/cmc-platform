@@ -192,6 +192,14 @@ export interface TargetPrefillResponse {
 }
 
 // ---- INN 全链路预填（ChEMBL → UniProt）----
+export interface InnPrefillBiocomponent {
+  component_id: number | null;
+  component_type: string | null;
+  description: string | null;
+  organism: string | null;
+  sequence: string | null;
+  sequence_len: number;
+}
 export interface InnPrefillMolecule {
   chembl_id: string | null;
   pref_name: string | null;
@@ -201,6 +209,16 @@ export interface InnPrefillMolecule {
   research_codes: string[];
   trade_names: string[];
   usan_stem: string | null;
+  usan_stem_definition: string | null;
+  biotherapeutic_description: string | null;
+  biocomponents: InnPrefillBiocomponent[];
+  atc_classifications: string[];
+  synonyms: [string | null, string | null][];
+  cross_references: [string | null, string | null][];
+  fetched_at: string | null;
+  heavy_chain_sequence: string | null;
+  light_chain_sequence: string | null;
+  is_simple_mab: boolean | null;
 }
 export interface InnPrefillCandidate {
   uniprot_id: string | null;

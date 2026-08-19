@@ -306,6 +306,15 @@ class InnPrefillCandidate(BaseModel):
     suggested_selected: bool = True           # 前端默认勾选建议（UNLIKELY 亚基默认不勾）
 
 
+class InnPrefillBiocomponent(BaseModel):
+    component_id: int | None = None
+    component_type: str | None = None   # Protein / None（二硫键、糖基化位点等结构注释）
+    description: str | None = None      # Heavy chain / Light chain / Heavy chain: anti-FX ...
+    organism: str | None = None
+    sequence: str | None = None
+    sequence_len: int = 0
+
+
 class InnPrefillMolecule(BaseModel):
     chembl_id: str | None = None
     pref_name: str | None = None
@@ -315,6 +324,17 @@ class InnPrefillMolecule(BaseModel):
     research_codes: list[str] = []
     trade_names: list[str] = []
     usan_stem: str | None = None
+    usan_stem_definition: str | None = None
+    biotherapeutic_description: str | None = None   # 如 "Guselkumab (human mab)"
+    biocomponents: list[InnPrefillBiocomponent] = []
+    atc_classifications: list[str] = []
+    synonyms: list[list[str | None]] = []            # [(name, syn_type)]
+    cross_references: list[list[str | None]] = []    # [(src, id)]
+    fetched_at: str | None = None
+    # 单抗立项辅助：从组分推断
+    heavy_chain_sequence: str | None = None
+    light_chain_sequence: str | None = None
+    is_simple_mab: bool | None = None                # Antibody 且恰好 1 条重链 + 1 条轻链
 
 
 class InnPrefillResponse(BaseModel):

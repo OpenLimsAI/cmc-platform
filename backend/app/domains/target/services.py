@@ -505,12 +505,29 @@ class TargetService:
             r = await prefill_inn(inn, client, lookup)
 
         mol = r.get("molecule") or {}
-        molecule = InnPrefillMolecule(
-            chembl_id=mol.get("chembl_id"), pref_name=mol.get("pref_name"), molecule_type=mol.get("molecule_type"),
-            max_phase=mol.get("max_phase"), first_approval=mol.get("first_approval"),
-            research_codes=mol.get("research_codes") or [], trade_names=mol.get("trade_names") or [],
-            usan_stem=mol.get("usan_stem"),
-        ) if mol else None
+        molecule = None
+        if mol:
+            bio = mol.get("biotherapeutic") or {}
+            comps = bio.get("biocomponents") or []
+            proteins = [c for c in comps if (c.get("component_type") or "").lower() == "protein" and c.get("sequence")]
+            hcs = [c for c in proteins if "heavy" in (c.get("description") or "").lower()]
+            lcs = [c for c in proteins if "light" in (c.get("description") or "").lower()]
+            is_simple_mab = (mol.get("molecule_type") == "Antibody" and len(hcs) == 1 and len(lcs) == 1 and len(proteins) == 2)
+            molecule = InnPrefillMolecule(
+                chembl_id=mol.get("chembl_id"), pref_name=mol.get("pref_name"), molecule_type=mol.get("molecule_type"),
+                max_phase=mol.get("max_phase"), first_approval=mol.get("first_approval"),
+                research_codes=mol.get("research_codes") or [], trade_names=mol.get("trade_names") or [],
+                usan_stem=mol.get("usan_stem"), usan_stem_definition=mol.get("usan_stem_definition"),
+                biotherapeutic_description=bio.get("description"),
+                biocomponents=comps,  # type: ignore[arg-type]
+                atc_classifications=mol.get("atc_classifications") or [],
+                synonyms=[list(x) for x in (mol.get("synonyms") or [])],
+                cross_references=[list(x) for x in (mol.get("cross_references") or [])],
+                fetched_at=r.get("fetched_at"),
+                heavy_chain_sequence=hcs[0]["sequence"] if len(hcs) == 1 else None,
+                light_chain_sequence=lcs[0]["sequence"] if len(lcs) == 1 else None,
+                is_simple_mab=is_simple_mab,
+            )
         pf = r.get("prefill_form") or {}
         new_by_acc = {t["uniprot_id"]: t for t in pf.get("targets_new") or []}
         candidates: list[InnPrefillCandidate] = []
