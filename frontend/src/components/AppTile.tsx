@@ -4,6 +4,7 @@ import {
   CalculatorOutlined,
   DashboardOutlined,
   DatabaseOutlined,
+  DotChartOutlined,
   ExperimentOutlined,
   LineChartOutlined,
 } from '@ant-design/icons'
@@ -20,6 +21,7 @@ const ICONS: Record<string, ReactNode> = {
   'line-chart': <LineChartOutlined />,
   dashboard: <DashboardOutlined />,
   calculator: <CalculatorOutlined />,
+  'dot-chart': <DotChartOutlined />,
 }
 
 export default function AppTile({ app }: { app: HubApp }) {

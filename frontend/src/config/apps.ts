@@ -75,6 +75,16 @@ export const HUB_APPS: HubApp[] = [
     color: '#fa8c16',
   },
   {
+    id: 'lcms',
+    name: 'LC-MS/MS 定量看板',
+    description: 'AB SCIEX 靶向定量数据解析与质控诊断',
+    icon: 'dot-chart',
+    path: '/lcms/',
+    requires: ['CMC_LCMS_SCIEX_USER'],
+    status: 'live',
+    color: '#eb2f96',
+  },
+  {
     id: 'cost',
     name: '成本模型',
     description: '工艺成本测算与情景比较',
