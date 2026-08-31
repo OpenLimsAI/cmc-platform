@@ -17,6 +17,7 @@ export interface BatchCreate {
   project_no?: string | null;
   originator_batch_no?: string | null;
   aliquot_date?: string | null;
+  aliquot_spec?: string | null;
 }
 
 export interface Batch {
@@ -42,6 +43,7 @@ export interface Batch {
   project_no: string | null;
   originator_batch_no: string | null;
   aliquot_date: string | null;
+  aliquot_spec: string | null;
   created_at: string;
 }
 
@@ -115,6 +117,7 @@ export interface BatchMetaUpdate {
   project_no?: string | null;
   originator_batch_no?: string | null;
   aliquot_date?: string | null;
+  aliquot_spec?: string | null;
   reviewer_username: string;
   reviewer_password: string;
 }
@@ -165,6 +168,7 @@ export interface BulkIntakeRow {
   project_no?: string | null;
   originator_batch_no?: string | null;
   aliquot_date?: string | null;
+  aliquot_spec?: string | null;
   remark?: string | null;
 }
 

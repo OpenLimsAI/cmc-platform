@@ -96,6 +96,7 @@ export interface OccupyRequest {
   project_no?: string | null;
   originator_batch_no?: string | null;
   aliquot_date?: string | null;
+  aliquot_spec?: string | null;
   remark?: string | null;
 }
 
@@ -183,6 +184,7 @@ export interface OccupyFromRequest {
   project_no?: string | null;
   originator_batch_no?: string | null;
   aliquot_date?: string | null;
+  aliquot_spec?: string | null;
   remark?: string | null;
 }
 

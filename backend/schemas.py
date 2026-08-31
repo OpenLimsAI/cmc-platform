@@ -188,6 +188,7 @@ class OccupyRequest(BaseModel):
     project_no: Optional[str] = None
     originator_batch_no: Optional[str] = None
     aliquot_date: Optional[date] = None
+    aliquot_spec: Optional[str] = None
     remark: Optional[str] = None
 
 
@@ -211,6 +212,7 @@ class OccupyFromRequest(BaseModel):
     project_no: Optional[str] = None
     originator_batch_no: Optional[str] = None
     aliquot_date: Optional[date] = None
+    aliquot_spec: Optional[str] = None
     remark: Optional[str] = None
 
 
@@ -237,6 +239,7 @@ class BulkIntakeRow(BaseModel):
     project_no: Optional[str] = None
     originator_batch_no: Optional[str] = None
     aliquot_date: Optional[date] = None
+    aliquot_spec: Optional[str] = None
     remark: Optional[str] = None
 
 
@@ -390,6 +393,7 @@ class BatchBase(BaseModel):
     project_no: Optional[str] = None                 # 标准品 项目编号
     originator_batch_no: Optional[str] = None        # 标准品 原研药批号
     aliquot_date: Optional[date] = None              # 标准品 分装日期
+    aliquot_spec: Optional[str] = None         # 标准品 分装规格(数值+单位, 例 "100 uL/支")
 
 
 class BatchCreate(BatchBase):
@@ -476,6 +480,7 @@ class TxnOut(ORMBase):
     project_no: Optional[str] = None
     originator_batch_no: Optional[str] = None
     aliquot_date: Optional[date] = None
+    aliquot_spec: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -512,6 +517,7 @@ class BatchMetaUpdate(BaseModel):
     project_no: Optional[str] = None
     originator_batch_no: Optional[str] = None
     aliquot_date: Optional[date] = None
+    aliquot_spec: Optional[str] = None
     # 复核签名:第二位库管员/管理员的账号密码(向 MDM 验证身份,证明本人)
     reviewer_username: str
     reviewer_password: str

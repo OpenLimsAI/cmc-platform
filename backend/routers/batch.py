@@ -63,6 +63,7 @@ def list_batches(
             "project_no": batch.project_no,
             "originator_batch_no": batch.originator_batch_no,
             "aliquot_date": batch.aliquot_date,
+            "aliquot_spec": batch.aliquot_spec,
             "created_at": batch.created_at,
             "current_qty": Decimal(qty),
             "location_name": loc,
@@ -128,6 +129,7 @@ def create_batch(
         project_no=payload.project_no,
         originator_batch_no=payload.originator_batch_no,
         aliquot_date=payload.aliquot_date,
+        aliquot_spec=payload.aliquot_spec,
     )
     write_audit(
         db, current, "batch.create",
@@ -165,6 +167,7 @@ def create_batch(
         "project_no": batch.project_no,
         "originator_batch_no": batch.originator_batch_no,
         "aliquot_date": batch.aliquot_date,
+        "aliquot_spec": batch.aliquot_spec,
         "created_at": batch.created_at,
         "current_qty": qty,
         "location_name": batch.location.name if batch.location else None,
@@ -198,6 +201,7 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
         "project_no": b.project_no,
         "originator_batch_no": b.originator_batch_no,
         "aliquot_date": b.aliquot_date,
+        "aliquot_spec": b.aliquot_spec,
         "created_at": b.created_at,
         "current_qty": qty,
         "location_name": crud.batch_cell_location_names(db, [b.batch_id]).get(b.batch_id)
@@ -278,6 +282,7 @@ def update_batch(
         "project_no": b.project_no,
         "originator_batch_no": b.originator_batch_no,
         "aliquot_date": b.aliquot_date,
+        "aliquot_spec": b.aliquot_spec,
         "created_at": b.created_at,
         "current_qty": qty,
         "location_name": crud.batch_cell_location_names(db, [b.batch_id]).get(b.batch_id)

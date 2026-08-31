@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS batch (
     project_no             VARCHAR(100),    -- 标准品项目编号
     originator_batch_no    VARCHAR(100),    -- 标准品原研药批号
     aliquot_date           DATE,            -- 标准品分装日期
+    aliquot_spec           VARCHAR(50),     -- 标准品分装规格(数值+单位, 例 "100 uL/支")
     intake_operator_name   VARCHAR(128),    -- 入库登记操作人姓名(快照)
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_batch_material_no_loc UNIQUE (material_id, batch_no, location_id)
@@ -308,6 +309,7 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS responsible_person      VARCHAR(50);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS project_no              VARCHAR(100);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS originator_batch_no     VARCHAR(100);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS aliquot_date            DATE;
+ALTER TABLE batch ADD COLUMN IF NOT EXISTS aliquot_spec            VARCHAR(50);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_operator_name    VARCHAR(128);
 
 -- audit_log: v2.0 认证对接 MDM 后,user_id 为 MDM user_id,

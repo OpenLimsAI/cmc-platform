@@ -24,6 +24,7 @@ type FormValues = {
   responsible_person?: string | null;
   project_no?: string | null;
   originator_batch_no?: string | null;
+  aliquot_spec?: string | null;
   reviewer_username?: string;
   reviewer_password?: string;
 };
@@ -41,6 +42,7 @@ function toForm(b: Batch): FormValues {
     responsible_person: b.responsible_person,
     project_no: b.project_no,
     originator_batch_no: b.originator_batch_no,
+    aliquot_spec: b.aliquot_spec,
   };
 }
 
@@ -88,7 +90,7 @@ export default function BatchEditModal({
     const EDITABLE = [
       "expiry_date", "received_date", "aliquot_date", "remark", "concentration",
       "extinction_coefficient", "serial_no", "asset_no", "responsible_person",
-      "project_no", "originator_batch_no",
+      "project_no", "originator_batch_no", "aliquot_spec",
     ] as const;
     const changes: Record<string, string | number | null> = {};
     const orig = toForm(batch);
@@ -138,6 +140,9 @@ export default function BatchEditModal({
           </Form.Item>
           <Form.Item name="received_date" label="入库日期">
             <DatePicker style={{ width: "100%" }} />
+          </Form.Item>
+          <Form.Item name="aliquot_spec" label="分装规格">
+            <Input allowClear placeholder="如 100 uL/支" />
           </Form.Item>
           <Form.Item name="originator_batch_no" label="原研药批号">
             <Input allowClear />

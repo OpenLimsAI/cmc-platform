@@ -105,6 +105,7 @@ interface BatchGroup {
   concUnit?: string;
   originatorBatchNo?: string;
   aliquotDate?: Dayjs | null;
+  aliquotSpec?: number;   // 分装规格数值,单位暂固定 uL/支
 }
 
 function IntakeForm() {
@@ -277,6 +278,7 @@ function IntakeForm() {
               project_no: projectNo.trim() || undefined,
               originator_batch_no: g.originatorBatchNo?.trim() || undefined,
               aliquot_date: g.aliquotDate?.format("YYYY-MM-DD") ?? undefined,
+              aliquot_spec: g.aliquotSpec != null ? `${g.aliquotSpec} uL/支` : undefined,
             }
           : {};
         const tf = activeTab === "column"
@@ -577,9 +579,13 @@ function IntakeForm() {
                   </>
                 )}
 
-                {/* 标准品专属:浓度/活性(数值) + 单位 */}
+                {/* 标准品专属:分装规格(单位暂固定 uL/支) + 浓度/活性(数值) + 单位 */}
                 {activeTab === "standard" && (
                   <>
+                    <Labeled label="分装规格">
+                      <InputNumber style={{ width: 150 }} placeholder="数值" min={0} addonAfter="uL/支" value={g.aliquotSpec}
+                        onChange={(val) => patchGroup(g.key, { aliquotSpec: val ?? undefined })} />
+                    </Labeled>
                     <Labeled label="浓度/活性">
                       <InputNumber style={{ width: 140 }} placeholder="数值" value={g.concValue}
                         onChange={(val) => patchGroup(g.key, { concValue: val ?? undefined })} />

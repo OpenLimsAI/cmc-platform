@@ -867,7 +867,7 @@ def occupy_cells(
     intake_type: Optional[str] = None, concentration: Optional[str] = None,
     extinction_coefficient: Optional[Decimal] = None,
     project_no: Optional[str] = None, originator_batch_no: Optional[str] = None,
-    aliquot_date=None, remark: Optional[str] = None,
+    aliquot_date=None, remark: Optional[str] = None, aliquot_spec: Optional[str] = None,
     intake_operator_name: Optional[str] = None,
 ) -> dict:
     """把若干空孔分配给某物料批次: 校验空孔 → 找/建批次(锚冰箱 location) →
@@ -929,7 +929,7 @@ def occupy_cells(
             initial_qty=Decimal(n), remark=remark, intake_type=intake_type,
             concentration=concentration, extinction_coefficient=extinction_coefficient,
             project_no=project_no, originator_batch_no=originator_batch_no,
-            aliquot_date=aliquot_date, intake_operator_name=intake_operator_name,
+            aliquot_date=aliquot_date, intake_operator_name=intake_operator_name, aliquot_spec=aliquot_spec,
         )
         db.add(batch)
         db.flush()
@@ -959,7 +959,7 @@ def occupy_from_start(
     intake_type: Optional[str] = None, concentration: Optional[str] = None,
     extinction_coefficient: Optional[Decimal] = None,
     project_no: Optional[str] = None, originator_batch_no: Optional[str] = None,
-    aliquot_date=None, remark: Optional[str] = None,
+    aliquot_date=None, remark: Optional[str] = None, aliquot_spec: Optional[str] = None,
     intake_operator_name: Optional[str] = None,
 ) -> dict:
     """从起始孔起,沿地址顺序取连续 count 个孔(须全部为空,中间有占用即报错),
@@ -994,7 +994,7 @@ def occupy_from_start(
         sample_labels=sample_labels, intake_type=intake_type,
         concentration=concentration, extinction_coefficient=extinction_coefficient,
         project_no=project_no, originator_batch_no=originator_batch_no,
-        aliquot_date=aliquot_date, remark=remark,
+        aliquot_date=aliquot_date, remark=remark, aliquot_spec=aliquot_spec,
         intake_operator_name=intake_operator_name,
     )
 
@@ -1226,7 +1226,7 @@ def lock_batch(db: Session, batch_id: int) -> None:
 BATCH_EDITABLE_FIELDS = {
     "expiry_date", "received_date", "remark", "concentration",
     "extinction_coefficient", "serial_no", "asset_no",
-    "responsible_person", "project_no", "originator_batch_no", "aliquot_date",
+    "responsible_person", "project_no", "originator_batch_no", "aliquot_date", "aliquot_spec",
 }
 
 
@@ -1282,6 +1282,7 @@ def create_batch_with_initial_in(
     project_no: Optional[str] = None,
     originator_batch_no: Optional[str] = None,
     aliquot_date=None,
+    aliquot_spec: Optional[str] = None,
     intake_operator_name: Optional[str] = None,
 ) -> Batch:
     """新建批次并同步写入首笔入库 txn(IN)。
@@ -1312,6 +1313,7 @@ def create_batch_with_initial_in(
         project_no=project_no,
         originator_batch_no=originator_batch_no,
         aliquot_date=aliquot_date,
+        aliquot_spec=aliquot_spec,
         intake_operator_name=intake_operator_name,
     )
     db.add(b)
@@ -1382,7 +1384,7 @@ def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Op
                 concentration=r.concentration, extinction_coefficient=r.extinction_coefficient,
                 serial_no=r.serial_no, asset_no=r.asset_no, responsible_person=r.responsible_person,
                 project_no=r.project_no, originator_batch_no=r.originator_batch_no,
-                aliquot_date=r.aliquot_date, intake_operator_name=intake_operator_name,
+                aliquot_date=r.aliquot_date, intake_operator_name=intake_operator_name, aliquot_spec=r.aliquot_spec,
             )
             results[i] = {"index": i, "status": "created", "batch_id": b.batch_id, "message": None}
             created += 1
@@ -1523,6 +1525,7 @@ def list_txns(
             Batch.project_no,
             Batch.originator_batch_no,
             Batch.aliquot_date,
+            Batch.aliquot_spec,
             Material.material_id,
             Material.material_code,
             Material.name_cn,
