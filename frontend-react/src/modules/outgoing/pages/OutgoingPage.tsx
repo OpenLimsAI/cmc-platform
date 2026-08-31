@@ -209,6 +209,12 @@ export default function OutgoingPage() {
             width: 140,
             render: (v: string | null) => v || "—",
           },
+          {
+            title: "分装规格",
+            dataIndex: "aliquot_spec",
+            width: 110,
+            render: (v: string | null) => v || "—",
+          },
           { title: "位置", dataIndex: "location_name", width: 160 },
           {
             title: "当前库存",
@@ -250,6 +256,7 @@ export default function OutgoingPage() {
             <Descriptions size="small" column={2} style={{ marginBottom: 12 }}>
               <Descriptions.Item label="位置">{selectedBatch.location_name}</Descriptions.Item>
               <Descriptions.Item label="当前库存">{selectedBatch.current_qty} {selectedBatch.unit}</Descriptions.Item>
+              {selectedBatch.aliquot_spec && <Descriptions.Item label="分装规格">{selectedBatch.aliquot_spec}</Descriptions.Item>}
             </Descriptions>
 
             {isCellBatch && (

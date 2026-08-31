@@ -128,6 +128,7 @@ export default function StockPage() {
                 { title: "物料编码", dataIndex: "material_code", width: 120 },
                 { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
                 { title: "批号", dataIndex: "batch_no", width: 140 },
+                { title: "分装规格", dataIndex: "aliquot_spec", width: 110, render: (v: string | null) => v || "—" },
                 { title: "位置", dataIndex: "location_name", width: 160 },
                 { title: "单位", dataIndex: "unit", width: 60 },
                 {

@@ -107,6 +107,12 @@ export default function MaterialDetailModal({ materialId, open, onClose }: Props
                 width: 140,
                 render: (v: string | null) => v || "—",
               },
+              {
+                title: "分装规格",
+                dataIndex: "aliquot_spec",
+                width: 110,
+                render: (v: string | null) => v || "—",
+              },
               { title: "位置", dataIndex: "location_name", width: 180 },
               {
                 title: "当前库存",
