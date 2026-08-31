@@ -500,6 +500,7 @@ class StockByMaterial(BaseModel):
     safety_stock: Decimal
     total_qty: Decimal
     low_stock: bool  # total_qty < safety_stock 且 safety_stock > 0
+    aliquot_specs: Optional[str] = None  # 标准品:在库批次的分装规格去重拼串(例 "100 µL/支、200 µL/支")
 
 
 class BatchMetaUpdate(BaseModel):

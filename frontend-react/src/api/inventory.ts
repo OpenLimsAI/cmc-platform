@@ -69,6 +69,7 @@ export interface StockByMaterial {
   safety_stock: number;
   total_qty: number;
   low_stock: boolean;
+  aliquot_specs: string | null;  // 标准品:在库批次分装规格去重拼串
 }
 
 export interface StockByBatch {

@@ -1612,6 +1612,24 @@ def stock_by_material(
         ))
     stmt = stmt.order_by(Material.material_code, Material.material_id)
 
+    # 标准品分装规格:同一物料下"在库(数量>0)且填了分装规格"的批次,去重后拼成一串
+    # (例 "100 µL/支、200 µL/支"),供按物料视图直接展示;过期口径与 total_qty 一致
+    per_batch_qty = (
+        select(InventoryTxn.batch_id.label("batch_id"), func.sum(InventoryTxn.qty).label("q"))
+        .group_by(InventoryTxn.batch_id).subquery()
+    )
+    spec_stmt = (
+        select(Batch.material_id, Batch.aliquot_spec)
+        .join(per_batch_qty, per_batch_qty.c.batch_id == Batch.batch_id)
+        .where(Batch.aliquot_spec.isnot(None), per_batch_qty.c.q > 0)
+        .distinct()
+    )
+    if exclude_expired:
+        spec_stmt = spec_stmt.where(or_(Batch.expiry_date.is_(None), Batch.expiry_date >= date.today()))
+    specs_by_material: dict[int, list[str]] = {}
+    for mid, spec in db.execute(spec_stmt).all():
+        specs_by_material.setdefault(mid, []).append(spec)
+
     out = []
     for row in db.execute(stmt).all():
         total_qty = Decimal(row.total_qty)
@@ -1619,7 +1637,9 @@ def stock_by_material(
             continue
         safety = Decimal(row.safety_stock or 0)
         low = bool(safety > 0 and total_qty < safety)
+        specs = sorted(specs_by_material.get(row.material_id, []))
         out.append({
+            "aliquot_specs": "、".join(specs) if specs else None,
             "material_id": row.material_id,
             "material_code": row.material_code,
             "name_cn": row.name_cn,

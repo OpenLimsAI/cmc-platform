@@ -83,6 +83,11 @@ export default function StockPage() {
                 { title: "物料名称", dataIndex: "name_cn", ellipsis: true },
                 { title: "生产商", dataIndex: "manufacturer", width: 120, ellipsis: true },
                 { title: "规格型号", dataIndex: "spec_model", width: 150, ellipsis: true },
+                // 标准品专属:在库批次的分装规格(多种时顿号分隔),仅筛选"标准品"时显示
+                ...(materialType === "standard"
+                  ? [{ title: "分装规格", dataIndex: "aliquot_specs", width: 160, ellipsis: true,
+                       render: (v: string | null) => v || "—" }]
+                  : []),
                 { title: "单位", dataIndex: "unit", width: 60 },
                 {
                   title: "总库存",
