@@ -52,6 +52,8 @@ function norm(field: string, v: unknown): string | number | null {
   if ((DATE_FIELDS as readonly string[]).includes(field)) {
     return (v as dayjs.Dayjs).format("YYYY-MM-DD");
   }
+  // 后端 Decimal 到前端是字符串("1.50"),输入框给的是数字(1.5):统一成数字再比,否则一碰就算"改动"
+  if (field === "extinction_coefficient") return Number(v);
   return v as string | number;
 }
 
@@ -138,7 +140,7 @@ export default function BatchEditModal({
           <Form.Item name="expiry_date" label="有效期">
             <DatePicker style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item name="received_date" label="入库日期">
+          <Form.Item name="received_date" label="入库日期" rules={[{ required: true, message: "入库日期不能为空" }]}>
             <DatePicker style={{ width: "100%" }} />
           </Form.Item>
           <Form.Item name="aliquot_spec" label="分装规格">

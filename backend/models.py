@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List
@@ -29,7 +30,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import validates, Mapped, mapped_column, relationship
 
 from database import Base
 
@@ -61,12 +62,13 @@ class Location(Base):
     )
 
     location_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    room_no: Mapped[str] = mapped_column(String(20), nullable=False)
-    cabinet_no: Mapped[str] = mapped_column(String(20), nullable=False)
+    # 与 storage_node.label(≤80)同宽:位置树改名会把新名字写到这两列,不能比 label 窄
+    room_no: Mapped[str] = mapped_column(String(80), nullable=False)
+    cabinet_no: Mapped[str] = mapped_column(String(80), nullable=False)
     layer_no: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     # 生成列;ORM 只读不写
     name: Mapped[str] = mapped_column(
-        String(80),
+        String(200),
         Computed("room_no || '-' || cabinet_no || '-L' || layer_no", persisted=True),
     )
     storage_condition: Mapped[Optional[str]] = mapped_column(String(50))
@@ -187,6 +189,9 @@ class Material(Base):
 # ---------------------------------------------------------------------------
 # 批次
 # ---------------------------------------------------------------------------
+_ALIQUOT_SPEC_RE = re.compile(r"^(\d+(?:\.\d+)?)\s*(\S.*)$")
+
+
 class Batch(Base):
     __tablename__ = "batch"
     __table_args__ = (
@@ -227,6 +232,20 @@ class Batch(Base):
     material: Mapped["Material"] = relationship(back_populates="batches")
     location: Mapped["Location"] = relationship()
     txns: Mapped[List["InventoryTxn"]] = relationship(back_populates="batch")
+
+    @validates("aliquot_spec")
+    def _normalize_aliquot_spec(self, _key: str, v: Optional[str]) -> Optional[str]:
+        """分装规格写库前统一写法,避免同一规格因空格/字符差异被当成两种
+        (库存按物料汇总时按字符串去重):去首尾空格;微升符号统一为 µ(U+00B5);
+        数值与单位之间恰好一个空格。例 "100µL/支" / "100 uL/支" → "100 µL/支"。"""
+        if v is None:
+            return None
+        s = str(v).strip()
+        if not s:
+            return None
+        s = s.replace("μ", "µ").replace("uL", "µL")
+        m = _ALIQUOT_SPEC_RE.match(s)
+        return f"{m.group(1)} {m.group(2)}" if m else s
 
 
 # ---------------------------------------------------------------------------

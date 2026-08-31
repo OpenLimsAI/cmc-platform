@@ -93,7 +93,7 @@ export default function StockPage() {
                   title: "总库存",
                   dataIndex: "total_qty",
                   width: 100,
-                  sorter: (a, b) => a.total_qty - b.total_qty,
+                  sorter: (a, b) => Number(a.total_qty) - Number(b.total_qty),
                 },
                 {
                   title: "安全库存",

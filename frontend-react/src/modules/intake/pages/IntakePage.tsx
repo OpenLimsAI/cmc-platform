@@ -175,6 +175,8 @@ function IntakeForm() {
   const onCodePick = async (value: string, opt: { material?: Material }) => {
     if (value === "__mdm__") {
       const code = materialCode.trim();
+      // antd 选中选项时会先把 value("__mdm__")写进输入框;立刻还原成编码本身,失败时也不会残留怪串
+      setMaterialCode(code);
       setResolving(true); setNotFoundCode(null);
       try {
         await mdmLookup(code);
@@ -288,7 +290,7 @@ function IntakeForm() {
             : {};
 
         const bulkRows: Omit<BulkIntakeRow, "material_id">[] = [];
-        for (const p of g.positions) {
+        for (const [pi, p] of g.positions.entries()) {
           if (p.freezer) {
             if (!p.freezerSel) { message.warning(`批次「${g.batchNo}」的 -80℃ 冰箱尚未选孔`); return; }
             anyPos = true;
@@ -309,7 +311,10 @@ function IntakeForm() {
                 ...base, material_id: materialId, cell_node_ids: sel.cellIds,
               }).then((r) => ({ kind: "cells", count: r.data.count })));
             }
-          } else if (p.locationId && (p.qty ?? 0) > 0) {
+          } else if (p.locationId || (p.qty ?? 0) > 0) {
+            // 半填的行(有位置没数量 / 有数量没位置)必须拦下,不能悄悄丢掉后提示"入库成功"
+            if (!p.locationId) { message.warning(`批次「${g.batchNo}」第 ${pi + 1} 个存放位置未选到具体层/位`); return; }
+            if (!((p.qty ?? 0) > 0)) { message.warning(`批次「${g.batchNo}」第 ${pi + 1} 个存放位置未填数量`); return; }
             anyPos = true;
             bulkRows.push({
               batch_no: g.batchNo, expiry_date: expiry,

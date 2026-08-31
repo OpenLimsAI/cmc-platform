@@ -267,6 +267,20 @@ class BulkIntakeResult(BaseModel):
 # ---------------------------------------------------------------------------
 # Material
 # ---------------------------------------------------------------------------
+def _validate_category(v):
+    """物料分类只能取 CATEGORY_VALUES 里的值(新建/修改入参用;输出模型不校验)。"""
+    if v is None:
+        return None
+    v = str(v).strip()
+    if not v:
+        return None
+    if v not in CATEGORY_VALUES:
+        raise ValueError(
+            f"分类 '{v}' 不在允许集合中，合法值: {sorted(CATEGORY_VALUES)}"
+        )
+    return v
+
+
 def _validate_hazard_class(v: Optional[List[str]]) -> Optional[List[str]]:
     """限制危化品分类只能取预设的 5 个枚举值,去重保序。"""
     if v is None:
@@ -312,16 +326,7 @@ class MaterialBase(BaseModel):
     @field_validator("category", mode="before")
     @classmethod
     def _cat(cls, v):
-        if v is None:
-            return None
-        v = str(v).strip()
-        if not v:
-            return None
-        if v not in CATEGORY_VALUES:
-            raise ValueError(
-                f"分类 '{v}' 不在允许集合中，合法值: {sorted(CATEGORY_VALUES)}"
-            )
-        return v
+        return _validate_category(v)
 
 
 class MaterialCreate(MaterialBase):
@@ -350,10 +355,29 @@ class MaterialUpdate(BaseModel):
     def _hc(cls, v):
         return _validate_hazard_class(v)
 
+    @field_validator("category", mode="before")
+    @classmethod
+    def _cat(cls, v):
+        return _validate_category(v)
+
 
 class MaterialOut(MaterialBase, ORMBase):
+    """输出模型:库里已有的值原样返回,**不做枚举校验**。
+    否则一条分类/危化品/类型不在预设集合里的物料(历史数据、MDM 同步带入的新值)
+    会让整个物料列表接口 500,所有人都打不开物料页。校验只在入参(Create/Update)做。"""
     material_id: int
     material_code: str
+    material_type: Optional[str] = None   # 覆盖父类的正则约束
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _cat(cls, v):
+        return v
+
+    @field_validator("hazard_class", mode="before")
+    @classmethod
+    def _hc(cls, v):
+        return v
     data_source: Optional[str] = "local"
     is_active: bool
     deactivated_at: Optional[datetime] = None

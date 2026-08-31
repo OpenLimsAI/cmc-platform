@@ -234,6 +234,13 @@ def update_batch(
     )
     if not changes:
         raise HTTPException(status_code=400, detail="没有要修改的字段")
+    if "received_date" in changes and changes["received_date"] is None:
+        raise HTTPException(status_code=400, detail="入库日期不能为空")
+    # 丢掉"值没变"的字段(前端数字/字符串格式差异会误报改动,如 1.5 与 "1.50"),
+    # 以免为一次空操作消耗复核人签名并写审计
+    changes = {k: v for k, v in changes.items() if getattr(b, k, None) != v}
+    if not changes:
+        raise HTTPException(status_code=400, detail="没有任何改动")
 
     # 复核签名:第二位库管员/管理员凭据 → 向 MDM 验证身份
     reviewer = verify_reviewer(payload.reviewer_username, payload.reviewer_password)

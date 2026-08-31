@@ -76,10 +76,10 @@ CREATE TABLE IF NOT EXISTS category_dict (
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS location (
     location_id        SERIAL PRIMARY KEY,
-    room_no            VARCHAR(20) NOT NULL,            -- 房间号,如 '2251'
-    cabinet_no         VARCHAR(20) NOT NULL,            -- 柜号,如 'A01' / 'B06' / 'C07'
+    room_no            VARCHAR(80) NOT NULL,            -- 房间号,如 '2251'(与 storage_node.label 同宽)
+    cabinet_no         VARCHAR(80) NOT NULL,            -- 柜号,如 'A01' / 'B06' / 'C07'(同上)
     layer_no           SMALLINT    NOT NULL,            -- 板层 1~N
-    name               VARCHAR(80) GENERATED ALWAYS AS
+    name               VARCHAR(200) GENERATED ALWAYS AS
                        (room_no || '-' || cabinet_no || '-L' || layer_no) STORED,
     storage_condition  VARCHAR(50),                     -- 常温 / 4℃ / -20℃ / -80℃ / 避光
     remark             TEXT,
@@ -310,6 +310,19 @@ ALTER TABLE batch ADD COLUMN IF NOT EXISTS project_no              VARCHAR(100);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS originator_batch_no     VARCHAR(100);
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS aliquot_date            DATE;
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS aliquot_spec            VARCHAR(50);
+-- 库位编号列放宽到与 storage_node.label 同宽(改名会写入这两列)。
+-- name 是生成列,Postgres 不许直接改其依赖列的类型:先删 name → 放宽 → 重建 name
+DO $$
+BEGIN
+    IF (SELECT character_maximum_length FROM information_schema.columns
+        WHERE table_schema = 'material_mgmt' AND table_name = 'location' AND column_name = 'room_no') < 80 THEN
+        ALTER TABLE location DROP COLUMN name;
+        ALTER TABLE location ALTER COLUMN room_no    TYPE VARCHAR(80);
+        ALTER TABLE location ALTER COLUMN cabinet_no TYPE VARCHAR(80);
+        ALTER TABLE location ADD COLUMN name VARCHAR(200) GENERATED ALWAYS AS
+            (room_no || '-' || cabinet_no || '-L' || layer_no) STORED;
+    END IF;
+END$$;
 ALTER TABLE batch ADD COLUMN IF NOT EXISTS intake_operator_name    VARCHAR(128);
 
 -- audit_log: v2.0 认证对接 MDM 后,user_id 为 MDM user_id,

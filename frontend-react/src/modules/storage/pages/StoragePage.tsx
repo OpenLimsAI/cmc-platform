@@ -181,6 +181,14 @@ export default function StoragePage() {
   }
   // 创建试剂柜/冰箱后刷新根树(失效重取 → 上面的同步生效)
   const reloadRoot = () => qc.invalidateQueries({ queryKey: ["storage", "roots"] });
+  // 往"已有房间"里新建柜/冰箱时,根列表内容不变(react-query 会复用同一引用),上面的同步不会触发,
+  // 新节点就看不见;所以再把该房间的子级单独刷一遍并展开
+  const afterRootCreate = async (roomNo: string) => {
+    await reloadRoot();
+    const code = roomNo.trim();
+    const room = (qc.getQueryData<StorageNode[]>(["storage", "roots"]) ?? []).find((n) => n.code === code);
+    if (room) await refreshChildren(room.node_id);
+  };
 
   const onLoadData = async (node: { key: React.Key }) => {
     const kids = await listNodes(Number(node.key)).then((r) => r.data);
@@ -196,19 +204,19 @@ export default function StoragePage() {
 
   const cabMutation = useMutation({
     mutationFn: (data: CabinetCreate) => createCabinet(data),
-    onSuccess: async () => {
+    onSuccess: async (_res, vars) => {
       message.success("试剂柜已创建");
       setCabOpen(false); cabForm.resetFields();
-      await reloadRoot();
+      await afterRootCreate(vars.room_no);
     },
     onError: (e) => message.error(getErrorDetail(e, "创建失败")),
   });
   const fridgeMutation = useMutation({
     mutationFn: (data: FridgeCreate) => createFridge(data),
-    onSuccess: async () => {
+    onSuccess: async (_res, vars) => {
       message.success("冰箱已创建");
       setFridgeOpen(false); fridgeForm.resetFields();
-      await reloadRoot();
+      await afterRootCreate(vars.room_no);
     },
     onError: (e) => message.error(getErrorDetail(e, "创建失败")),
   });
@@ -237,10 +245,10 @@ export default function StoragePage() {
   });
   const freezerMutation = useMutation({
     mutationFn: (data: FreezerCreate) => createFreezer(data),
-    onSuccess: async () => {
+    onSuccess: async (_res, vars) => {
       message.success("-80℃ 冰箱已创建");
       setFreezerOpen(false); freezerForm.resetFields();
-      await reloadRoot();
+      await afterRootCreate(vars.room_no);
     },
     onError: (e) => message.error(getErrorDetail(e, "创建失败")),
   });

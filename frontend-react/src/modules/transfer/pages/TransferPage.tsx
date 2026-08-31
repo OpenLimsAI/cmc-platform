@@ -149,7 +149,7 @@ export default function TransferPage() {
             >
               <InputNumber
                 min={0.01}
-                max={selectedBatch.current_qty}
+                max={Number(selectedBatch.current_qty)}
                 style={{ width: "100%" }}
               />
             </Form.Item>

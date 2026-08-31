@@ -1102,7 +1102,10 @@ def add_children(
     if per_cells * count > 60000:
         raise ValueError(f"将生成 {per_cells * count} 个孔位,超过 60000 上限")
 
-    room_no = next((n.code for n in get_node_ancestors(db, parent_id) if n.node_type == "ROOM"), "")
+    # 用 label 而不是 code:节点改名(_rename_node)会把新名字写进已有 location 的
+    # room_no/cabinet_no,追加的新层若仍用旧 code,同一柜子下的位置编号就会两套并存
+    room_no = next((n.label or n.code for n in get_node_ancestors(db, parent_id) if n.node_type == "ROOM"), "")
+    parent_no = parent.label or parent.code
 
     # 续接编号:RACK/BOX 用字母,其余用数字
     existing = list(db.execute(
@@ -1133,12 +1136,12 @@ def add_children(
             remark=remark,
         )
         if child_type == "CABINET_LAYER":
-            loc = Location(room_no=room_no, cabinet_no=parent.code, layer_no=int(code),
+            loc = Location(room_no=room_no, cabinet_no=parent_no, layer_no=int(code),
                            storage_condition=storage_condition, remark=remark)
             db.add(loc); db.flush()
             node.label = f"L{code}"; node.capacity_kind = "bulk"; node.location_id = loc.location_id
         elif child_type == "FRIDGE_SHELF":
-            loc = Location(room_no=room_no, cabinet_no=parent.code, layer_no=int(code),
+            loc = Location(room_no=room_no, cabinet_no=parent_no, layer_no=int(code),
                            storage_condition=storage_condition or parent.temp_text, remark=remark)
             db.add(loc); db.flush()
             node.label = f"层{code}"; node.capacity_kind = "bulk"; node.location_id = loc.location_id
@@ -1546,6 +1549,12 @@ def list_txns(
 # ---------------------------------------------------------------------------
 # Stock 聚合 / 预警
 # ---------------------------------------------------------------------------
+def _aliquot_spec_sort_key(s: str):
+    """分装规格按开头的数值排序(50 在 100 前),没有数值的排最后按字符串。"""
+    m = re.match(r"^(\d+(?:\.\d+)?)", s)
+    return (0, float(m.group(1)), s) if m else (1, 0.0, s)
+
+
 def stock_by_material(
     db: Session,
     category: Optional[str] = None,
@@ -1637,7 +1646,7 @@ def stock_by_material(
             continue
         safety = Decimal(row.safety_stock or 0)
         low = bool(safety > 0 and total_qty < safety)
-        specs = sorted(specs_by_material.get(row.material_id, []))
+        specs = sorted(specs_by_material.get(row.material_id, []), key=_aliquot_spec_sort_key)
         out.append({
             "aliquot_specs": "、".join(specs) if specs else None,
             "material_id": row.material_id,

@@ -9,7 +9,7 @@ import logging
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 
 from routers import (
     admin_router, auth_router, batch, dashboard, equipment,
@@ -42,6 +42,13 @@ async def integrity_error_handler(_: Request, exc: IntegrityError):
     if "uq_batch_material_no" in msg:
         msg = "同一物料同一批号已存在,请检查批号是否重复"
     return JSONResponse(status_code=400, content={"detail": f"数据完整性错误: {msg}"})
+
+
+@app.exception_handler(DataError)
+async def data_error_handler(_: Request, exc: DataError):
+    # 典型:字符串超过列宽、数值超范围。是用户输入问题,给 400 和可读提示,不当成服务器故障
+    log.warning("数据格式/长度错误: %s", exc.orig)
+    return JSONResponse(status_code=400, content={"detail": f"数据格式或长度不合法: {exc.orig}"})
 
 
 @app.exception_handler(SQLAlchemyError)

@@ -297,7 +297,7 @@ export default function OutgoingPage() {
                   label={`出库数量(当前库存: ${selectedBatch.current_qty} ${selectedBatch.unit})`}
                   rules={[{ required: true }]}
                 >
-                  <InputNumber min={0.01} max={selectedBatch.current_qty} style={{ width: "100%" }} />
+                  <InputNumber min={0.01} max={Number(selectedBatch.current_qty)} style={{ width: "100%" }} />
                 </Form.Item>
               )}
               <Form.Item name="txn_date" label="出库日期" rules={[{ required: true }]}>
