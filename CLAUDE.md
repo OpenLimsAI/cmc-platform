@@ -69,3 +69,7 @@ CMC LabOps Portal —— 实验室物料库存 + 设备管理系统。
 - 前端**自己认前缀** `/labops/`：`vite.config` `base:'/labops/'` + `App.tsx` `basename` + `src/shared/base.ts`（BASE/withBase/stripBase/TOKEN_KEY/USER_KEY）。API 一律相对路径 `/labops/api/...`，由门户 nginx 剥掉前缀转给后端（后端路由不变）。**不要**写死 host:端口，**不要**用不带前缀的绝对路径跳转/引资源。
 - 登录态用**全公司统一 key**：`localStorage['cmab_access_token']`（MDM JWT）+ `localStorage['cmab_user']`（MDM 登录响应 user 对象）；同源共享 → 门户登录一次这里免登。别再改回私有 key。 跳 MDM 用 `src/shared/mdmPortal.ts`（同源 `/mdm/`）。Linux nginx 片段见 `DEPLOY.md` §4b。
 - 门户侧配置/路由/部署脚本在 `~/code/cmab-hub`（`nginx/hub-locations.conf`、`deploy/linux/`），约定见其 `CLAUDE.md`。
+
+## 静态检查（提交前跑一下）
+- 前端：`cd frontend-react && npx eslint . && npx tsc --noEmit`
+- 后端：`uvx ruff check backend/`（规则在根目录 `ruff.toml`，只开真错误类 F/E9，不查风格）

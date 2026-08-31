@@ -18,7 +18,6 @@ from models_equipment import (
     CALIBRATION_RESULT_VALUES,
     MAINTENANCE_TYPE_VALUES,
     REPAIR_TYPE_VALUES,
-    ATTACHMENT_TAG_VALUES,
 )
 
 

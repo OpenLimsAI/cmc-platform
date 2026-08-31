@@ -1,0 +1,11 @@
+# 后端 Python 静态检查(ruff)。只开"真错误"类规则,不管风格:
+#   F  = pyflakes(未定义变量、未用导入/变量、重复定义等)
+#   E9 = 语法/IO 错误
+# 用法: uvx ruff check backend/    (无需安装,uv 自动拉取)
+# 风格类(引号、行宽、Optional 写法等)有意不开,避免一次性刷几百条噪音。
+target-version = "py313"
+line-length = 120
+extend-exclude = ["frontend-react", "sql", "docs"]
+
+[lint]
+select = ["F", "E9"]

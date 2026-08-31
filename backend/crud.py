@@ -12,7 +12,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, List, Tuple, Sequence
 
-from sqlalchemy import select, func, and_, or_, case, exists, text, delete, insert
+from sqlalchemy import select, func, and_, or_, exists, text, delete, insert
 from sqlalchemy.orm import Session
 
 from models import (
