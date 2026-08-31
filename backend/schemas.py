@@ -393,7 +393,7 @@ class BatchBase(BaseModel):
     project_no: Optional[str] = None                 # 标准品 项目编号
     originator_batch_no: Optional[str] = None        # 标准品 原研药批号
     aliquot_date: Optional[date] = None              # 标准品 分装日期
-    aliquot_spec: Optional[str] = None         # 标准品 分装规格(数值+单位, 例 "100 uL/支")
+    aliquot_spec: Optional[str] = None         # 标准品 分装规格(数值+单位, 例 "100 µL/支")
 
 
 class BatchCreate(BatchBase):

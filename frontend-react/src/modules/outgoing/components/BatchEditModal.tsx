@@ -142,7 +142,7 @@ export default function BatchEditModal({
             <DatePicker style={{ width: "100%" }} />
           </Form.Item>
           <Form.Item name="aliquot_spec" label="分装规格">
-            <Input allowClear placeholder="如 100 uL/支" />
+            <Input allowClear placeholder="如 100 µL/支" />
           </Form.Item>
           <Form.Item name="originator_batch_no" label="原研药批号">
             <Input allowClear />

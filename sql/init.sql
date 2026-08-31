@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS batch (
     project_no             VARCHAR(100),    -- 标准品项目编号
     originator_batch_no    VARCHAR(100),    -- 标准品原研药批号
     aliquot_date           DATE,            -- 标准品分装日期
-    aliquot_spec           VARCHAR(50),     -- 标准品分装规格(数值+单位, 例 "100 uL/支")
+    aliquot_spec           VARCHAR(50),     -- 标准品分装规格(数值+单位, 例 "100 µL/支")
     intake_operator_name   VARCHAR(128),    -- 入库登记操作人姓名(快照)
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_batch_material_no_loc UNIQUE (material_id, batch_no, location_id)
