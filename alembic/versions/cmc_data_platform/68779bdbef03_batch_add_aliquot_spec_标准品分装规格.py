@@ -17,8 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 标准品批次的分装规格,与 concentration 同样存"数值+单位"组合字符串(例 "100 uL/支"),
-    # 单位当前前端固定 uL/支,将来若放开单位老数据仍可自解释。其他类型批次为 NULL。
+    # 标准品批次的分装规格,与 concentration 同样存"数值+单位"组合字符串(例 "100 µL/支"),
+    # 单位当前前端固定 µL/支,将来若放开单位老数据仍可自解释。其他类型批次为 NULL。
     op.add_column(
         "batch",
         sa.Column("aliquot_spec", sa.String(length=50), nullable=True),
