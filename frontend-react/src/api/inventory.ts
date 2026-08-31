@@ -182,7 +182,7 @@ export interface BulkIntakeRequest {
 
 export interface BulkRowResult {
   index: number;
-  status: "created" | "appended" | "error";
+  status: "created" | "appended" | "error" | "pending"; // pending=整批校验失败时未执行的行
   batch_id: number | null;
   message: string | null;
 }

@@ -46,6 +46,7 @@ from sqlalchemy import select, or_, func
 from sqlalchemy.orm import Session
 
 import mdm_client
+from crud import _build_keyword_pattern
 from audit import get_request_ip, model_snapshot, write_audit
 from auth import CurrentUser, require_equipment
 from database import get_db
@@ -451,18 +452,18 @@ def list_equipment(
     if status:
         stmt = stmt.where(Equipment.status == status)
     if keyword:
-        kw = f"%{keyword.strip()}%"
+        kw = _build_keyword_pattern(keyword.strip())
         stmt = stmt.where(or_(
-            Equipment.equipment_code.ilike(kw),
-            Equipment.equipment_no.ilike(kw),
-            Equipment.fixed_asset_no.ilike(kw),
-            Equipment.name.ilike(kw),
-            Equipment.name_en.ilike(kw),
-            Equipment.model.ilike(kw),
-            Equipment.manufacturer.ilike(kw),
-            Equipment.serial_no.ilike(kw),
-            Equipment.responsible_person.ilike(kw),
-            Equipment.location_room.ilike(kw),
+            Equipment.equipment_code.ilike(kw, escape="\\"),
+            Equipment.equipment_no.ilike(kw, escape="\\"),
+            Equipment.fixed_asset_no.ilike(kw, escape="\\"),
+            Equipment.name.ilike(kw, escape="\\"),
+            Equipment.name_en.ilike(kw, escape="\\"),
+            Equipment.model.ilike(kw, escape="\\"),
+            Equipment.manufacturer.ilike(kw, escape="\\"),
+            Equipment.serial_no.ilike(kw, escape="\\"),
+            Equipment.responsible_person.ilike(kw, escape="\\"),
+            Equipment.location_room.ilike(kw, escape="\\"),
         ))
     stmt = stmt.order_by(Equipment.equipment_code)
     return list(db.execute(stmt).scalars().all())

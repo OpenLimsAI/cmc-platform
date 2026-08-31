@@ -35,7 +35,9 @@ def severity_of(days_to_expiry: int, warning_threshold: int = 90) -> Optional[st
     """
     if days_to_expiry < 0:
         return "EXPIRED"
-    if days_to_expiry <= 30:
+    # URGENT 常规是 ≤30 天;但请求窗口(threshold)比 30 还小时以窗口为准,
+    # 否则 days=7 的查询会把 8~30 天的批次也当 URGENT 返回,超出请求范围
+    if days_to_expiry <= min(30, warning_threshold):
         return "URGENT"
     if days_to_expiry <= warning_threshold:
         return "WARNING"
@@ -152,6 +154,9 @@ def create_material(db: Session, data: dict) -> Material:
         material_code=code,
         category=category,
         name_cn=data["name_cn"],
+        name_en=data.get("name_en"),
+        # material_type 权威来源是入库 tab(每次入库覆盖),但 create 接口声明了就该收下
+        material_type=data.get("material_type"),
         grade=data.get("grade"),
         manufacturer=data.get("manufacturer"),
         spec_model=data.get("spec_model"),
@@ -842,14 +847,14 @@ _CELL_WALK_SQL = """
         SELECT c.node_id, c.node_type, c.code, c.parent_id, (sub.active AND c.is_active) AS active
         FROM material_mgmt.storage_node c JOIN sub ON c.parent_id = sub.node_id
     )
-    SELECT s.node_id, (o.occupancy_id IS NOT NULL) AS occupied
+    SELECT s.node_id, (o.occupancy_id IS NOT NULL) AS occupied, s.active
     FROM sub s
     JOIN material_mgmt.storage_node bx ON bx.node_id = s.parent_id
     JOIN material_mgmt.storage_node ly ON ly.node_id = bx.parent_id
     JOIN material_mgmt.storage_node rk ON rk.node_id = ly.parent_id
     LEFT JOIN material_mgmt.cell_occupancy o
            ON o.cell_node_id = s.node_id AND o.status = 'stored'
-    WHERE s.node_type = 'CELL' AND s.active
+    WHERE s.node_type = 'CELL'
     ORDER BY rk.code, length(ly.code), ly.code, bx.code, length(s.code), s.code
 """
 
@@ -857,7 +862,7 @@ _CELL_WALK_SQL = """
 def find_free_cells(db: Session, freezer_id: int, count: int) -> List[int]:
     """冰箱内最多 count 个空孔(盒内连续优先);停用的盒/架/孔不参与推荐。"""
     rows = db.execute(text(_CELL_WALK_SQL), {"fid": freezer_id}).all()
-    return [r[0] for r in rows if not r[1]][:count]
+    return [r[0] for r in rows if r[2] and not r[1]][:count]
 
 
 def occupy_cells(
@@ -971,18 +976,30 @@ def occupy_from_start(
     if fridge is None or fridge.location_id is None:
         raise ValueError("起始孔未挂在 -80℃ 冰箱下")
 
-    # 冰箱内全部可用孔位,按 架/层/盒/孔 自然顺序,带占用标记(与 find_free_cells 同一遍历)
+    # 冰箱内全部孔位(含停用,带标记),按 架/层/盒/孔 自然顺序(与 find_free_cells 同一遍历)
     rows = db.execute(text(_CELL_WALK_SQL), {"fid": fridge.node_id}).all()
-    ids = [r[0] for r in rows]
+    full_ids = [r[0] for r in rows]
     occupied = {r[0]: r[1] for r in rows}
-    try:
-        idx = ids.index(start_cell_node_id)
-    except ValueError:
+    active_set = {r[0] for r in rows if r[2]}
+    if start_cell_node_id not in full_ids:
         raise ValueError("起始孔不在该冰箱内")
+    if start_cell_node_id not in active_set:
+        raise ValueError("起始孔(或其所在盒/架)已停用,请换一个起始孔")
 
+    ids = [cid for cid in full_ids if cid in active_set]
+    idx = ids.index(start_cell_node_id)
     window = ids[idx: idx + count]
     if len(window) < count:
         raise ValueError(f"从起始位置往后不足 {count} 个孔(仅剩 {len(window)} 个)")
+    # 连续填充不允许"跳过"中途停用的盒/孔悄悄落到下一个盒:范围内出现停用孔就拦下
+    lo, hi = full_ids.index(window[0]), full_ids.index(window[-1])
+    skipped = [cid for cid in full_ids[lo: hi + 1] if cid not in active_set]
+    if skipped:
+        addrs = ", ".join(cell_address(db, cid) for cid in skipped[:5])
+        raise ValueError(
+            f"连续填充范围会跳过已停用的盒/孔({len(skipped)} 个,如 {addrs});"
+            f"请改用手动选孔,或换起始位置"
+        )
     conflicts = [cid for cid in window if occupied.get(cid)]
     if conflicts:
         addrs = ", ".join(cell_address(db, cid) for cid in conflicts[:10])
@@ -1250,6 +1267,18 @@ def get_batch_qty(db: Session, batch_id: int) -> Decimal:
     return Decimal(val) if val is not None else Decimal("0")
 
 
+def assert_not_freezer_anchor(db: Session, location_id: int, action_hint: str = "散放数量不能直接入库;请改用孔位入库") -> None:
+    """-80℃ 冰箱的整机锚点 location 只承载"按孔存放"的批次;
+    散放数量(bulk)入库/移库到这里会绕过孔位台账,必须拦下。UI 不会给出该位置,
+    此守卫针对直接调 API 的调用方。"""
+    anchor = db.execute(select(StorageNode).where(
+        StorageNode.location_id == location_id,
+        StorageNode.node_type == "FRIDGE",
+    )).scalar_one_or_none()
+    if anchor is not None:
+        raise ValueError(f"位置「{anchor.label or anchor.code}」是 -80℃ 冰箱,{action_hint}")
+
+
 def find_batch_at_location(
     db: Session, material_id: int, batch_no: str, location_id: int,
 ) -> Optional[Batch]:
@@ -1356,12 +1385,14 @@ def bulk_intake(db: Session, rows, received_date, operator: str, intake_type: Op
             msg = "存放位置不存在"
         else:
             try:
+                assert_not_freezer_anchor(db, r.location_id)
                 assert_location_active(db, r.location_id)
             except ValueError as e:
                 msg = str(e)
         if msg:
             has_error = True
-        results.append({"index": i, "status": "error" if msg else "ok",
+        # 整批校验失败时,通过校验但未执行的行标 pending(不能标 ok,前端类型里也没有 ok)
+        results.append({"index": i, "status": "error" if msg else "pending",
                         "batch_id": None, "message": msg})
     if has_error:
         return {"ok": False, "created": 0, "appended": 0,
@@ -1460,12 +1491,7 @@ def transfer_batch(
     if not dest_loc:
         raise ValueError(f"目的位置 {dest_location_id} 不存在")
     # 目的位置不能是 -80 冰箱的整机锚定位置(那里的批次必须逐孔存放)
-    anchor = db.execute(select(StorageNode).where(
-        StorageNode.location_id == dest_location_id,
-        StorageNode.node_type == "FRIDGE",
-    )).scalar_one_or_none()
-    if anchor is not None:
-        raise ValueError("目的位置是 -80℃ 冰箱,散放数量不能移入;请通过出库+按孔位入库迁移")
+    assert_not_freezer_anchor(db, dest_location_id, "散放数量不能移入;请通过出库+按孔位入库迁移")
     assert_location_active(db, dest_location_id)
     current = get_batch_qty(db, source_batch_id)
     if qty > current:
@@ -1608,15 +1634,15 @@ def stock_by_material(
     if material_type:
         stmt = stmt.where(Material.material_type == material_type)
     if keyword:
-        kw = f"%{keyword}%"
+        kw = _build_keyword_pattern(keyword)
         # 关键字命中范围:物料代码 / 物料名 / "该物料下任一批次的批号" 之一
         batch_match = exists().where(and_(
             Batch.material_id == Material.material_id,
-            Batch.batch_no.ilike(kw),
+            Batch.batch_no.ilike(kw, escape="\\"),
         ))
         stmt = stmt.where(or_(
-            Material.material_code.ilike(kw),
-            Material.name_cn.ilike(kw),
+            Material.material_code.ilike(kw, escape="\\"),
+            Material.name_cn.ilike(kw, escape="\\"),
             batch_match,
         ))
     stmt = stmt.order_by(Material.material_code, Material.material_id)
@@ -1722,11 +1748,11 @@ def stock_by_batch(
     if location_id is not None:
         stmt = stmt.where(Batch.location_id == location_id)
     if keyword:
-        kw = f"%{keyword}%"
+        kw = _build_keyword_pattern(keyword)
         stmt = stmt.where(or_(
-            Material.material_code.ilike(kw),
-            Material.name_cn.ilike(kw),
-            Batch.batch_no.ilike(kw),
+            Material.material_code.ilike(kw, escape="\\"),
+            Material.name_cn.ilike(kw, escape="\\"),
+            Batch.batch_no.ilike(kw, escape="\\"),
         ))
     if not include_inactive:
         stmt = stmt.where(Material.is_active.is_(True))

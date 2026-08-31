@@ -301,8 +301,11 @@ export const downloadAttachment = async (id: number, attachmentId: number, fileN
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;
+  // 必须挂进 DOM 再点,且延迟释放 blob:Firefox/Safari 下同步 revoke 会拿到空文件
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 };
 
 export const deleteAttachment = (id: number, attachmentId: number) =>

@@ -23,6 +23,9 @@ from crud import severity_of
         (91,  90, None),        # 超出阈值,不告警
         (10,  30, "URGENT"),    # threshold=30 时 31 天就脱出
         (31,  30, None),
+        (5,   7,  "URGENT"),    # 窗口 < 30 时 URGENT 上限收到窗口
+        (7,   7,  "URGENT"),
+        (25,  7,  None),        # 窗口外不返回(修复:曾被硬编码 30 误判为 URGENT)
     ],
 )
 def test_severity_classification(days, threshold, expected):

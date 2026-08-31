@@ -108,7 +108,10 @@ export default function AttachmentTab({
                   type="link"
                   size="small"
                   icon={<DownloadOutlined />}
-                  onClick={() => downloadAttachment(equipmentId, r.attachment_id, r.file_name)}
+                  onClick={() => {
+                    downloadAttachment(equipmentId, r.attachment_id, r.file_name)
+                      .catch((e) => message.error(getErrorDetail(e, "附件下载失败")));
+                  }}
                 >
                   下载
                 </Button>

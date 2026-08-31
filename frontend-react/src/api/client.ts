@@ -27,7 +27,9 @@ function getToken(): string | null {
 /** 解 JWT 的 exp(毫秒);解析失败返回 0(当作不过期,交给 401 兜底)。 */
 function tokenExpMs(token: string): number {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
+    // JWT 段是 base64url(- _ 且无填充),atob 只认标准 base64,先转换
+    const seg = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(seg));
     return payload?.exp ? payload.exp * 1000 : 0;
   } catch {
     return 0;

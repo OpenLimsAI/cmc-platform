@@ -251,7 +251,7 @@ class BulkIntakeRequest(BaseModel):
 
 class BulkRowResult(BaseModel):
     index: int
-    status: str               # created / appended / error
+    status: str               # created / appended / error / pending(整批校验失败时未执行的行)
     batch_id: Optional[int] = None
     message: Optional[str] = None
 

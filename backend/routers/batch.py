@@ -93,6 +93,7 @@ def create_batch(
     if payload.initial_qty <= 0:
         raise HTTPException(status_code=400, detail="入库数量必须 > 0")
     try:
+        crud.assert_not_freezer_anchor(db, payload.location_id)
         crud.assert_location_active(db, payload.location_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -160,7 +161,9 @@ def create_batch(
         "received_date": batch.received_date,
         "initial_qty": batch.initial_qty,
         "remark": batch.remark,
+        "intake_type": batch.intake_type,
         "concentration": batch.concentration,
+        "extinction_coefficient": batch.extinction_coefficient,
         "serial_no": batch.serial_no,
         "asset_no": batch.asset_no,
         "responsible_person": batch.responsible_person,
