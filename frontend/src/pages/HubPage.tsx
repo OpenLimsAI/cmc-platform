@@ -24,7 +24,7 @@ export default function HubPage() {
   const navigate = useNavigate()
 
   const visible = HUB_APPS.filter((a) => canAccess(a, user))
-  const hiddenCount = HUB_APPS.filter((a) => a.status !== 'hidden').length - visible.length
+  // 没权限的应用直接不显示，也不提示「另有 N 个未显示」（负责人 2026-09-04）
 
   // 会话守卫：空闲超时自动登出 / 通行证快到期静默续期 / 别的标签页登出跟着退（规则由 MDM 会话策略配置）
   useEffect(() => startSessionGuard({ onLogout: logoutToLogin('/login') }), [])
@@ -92,9 +92,6 @@ export default function HubPage() {
           </div>
         )}
 
-        {hiddenCount > 0 && (
-          <span className="hub-note">另有 {hiddenCount} 个应用因权限不足未显示。</span>
-        )}
       </main>
     </div>
   )
