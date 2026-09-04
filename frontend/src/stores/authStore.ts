@@ -65,12 +65,15 @@ export function useAuth(): AuthState {
 }
 
 // 多标签页同步：别的标签登出/重登改了 localStorage，本标签跟着变。
+// 本标签内 cmabSession（登录/静默续期/登出）改了令牌会广播 'cmab-token-changed'，同样同步进来。
+function syncFromStorage() {
+  state = { token: localStorage.getItem(TOKEN_KEY), user: readUser() }
+  listeners.forEach((l) => l())
+}
 window.addEventListener('storage', (e) => {
-  if (e.key === TOKEN_KEY || e.key === USER_KEY) {
-    state = { token: localStorage.getItem(TOKEN_KEY), user: readUser() }
-    listeners.forEach((l) => l())
-  }
+  if (e.key === TOKEN_KEY || e.key === USER_KEY) syncFromStorage()
 })
+window.addEventListener('cmab-token-changed', syncFromStorage)
 
 // 解 JWT 载荷（只用于前端 UX 判断，不验签；真正鉴权在各后端）
 export function payloadFromToken(token: string): Record<string, unknown> | null {

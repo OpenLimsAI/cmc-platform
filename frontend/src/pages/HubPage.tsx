@@ -1,12 +1,13 @@
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
 import { Alert, Button, Space, Tooltip } from 'antd'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { authApi } from '@/api/auth'
 import { canAccess } from '@/auth/access'
 import AppTile from '@/components/AppTile'
 import { HUB_APPS } from '@/config/apps'
-import { authStore, useAuth } from '@/stores/authStore'
+import { logoutToLogin, mdmLogout, startSessionGuard } from '@/shared/cmabSession'
+import { useAuth } from '@/stores/authStore'
 
 // 按时段问候（参考 Claude 首页的 "Evening, how are things?"）
 function greeting(): { hello: string; sub: string } {
@@ -25,9 +26,11 @@ export default function HubPage() {
   const visible = HUB_APPS.filter((a) => canAccess(a, user))
   const hiddenCount = HUB_APPS.filter((a) => a.status !== 'hidden').length - visible.length
 
+  // 会话守卫：空闲超时自动登出 / 通行证快到期静默续期 / 别的标签页登出跟着退（规则由 MDM 会话策略配置）
+  useEffect(() => startSessionGuard({ onLogout: logoutToLogin('/login') }), [])
+
   const logout = async () => {
-    await authApi.logout()
-    authStore.set(null, null)
+    await mdmLogout() // 撤销 MDM refresh + 清全公司共用令牌（authStore 监听 cmab-token-changed 自动同步）
     navigate('/login', { replace: true })
   }
 

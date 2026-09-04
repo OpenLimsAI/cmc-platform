@@ -5,6 +5,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { authApi } from '@/api/auth'
 import { errorMessage } from '@/api/client'
+import { logoutReasonText, touchActivity } from '@/shared/cmabSession'
 import { authStore, isTokenExpired, useAuth } from '@/stores/authStore'
 
 interface FormValues {
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   const redirect = params.get('redirect') || '/'
+  const reasonNotice = logoutReasonText(params.get('reason')) // 被会话守卫踢回来时的说明
   if (token && !isTokenExpired(token)) return <Navigate to={redirect} replace />
 
   const onFinish = async (v: FormValues) => {
@@ -29,6 +31,7 @@ export default function LoginPage() {
       // 账号密码原样交给 MDM 校验；门户不存密码、不签发令牌。
       const r = await authApi.login(v.username.trim(), v.password)
       authStore.set(r.access_token, r.user)
+      touchActivity() // 会话守卫的空闲计时从登录这一刻起算
       navigate(redirect, { replace: true })
     } catch (e) {
       setError(errorMessage(e, '登录失败'))
@@ -48,6 +51,7 @@ export default function LoginPage() {
           <Typography.Text type="secondary">一次登录，进入公司所有内部系统</Typography.Text>
         </div>
 
+        {reasonNotice && !error && <Alert type="info" showIcon message={reasonNotice} style={{ marginBottom: 16 }} />}
         {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
         <Form<FormValues> layout="vertical" size="large" onFinish={onFinish} autoComplete="on">
