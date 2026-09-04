@@ -3,7 +3,8 @@
 source "$(dirname "$0")/00_common.sh"
 cd /opt/rd-batch-registry
 log "拉取代码"; git pull -q; git log --oneline -1
-log "重建前端"; (cd frontend && pnpm install --frozen-lockfile >/dev/null && pnpm build 2>&1 | tail -3)
+# 批号前端用 npm（仓库只有 package-lock.json，没有 pnpm-lock.yaml，用 pnpm --frozen-lockfile 会报 ERR_PNPM_NO_LOCKFILE）
+log "重建前端"; (cd frontend && npm ci --silent && npm run build 2>&1 | tail -3)
 grep -o 'src="[^"]*"' frontend/dist/index.html | head -1
 log "nginx：加 /batch/ 伺服 + /batch/api/ 转发 + 只听本机"
 CONF=/etc/nginx/conf.d/rd-batch-registry.conf; backup "$CONF"
