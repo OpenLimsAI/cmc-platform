@@ -60,15 +60,18 @@ body {
 }
 .hub-greeting p { margin: 0; font-size: 15px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.68); }
 
-/* ── 图标墙：固定一行 4 个正方形磁贴，整体居中 ── */
+/* ── 图标墙：正方形磁贴 196px，一行最多 4 个，不管几个都居中（含最后一行不满的情况；2026-09-04 负责人）── */
 .tile-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 196px);
+  display: flex;
+  flex-wrap: wrap;
   gap: 24px;
   justify-content: center;
+  max-width: calc(4 * 196px + 3 * 24px);
+  margin: 0 auto;
 }
-@media (max-width: 960px) { .tile-grid { grid-template-columns: repeat(2, 196px); } }
-@media (max-width: 480px) { .tile-grid { grid-template-columns: repeat(1, 196px); } }
+.tile-grid .tile { flex: 0 0 196px; width: 196px; }
+@media (max-width: 960px) { .tile-grid { max-width: calc(2 * 196px + 24px); } }
+@media (max-width: 480px) { .tile-grid { max-width: 196px; } }
 
 .tile {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
