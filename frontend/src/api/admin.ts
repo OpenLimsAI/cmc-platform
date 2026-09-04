@@ -12,6 +12,8 @@ import type {
   RoleDetail,
   RoleListItem,
   RoleUpdatePayload,
+  SessionPolicy,
+  SessionPolicyUpdatePayload,
   SignatureItem,
   SignatureQuery,
   UserCreatePayload,
@@ -104,4 +106,11 @@ export const adminAuditApi = {
 export const adminSignaturesApi = {
   list: (query: SignatureQuery = {}) =>
     unwrapList<SignatureItem>(api.get('/signatures', { params: query })),
+};
+
+/** 会话策略（权限 system:config；SYS_ADMIN 短路） */
+export const adminSystemApi = {
+  getSessionPolicy: () => unwrap<SessionPolicy>(api.get('/system/session-policy')),
+  updateSessionPolicy: (payload: SessionPolicyUpdatePayload) =>
+    unwrap<SessionPolicy>(api.put('/system/session-policy', payload)),
 };

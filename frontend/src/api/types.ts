@@ -154,6 +154,33 @@ export interface ResetPasswordResult {
   force_password_change: boolean;
 }
 
+// ============== Admin: 会话策略（2026-09-04；migration 0054）==============
+export interface SessionPolicy {
+  access_token_minutes: number;
+  idle_timeout_minutes: number;
+  absolute_max_hours: number;
+  display_mode_idle_minutes: number;
+  updated_at: string | null;
+  /** 各字段允许范围 [min, max]，来自后端 LIMITS */
+  limits: Record<string, [number, number]>;
+}
+
+export interface SessionPolicyUpdatePayload {
+  access_token_minutes: number;
+  idle_timeout_minutes: number;
+  absolute_max_hours: number;
+  display_mode_idle_minutes: number;
+  reason?: string | null;
+}
+
+/** GET /auth/session-policy：当前用户生效值（展示模式账号 idle 已放宽） */
+export interface MySessionPolicy {
+  access_token_minutes: number;
+  idle_timeout_minutes: number;
+  absolute_max_hours: number;
+  display_mode: boolean;
+}
+
 // ============== Admin: 角色与权限（M5.2）==============
 export interface PermissionItem {
   permission_id: number;

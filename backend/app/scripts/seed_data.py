@@ -77,6 +77,7 @@ PERMISSIONS = [
     ("audit:read", "audit", "read", "查询审计日志"),
     ("user:manage", "user", "manage", "用户管理"),
     ("role:manage", "role", "manage", "角色管理"),
+    ("system:config", "system", "config", "系统配置（会话策略等）"),
 ]
 
 ROLES = [
@@ -107,6 +108,10 @@ ROLES = [
     ("CMC_EQUIPMENT_ADMIN", "设备管理员",
      "设备主数据读写；同时是 LabOps 设备模块写权限角色(随 JWT 下发)",
      ["equipment:create", "equipment:read", "equipment:update", "material:read"]),
+    ("DISPLAY_MODE", "展示模式",
+     "墙屏/看板展示账号：空闲超时按「展示模式空闲时长」放宽（系统管理→会话策略）；"
+     "本角色不含任何业务权限，需与只读等角色一起挂",
+     []),
 ]
 
 USERS = [

@@ -82,6 +82,14 @@ make docs-check       # CI 文档一致性校验
 - 新权限码 `target:{create,read,update,approve}`：dev/prod 库用 `python -m app.scripts.seed_target_permissions` 幂等补齐（禁重跑 make seed）。
 - 批量预填：`python -m app.scripts.prefill_targets --inn <INN...> --out data/target_prefill`（离线出 prefill_form.json + summary.md/csv，人工在表单核对录入；Mac 上加 `--no-proxy`）；录完后 `--attach-snapshots` 回填快照。测试用 MockTransport 打桩，不许真出网。
 
+## 会话策略 / 自动登出（2026-09-04 起，migration 0054）
+
+- 三个时长**不在 .env**，在 `meta.system_config` 的 `session.*` 键：通行证 15 分钟 / 空闲超时 30 分钟 / 单次登录硬上限 12 小时 / 展示模式空闲 720 分钟。管理员在 **系统管理 → 会话策略**（`/admin/session-policy`，权限 `system:config`）在线改，立即生效，变更进 audit_log + change_history。
+- 机制：滑动会话。refresh token 每次换证只续到 `min(现在+空闲窗口, 会话开始+硬上限)`（`refresh_token.session_started_at` 轮换时原样传递）；没人换证就自然过期 = 空闲登出。核心代码 `app/domains/auth/session_policy.py`、`services.py` 的 `_refresh_deadline`。
+- `GET /api/v1/auth/session-policy` 给各子系统前端读当前用户生效值；前端会话守卫 `frontend/src/shared/sessionGuard.ts`（通用，各子系统抄这一份）+ `useSessionGuard.ts`（MDM 接入，挂在 MainLayout）。活动时间共用 `localStorage['cmab_last_active']`。
+- 角色 `DISPLAY_MODE`（展示模式，墙屏/看板，无业务权限）+ 权限 `system:config`：dev/prod 库用 `python -m app.scripts.seed_session_policy` 幂等补齐（禁重跑 make seed）。
+- 门户/LabOps/批号/USP/LIMS/LCMS 各前端接守卫、统一改打 MDM 换证：见 `~/code/cmab-hub` 侧后续改造（截至 2026-09-04 尚未做）。
+
 ## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
 
 - 本系统已挂在统一门户之下：正式入口 **http://172.19.0.105:5100/mdm/**（Linux 上本系统前后端只听 127.0.0.1，老端口内网不可达）。Mac 本地同样经 `localhost:5100/mdm/`。

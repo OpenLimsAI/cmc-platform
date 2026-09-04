@@ -51,9 +51,9 @@ def create_access_token(
     )
 
 
-def create_refresh_token(subject: int | str, jti: str) -> str:
-    """生成 Refresh Token"""
-    expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+def create_refresh_token(subject: int | str, jti: str, expires_at: datetime) -> str:
+    """生成 Refresh Token。到期时间由会话策略算好传入（min(空闲窗口, 硬上限)，见 session_policy）"""
+    expire = expires_at
     payload = {
         "sub": str(subject),
         "type": "refresh",
@@ -69,13 +69,18 @@ def create_refresh_token(subject: int | str, jti: str) -> str:
     )
 
 
-def decode_token(token: str) -> dict[str, Any]:
-    """解码并校验 Token"""
+def decode_token(token: str, *, verify_exp: bool = True) -> dict[str, Any]:
+    """解码并校验 Token。
+
+    verify_exp=False 仅供 refresh 端点使用：refresh 的到期以 DB 行为准
+    （能区分「空闲超时」与「达到硬上限」给出不同提示），JWT 签名仍照常校验。
+    """
     try:
         return jwt.decode(
             token,
             get_verifying_key(),
             algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_exp": verify_exp},
         )
     except jwt.ExpiredSignatureError as e:
         raise TokenExpiredError() from e

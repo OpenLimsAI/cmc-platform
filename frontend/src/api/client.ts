@@ -39,7 +39,7 @@ api.interceptors.request.use(
 // 同时多请求遇到 401 时，只触发一次 /auth/refresh；其他请求等待结果
 let refreshPromise: Promise<string> | null = null;
 
-async function performRefresh(): Promise<string> {
+export async function performRefresh(): Promise<string> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     try {
@@ -127,7 +127,10 @@ api.interceptors.response.use(
       }
       const authStore = useAuthStore.getState();
       if (authStore.token) {
-        antdMessage.warning('登录已过期，请重新登录');
+        // refresh 端点自身的 401 带后端原话（「长时间未操作」/「已满 N 小时」），照抄给用户
+        antdMessage.warning(
+          isAuthRefreshUrl && errorType === 'token_expired' ? errorMessage : '登录已过期，请重新登录',
+        );
         authStore.logout();
       }
       gotoLogin();

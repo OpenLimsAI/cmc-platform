@@ -3,6 +3,7 @@ import type {
   LoginHistoryItem,
   LoginRequest,
   LoginResponse,
+  MySessionPolicy,
   SignatureItem,
   UserMe,
 } from './types';
@@ -14,6 +15,9 @@ export const authApi = {
   me: () => unwrap<UserMe>(api.get('/auth/me')),
 
   logout: () => api.post('/auth/logout'),
+
+  /** 当前用户生效的会话策略（会话守卫用） */
+  sessionPolicy: () => unwrap<MySessionPolicy>(api.get('/auth/session-policy')),
 
   changePassword: (payload: { old_password: string; new_password: string }) =>
     unwrap<null>(api.post('/auth/change-password', payload)),

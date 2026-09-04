@@ -37,8 +37,9 @@ class Settings(BaseSettings):
     JWT_PUBLIC_KEY_PATH: str | None = None
     # JWT 头 kid 字段（启用 RS256 后用于密钥轮换；HS256 时忽略）
     JWT_KEY_ID: str | None = None
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # 2026-09-04 起会话时长改读 meta.system_config（session.* 键，系统管理页可调）；
+    # 此项仅在库里缺行时兜底。REFRESH_TOKEN_EXPIRE_DAYS 已废弃（空闲窗口 + 硬上限替代）。
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173"

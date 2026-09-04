@@ -195,6 +195,8 @@ class RefreshToken(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # 0054：所属登录会话的首次登录时间，轮换时原样传递；硬上限（absolute_max_hours）按此算
+    session_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_reason: Mapped[str | None] = mapped_column(String(32))
     rotated_to_jti: Mapped[str | None] = mapped_column(String(36))

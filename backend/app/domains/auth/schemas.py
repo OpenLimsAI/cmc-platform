@@ -65,6 +65,16 @@ class RefreshTokenResponse(BaseModel):
     expires_in: int
 
 
+class SessionPolicyUpdate(BaseModel):
+    """PUT /api/v1/system/session-policy（范围/一致性校验在 session_policy.validate_policy）"""
+
+    access_token_minutes: int = Field(..., ge=1, le=100000)
+    idle_timeout_minutes: int = Field(..., ge=1, le=100000)
+    absolute_max_hours: int = Field(..., ge=1, le=100000)
+    display_mode_idle_minutes: int = Field(..., ge=1, le=100000)
+    reason: str | None = Field(None, max_length=500)
+
+
 class ChangePasswordRequest(BaseModel):
     old_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=12, max_length=128)

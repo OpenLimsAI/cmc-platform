@@ -49,7 +49,7 @@ async def test_refresh_returns_new_access_and_rotates_cookie():
         assert body["code"] == 0
         new_access = body["data"]["access_token"]
         assert new_access != old_access  # 新 access
-        assert body["data"]["expires_in"] == 1800
+        assert body["data"]["expires_in"] == 900  # 0054：access 15 分钟
 
         # cookie 已被旋转
         new_refresh = refresh.cookies.get("cmab_refresh_token")

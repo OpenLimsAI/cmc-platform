@@ -18,6 +18,7 @@ export const ROLE_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'CMC_WAREHOUSE_ADMIN', label: '库管员', color: 'gold' },
   { value: 'CMC_EQUIPMENT_ADMIN', label: '设备管理员', color: 'geekblue' },
   { value: 'READ_ONLY_USER', label: '只读用户', color: 'default' },
+  { value: 'DISPLAY_MODE', label: '展示模式', color: 'lime' },
 ];
 
 export const ROLE_LABELS: Record<string, string> = Object.fromEntries(

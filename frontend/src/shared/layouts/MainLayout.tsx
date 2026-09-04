@@ -4,8 +4,11 @@ import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { APP_VERSION } from '@/shared/version';
+import { useSessionGuard } from '@/shared/useSessionGuard';
 
 export function MainLayout() {
+  // 会话守卫：空闲超时自动登出 + 通行证快到期静默续期 + 多标签页同步
+  useSessionGuard();
   // UI1（V1.1 §3.1）：Footer 显示版本号 + 服务器时间（前端每秒刷新）
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {

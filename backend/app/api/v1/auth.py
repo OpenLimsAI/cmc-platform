@@ -13,6 +13,11 @@ from app.domains.auth.schemas import (
     LoginRequest,
 )
 from app.domains.auth.services import AuthService
+from app.domains.auth.session_policy import (
+    DISPLAY_MODE_ROLE,
+    SessionPolicy,
+    load_session_policy,
+)
 from app.shared.permissions import get_current_user
 from app.shared.rate_limit import login_rate_limit, public_rate_limit
 
@@ -24,12 +29,14 @@ REFRESH_COOKIE_NAME = "cmab_refresh_token"
 REFRESH_COOKIE_PATH = "/api/v1/auth"
 
 
-def _set_refresh_cookie(response: Response, token: str) -> None:
-    """写入 HttpOnly Cookie。生产环境强制 Secure。"""
+def _set_refresh_cookie(response: Response, token: str, policy: SessionPolicy) -> None:
+    """写入 HttpOnly Cookie。生产环境强制 Secure。
+
+    max_age 取硬上限（cookie 可以活得比 refresh 久，真正到期以服务端 DB 为准）。"""
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=token,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        max_age=policy.absolute_max_hours * 3600,
         path=REFRESH_COOKIE_PATH,
         httponly=True,
         secure=settings.is_production,
@@ -53,13 +60,13 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     service = AuthService(db)
-    result, refresh_token = await service.login(
+    result, refresh_token, policy = await service.login(
         username=payload.username,
         password=payload.password,
         ip=getattr(request.state, "ip_address", None),
         ua=getattr(request.state, "user_agent", None),
     )
-    _set_refresh_cookie(response, refresh_token)
+    _set_refresh_cookie(response, refresh_token, policy)
     return success(
         data=result.model_dump(),
         message="登录成功",
@@ -80,12 +87,12 @@ async def refresh(
         # 没有 cookie 直接 401 — 让前端跳登录
         from app.core.exceptions import TokenMissingError
         raise TokenMissingError("refresh token 缺失")
-    result, new_refresh = await service.refresh(
+    result, new_refresh, policy = await service.refresh(
         refresh_token=cmab_refresh_token,
         ip=getattr(request.state, "ip_address", None),
         ua=getattr(request.state, "user_agent", None),
     )
-    _set_refresh_cookie(response, new_refresh)
+    _set_refresh_cookie(response, new_refresh, policy)
     return success(
         data=result.model_dump(),
         message="OK",
@@ -122,6 +129,30 @@ async def get_me(
     data = await service.get_me(user)
     return success(
         data=data,
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/session-policy", summary="当前用户生效的会话策略（供各子系统前端做空闲登出/续期）")
+async def my_session_policy(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """全公司各前端（门户/LabOps/批号/看板…）登录后调一次，按返回值做：
+    - 快到 access_token_minutes 且最近有操作 → 静默 refresh
+    - 超过 idle_timeout_minutes 无操作 → 清令牌回登录页
+    display_mode=true 表示当前账号是展示模式（DISPLAY_MODE 角色），idle 已按展示模式放宽。"""
+    policy = await load_session_policy(db)
+    roles = [r.role_code for r in user.roles]
+    display_mode = DISPLAY_MODE_ROLE in roles
+    return success(
+        data={
+            "access_token_minutes": policy.access_token_minutes,
+            "idle_timeout_minutes": policy.idle_minutes_for(roles),
+            "absolute_max_hours": policy.absolute_max_hours,
+            "display_mode": display_mode,
+        },
         request_id=getattr(request.state, "request_id", None),
     )
 

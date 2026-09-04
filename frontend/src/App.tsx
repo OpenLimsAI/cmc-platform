@@ -132,6 +132,11 @@ const AuditLogPage = lazy(() =>
 const SignatureListPage = lazy(() =>
   import('./modules/admin/pages/SignatureListPage').then((m) => ({ default: m.SignatureListPage })),
 );
+const SessionPolicyPage = lazy(() =>
+  import('./modules/admin/pages/SessionPolicyPage').then((m) => ({
+    default: m.SessionPolicyPage,
+  })),
+);
 const ProfilePage = lazy(() =>
   import('./modules/profile/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 );
@@ -195,6 +200,7 @@ export default function App() {
             <Route path="/admin/permissions" element={<PermissionListPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogPage />} />
             <Route path="/admin/signatures" element={<SignatureListPage />} />
+            <Route path="/admin/session-policy" element={<SessionPolicyPage />} />
             <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
 
             {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}

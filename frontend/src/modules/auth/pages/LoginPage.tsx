@@ -5,6 +5,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { APP_VERSION } from '@/shared/version';
+import { touchActivity } from '@/shared/sessionGuard';
+
+// 被会话守卫踢回登录页时的说明（?reason=idle|expired）
+const REASON_NOTICE: Record<string, string> = {
+  idle: '长时间未操作，已自动退出登录，请重新登录',
+  expired: '登录已过期，请重新登录',
+};
 
 const { Title, Text } = Typography;
 
@@ -14,6 +21,7 @@ export function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const reasonNotice = REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null;
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -21,6 +29,7 @@ export function LoginPage() {
     try {
       const result = await authApi.login(values);
       setAuth(result.access_token, result.user);
+      touchActivity(); // 会话守卫的空闲计时从登录这一刻起算
       // 管理员重置后首次登录：强制跳改密页，绕过 redirect 目标（GxP）
       if (result.user.must_change_password) {
         message.warning('管理员已重置您的密码，请先设置新密码后再使用系统');
@@ -61,6 +70,10 @@ export function LoginPage() {
         <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>
           账号登录
         </Title>
+
+        {reasonNotice && !errorMessage && (
+          <Alert type="info" message={reasonNotice} showIcon style={{ marginBottom: 16 }} />
+        )}
 
         {errorMessage && (
           <Alert

@@ -41,6 +41,7 @@ from app.domains.auth.schemas import (
     LoginResponseUser,
     RefreshTokenResponse,
 )
+from app.domains.auth.session_policy import SessionPolicy, load_session_policy
 from app.shared.audit_context import audit_request_id
 
 
@@ -143,22 +144,36 @@ class AuthService:
         return locked_now, False
 
     # ----------- 内部：refresh token 持久化 -----------
+    @staticmethod
+    def _refresh_deadline(
+        policy: SessionPolicy, roles: list[str], session_started_at: datetime, now: datetime
+    ) -> datetime:
+        """refresh 到期 = min(现在 + 空闲窗口, 会话开始 + 硬上限)。滑动会话的核心：
+        每次换证只往后推一个空闲窗口；没人换证就自然过期 → 空闲登出。"""
+        idle_deadline = now + timedelta(minutes=policy.idle_minutes_for(roles))
+        absolute_deadline = session_started_at + timedelta(hours=policy.absolute_max_hours)
+        return min(idle_deadline, absolute_deadline)
+
     async def _issue_refresh_token(
         self,
         user_id: int,
         ip: str | None,
         ua: str | None,
+        *,
+        policy: SessionPolicy,
+        roles: list[str],
+        session_started_at: datetime,
     ) -> str:
         """生成新 refresh token + 落库；返回原始 JWT 字符串"""
         jti = str(uuid4())
-        token = create_refresh_token(subject=user_id, jti=jti)
-        expires_at = datetime.now(UTC) + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        now = datetime.now(UTC)
+        expires_at = self._refresh_deadline(policy, roles, session_started_at, now)
+        token = create_refresh_token(subject=user_id, jti=jti, expires_at=expires_at)
         self.db.add(RefreshToken(
             jti=jti,
             user_id=user_id,
             expires_at=expires_at,
+            session_started_at=session_started_at,
             ip_address=ip,
             user_agent=(ua or "")[:512] if ua else None,
         ))
@@ -168,8 +183,8 @@ class AuthService:
     # ----------- 公共方法 -----------
     async def login(
         self, username: str, password: str, ip: str | None, ua: str | None
-    ) -> tuple[LoginResponse, str]:
-        """返回 (LoginResponse, refresh_token)。refresh 由路由层写 HttpOnly Cookie。"""
+    ) -> tuple[LoginResponse, str, SessionPolicy]:
+        """返回 (LoginResponse, refresh_token, 生效的会话策略)。refresh 由路由层写 HttpOnly Cookie。"""
         result = await self.db.execute(
             select(User)
             .options(selectinload(User.roles))
@@ -258,18 +273,23 @@ class AuthService:
         # 加载权限并构造 token
         permissions = await self._get_user_permissions(user)
         roles = [r.role_code for r in user.roles]
+        policy = await load_session_policy(self.db)
 
         access_token = create_access_token(
             subject=user.user_id,
             extra_claims={"username": user.username, "full_name": user.full_name, "roles": roles},
+            expires_minutes=policy.access_token_minutes,
         )
 
-        refresh_token = await self._issue_refresh_token(user.user_id, ip, ua)
+        refresh_token = await self._issue_refresh_token(
+            user.user_id, ip, ua,
+            policy=policy, roles=roles, session_started_at=datetime.now(UTC),
+        )
 
         return (
             LoginResponse(
                 access_token=access_token,
-                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                expires_in=policy.access_token_minutes * 60,
                 user=LoginResponseUser(
                     user_id=user.user_id,
                     username=user.username,
@@ -282,6 +302,7 @@ class AuthService:
                 ),
             ),
             refresh_token,
+            policy,
         )
 
     async def get_me(self, user: User) -> dict:
@@ -335,20 +356,24 @@ class AuthService:
         refresh_token: str,
         ip: str | None,
         ua: str | None,
-    ) -> tuple[RefreshTokenResponse, str]:
+    ) -> tuple[RefreshTokenResponse, str, SessionPolicy]:
         """旋转 refresh token：校验 → 撤销旧 jti → 签发新 access+refresh。
 
-        返回 (RefreshTokenResponse, new_refresh_token)。新 refresh 由路由层
+        返回 (RefreshTokenResponse, new_refresh_token, 生效的会话策略)。新 refresh 由路由层
         写回 HttpOnly Cookie 覆盖旧值。
 
         失败场景：
-        - JWT 解码失败 / 不是 refresh 类型 → TokenInvalidError(40103)
-        - JWT 已过期 → TokenExpiredError(40102)（decode_token 自抛）
+        - JWT 签名无效 / 不是 refresh 类型 → TokenInvalidError(40103)
+        - 空闲超时（DB expires_at 已过）→ TokenExpiredError(40102)「空闲超时」
+        - 达到硬上限（session_started_at + absolute_max_hours 已过）→ TokenExpiredError「登录时长上限」
         - 数据库找不到 jti → TokenInvalidError（极少见，可能伪造）
         - jti 已被撤销 → TokenInvalidError + 写审计：可能是 refresh 重放
         - 关联用户已删/disabled → TokenInvalidError
+
+        到期判断以 DB 为准（JWT exp 与 DB expires_at 同值，但只有 DB 能区分两种到期原因），
+        故解码时跳过 exp 校验，签名仍校验。
         """
-        payload = decode_token(refresh_token)  # 过期/无效会抛
+        payload = decode_token(refresh_token, verify_exp=False)  # 签名无效会抛
         if payload.get("type") != "refresh":
             raise TokenInvalidError("token_type 不是 refresh")
 
@@ -371,8 +396,15 @@ class AuthService:
                 f"revoked_reason={rt.revoked_reason}"
             )
             raise TokenInvalidError("refresh token 已被撤销")
+        policy = await load_session_policy(self.db)
+        session_started_at = rt.session_started_at or rt.issued_at
+        absolute_deadline = session_started_at + timedelta(hours=policy.absolute_max_hours)
+        if absolute_deadline <= now:
+            raise TokenExpiredError(
+                f"本次登录已满 {policy.absolute_max_hours} 小时，请重新登录"
+            )
         if rt.expires_at <= now:
-            raise TokenExpiredError("refresh token 已过期")
+            raise TokenExpiredError("长时间未操作，已自动退出，请重新登录")
 
         # 拉用户 + roles
         user_result = await self.db.execute(
@@ -390,22 +422,26 @@ class AuthService:
         rt.revoked_reason = "rotated"
         rt.rotated_to_jti = new_jti
 
-        # 签发新 refresh
-        new_refresh = create_refresh_token(subject=user.user_id, jti=new_jti)
-        new_expires_at = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        # 签发新 refresh：只续到 min(现在 + 空闲窗口, 会话开始 + 硬上限)
+        roles = [r.role_code for r in user.roles]
+        new_expires_at = self._refresh_deadline(policy, roles, session_started_at, now)
+        new_refresh = create_refresh_token(
+            subject=user.user_id, jti=new_jti, expires_at=new_expires_at
+        )
         self.db.add(RefreshToken(
             jti=new_jti,
             user_id=user.user_id,
             expires_at=new_expires_at,
+            session_started_at=session_started_at,
             ip_address=ip,
             user_agent=(ua or "")[:512] if ua else None,
         ))
 
         # 签发新 access
-        roles = [r.role_code for r in user.roles]
         new_access = create_access_token(
             subject=user.user_id,
             extra_claims={"username": user.username, "full_name": user.full_name, "roles": roles},
+            expires_minutes=policy.access_token_minutes,
         )
 
         # 强一致：refresh 端点必须 commit 后才返回（避免 yield 依赖 commit 时机坑）
@@ -415,9 +451,10 @@ class AuthService:
         return (
             RefreshTokenResponse(
                 access_token=new_access,
-                expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                expires_in=policy.access_token_minutes * 60,
             ),
             new_refresh,
+            policy,
         )
 
     async def logout(
