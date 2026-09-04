@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # LIMS 看板挂到门户 /lims：拉码、.env.local 改相对路径、next build、前后端只听本机
 source "$(dirname "$0")/00_common.sh"
-cd /home/prometheus/cmc-rd-lims-dashboard
+cd /opt/cmc-rd-lims-dashboard
 log "拉取代码"; git pull -q; git log --oneline -1
 log "前端 .env.local → 相对路径 /lims"; backup frontend/.env.local
 printf '# 相对路径：经统一门户 nginx(5100)/lims/api → 后端 8030\nDEV_EXTRA_ORIGINS=\nNEXT_PUBLIC_API_BASE_URL=/lims\n' > frontend/.env.local
