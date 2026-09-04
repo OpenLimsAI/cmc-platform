@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 把 Mac 导出的 schema 快照灌进 Linux 各库。
 # 用法: sudo bash 03_load_schemas.sh <schema目录> <cmc_data_platform_baseline.sql>
-# 例:   sudo bash 03_load_schemas.sh ~/cmc-deploy/schema ~/cmc_data_platform_baseline.sql
+# 例:   sudo bash 03_load_schemas.sh /opt/cmc-deploy/schema ~/cmc_data_platform_baseline.sql
 set -euo pipefail
 
 SCHEMA_DIR="${1:?需要 schema 目录}"

@@ -48,7 +48,7 @@ Mac 开发：
 
 Linux 部署：
   6. ssh -p 13568 prometheus@172.19.0.105
-  7. cd ~/cmc-schema-migrations && git pull
+  7. cd /opt/cmc-schema-migrations && git pull
   8. ./dbmig <库> upgrade head
   9. ./dbmig <库> current 验证
 ```

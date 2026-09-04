@@ -77,7 +77,7 @@ deploy/linux-native/
 ## 3. 执行顺序（在 Linux 上）
 
 > 全程 `sudo -u postgres`。先把整个 `deploy/linux-native/` 传到 Linux：
-> `scp -P 13568 -r deploy/linux-native prometheus@172.19.0.105:~/cmc-deploy`
+> `scp -P 13568 -r deploy/linux-native prometheus@172.19.0.105:/opt/cmc-deploy`
 > 同时把 `assets/004/baseline_schema_2026-06-03.sql` 一并传过去。
 
 ### 3.1 停老应用 + 确认备份（推平前提）
@@ -99,7 +99,7 @@ ls -la ~/cmc_data_platform_backup_2026-06-03.sql
 ### 3.3 建两个新集群（5433 / 5434）
 
 ```bash
-cd ~/cmc-deploy/scripts
+cd /opt/cmc-deploy/scripts
 sudo bash 01_create_clusters.sh
 pg_lsclusters          # 应看到 16/main:5432, 16/mdm:5433, 16/gmp:5434 都 online
 ```
@@ -121,7 +121,7 @@ sudo -u postgres psql -p 5434 -v ON_ERROR_STOP=1 -f 02_init_gmp_pg.sql
 ### 3.5 灌 schema
 
 ```bash
-sudo bash 03_load_schemas.sh ~/cmc-deploy/schema ~/cmc_data_platform_baseline.sql
+sudo bash 03_load_schemas.sh /opt/cmc-deploy/schema ~/cmc_data_platform_baseline.sql
 # 末参数 = cmc_data_platform 的 assets/004 快照路径
 ```
 
@@ -191,7 +191,7 @@ sudo -u postgres psql -p 5432 -d cmc_rd -tAc "\dn"   # schema 齐不齐
 ```bash
 # 确认 ETL 源（SampleManager / Lucullus / LabVantage）从 Linux 可达
 # 手动跑一轮，确认能写进新库
-bash ~/rd-lims-etl/scripts/run_etl.sh
+bash /opt/rd-lims-etl/scripts/run_etl.sh
 # 验证行数后，恢复 cron / 启动各服务
 sudo systemctl start cmc-backend cmc-frontend
 ```

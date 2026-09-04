@@ -97,7 +97,7 @@ git push
 
 ```bash
 ssh -p 13568 prometheus@172.19.0.105
-cd ~/cmc-schema-migrations
+cd /opt/cmc-schema-migrations
 git pull
 ./dbmig <库> upgrade head --sql       # 先 dry-run 看一眼
 ./dbmig <库> upgrade head             # 执行
