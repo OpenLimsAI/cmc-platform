@@ -12,6 +12,13 @@ const apiProxy = {
     rewrite: (p: string) => p.replace(/^\/labops/, ""),
     cookiePathRewrite: { "/api/": "/labops/api/" },
   },
+  // 单独跑（不经 HUB nginx）时模拟 HUB 的 /mdm/api → MDM 后端（登录/续期/登出直接打 MDM，见 shared/cmabSession.ts）
+  "/mdm/api": {
+    target: process.env.MDM_TARGET || "http://localhost:18000",
+    changeOrigin: true,
+    rewrite: (p: string) => p.replace(/^\/mdm/, ""),
+    cookiePathRewrite: { "/api/": "/mdm/api/" },
+  },
 };
 
 export default defineConfig({

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { User } from "../api/auth";
 import { TOKEN_KEY, USER_KEY, stripBase, withBase } from "../shared/base";
+import { TOKEN_CHANGED_EVENT } from "../shared/cmabSession";
 
 interface AuthState {
   token: string | null;
@@ -57,6 +58,20 @@ if (typeof window !== "undefined") {
       }
     } else {
       useAuthStore.setState({ token: e.newValue });
+    }
+  });
+  // 本标签内 cmabSession（登录/静默续期/登出）改了令牌 → 同步进 store
+  window.addEventListener(TOKEN_CHANGED_EVENT, () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      useAuthStore.setState({ token: null, user: null });
+      return;
+    }
+    try {
+      const s = localStorage.getItem(USER_KEY);
+      useAuthStore.setState({ token, user: s ? JSON.parse(s) : useAuthStore.getState().user });
+    } catch {
+      useAuthStore.setState({ token });
     }
   });
 }

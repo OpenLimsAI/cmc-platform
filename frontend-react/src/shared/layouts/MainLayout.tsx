@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout, Menu, Button, Typography, Space, Dropdown } from "antd";
 import {
@@ -18,6 +18,8 @@ import {
 } from "@ant-design/icons";
 import { useAuthStore } from "../../stores/authStore";
 import { logout } from "../../api/auth";
+import { withBase } from "../base";
+import { logoutToLogin, startSessionGuard } from "../cmabSession";
 
 const { Header, Sider, Content } = Layout;
 
@@ -56,6 +58,9 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, clearAuth, hasRole, canWrite } = useAuthStore();
+
+  // 会话守卫：空闲超时自动登出 / 通行证快到期静默续期 / 别的标签页或系统登出跟着退（规则由 MDM 会话策略配置）
+  useEffect(() => startSessionGuard({ onLogout: logoutToLogin(withBase("/login")) }), []);
 
   const handleLogout = async () => {
     try {

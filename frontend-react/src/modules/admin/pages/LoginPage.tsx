@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Form, Input, Button, Card, Typography, message, Alert } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { login } from "../../../api/auth";
 import { useAuthStore } from "../../../stores/authStore";
-import { getErrorDetail } from "../../../shared/errors";
+import { logoutReasonText } from "../../../shared/cmabSession";
 
 const { Title, Text } = Typography;
 
@@ -17,13 +17,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const reasonNotice = logoutReasonText(searchParams.get("reason")); // 被会话守卫踢回来时的说明
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const { data } = await login(values);
+      const data = await login(values); // 直接打 MDM（shared/cmabSession），已落盘统一 key
       setAuth(data.access_token, data.user);
 
       if (data.user.must_change_password) {
@@ -32,7 +34,7 @@ export default function LoginPage() {
       }
       navigate("/dashboard");
     } catch (err: unknown) {
-      setErrorMessage(getErrorDetail(err, "登录失败"));
+      setErrorMessage(err instanceof Error && err.message ? err.message : "登录失败");
     } finally {
       setLoading(false);
     }
@@ -63,6 +65,10 @@ export default function LoginPage() {
         <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: "center" }}>
           工号登录
         </Title>
+
+        {reasonNotice && !errorMessage && (
+          <Alert type="info" message={reasonNotice} showIcon style={{ marginBottom: 16 }} />
+        )}
 
         {errorMessage && (
           <Alert
