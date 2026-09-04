@@ -3,7 +3,8 @@
 // 仅 UX 层拦截；数据接口在后端逐一验签，绕过此守卫也拿不到数据。
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { getToken } from "@/lib/auth"
+import { getToken, withBase } from "@/lib/auth"
+import { logoutToLogin, startSessionGuard } from "@/lib/cmabSession"
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -24,6 +25,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
     setReady(true)
   }, [pathname, isLogin, router])
+
+  // 会话守卫（2026-09-04）：空闲超时自动登出 / 通行证快到期静默续期 / 别的标签页或系统登出跟着退
+  useEffect(() => {
+    if (isLogin || !ready) return
+    return startSessionGuard({ onLogout: logoutToLogin(withBase("/login")) })
+  }, [isLogin, ready])
 
   // 未确认登录态前不渲染内容，避免闪一下再跳登录
   if (!ready && !isLogin) return null

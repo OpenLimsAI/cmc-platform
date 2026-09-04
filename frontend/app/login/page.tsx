@@ -6,6 +6,7 @@ import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { login } from "@/lib/api"
 import { setToken } from "@/lib/auth"
+import { logoutReasonText } from "@/lib/cmabSession"
 import { Button } from "@/components/ui/button"
 
 function LoginInner() {
@@ -15,6 +16,7 @@ function LoginInner() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const reasonNotice = logoutReasonText(searchParams.get("reason")) // 被会话守卫踢回来时的说明
 
   const submit = async () => {
     if (loading) return // 防登录中重复提交（连按 Enter 会发多个请求）
@@ -31,8 +33,7 @@ function LoginInner() {
       const raw = searchParams.get("redirect") || "/dashboard/overview"
       router.replace(raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard/overview")
     } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(detail ?? "登录失败，请稍后重试")
+      setError(e instanceof Error && e.message ? e.message : "登录失败，请稍后重试")
       setLoading(false)
     }
   }
@@ -61,6 +62,7 @@ function LoginInner() {
           onKeyDown={(e) => e.key === "Enter" && submit()}
           className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
+        {reasonNotice && !error && <p className="text-sm text-blue-600">{reasonNotice}</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
         <Button onClick={submit} disabled={loading} className="w-full">
           {loading ? "登录中…" : "登录"}

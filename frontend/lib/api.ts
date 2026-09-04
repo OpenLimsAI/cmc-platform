@@ -1,7 +1,8 @@
 // API 客户端：封装对后端的请求，所有接口调用从此处导出
 // 认证：请求自动带 MDM JWT（Bearer）；access 快过期时用 HttpOnly refresh Cookie 无感续期（对齐 labops 接法）
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
-import { BASE, clearAuth, decodeJwtPayload, getToken, setToken, stripBase, withBase } from "@/lib/auth"
+import { BASE, clearAuth, getToken, setToken, stripBase, withBase } from "@/lib/auth"
+import { mdmLogin, mdmLogout, mdmRefresh } from "@/lib/cmabSession"
 
 // 默认 "/lims"：所有 "/api/v1/..." 调用实际发到 /lims/api/v1/...，经统一门户 nginx（5100）剥掉 /lims 到后端 8030。
 // 一律相对路径、同源，不写死 host:端口（.env.local 里也请写 /lims）。
@@ -27,62 +28,22 @@ const api = axios.create({
   paramsSerializer,
 })
 
-// 裸客户端：仅用于调 /auth/refresh，不挂续期拦截器，避免递归
-const bare = axios.create({ baseURL: BASE_URL, timeout: 15000, withCredentials: true })
-
-const REFRESH_AHEAD_MS = 5 * 60 * 1000 // access 剩余 < 5 分钟时主动续期
-
-/** 解 JWT 的 exp(毫秒)；解析失败返回 0（当作不过期，交给 401 兜底）。 */
-function tokenExpMs(token: string): number {
-  const payload = decodeJwtPayload(token)
-  return typeof payload?.exp === "number" ? payload.exp * 1000 : 0
-}
-
+// 认证（2026-09-04 起）：登录/续期/登出统一直接打 MDM（lib/cmabSession.ts）；本客户端只负责带令牌 +
+// 401 时用 MDM refresh 兜底续一次并重放。主动续期与空闲登出由 AuthGuard 里的会话守卫负责。
 function forceLogout() {
   clearAuth()
   if (typeof window !== "undefined") {
     const path = stripBase(window.location.pathname) // 去掉 /lims 前缀，redirect 只存站内相对路径
     if (!path.startsWith("/login")) {
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 非组件模块拿不到 router，且登出需整页刷新清空内存态
-      window.location.href = withBase(`/login?redirect=${encodeURIComponent(path + window.location.search)}`)
+      window.location.href = withBase(`/login?reason=expired&redirect=${encodeURIComponent(path + window.location.search)}`)
     }
   }
 }
 
-// 并发控制：同一时刻只发起一次 refresh，其余请求等待同一个 promise
-let refreshPromise: Promise<string> | null = null
-
-function doRefresh(): Promise<string> {
-  if (!refreshPromise) {
-    refreshPromise = bare
-      .post("/api/v1/auth/refresh")
-      .then((resp) => {
-        const newToken: string | undefined = resp.data?.access_token
-        if (!newToken) throw new Error("refresh 未返回 access_token")
-        setToken(newToken)
-        return newToken
-      })
-      .finally(() => {
-        refreshPromise = null
-      })
-  }
-  return refreshPromise
-}
-
-// 请求拦截器：带 token；若 access 快过期则先主动续期
-api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  let token = getToken()
-  if (token) {
-    const exp = tokenExpMs(token)
-    if (exp && exp - Date.now() < REFRESH_AHEAD_MS) {
-      try {
-        token = await doRefresh()
-      } catch {
-        // 主动续期失败：放行用原 token，由响应 401 兜底再处理
-      }
-    }
-    if (token) config.headers.Authorization = `Bearer ${token}`
-  }
+// 请求拦截器：带 token
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
@@ -99,7 +60,7 @@ api.interceptors.response.use(
     if (status === 401 && original && !original._retried && !isAuthEndpoint) {
       original._retried = true
       try {
-        const newToken = await doRefresh()
+        const newToken = await mdmRefresh()
         original.headers.Authorization = `Bearer ${newToken}`
         return api(original) // 用新 token 重放原请求
       } catch {
@@ -123,15 +84,13 @@ export interface LoginResult {
   [k: string]: unknown
 }
 
-export const login = (username: string, password: string) =>
-  api.post<LoginResult>("/api/v1/auth/login", { username, password }).then((r) => r.data)
+// 2026-09-04 起登录直接打 MDM（同源 /mdm/api/v1）：refresh Cookie 落在 MDM 路径下，后续静默续期统一处理。
+// 后端 /api/v1/auth/login 代理保留仅供脚本/旧客户端。
+export const login = (username: string, password: string): Promise<LoginResult> =>
+  mdmLogin(username, password).then((r) => ({ access_token: r.access_token, user: r.user }))
 
 export const logout = async () => {
-  try {
-    await api.post("/api/v1/auth/logout")
-  } catch {
-    // best-effort：MDM 不可达也照常清本地登录态
-  }
+  await mdmLogout() // 撤销 MDM refresh（best-effort）+ 清全公司共用令牌
   clearAuth()
 }
 
