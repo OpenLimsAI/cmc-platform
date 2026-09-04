@@ -85,7 +85,10 @@ export default function HubPage() {
             description="请联系管理员在 MDM 后台为你的账号分配角色。"
           />
         ) : (
-          <div className="tile-grid">
+          <div
+            className="tile-grid"
+            style={{ '--cols': Math.min(visible.length, 4) } as React.CSSProperties}
+          >
             {visible.map((a) => (
               <AppTile key={a.id} app={a} />
             ))}
