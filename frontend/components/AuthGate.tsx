@@ -13,7 +13,8 @@ import {
   useState,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { clearToken, fetchMe, login, setToken, type Me } from "@/lib/api";
+import { clearToken, fetchMe, getToken, login, notifyAuthExpired, setToken, type Me } from "@/lib/api";
+import { logoutReasonText, mdmLogout, startSessionGuard } from "@/lib/cmabSession";
 
 const AuthContext = createContext<{ user: Me | null; logout: () => void }>({
   user: null,
@@ -47,10 +48,26 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [qc]);
 
   const logout = useCallback(() => {
+    void mdmLogout(); // 撤销 MDM refresh + 清全公司共用令牌（best-effort）
     clearToken();
     qc.clear(); // 顺带清掉所有数据缓存，防止换账号看到上一个人的数据
     qc.invalidateQueries({ queryKey: ["auth-me"] });
   }, [qc]);
+
+  // 会话守卫（2026-09-04）：空闲超时自动登出 / 通行证快到期静默续期 / 别的标签页或系统登出跟着退。
+  // 开放模式（is_system，无令牌）不启动。
+  const loggedIn = !!meQ.data && !meQ.data.is_system && !!getToken();
+  useEffect(() => {
+    if (!loggedIn) return;
+    return startSessionGuard({
+      onLogout: (reason) => {
+        if (reason !== "other-tab") void mdmLogout();
+        clearToken();
+        qc.clear();
+        notifyAuthExpired(reason);
+      },
+    });
+  }, [loggedIn, qc]);
 
   if (meQ.isLoading) {
     return (
@@ -82,6 +99,16 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 被会话守卫踢回来时的说明（api.ts notifyAuthExpired 写入 sessionStorage）
+  const [notice] = useState<string | null>(() => {
+    try {
+      const r = sessionStorage.getItem("cmab_logout_reason");
+      sessionStorage.removeItem("cmab_logout_reason");
+      return logoutReasonText(r);
+    } catch {
+      return null;
+    }
+  });
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -100,14 +127,7 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
       setToken(data.access_token, data.user); // 同时落 cmab_user，供门户/其他子系统共用
       onSuccess();
     } catch (e) {
-      const err = e as {
-        response?: { data?: { detail?: string; message?: string } };
-      };
-      setError(
-        err.response?.data?.detail ??
-          err.response?.data?.message ??
-          "登录失败，请稍后再试"
-      );
+      setError(e instanceof Error && e.message ? e.message : "登录失败，请稍后再试");
     } finally {
       setLoading(false);
     }
@@ -132,6 +152,12 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}
       >
         <h2 className="mb-6 text-center text-xl font-semibold">工号登录</h2>
+
+        {notice && !error && (
+          <div className="mb-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+            {notice}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 flex items-start justify-between rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

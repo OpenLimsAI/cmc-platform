@@ -1,4 +1,5 @@
-import axios from "axios";
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { clearSession, mdmLogin, mdmRefresh, type MdmUser } from "@/lib/cmabSession";
 
 // 默认 "/usp"：所有 "/api/..." 调用实际发到 /usp/api/...，经统一门户 nginx（5100）剥掉 /usp 到后端 8070。
 // 一律相对路径、同源，不写死 host:端口（.env.local 里也请写 /usp）。
@@ -28,11 +29,22 @@ export function setToken(t: string, user?: unknown) {
   if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  clearSession(); // 清全公司共用 key（同时广播 cmab-token-changed）
 }
 
-// 每个请求带上令牌；401 = 令牌失效 → 清掉并通知 AuthGate 回登录页
+/** 令牌失效 → 清掉并通知 AuthGate 回登录页；reason 供登录页显示提示（idle / expired） */
+export function notifyAuthExpired(reason: "idle" | "expired" | "other-tab" = "expired") {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem("cmab_logout_reason", reason);
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event("usp-auth-expired"));
+}
+
+// 每个请求带上令牌；401 先用 MDM refresh（lib/cmabSession）兜底续一次并重放，续不了再回登录页。
+// 主动续期与空闲登出由 AuthGate 里的会话守卫负责（规则由 MDM 会话策略配置，2026-09-04 起）。
 http.interceptors.request.use((config) => {
   const t = getToken();
   if (t) config.headers.Authorization = `Bearer ${t}`;
@@ -40,10 +52,27 @@ http.interceptors.request.use((config) => {
 });
 http.interceptors.response.use(
   (resp) => resp,
-  (error) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
+  async (error: AxiosError) => {
+    if (error.response?.status !== 401 || typeof window === "undefined") {
+      return Promise.reject(error);
+    }
+    const original = error.config as
+      | (InternalAxiosRequestConfig & { _retried?: boolean })
+      | undefined;
+    const isAuthEndpoint = (original?.url ?? "").includes("/auth/login");
+    if (original && !original._retried && !isAuthEndpoint && getToken()) {
+      original._retried = true;
+      try {
+        const newToken = await mdmRefresh();
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return http(original);
+      } catch {
+        /* 续不了，往下走登出 */
+      }
+    }
+    if (!isAuthEndpoint) {
       clearToken();
-      window.dispatchEvent(new Event("usp-auth-expired"));
+      notifyAuthExpired("expired");
     }
     return Promise.reject(error);
   }
@@ -51,18 +80,17 @@ http.interceptors.response.use(
 
 export interface LoginResult {
   access_token: string;
-  user?: { username?: string; full_name?: string } | null;
+  user?: MdmUser | null;
 }
 
+// 2026-09-04 起登录直接打 MDM（同源 /mdm/api/v1）：refresh Cookie 落在 MDM 路径下，后续静默续期统一处理。
+// 后端 /api/auth/login 代理保留仅供脚本/旧客户端。
 export async function login(
   username: string,
   password: string
 ): Promise<LoginResult> {
-  const { data } = await http.post<LoginResult>("/api/auth/login", {
-    username,
-    password,
-  });
-  return data;
+  const r = await mdmLogin(username, password);
+  return { access_token: r.access_token, user: r.user };
 }
 
 export interface Me {
