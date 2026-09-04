@@ -90,7 +90,7 @@ export const HUB_APPS: HubApp[] = [
     description: '工艺成本测算与情景比较',
     icon: 'calculator',
     path: '/cost/',
-    requires: 'authenticated',
+    requires: ['CMC_COST_USER'], // 2026-09-04 负责人：成本模型只给指定人（MDM 角色 CMC_COST_USER）+ SYS_ADMIN 看
     status: 'planned',
     color: '#eb2f96',
   },
