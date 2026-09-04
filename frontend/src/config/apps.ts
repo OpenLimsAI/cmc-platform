@@ -8,7 +8,7 @@
 // ⚠️ 各系统的角色码请以 MDM 后台 /admin/roles 里实际配置为准，这里的默认值来自各子系统当前代码：
 //   LabOps 只读对所有登录用户开放（写操作要 CMC_WAREHOUSE_ADMIN / CMC_EQUIPMENT_ADMIN，由 LabOps 后端自己管）
 //   批号管理 认 CMC_USP_OPERATOR / CMC_USP_RESEARCHER / CMC_USP_MANAGER
-//   上游工艺看板 / LIMS 看板 目前无独立角色，登录即可看
+//   上游工艺看板 认 CMC_USP_OPERATOR / CMC_USP_MANAGER / CMC_USP_RESEARCHER；LIMS 看板 认 CMC_LIMS_* 三角色 + CMC_RESEARCHER + QA_REVIEWER（2026-09-04）
 
 export type AppRequirement = 'authenticated' | string[]
 
@@ -60,7 +60,7 @@ export const HUB_APPS: HubApp[] = [
     description: '上游发酵 / 细胞培养过程数据与批次趋势',
     icon: 'line-chart',
     path: '/usp/',
-    requires: 'authenticated',
+    requires: ['CMC_USP_OPERATOR', 'CMC_USP_MANAGER', 'CMC_USP_RESEARCHER'], // 2026-09-04 负责人：仅上游三角色（与 USP 后端 viewer 角色一致）
     status: 'live',
     color: '#52c41a',
   },
@@ -70,7 +70,7 @@ export const HUB_APPS: HubApp[] = [
     description: '检验数据、周转与放行统计',
     icon: 'dashboard',
     path: '/lims/',
-    requires: 'authenticated',
+    requires: ['CMC_LIMS_ADMIN', 'CMC_LIMS_ANALYST', 'CMC_LIMS_CHEMIST', 'CMC_RESEARCHER', 'QA_REVIEWER'], // 2026-09-04 负责人：LIMS 三角色 + CMC 研究员 + QA 审核（与 LIMS 后端 VIEW_ROLES 一致）
     status: 'live',
     color: '#fa8c16',
   },
