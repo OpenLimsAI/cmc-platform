@@ -22,6 +22,7 @@ export interface HubApp {
   status: 'live' | 'planned' | 'hidden'
   color: string // 图标底色
   badge?: string // 可选：名字旁的醒目标签（如培训环境「练习专用」）
+  tileTheme?: 'training' // 可选：整张卡片换配色（training = 黄底深字，图标小方块仍用 color）
 }
 
 export const HUB_APPS: HubApp[] = [
@@ -57,7 +58,7 @@ export const HUB_APPS: HubApp[] = [
   },
   {
     // 批号管理培训环境：同一套代码、独立练习库 cmc_analytics_training，随便点不影响正式数据（不自动清空）
-    // 图标与正式相同（条码），底色换黄色 + 「练习专用」标签，和正式的紫色一眼区分；培训环境页面本身也是浅黄底 + 顶部横幅
+    // 图标与正式完全相同（紫色条码），但整张卡片黄底 + 「练习专用」标签，一眼区分；培训环境页面本身也是浅黄底 + 顶部横幅
     id: 'batch-train',
     name: '批号管理【培训】',
     description: '练习专用：独立练习库，随便发放 / 修改 / 作废，不影响正式数据',
@@ -65,8 +66,9 @@ export const HUB_APPS: HubApp[] = [
     path: '/batch-train/',
     requires: ['CMC_USP_OPERATOR', 'CMC_USP_RESEARCHER', 'CMC_USP_MANAGER'],
     status: 'live',
-    color: '#fadb14',
+    color: '#722ed1',
     badge: '练习专用',
+    tileTheme: 'training',
   },
   {
     id: 'usp',

@@ -58,7 +58,7 @@ export default function AppTile({ app }: { app: HubApp }) {
     )
   }
   return (
-    <a className="tile" href={app.path} target="_blank" rel="noopener">
+    <a className={`tile${app.tileTheme ? ` tile-${app.tileTheme}` : ''}`} href={app.path} target="_blank" rel="noopener">
       {body}
     </a>
   )
