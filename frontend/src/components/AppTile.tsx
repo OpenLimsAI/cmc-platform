@@ -7,7 +7,6 @@ import {
   DotChartOutlined,
   ExperimentOutlined,
   LineChartOutlined,
-  ReadOutlined,
 } from '@ant-design/icons'
 import { Tag } from 'antd'
 import type { ReactNode } from 'react'
@@ -23,7 +22,6 @@ const ICONS: Record<string, ReactNode> = {
   dashboard: <DashboardOutlined />,
   calculator: <CalculatorOutlined />,
   'dot-chart': <DotChartOutlined />,
-  training: <ReadOutlined />,
 }
 
 export default function AppTile({ app }: { app: HubApp }) {
@@ -40,7 +38,7 @@ export default function AppTile({ app }: { app: HubApp }) {
         </Tag>
       )}
       {!planned && app.badge && (
-        <Tag color="red" className="tile-tag" style={{ marginInlineEnd: 0, fontWeight: 600 }}>
+        <Tag color="gold" className="tile-tag" style={{ marginInlineEnd: 0, fontWeight: 600 }}>
           {app.badge}
         </Tag>
       )}

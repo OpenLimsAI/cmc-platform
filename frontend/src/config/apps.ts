@@ -57,15 +57,15 @@ export const HUB_APPS: HubApp[] = [
   },
   {
     // 批号管理培训环境：同一套代码、独立练习库 cmc_analytics_training，随便点不影响正式数据（不自动清空）
-    // 红色 + 「培训」图标，和正式的紫色条码图标一眼区分；培训环境页面本身也是浅黄底 + 顶部横幅
+    // 图标与正式相同（条码），底色换黄色 + 「练习专用」标签，和正式的紫色一眼区分；培训环境页面本身也是浅黄底 + 顶部横幅
     id: 'batch-train',
     name: '批号管理【培训】',
     description: '练习专用：独立练习库，随便发放 / 修改 / 作废，不影响正式数据',
-    icon: 'training',
+    icon: 'barcode',
     path: '/batch-train/',
     requires: ['CMC_USP_OPERATOR', 'CMC_USP_RESEARCHER', 'CMC_USP_MANAGER'],
     status: 'live',
-    color: '#f5222d',
+    color: '#fadb14',
     badge: '练习专用',
   },
   {
