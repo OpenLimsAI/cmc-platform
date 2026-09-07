@@ -28,6 +28,13 @@ server {
     # 前端挂在统一门户 /batch/ 子路径下（vite base:'/batch/'）
     location = /            { return 302 /batch/; }
     location /batch/api/    { proxy_pass http://127.0.0.1:8080/api/; }
+    # index.html 不缓存：普通 F5 就拿到新版（资源文件名带哈希，可长期缓存）；SPA 回落/目录 index 都内部跳到这里
+    location = /batch/index.html {
+        alias /opt/rd-batch-registry/frontend/dist/index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+    }
+    location /batch/assets/ { alias /opt/rd-batch-registry/frontend/dist/assets/; add_header Cache-Control "public, max-age=31536000, immutable"; }
     location /batch/        { alias /opt/rd-batch-registry/frontend/dist/; try_files $uri $uri/ /batch/index.html; }
     location /              { try_files $uri $uri/ /index.html; }
 }
