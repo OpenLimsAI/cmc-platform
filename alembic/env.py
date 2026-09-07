@@ -31,7 +31,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 DB = config.config_ini_section  # alembic -n <这里>
-KNOWN = {"cmc_rd", "cmc_analytics", "cmc_data_platform", "cmc_gmp"}
+KNOWN = {"cmc_rd", "cmc_analytics", "cmc_analytics_training", "cmc_data_platform", "cmc_gmp"}
 if DB not in KNOWN:
     raise RuntimeError(
         f"必须用 -n <库名> 指定环境；可选 {sorted(KNOWN)}（当前 section='{DB}'）。"

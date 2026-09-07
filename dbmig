@@ -23,14 +23,14 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ALEMBIC="$REPO/.venv/bin/alembic"
 CMAB_DIR="${CMAB_DIR:-$(cd "$REPO/.." && pwd)/cmab-mdm-platform/backend}"
-CENTRAL="cmc_rd cmc_analytics cmc_data_platform cmc_gmp"
+CENTRAL="cmc_rd cmc_analytics cmc_analytics_training cmc_data_platform cmc_gmp"
 
 cmab() { ( cd "$CMAB_DIR" && uv run alembic "$@" ); }
 
 db="${1:-list}"; shift || true
 
 case "$db" in
-  cmc_rd|cmc_analytics|cmc_data_platform|cmc_gmp)
+  cmc_rd|cmc_analytics|cmc_analytics_training|cmc_data_platform|cmc_gmp)
     exec "$ALEMBIC" -n "$db" "$@" ;;
   cmab_mdm)
     cmab "$@" ;;
