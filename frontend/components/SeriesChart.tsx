@@ -49,6 +49,8 @@ const KIND_STYLES: { symbol: string; type: "solid" | "dashed" | "dotted" }[] = [
 
 // scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）；CurveSection 的罐号图例按同一顺序画图标
 export const GROUP_SYMBOLS = ["circle", "rect", "triangle", "diamond", "pin", "arrow", "roundRect"];
+// 没有标记的图（全量时序，点太密）改用线型分罐/段：实线、虚线、点线、长短线、密虚线
+export const GROUP_LINE_TYPES: (string | number[])[] = ["solid", "dashed", "dotted", [12, 4, 3, 4], [3, 3]];
 
 // 右侧第 2、3… 根纵轴各占的宽度（像素）
 const EXTRA_AXIS_W = 56;
@@ -294,9 +296,14 @@ export function SeriesChart({
         // batch 方案：单批次颜色 = 指标固定色；多批次颜色 = 罐，线型/标记 = 指标固定形状
         // metric 方案：颜色 = 指标固定色、全部实线，标记形状 = 罐
         const si = s.shape ?? (ki >= 0 ? ki : 0);
+        // metric 方案：有标记的图用标记形状分罐；没标记的图（全量时序）用线型分段
+        const g = gi >= 0 ? gi : 0;
         const style =
           scheme === "metric"
-            ? { symbol: GROUP_SYMBOLS[(gi >= 0 ? gi : 0) % GROUP_SYMBOLS.length], type: "solid" as const }
+            ? {
+                symbol: GROUP_SYMBOLS[g % GROUP_SYMBOLS.length],
+                type: markers || groups.length <= 1 ? "solid" : GROUP_LINE_TYPES[g % GROUP_LINE_TYPES.length],
+              }
             : KIND_STYLES[si % KIND_STYLES.length];
         return {
           name: `${s.name || s.code}${s.unit ? " (" + s.unit + ")" : ""}`,
@@ -305,7 +312,7 @@ export function SeriesChart({
           symbol: markers ? style.symbol : "none",
           symbolSize: 7,
           showSymbol: markers,
-          lineStyle: { width: 2, type: multiGroup ? style.type : "solid" },
+          lineStyle: { width: 2, type: scheme === "metric" ? style.type : multiGroup ? style.type : "solid" },
           smooth: false,
           connectNulls: false,
           // 鼠标悬停到某条线（或图例），其他线变淡；这条线本身不加粗、标记不放大（负责人 2026-09-08：细线更好看）

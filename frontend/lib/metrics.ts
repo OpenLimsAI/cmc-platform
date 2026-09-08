@@ -43,26 +43,31 @@ export const CELL_METRICS: MetricDef<GrowthPoint>[] = [
 ];
 export const CELL_DEFAULT_METRICS = ["viable_per_ml", "viability_pct"];
 
-// 生化（Nova FLEX2；数据没有渗透压列）
+// 生化（Nova FLEX2；数据没有渗透压列）：g/L 的两个放左轴，mmol/L 的放右轴
 export const NOVA_METRICS: MetricDef<NovaPoint>[] = [
-  { code: "gluc", name: "葡萄糖", unit: "g/L", color: C.orange, shape: 0, pick: (p) => p.gluc },
-  { code: "lac", name: "乳酸", unit: "g/L", color: C.green, shape: 1, pick: (p) => p.lac },
-  { code: "nh4", name: "氨", unit: "mmol/L", color: C.amber, shape: 2, pick: (p) => p.nh4 },
-  { code: "gln", name: "谷氨酰胺", unit: "mmol/L", color: C.pink, shape: 3, pick: (p) => p.gln },
-  { code: "glu", name: "谷氨酸", unit: "mmol/L", color: C.indigo, shape: 4, pick: (p) => p.glu },
-  { code: "na", name: "钠", unit: "mmol/L", color: C.slate, shape: 5, pick: (p) => p.na },
-  { code: "k", name: "钾", unit: "mmol/L", color: C.lime, shape: 0, pick: (p) => p.k },
-  { code: "ca", name: "钙", unit: "mmol/L", color: C.teal, shape: 1, pick: (p) => p.ca },
-  { code: "ph", name: "pH", unit: "", color: C.violet, shape: 2, pick: (p) => p.ph },
-  { code: "po2", name: "氧分压", unit: "mmHg", color: C.cyan, shape: 3, pick: (p) => p.po2 },
-  { code: "pco2", name: "二氧化碳分压", unit: "mmHg", color: C.crimson, shape: 4, pick: (p) => p.pco2 },
+  { code: "gluc", name: "葡萄糖", unit: "g/L", color: C.orange, shape: 0, axis: "left", pick: (p) => p.gluc },
+  { code: "lac", name: "乳酸", unit: "g/L", color: C.green, shape: 1, axis: "left", pick: (p) => p.lac },
+  { code: "nh4", name: "氨", unit: "mmol/L", color: C.purple, shape: 2, axis: "right", pick: (p) => p.nh4 },
+  { code: "gln", name: "谷氨酰胺", unit: "mmol/L", color: C.pink, shape: 3, axis: "right", pick: (p) => p.gln },
+  { code: "glu", name: "谷氨酸", unit: "mmol/L", color: C.indigo, shape: 4, axis: "right", pick: (p) => p.glu },
+  { code: "na", name: "钠", unit: "mmol/L", color: C.slate, shape: 5, axis: "right", pick: (p) => p.na },
+  { code: "k", name: "钾", unit: "mmol/L", color: C.teal, shape: 0, axis: "right", pick: (p) => p.k },
+  { code: "ca", name: "钙", unit: "mmol/L", color: C.brown, shape: 1, axis: "right", pick: (p) => p.ca },
 ];
 export const NOVA_DEFAULT_METRICS = ["gluc", "lac", "nh4", "gln"];
+
+// 血气分析（同样来自 Nova FLEX2，从生化里拆出来单独一张图）：pH 左轴，两个分压右轴
+export const GAS_METRICS: MetricDef<NovaPoint>[] = [
+  { code: "ph", name: "pH", unit: "", color: C.purple, shape: 0, axis: "left", pick: (p) => p.ph },
+  { code: "po2", name: "氧分压", unit: "mmHg", color: C.blue, shape: 1, axis: "right", pick: (p) => p.po2 },
+  { code: "pco2", name: "二氧化碳分压", unit: "mmHg", color: C.red, shape: 2, axis: "right", pick: (p) => p.pco2 },
+];
+export const GAS_DEFAULT_METRICS = ["ph", "po2", "pco2"];
 
 // 工艺按时段汇总（Lucullus 原始时序按每 N 小时一格；平均值，溶氧另有格内最低，加碱/加酸为格内累计末值）
 export const PROCESS_METRICS: MetricDef<ProcessBucketPoint>[] = [
   { code: "temp_c", name: "温度", unit: "°C", color: C.orange, shape: 0, pick: (p) => p.temp_c },
-  { code: "ph", name: "pH", unit: "", color: C.violet, shape: 1, pick: (p) => p.ph },
+  { code: "ph", name: "pH", unit: "", color: C.purple, shape: 1, pick: (p) => p.ph },
   { code: "do_pct", name: "溶氧", unit: "%", color: C.green, shape: 2, pick: (p) => p.do_pct },
   { code: "do_pct_min", name: "溶氧最低", unit: "%", color: C.lime, shape: 3, pick: (p) => p.do_pct_min },
   { code: "stirrer_rpm", name: "搅拌", unit: "rpm", color: C.slate, shape: 4, pick: (p) => p.stirrer_rpm },
@@ -71,7 +76,7 @@ export const PROCESS_METRICS: MetricDef<ProcessBucketPoint>[] = [
   { code: "o2", name: "O₂(0-1000)", unit: "mL/min", color: C.blue, shape: 1, pick: (p) => p.o2 },
   { code: "o2_low", name: "O₂(0-100)", unit: "mL/min", color: C.indigo, shape: 2, pick: (p) => p.o2_low },
   { code: "co2", name: "CO₂", unit: "mL/min", color: C.crimson, shape: 3, pick: (p) => p.co2 },
-  { code: "alkali_cum", name: "加碱累计", unit: "mL", color: C.purple, shape: 4, pick: (p) => p.alkali_cum },
+  { code: "alkali_cum", name: "加碱累计", unit: "mL", color: C.gold, shape: 4, pick: (p) => p.alkali_cum },
   { code: "acid_cum", name: "加酸累计", unit: "mL", color: C.pink, shape: 5, pick: (p) => p.acid_cum },
 ];
 export const PROCESS_DEFAULT_METRICS = ["temp_c", "ph", "do_pct"];
@@ -85,7 +90,7 @@ export const DEFAULT_BUCKET_HOURS = 6;
 const CHANNEL_COLORS: Record<string, string> = {
   temp: C.orange,
   temp_sp: C.amber,
-  ph: C.violet,
+  ph: C.purple,
   ph_sp: C.pink,
   do: C.green,
   do_sp: C.lime,
@@ -96,7 +101,7 @@ const CHANNEL_COLORS: Record<string, string> = {
   mfc3_flow: C.blue,
   mfc5_flow: C.indigo,
   mfc4_flow: C.crimson,
-  dpump2_total: C.purple,
+  dpump2_total: C.gold,
   pressure: C.brown,
   redox: C.pink,
 };

@@ -26,6 +26,8 @@ import {
   CELL_DEFAULT_METRICS,
   NOVA_METRICS,
   NOVA_DEFAULT_METRICS,
+  GAS_METRICS,
+  GAS_DEFAULT_METRICS,
   PROCESS_METRICS,
   PROCESS_DEFAULT_METRICS,
   BUCKET_OPTIONS,
@@ -42,16 +44,17 @@ import {
   toggleIn,
 } from "@/lib/batches";
 
-type Section = "cell" | "nova" | "process" | "timeseries" | "table" | "samples";
+type Section = "cell" | "nova" | "gas" | "process" | "timeseries" | "table" | "samples";
 const SECTIONS: { code: Section; label: string; hint: string }[] = [
   { code: "cell", label: "生长曲线", hint: "Vi-CELL 细胞密度 / 活率，按培养天" },
   { code: "nova", label: "生化曲线", hint: "Nova FLEX2 葡萄糖 / 乳酸 / 氨…，按培养天" },
+  { code: "gas", label: "血气分析", hint: "Nova FLEX2 pH / 氧分压 / 二氧化碳分压，按培养天" },
   { code: "process", label: "工艺参数（按时段）", hint: "Lucullus 温度 / pH / 溶氧…每 N 小时一格（默认 6h）" },
   { code: "timeseries", label: "工艺时序（全量）", hint: "Lucullus 按小时原始采样，可放大到分钟级" },
   { code: "table", label: "数据表", hint: "一行一个批次一个培养天，三源列并排" },
   { code: "samples", label: "取样明细", hint: "每次取样一行" },
 ];
-const DEFAULT_SECTIONS: Section[] = ["cell", "nova", "process"];
+const DEFAULT_SECTIONS: Section[] = ["cell", "nova", "gas", "process"];
 
 export function Dashboard() {
   // 所有筛选与板块设置都记在浏览器本地，刷新页面后原样恢复（负责人 2026-09-08 要求）
@@ -66,6 +69,7 @@ export function Dashboard() {
   const [sections, setSections] = usePersisted<Section[]>("sections", DEFAULT_SECTIONS);
   const [cellMetrics, setCellMetrics] = usePersisted<string[]>("cell_metrics", CELL_DEFAULT_METRICS);
   const [novaMetrics, setNovaMetrics] = usePersisted<string[]>("nova_metrics", NOVA_DEFAULT_METRICS);
+  const [gasMetrics, setGasMetrics] = usePersisted<string[]>("gas_metrics", GAS_DEFAULT_METRICS);
   const [procMetrics, setProcMetrics] = usePersisted<string[]>("proc_metrics", PROCESS_DEFAULT_METRICS);
   const [bucketHours, setBucketHours] = usePersisted<number>("bucket_hours", DEFAULT_BUCKET_HOURS); // 工艺参数每格几小时
 
@@ -282,6 +286,22 @@ export function Dashboard() {
                 chosen={novaMetrics}
                 onChosen={setNovaMetrics}
                 emptyText="所选批次都没有生化分析数据"
+                scheme="metric"
+              />
+            )}
+            {show("gas") && (
+              <CurveSection
+                title="血气分析"
+                source="Nova FLEX2"
+                batches={selected}
+                hasData={(b) => b.n_nova > 0}
+                queryKey={(b) => ["nova-series", b.batch_key]}
+                fetch={(b) => fetchNovaSeries(b.batch_key)}
+                defs={GAS_METRICS}
+                chosen={gasMetrics}
+                onChosen={setGasMetrics}
+                emptyText="所选批次都没有血气数据"
+                scheme="metric"
               />
             )}
             {show("process") && (
@@ -296,6 +316,7 @@ export function Dashboard() {
                 chosen={procMetrics}
                 onChosen={setProcMetrics}
                 emptyText="所选批次都没有 Lucullus 工艺数据"
+                scheme="metric"
                 extra={
                   <span className="ml-auto flex items-center gap-2">
                     {/* 时段粒度：一格几小时 */}

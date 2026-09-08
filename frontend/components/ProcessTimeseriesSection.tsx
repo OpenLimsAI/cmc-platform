@@ -15,7 +15,7 @@ import {
   type LucullusRun,
   type OverviewBatch,
 } from "@/lib/api";
-import { SeriesChart, type ChartSeries, type ViewWindow } from "@/components/SeriesChart";
+import { SeriesChart, GROUP_LINE_TYPES, type ChartSeries, type ViewWindow } from "@/components/SeriesChart";
 import { batchLabel, runOffsets, toggleIn } from "@/lib/batches";
 import { C, channelColor, channelShape } from "@/lib/metrics";
 
@@ -56,6 +56,17 @@ interface ChanOption {
 }
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
+
+// 段图例的小图标：一段线，线型与图上该段一致（实线 / 虚线 / 点线…）
+function LineIcon({ index, color = "#334155" }: { index: number; color?: string }) {
+  const t = GROUP_LINE_TYPES[index % GROUP_LINE_TYPES.length];
+  const dash = t === "solid" ? undefined : t === "dashed" ? "6 4" : t === "dotted" ? "2 3" : (t as number[]).join(" ");
+  return (
+    <svg width={28} height={12} viewBox="0 0 28 12" className="inline-block align-middle">
+      <line x1={0} y1={6} x2={28} y2={6} stroke={color} strokeWidth={2} strokeDasharray={dash} />
+    </svg>
+  );
+}
 function fmtUtc(d: Date): string {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 }
@@ -306,17 +317,23 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
                   const on = chosen.includes(o.key);
                   const n = o.codeByRun.size;
                   const codes = [...new Set([...o.codeByRun.values()].map((c) => c.channel_code))].join(" / ");
+                  const color = channelColor(o.key);
                   return (
                     <button
                       key={o.key}
                       onClick={() => setChosen((prev) => toggleIn(prev, o.key))}
                       title={`${codes}${multi ? ` · ${n}/${runs.length} 段有此通道` : ""}`}
+                      style={on ? { backgroundColor: color, borderColor: color } : undefined}
                       className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
-                        on
-                          ? "border-blue-500 bg-blue-500 text-white"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        on ? "text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                       }`}
                     >
+                      {!on && (
+                        <span
+                          className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                          style={{ backgroundColor: color, opacity: 0.6 }}
+                        />
+                      )}
                       {o.display_name}
                       {o.unit && <span className={on ? "opacity-80" : "text-slate-400"}> {o.unit}</span>}
                       {multi && n < runs.length && (
@@ -337,14 +354,19 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
                     key={m.code}
                     onClick={() => setCellMetrics((prev) => toggleIn(prev, m.code))}
                     title="Vi-CELL 细胞指标，按培养天 ×24 叠到小时轴上"
+                    style={on ? { backgroundColor: m.color, borderColor: m.color } : undefined}
                     className={`rounded-full border border-dashed px-2.5 py-0.5 text-xs transition ${
-                      on
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-emerald-300 bg-white text-emerald-700 hover:border-emerald-400"
+                      on ? "text-white" : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
                     }`}
                   >
+                    {!on && (
+                      <span
+                        className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                        style={{ backgroundColor: m.color, opacity: 0.6 }}
+                      />
+                    )}
                     {m.name}
-                    <span className={on ? "opacity-80" : "text-emerald-400"}> {m.unit}</span>
+                    <span className={on ? "opacity-80" : "text-slate-400"}> {m.unit}</span>
                   </button>
                 );
               })}
@@ -374,6 +396,17 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
               <span className="text-slate-300">滚轮 / 拖底部滑块放大，自动加载更精细数据</span>
             )}
           </div>
+          {/* 多段时：段 → 线型 的对照，放在图正上方（颜色归通道，段靠线型分） */}
+          {runs.length > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 pt-2 text-xs text-slate-600">
+              {runs.map((r, i) => (
+                <span key={r.key} className="flex items-center gap-1.5">
+                  <LineIcon index={i} />
+                  {r.label}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="h-[clamp(28rem,68vh,50rem)] p-3">
             <SeriesChart
               series={chartSeries}
@@ -384,6 +417,8 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
               xTickInterval={24}
               hoursAxis
               startTime={single?.run.starttime ?? null}
+              scheme="metric"
+              showLegend={false}
             />
           </div>
         </>
