@@ -5,12 +5,47 @@
 import { useMemo, type ReactNode } from "react";
 import { useQueries, keepPreviousData } from "@tanstack/react-query";
 import type { OverviewBatch } from "@/lib/api";
-import { SeriesChart, GROUP_GLYPHS, type ChartSeries } from "@/components/SeriesChart";
+import { SeriesChart, GROUP_SYMBOLS, type ChartSeries } from "@/components/SeriesChart";
 import type { MetricDef } from "@/lib/metrics";
 import { batchLabel, toggleIn } from "@/lib/batches";
 
 // 数据点可带 __gap=true 表示"这里是两段记录之间的空档"，画成断线而不是连一条斜线
 export type GapMarker = { __gap?: boolean };
+
+// 罐号图例的小图标：一段横线 + 中间一个标记，和 echarts 自带图例一个样子
+function MarkerIcon({ index, color = "#334155" }: { index: number; color?: string }) {
+  const sym = GROUP_SYMBOLS[index % GROUP_SYMBOLS.length];
+  const c = 14; // 中心
+  let shape: React.ReactNode;
+  switch (sym) {
+    case "rect":
+      shape = <rect x={c - 4} y={2} width={8} height={8} fill={color} />;
+      break;
+    case "roundRect":
+      shape = <rect x={c - 4} y={2} width={8} height={8} rx={2} fill={color} />;
+      break;
+    case "triangle":
+      shape = <polygon points={`${c},1.5 ${c + 4.5},10.5 ${c - 4.5},10.5`} fill={color} />;
+      break;
+    case "diamond":
+      shape = <polygon points={`${c},1 ${c + 5},6 ${c},11 ${c - 5},6`} fill={color} />;
+      break;
+    case "pin":
+      shape = <path d={`M${c} 11 L${c - 4} 5 A4 4 0 1 1 ${c + 4} 5 Z`} fill={color} />;
+      break;
+    case "arrow":
+      shape = <polygon points={`${c},1 ${c + 4.5},11 ${c},8 ${c - 4.5},11`} fill={color} />;
+      break;
+    default:
+      shape = <circle cx={c} cy={6} r={4} fill={color} />;
+  }
+  return (
+    <svg width={28} height={12} viewBox="0 0 28 12" className="inline-block align-middle">
+      <line x1={0} y1={6} x2={28} y2={6} stroke={color} strokeWidth={2} />
+      {shape}
+    </svg>
+  );
+}
 
 export function CurveSection<P extends { culture_day: number } & GapMarker>({
   title,
@@ -121,8 +156,8 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
       {scheme === "metric" && withData.length > 1 && (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 pt-2 text-xs text-slate-600">
           {withData.map((b, i) => (
-            <span key={b.batch_key} className="flex items-center gap-1">
-              <span className="text-base leading-none text-slate-700">{GROUP_GLYPHS[i % GROUP_GLYPHS.length]}</span>
+            <span key={b.batch_key} className="flex items-center gap-1.5">
+              <MarkerIcon index={i} />
               {batchLabel(b)}
             </span>
           ))}

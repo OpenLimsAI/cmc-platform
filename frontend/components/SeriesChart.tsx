@@ -47,9 +47,13 @@ const KIND_STYLES: { symbol: string; type: "solid" | "dashed" | "dotted" }[] = [
   { symbol: "arrow", type: "dotted" },
 ];
 
-// scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）；GROUP_GLYPHS 是页面上画自制图例用的对应符号
+// scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）；CurveSection 的罐号图例按同一顺序画图标
 export const GROUP_SYMBOLS = ["circle", "rect", "triangle", "diamond", "pin", "arrow", "roundRect"];
-export const GROUP_GLYPHS = ["●", "■", "▲", "◆", "⬟", "➤", "▣"];
+
+// 右侧第 2、3… 根纵轴各占的宽度（像素），与 grid.right 的算法一致
+const EXTRA_AXIS_W = 56;
+// 坐标轴可拖动/滚轮缩放的热区宽度（像素）：纵轴取轴线外侧这么宽，横轴取轴线下方这么高
+const AXIS_HIT = 60;
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
 
@@ -69,6 +73,9 @@ interface TooltipParam {
   seriesName: string;
   value: number | number[];
 }
+
+// 鼠标落在哪根轴上（坐标轴直接拖动 / 滚轮缩放用）
+type AxisHit = { kind: "x" } | { kind: "y"; idx: number };
 
 export function SeriesChart({
   series,
@@ -109,8 +116,13 @@ export function SeriesChart({
   // 图内自带的图例；页面上已用指标按钮当图例时传 false，绘图区相应上移
   showLegend?: boolean;
 }) {
-  const instRef = useRef<echartsInstance | null>(null);
+  const instRef = useRef<EchartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 每根纵轴当前的缩放位置（百分比）。图重建（notMerge）时从这里恢复，不然一刷新数据就回到全览
+  const yZoomRef = useRef<Record<number, { start: number; end: number }>>({});
+  // 正在拖动哪根轴
+  const dragRef = useRef<(AxisHit & { lastX: number; lastY: number }) | null>(null);
+  const yCountRef = useRef(1);
 
   const option = useMemo(() => {
     // 只保留横轴有限的点；纵轴 NaN/Infinity 去掉（会让 echarts 算坐标轴时崩溃），null 保留当断线标记
@@ -141,6 +153,7 @@ export function SeriesChart({
       extent.set(u, e);
     }
     units.sort((a, b) => Number(wantLeft.has(b)) - Number(wantLeft.has(a)));
+    yCountRef.current = units.length;
 
     // 颜色 = 批次（多批次时），线型 + 标记 = 指标；只有一个批次时颜色 = 指标固定色
     const groups: string[] = [];
@@ -162,9 +175,10 @@ export function SeriesChart({
 
     const yAxis = units.map((u, i) => {
       const e = extent.get(u)!;
-      // 常量通道（min==max）或无数据时，手动给个范围，否则 echarts 会算出非法刻度
-      let min: number | undefined;
-      let max: number | undefined;
+      // 纵轴范围：数据只占轴高的 70%，上下各留 15%（负责人 2026-09-08 定，好看）。
+      // 常量通道（min==max）或无数据时手动给个范围，否则 echarts 会算出非法刻度。
+      let min: number;
+      let max: number;
       if (!Number.isFinite(e.min) || !Number.isFinite(e.max)) {
         min = 0;
         max = 1;
@@ -172,16 +186,22 @@ export function SeriesChart({
         const pad = Math.abs(e.min) > 1 ? Math.abs(e.min) * 0.1 : 1;
         min = e.min - pad;
         max = e.max + pad;
+      } else {
+        const pad = ((e.max - e.min) * 15) / 70;
+        min = e.min - pad;
+        max = e.max + pad;
+        if (e.min >= 0 && min < 0) min = 0; // 密度、流量这类不会负的量，下边不越过 0
       }
       return {
         type: "value" as const,
         name: u === "无单位" ? "" : u, // pH 这类没单位的轴不写"无单位"
         nameGap: 18,
         position: i === 0 ? ("left" as const) : ("right" as const),
-        offset: i <= 1 ? 0 : (i - 1) * 56,
-        min,
-        max,
-        scale: true,
+        offset: i <= 1 ? 0 : (i - 1) * EXTRA_AXIS_W,
+        min: Math.round(min * 1000) / 1000,
+        max: Math.round(max * 1000) / 1000,
+        // 上下留白后轴的端点不是整数（73.447 这种），不标端点，只标中间的整刻度
+        axisLabel: { showMinLabel: false, showMaxLabel: false },
         axisLine: {
           show: true,
           lineStyle: { color: axisColor(u) },
@@ -241,7 +261,8 @@ export function SeriesChart({
       grid: {
         top: showLegend ? 84 : 40,
         left: 56,
-        right: Math.max(56, (units.length - 1) * 56 + 16),
+        // 右边：多余的 Y 轴各占 EXTRA_AXIS_W
+        right: Math.max(56, (units.length - 1) * EXTRA_AXIS_W + 16),
         bottom: 64,
         containLabel: true,
       },
@@ -260,14 +281,14 @@ export function SeriesChart({
       },
       yAxis,
       dataZoom: [
-        // filterMode:"none" —— 缩放只改视野、不过滤数据点（Y 轴范围稳定）；
-        // start/end 从 zoomRef 读，图重建时保持用户当前的缩放位置
+        // [0] 横轴：滚轮 / 拖图 = 缩放平移。filterMode:"none" —— 缩放只改视野、不过滤数据点（Y 轴范围稳定）
         {
           type: "inside" as const,
           filterMode: "none" as const,
           start: z.start,
           end: z.end,
         },
+        // [1] 横轴底部滑块
         {
           type: "slider" as const,
           height: 20,
@@ -276,6 +297,17 @@ export function SeriesChart({
           start: z.start,
           end: z.end,
         },
+        // [2..] 每根纵轴一个：不响应鼠标（免得和横轴缩放打架），只由下面"直接拖坐标轴"的代码驱动
+        ...yAxis.map((_, i) => ({
+          type: "inside" as const,
+          yAxisIndex: i,
+          filterMode: "none" as const,
+          zoomOnMouseWheel: false,
+          moveOnMouseMove: false,
+          moveOnMouseWheel: false,
+          start: yZoomRef.current[i]?.start ?? 0,
+          end: yZoomRef.current[i]?.end ?? 100,
+        })),
       ],
       series: clean.map((s, i) => {
         const ki = s.kind ? kinds.indexOf(s.kind) : -1;
@@ -309,12 +341,17 @@ export function SeriesChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers, scheme, showLegend]);
 
+  // 任何缩放动作后：横轴 → 防抖后按新窗口取数；纵轴 → 记住位置供图重建时恢复
   function handleDataZoom() {
     const inst = instRef.current;
-    if (!inst || !fullRange) return;
+    if (!inst) return;
     const opt = inst.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
-    const dz = opt.dataZoom?.[0];
-    if (!dz) return;
+    const dzs = opt.dataZoom ?? [];
+    dzs.slice(2).forEach((d, i) => {
+      yZoomRef.current[i] = { start: d.start ?? 0, end: d.end ?? 100 };
+    });
+    const dz = dzs[0];
+    if (!dz || !fullRange) return;
     const start = dz.start ?? 0;
     const end = dz.end ?? 100;
 
@@ -323,15 +360,108 @@ export function SeriesChart({
     debounceRef.current = setTimeout(() => {
       const span = fullRange.max - fullRange.min;
       const isFull = start <= 0.5 && end >= 99.5;
-      onWindowChange?.(
-        isFull
-          ? null
-          : {
-              min: fullRange.min + (start / 100) * span,
-              max: fullRange.min + (end / 100) * span,
-            }
-      );
+      const next = isFull
+        ? null
+        : { min: fullRange.min + (start / 100) * span, max: fullRange.min + (end / 100) * span };
+      // 没变就不通知（纵轴动作也会触发 datazoom 事件）
+      const same =
+        (next === null && !viewWindow) ||
+        (next && viewWindow && Math.abs(next.min - viewWindow.min) < 1e-6 && Math.abs(next.max - viewWindow.max) < 1e-6);
+      if (!same) onWindowChange?.(next);
     }, 300);
+  }
+
+  // ---- 直接在坐标轴上操作（像 Plotly 那样）：拖动 = 平移，滚轮 = 以鼠标位置为中心缩放，双击 = 复位 ----
+  function bindAxisDrag(inst: EchartsInstance) {
+    const zr = inst.getZr();
+    // 绘图区矩形（不含轴标签）；echarts 没有公开接口，走模型对象拿
+    const gridRect = (): { x: number; y: number; width: number; height: number } | null => {
+      try {
+        return inst.getModel().getComponent("grid", 0).coordinateSystem.getRect();
+      } catch {
+        return null;
+      }
+    };
+    const hit = (x: number, y: number): AxisHit | null => {
+      const r = gridRect();
+      if (!r) return null;
+      const inY = y >= r.y && y <= r.y + r.height;
+      if (x >= r.x && x <= r.x + r.width && y > r.y + r.height && y <= r.y + r.height + AXIS_HIT) return { kind: "x" };
+      if (!inY) return null;
+      if (x < r.x && x >= 0) return { kind: "y", idx: 0 }; // 左轴：整个左侧标签区都算
+      for (let i = 1; i < yCountRef.current; i++) {
+        const ax = r.x + r.width + (i - 1) * EXTRA_AXIS_W;
+        if (x >= ax && x < ax + EXTRA_AXIS_W) return { kind: "y", idx: i };
+      }
+      return null;
+    };
+    const zoomOf = (h: AxisHit) => {
+      const opt = inst.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
+      const d = opt.dataZoom?.[h.kind === "x" ? 0 : 2 + h.idx];
+      return { start: d?.start ?? 0, end: d?.end ?? 100 };
+    };
+    const apply = (h: AxisHit, start: number, end: number) => {
+      // 限制在 0–100 内，保持跨度不变
+      const span = Math.min(100, Math.max(0.5, end - start));
+      let s = start;
+      if (s < 0) s = 0;
+      if (s + span > 100) s = 100 - span;
+      inst.dispatchAction({ type: "dataZoom", dataZoomIndex: h.kind === "x" ? 0 : 2 + h.idx, start: s, end: s + span });
+    };
+
+    zr.on("mousedown", (e) => {
+      const h = hit(e.offsetX, e.offsetY);
+      if (!h) return;
+      dragRef.current = { ...h, lastX: e.offsetX, lastY: e.offsetY };
+    });
+    zr.on("mousemove", (e) => {
+      const d = dragRef.current;
+      if (!d) {
+        const h = hit(e.offsetX, e.offsetY);
+        zr.setCursorStyle(h ? (h.kind === "y" ? "ns-resize" : "ew-resize") : "default");
+        return;
+      }
+      const r = gridRect();
+      if (!r) return;
+      const { start, end } = zoomOf(d);
+      const span = end - start;
+      if (d.kind === "y") {
+        // 往下拖 → 曲线跟着往下走 → 显示区间往高处移（屏幕 y 向下增大，与数值方向相反）
+        const shift = ((e.offsetY - d.lastY) / r.height) * span;
+        apply(d, start + shift, end + shift);
+      } else {
+        // 往右拖 → 曲线跟着往右走 → 显示区间往左移
+        const shift = ((e.offsetX - d.lastX) / r.width) * span;
+        apply(d, start - shift, end - shift);
+      }
+      d.lastX = e.offsetX;
+      d.lastY = e.offsetY;
+    });
+    const stop = () => {
+      dragRef.current = null;
+    };
+    zr.on("mouseup", stop);
+    zr.on("globalout", stop);
+    zr.on("mousewheel", (e) => {
+      const h = hit(e.offsetX, e.offsetY);
+      if (!h) return;
+      e.event?.preventDefault?.();
+      const r = gridRect();
+      if (!r) return;
+      const { start, end } = zoomOf(h);
+      const span = end - start;
+      // 滚轮向上 = 放大（区间变小），以鼠标所在位置为中心
+      const factor = e.wheelDelta > 0 ? 0.85 : 1 / 0.85;
+      const frac = h.kind === "y" ? 1 - (e.offsetY - r.y) / r.height : (e.offsetX - r.x) / r.width;
+      const center = start + frac * span;
+      const ns = Math.min(100, Math.max(0.5, span * factor));
+      apply(h, center - frac * ns, center - frac * ns + ns);
+    });
+    zr.on("dblclick", (e) => {
+      const h = hit(e.offsetX, e.offsetY);
+      if (!h) return;
+      apply(h, 0, 100);
+    });
   }
 
   if (!series.length) {
@@ -354,8 +484,11 @@ export function SeriesChart({
         style={{ height: "100%", width: "100%" }}
         notMerge
         opts={{ renderer: "canvas" }}
-        onChartReady={(inst: echartsInstance) => {
+        onChartReady={(chart: unknown) => {
+          // getModel 在 echarts 的类型里是私有的，这里按最小接口用（拿绘图区矩形要靠它）
+          const inst = chart as EchartsInstance;
           instRef.current = inst;
+          bindAxisDrag(inst);
         }}
         onEvents={{ datazoom: handleDataZoom }}
       />
@@ -363,7 +496,22 @@ export function SeriesChart({
   );
 }
 
+// zrender 鼠标事件（只用到这几个字段）
+interface ZrMouseEvent {
+  offsetX: number;
+  offsetY: number;
+  wheelDelta: number;
+  event?: { preventDefault?: () => void };
+}
+
 // echarts 实例的最小类型（避免额外引入 echarts 类型依赖）
-interface echartsInstance {
+interface EchartsInstance {
   getOption: () => unknown;
+  dispatchAction: (payload: { type: string } & Record<string, unknown>) => void;
+  getZr: () => {
+    on: (name: string, handler: (e: ZrMouseEvent) => void) => void;
+    setCursorStyle: (cursor: string) => void;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getModel: () => any;
 }
