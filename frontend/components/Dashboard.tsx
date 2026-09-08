@@ -4,7 +4,8 @@
 //   左栏 = 先选批次（看谁）：项目编号 → 批次年份 → 批号（多选）→ 罐号（多选），全站唯一一份；
 //   右栏 = 再选看什么：生长曲线 / 生化曲线 / 工艺参数（按时段）/ 工艺时序（全量）/ 数据表 / 取样明细，
 //          可同屏多开，横轴统一培养天（全量时序为培养小时）。板块切换绝不动左栏的批次选择。
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { usePersisted } from "@/lib/usePersisted";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   fetchOverviewBatches,
@@ -53,19 +54,20 @@ const SECTIONS: { code: Section; label: string; hint: string }[] = [
 const DEFAULT_SECTIONS: Section[] = ["cell", "nova", "process"];
 
 export function Dashboard() {
+  // 所有筛选与板块设置都记在浏览器本地，刷新页面后原样恢复（负责人 2026-09-08 要求）
   // ---- 第一层：批次筛选（全站唯一）----
-  const [fProject, setFProject] = useState("");
-  const [fYear, setFYear] = useState("");
-  const [selBatchNums, setSelBatchNums] = useState<string[]>([]);
-  const [selReactors, setSelReactors] = useState<string[]>([]); // 空 = 全部罐
-  const [excluded, setExcluded] = useState<string[]>([]); // 从命中结果里手动排除的批次
+  const [fProject, setFProject, restored] = usePersisted("project", "");
+  const [fYear, setFYear] = usePersisted("year", "");
+  const [selBatchNums, setSelBatchNums] = usePersisted<string[]>("batch_nums", []);
+  const [selReactors, setSelReactors] = usePersisted<string[]>("reactors", []); // 空 = 全部罐
+  const [excluded, setExcluded] = usePersisted<string[]>("excluded", []); // 从命中结果里手动排除的批次
 
   // ---- 第二层：板块开关 + 各板块指标（与批次筛选完全独立）----
-  const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
-  const [cellMetrics, setCellMetrics] = useState<string[]>(CELL_DEFAULT_METRICS);
-  const [novaMetrics, setNovaMetrics] = useState<string[]>(NOVA_DEFAULT_METRICS);
-  const [procMetrics, setProcMetrics] = useState<string[]>(PROCESS_DEFAULT_METRICS);
-  const [bucketHours, setBucketHours] = useState<number>(DEFAULT_BUCKET_HOURS); // 工艺参数每格几小时
+  const [sections, setSections] = usePersisted<Section[]>("sections", DEFAULT_SECTIONS);
+  const [cellMetrics, setCellMetrics] = usePersisted<string[]>("cell_metrics", CELL_DEFAULT_METRICS);
+  const [novaMetrics, setNovaMetrics] = usePersisted<string[]>("nova_metrics", NOVA_DEFAULT_METRICS);
+  const [procMetrics, setProcMetrics] = usePersisted<string[]>("proc_metrics", PROCESS_DEFAULT_METRICS);
+  const [bucketHours, setBucketHours] = usePersisted<number>("bucket_hours", DEFAULT_BUCKET_HOURS); // 工艺参数每格几小时
 
   const batchesQ = useQuery({ queryKey: ["overview-batches"], queryFn: fetchOverviewBatches });
   const all = useMemo(() => batchesQ.data ?? [], [batchesQ.data]);
@@ -140,20 +142,25 @@ export function Dashboard() {
     [matched, excluded]
   );
 
-  // 上层筛选变了 → 失效的下层选择自动剔除（级联一致）
+  // 上层筛选变了 → 失效的下层选择自动剔除（级联一致）。
+  // 批次名单还没加载、或本地记忆还没读回时不剔（否则会把刷新前存的选择清空）。
+  const canPrune = !!batchesQ.data && restored;
   useEffect(() => {
+    if (!canPrune) return;
     const ok = new Set(batchNumOptions.map((o) => o.value));
     setSelBatchNums((prev) => (prev.every((n) => ok.has(n)) ? prev : prev.filter((n) => ok.has(n))));
-  }, [batchNumOptions]);
+  }, [batchNumOptions, canPrune, setSelBatchNums]);
   useEffect(() => {
+    if (!canPrune) return;
     setSelReactors((prev) =>
       prev.every((r) => reactorOptions.includes(r)) ? prev : prev.filter((r) => reactorOptions.includes(r))
     );
-  }, [reactorOptions]);
+  }, [reactorOptions, canPrune, setSelReactors]);
   useEffect(() => {
+    if (!canPrune) return;
     const keys = new Set(matched.map((b) => b.batch_key));
     setExcluded((prev) => (prev.every((k) => keys.has(k)) ? prev : prev.filter((k) => keys.has(k))));
-  }, [matched]);
+  }, [matched, canPrune, setExcluded]);
 
   // 数据表板块：所有选中批次一次请求，后端按 (批次, 培养天) 合并三源
   const selectedKeys = useMemo(() => selected.map((b) => b.batch_key).sort(), [selected]);
