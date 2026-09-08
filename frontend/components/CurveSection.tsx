@@ -24,6 +24,7 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
   onChosen,
   emptyText,
   extra,
+  scheme,
 }: {
   title: string;
   source: string; // 副标题里的数据来源说明
@@ -36,6 +37,7 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
   onChosen: (v: string[]) => void;
   emptyText: string;
   extra?: ReactNode; // 标题行右侧的附加内容
+  scheme?: "batch" | "metric"; // 多批次叠图的区分方案，见 SeriesChart
 }) {
   const withData = batches.filter(hasData);
   const qs = useQueries({
@@ -105,7 +107,7 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
       </div>
       <div className="h-[clamp(24rem,60vh,44rem)] p-3">
         {withData.length ? (
-          <SeriesChart series={series} loading={qs.some((q) => q.isFetching)} xName="培养天 (day)" markers />
+          <SeriesChart series={series} loading={qs.some((q) => q.isFetching)} xName="培养天 (day)" markers scheme={scheme} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">{emptyText}</div>
         )}

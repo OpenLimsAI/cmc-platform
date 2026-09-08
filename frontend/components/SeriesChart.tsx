@@ -46,6 +46,9 @@ const KIND_STYLES: { symbol: string; type: "solid" | "dashed" | "dotted" }[] = [
   { symbol: "arrow", type: "dotted" },
 ];
 
+// scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）
+const GROUP_SYMBOLS = ["circle", "rect", "triangle", "diamond", "pin", "arrow", "roundRect"];
+
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
 
 // 把 UTC 毫秒转成北京时间（UTC+8）「YYYY-MM-DD HH:mm」
@@ -76,6 +79,7 @@ export function SeriesChart({
   hoursAxis = false,
   startTime,
   markers = false,
+  scheme = "batch",
 }: {
   series: ChartSeries[];
   loading?: boolean;
@@ -95,6 +99,10 @@ export function SeriesChart({
   startTime?: string | null;
   // 在数据点上画标记（按天/按时段这类点少的图开；全量时序几千个点别开）
   markers?: boolean;
+  // 多批次叠图怎么区分：
+  //   "batch"  颜色 = 罐/批次，线型 + 标记 = 指标（默认）
+  //   "metric" 颜色 = 指标（固定色）、全部实线，标记形状 = 罐/批次（生长曲线用）
+  scheme?: "batch" | "metric";
 }) {
   const instRef = useRef<echartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,7 +138,7 @@ export function SeriesChart({
       if (s.group && !groups.includes(s.group)) groups.push(s.group);
       if (s.kind && !kinds.includes(s.kind)) kinds.push(s.kind);
     }
-    const multiGroup = groups.length > 1;
+    const multiGroup = scheme === "batch" && groups.length > 1;
     const seriesColor = clean.map((s, i) => {
       const gi = s.group ? groups.indexOf(s.group) : -1;
       return multiGroup && gi >= 0 ? COLORS[gi % COLORS.length] : s.color ?? COLORS[i % COLORS.length];
@@ -260,10 +268,15 @@ export function SeriesChart({
       ],
       series: clean.map((s, i) => {
         const ki = s.kind ? kinds.indexOf(s.kind) : -1;
-        // 单批次：颜色 = 指标固定色；多批次：颜色 = 罐，线型/标记 = 指标固定形状
+        const gi = s.group ? groups.indexOf(s.group) : -1;
         const color = seriesColor[i];
+        // batch 方案：单批次颜色 = 指标固定色；多批次颜色 = 罐，线型/标记 = 指标固定形状
+        // metric 方案：颜色 = 指标固定色、全部实线，标记形状 = 罐
         const si = s.shape ?? (ki >= 0 ? ki : 0);
-        const style = KIND_STYLES[si % KIND_STYLES.length];
+        const style =
+          scheme === "metric"
+            ? { symbol: GROUP_SYMBOLS[(gi >= 0 ? gi : 0) % GROUP_SYMBOLS.length], type: "solid" as const }
+            : KIND_STYLES[si % KIND_STYLES.length];
         return {
           name: `${s.name || s.code}${s.unit ? " (" + s.unit + ")" : ""}`,
           type: "line" as const,
@@ -283,7 +296,7 @@ export function SeriesChart({
       }),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers]);
+  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers, scheme]);
 
   function handleDataZoom() {
     const inst = instRef.current;

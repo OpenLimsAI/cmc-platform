@@ -31,11 +31,12 @@ export interface MetricDef<P> {
   pick: (p: P) => number | null;
 }
 
-// 细胞（Vi-CELL）：活率蓝、活细胞密度红、总细胞密度紫、平均直径青
+// 细胞（Vi-CELL）：活率紫、活细胞密度蓝、总细胞密度红、平均直径青（负责人 2026-09-08 定）
+// 生长曲线用「颜色=指标、全实线、标记形状=罐」的规则（SeriesChart scheme="metric"）
 export const CELL_METRICS: MetricDef<GrowthPoint>[] = [
-  { code: "total_per_ml", name: "总细胞密度", unit: "×10⁶/ml", color: C.purple, shape: 2, pick: (p) => p.total_per_ml },
-  { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", color: C.red, shape: 0, pick: (p) => p.viable_per_ml },
-  { code: "viability_pct", name: "活率", unit: "%", color: C.blue, shape: 1, pick: (p) => p.viability_pct },
+  { code: "total_per_ml", name: "总细胞密度", unit: "×10⁶/ml", color: C.red, shape: 2, pick: (p) => p.total_per_ml },
+  { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", color: C.blue, shape: 0, pick: (p) => p.viable_per_ml },
+  { code: "viability_pct", name: "活率", unit: "%", color: C.purple, shape: 1, pick: (p) => p.viability_pct },
   { code: "avg_diameter_um", name: "平均直径", unit: "µm", color: C.cyan, shape: 3, pick: (p) => p.avg_diameter_um },
 ];
 export const CELL_DEFAULT_METRICS = ["viable_per_ml", "viability_pct"];

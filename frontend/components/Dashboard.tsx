@@ -267,6 +267,7 @@ export function Dashboard() {
                 chosen={cellMetrics}
                 onChosen={setCellMetrics}
                 emptyText="所选批次都没有细胞计数数据"
+                scheme="metric"
               />
             )}
             {show("nova") && (
