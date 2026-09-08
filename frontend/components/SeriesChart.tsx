@@ -308,8 +308,8 @@ export function SeriesChart({
           lineStyle: { width: 2, type: multiGroup ? style.type : "solid" },
           smooth: false,
           connectNulls: false,
-          // 鼠标悬停到某条线（或图例），其他线变淡，只突出这一条
-          emphasis: { focus: "series" as const, lineStyle: { width: 3 } },
+          // 鼠标悬停到某条线（或图例），其他线变淡；这条线本身不加粗、标记不放大（负责人 2026-09-08：细线更好看）
+          emphasis: { focus: "series" as const, scale: false, lineStyle: { width: 2 } },
           blur: { lineStyle: { opacity: 0.12 }, itemStyle: { opacity: 0.12 } },
           yAxisIndex: units.indexOf(s.unit || "无单位"),
           data: s.points.map((p) => [p.time_hours, p.value]),
