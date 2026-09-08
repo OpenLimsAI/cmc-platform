@@ -428,8 +428,11 @@ export interface DailySheetRow {
   batch_key: string;
   project_id: string | null;
   batch_number: string | null;
-  bioreactor_id: string | null;
+  bioreactor_id: string | null; // 罐号 / 阶段码（登记系统的样品是阶段码，如 A1 / N1 / S2a）
   culture_day: number;
+  sample_name: string | null; // 登记系统给的标准样品名（如 0092-26001-A1-D05）
+  kind: string | null; // 登记系统的容器类型
+  planned: boolean; // 在登记系统"当天该取样"清单里
   sample_ids: string | null; // 当天该样品在仪器上的样本名
   has_nova: boolean;
   has_vicell: boolean;
@@ -443,6 +446,8 @@ export interface DailySheetRow {
 export interface DailySheet {
   sample_date: string;
   metric: { code: string; name: string; unit: string; min: number; max: number };
+  registry_used: boolean; // 当天清单是否来自批号登记系统
+  registry_error: string | null; // 登记系统连不上时的说明（此时只列仪器实测样品）
   rows: DailySheetRow[];
 }
 

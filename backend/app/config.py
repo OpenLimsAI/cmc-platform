@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # 人工录入（渗透压等）的写库连接：cmc_analytics 的写账号 usp_writer，只对 manual.sample_result 有追加权限。
     # 留空则「渗透压录入」页不可用（其余功能不受影响）。看板其它一切读操作仍走上面的只读连接。
     manual_write_database_url: str = ""
+    # 批号登记系统（rd-batch-registry）后端地址，如 http://localhost:8080；渗透压录入页按日期取"当天该取样的样品清单"用。
+    # 留空或不可达时退回只列仪器上实测到的样品。
+    registry_base_url: str = ""
 
     app_env: str = "dev"
     # 前端开发地址，逗号分隔，用于 CORS（如 http://localhost:5170）

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Dashboard } from "@/components/Dashboard";
 import { useAuth } from "@/components/AuthGate";
 
@@ -12,14 +13,21 @@ export default function Home() {
         <span className="text-sm text-slate-400">
           先选批次（项目 → 年份 → 批号 → 罐），再选要看的曲线：生长 / 生化 / 工艺，同屏叠加对比
         </span>
+        {/* 渗透压录入是独立页面（本看板唯一会写库的功能） */}
+        <Link
+          href="/entry"
+          className="ml-auto rounded-md border border-blue-300 px-2.5 py-1 text-xs text-blue-600 transition hover:bg-blue-50"
+        >
+          渗透压录入 →
+        </Link>
         {/* 后端开放模式（本地开发未配验签密钥）时提示一下 */}
         {user?.is_system && (
-          <span className="ml-auto rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+          <span className="rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
             本地开放模式 · 未登录
           </span>
         )}
         {user && !user.is_system && (
-          <span className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+          <span className="flex items-center gap-2 text-xs text-slate-500">
             <span>{user.full_name || user.username}</span>
             <button
               onClick={logout}

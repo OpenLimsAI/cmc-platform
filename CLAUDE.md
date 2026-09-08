@@ -24,11 +24,14 @@
      不是都从 0 小时叠在一起；按时段板块在段与段的空档处断线。
    - **数据表**（一行 = 一个批次一个培养天，三源列并排，对齐《项目第一表》）
    - **取样明细**（每次取样一行）
-   - **渗透压录入**（2026-09-09 起，**本看板唯一会写库的功能**）：按日期列出当天在 Nova / Vi-CELL 上跑过的全部样品
-     （批次 / 罐 / 培养天自动带出），试验员只填数值；存 `cmc_analytics.manual.sample_result`（通用人工录入表，
-     只追加不覆盖，取最新一行；录入人 = MDM 登录人工号+姓名快照）。生化曲线的「渗透压」线和数据表的渗透压列读视图
-     `mart.fact_manual_latest`。写库走单独账号 `usp_writer`（只对该表有 INSERT），配置项 `MANUAL_WRITE_DATABASE_URL`，
-     留空则录入页不可用。以后滴度等人工指标复用这张表（`metric_code`），后端 `routers/manual.py` 的 `METRICS` 登记 + 放开表 CHECK。
+
+   另有独立页面 **渗透压录入**（`/usp/entry`，顶栏按钮进出；2026-09-09 起，**本看板唯一会写库的功能**）：按日期列出当天该取样的
+   全部样品——以**批号登记系统**（rd-batch-registry，`REGISTRY_BASE_URL`，接口 `batches:samples-by-date`）的当天清单为准，再并上
+   仪器（Nova / Vi-CELL）当天实测样品；批次 / 罐 / 培养天 / 样品名自动带出，试验员只填数值；没取样的行点 × 删（本机记忆、可恢复），
+   临时样品「添加一行」。存 `cmc_analytics.manual.sample_result`（通用人工录入表，只追加不覆盖，取最新一行；录入人 = MDM 登录人
+   工号+姓名快照）。生化曲线的「渗透压」线和数据表的渗透压列读视图 `mart.fact_manual_latest`。写库走单独账号 `usp_writer`
+   （只对该表有 INSERT），配置项 `MANUAL_WRITE_DATABASE_URL`，留空则录入页不可用。以后滴度等人工指标复用这张表
+   （`metric_code`），后端 `routers/manual.py` 的 `METRICS` 登记 + 放开表 CHECK。
 
 **批次名单是三源合并的**：`GET /api/overview/batches`（`routers/overview.py`）把细胞、生化、工艺（`mart.dim_batch` 中有时序数据的记录）
 按 `batch_key` 并成一张总名单，只有工艺没细胞/生化的批次、以及工艺批次名不规范（test610 这类）的批次也在（后者归「未识别」项目，
@@ -129,7 +132,7 @@ uv run uvicorn app.main:app --reload --port 8070
 
 先复制 `.env.example` 为 `.env` 并填好 `RAW_DATABASE_URL`（工艺曲线，必填）、`ANALYTICS_DATABASE_URL`（细胞曲线，选填）、
 `MANUAL_WRITE_DATABASE_URL`（渗透压录入，选填；账号 `usp_writer` 的密码由运维 `ALTER ROLE usp_writer PASSWORD '...'` 设置，
-迁移 `cmc_analytics_manual_sample` 建表建角色）。两者走同一 SSH 隧道 / Linux 本机，只换库名。前端 `cd frontend && npm run dev`（端口 5170）。
+迁移 `cmc_analytics_manual_sample` 建表建角色）、`REGISTRY_BASE_URL`（批号登记系统后端，Linux 上 `http://localhost:8080`；录入页取当天样品清单用）。两者走同一 SSH 隧道 / Linux 本机，只换库名。前端 `cd frontend && npm run dev`（端口 5170）。
 
 ## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
 
