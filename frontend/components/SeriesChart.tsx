@@ -23,6 +23,7 @@ export interface ChartSeries {
   kind?: string; // 指标代号，如 viable_per_ml
   color?: string; // 该指标的固定颜色（单批次时用；不传按出现顺序取调色板）
   shape?: number; // 该指标的固定线型/标记序号（多批次时用；不传按指标出现顺序取）
+  axis?: "left" | "right"; // 这条线的纵轴想放哪边（同一单位共用一根轴，以第一条线的意愿为准）
 }
 
 export interface ViewWindow {
@@ -116,12 +117,17 @@ export function SeriesChart({
       ),
     }));
 
-    // 按单位分组，每个不同单位一条 Y 轴（温度/pH/溶氧刻度不同也能看清）
+    // 按单位分组，每个不同单位一条 Y 轴（温度/pH/溶氧刻度不同也能看清）。
+    // 轴的左右：指明要放左边的单位排最前（第 1 根轴在左，其余在右），其它按出现顺序。
     const units: string[] = [];
+    const wantLeft = new Set<string>();
     const extent = new Map<string, { min: number; max: number }>();
     for (const s of clean) {
       const u = s.unit || "无单位";
-      if (!units.includes(u)) units.push(u);
+      if (!units.includes(u)) {
+        units.push(u);
+        if (s.axis === "left") wantLeft.add(u);
+      }
       const e = extent.get(u) ?? { min: Infinity, max: -Infinity };
       for (const p of s.points) {
         if (p.value === null) continue;
@@ -130,6 +136,7 @@ export function SeriesChart({
       }
       extent.set(u, e);
     }
+    units.sort((a, b) => Number(wantLeft.has(b)) - Number(wantLeft.has(a)));
 
     // 颜色 = 批次（多批次时），线型 + 标记 = 指标；只有一个批次时颜色 = 指标固定色
     const groups: string[] = [];

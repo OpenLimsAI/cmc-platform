@@ -65,6 +65,7 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
             kind: m.code,
             color: m.color, // 单批次时颜色固定跟指标
             shape: m.shape, // 多批次时线型 / 标记固定跟指标
+            axis: m.axis,
             points: pts
               .filter((p) => p.__gap || m.pick(p) != null)
               .map((p) => ({ time_hours: p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),
