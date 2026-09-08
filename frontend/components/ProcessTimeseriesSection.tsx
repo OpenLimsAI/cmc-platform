@@ -227,6 +227,8 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
         code: `${t.run.key}:${t.ch.channel_code}`,
         name: multi ? `${t.run.label} ${t.opt.display_name}` : t.opt.display_name,
         unit: t.ch.unitsymbol,
+        group: t.run.key, // 颜色按工艺记录段
+        kind: t.opt.key, // 线型按通道
         points: off ? data.points.map((p) => ({ ...p, time_hours: p.time_hours + off })) : data.points,
       });
     });
@@ -237,6 +239,8 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
           code: `${b.batch_key}:${m.code}`,
           name: batches.length > 1 ? `${batchLabel(b)} ${m.name}` : m.name,
           unit: m.unit,
+          group: b.batch_key,
+          kind: `cell:${m.code}`,
           points: pts
             .filter((p) => m.pick(p) != null)
             .map((p) => ({ time_hours: p.culture_day * 24, ts: "", value: m.pick(p) as number })),

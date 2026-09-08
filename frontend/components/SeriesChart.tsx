@@ -17,6 +17,10 @@ export interface ChartSeries {
   name: string;
   unit: string | null;
   points: (SeriesPoint | ChartPoint)[];
+  // 多批次叠图的区分规则（负责人 2026-09-08 定）：颜色 = 罐/批次（group），线型 + 标记形状 = 指标（kind）。
+  // 不传时退回"每条线一个颜色"。
+  group?: string; // 批次身份，如 016_R2604_A6
+  kind?: string; // 指标代号，如 viable_per_ml
 }
 
 export interface ViewWindow {
@@ -27,6 +31,17 @@ export interface ViewWindow {
 const COLORS = [
   "#2563eb", "#dc2626", "#16a34a", "#d97706", "#7c3aed",
   "#0891b2", "#db2777", "#65a30d", "#ea580c", "#4f46e5",
+  "#0d9488", "#b45309", "#9333ea", "#be123c", "#475569",
+];
+
+// 指标样式：第 1 个指标实线圆点、第 2 个虚线方块、第 3 个点线三角……（按勾选顺序轮转）
+const KIND_STYLES: { symbol: string; type: "solid" | "dashed" | "dotted" }[] = [
+  { symbol: "circle", type: "solid" },
+  { symbol: "rect", type: "dashed" },
+  { symbol: "triangle", type: "dotted" },
+  { symbol: "diamond", type: "solid" },
+  { symbol: "pin", type: "dashed" },
+  { symbol: "arrow", type: "dotted" },
 ];
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
@@ -58,6 +73,7 @@ export function SeriesChart({
   xTickInterval,
   hoursAxis = false,
   startTime,
+  markers = false,
 }: {
   series: ChartSeries[];
   loading?: boolean;
@@ -75,6 +91,8 @@ export function SeriesChart({
   hoursAxis?: boolean;
   // 批次开始时刻（ISO，单批次时传）：tooltip 顶部再补北京时间
   startTime?: string | null;
+  // 在数据点上画标记（按天/按时段这类点少的图开；全量时序几千个点别开）
+  markers?: boolean;
 }) {
   const instRef = useRef<echartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,6 +193,15 @@ export function SeriesChart({
             typeof v === "number" ? v.toFixed(3) : v,
         };
 
+    // 颜色 = 批次（多批次时），线型 + 标记 = 指标；只有一个批次时仍按线分颜色（更好认）
+    const groups: string[] = [];
+    const kinds: string[] = [];
+    for (const s of clean) {
+      if (s.group && !groups.includes(s.group)) groups.push(s.group);
+      if (s.kind && !kinds.includes(s.kind)) kinds.push(s.kind);
+    }
+    const multiGroup = groups.length > 1;
+
     return {
       animation: false,
       color: COLORS,
@@ -220,18 +247,31 @@ export function SeriesChart({
           end: z.end,
         },
       ],
-      series: clean.map((s) => ({
-        name: `${s.name || s.code}${s.unit ? " (" + s.unit + ")" : ""}`,
-        type: "line" as const,
-        showSymbol: false,
-        smooth: false,
-        connectNulls: false,
-        yAxisIndex: units.indexOf(s.unit || "无单位"),
-        data: s.points.map((p) => [p.time_hours, p.value]),
-      })),
+      series: clean.map((s, i) => {
+        const gi = s.group ? groups.indexOf(s.group) : -1;
+        const ki = s.kind ? kinds.indexOf(s.kind) : -1;
+        const color = multiGroup && gi >= 0 ? COLORS[gi % COLORS.length] : COLORS[i % COLORS.length];
+        const style = ki >= 0 ? KIND_STYLES[ki % KIND_STYLES.length] : KIND_STYLES[0];
+        return {
+          name: `${s.name || s.code}${s.unit ? " (" + s.unit + ")" : ""}`,
+          type: "line" as const,
+          color,
+          symbol: markers ? style.symbol : "none",
+          symbolSize: 7,
+          showSymbol: markers,
+          lineStyle: { width: 2, type: multiGroup ? style.type : "solid" },
+          smooth: false,
+          connectNulls: false,
+          // 鼠标悬停到某条线（或图例），其他线变淡，只突出这一条
+          emphasis: { focus: "series" as const, lineStyle: { width: 3 } },
+          blur: { lineStyle: { opacity: 0.12 }, itemStyle: { opacity: 0.12 } },
+          yAxisIndex: units.indexOf(s.unit || "无单位"),
+          data: s.points.map((p) => [p.time_hours, p.value]),
+        };
+      }),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime]);
+  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers]);
 
   function handleDataZoom() {
     const inst = instRef.current;

@@ -59,6 +59,8 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
             code: `${b.batch_key}:${m.code}`,
             name: multi ? `${batchLabel(b)} ${m.name}` : m.name,
             unit: m.unit || null,
+            group: b.batch_key, // 颜色按批次
+            kind: m.code, // 线型 / 标记按指标
             points: pts
               .filter((p) => p.__gap || m.pick(p) != null)
               .map((p) => ({ time_hours: p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),
@@ -101,7 +103,7 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
       </div>
       <div className="h-[clamp(24rem,60vh,44rem)] p-3">
         {withData.length ? (
-          <SeriesChart series={series} loading={qs.some((q) => q.isFetching)} xName="培养天 (day)" />
+          <SeriesChart series={series} loading={qs.some((q) => q.isFetching)} xName="培养天 (day)" markers />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">{emptyText}</div>
         )}
