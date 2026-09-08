@@ -118,7 +118,8 @@ export function SeriesChart({
       }
       return {
         type: "value" as const,
-        name: u,
+        name: u === "无单位" ? "" : u, // pH 这类没单位的轴不写"无单位"
+        nameGap: 18,
         position: i === 0 ? ("left" as const) : ("right" as const),
         offset: i <= 1 ? 0 : (i - 1) * 56,
         min,
@@ -178,9 +179,10 @@ export function SeriesChart({
       animation: false,
       color: COLORS,
       tooltip,
-      legend: { top: 0, type: "scroll" as const },
+      // 图例贴顶、绘图区往下让 —— 中间留出空隙给纵轴的单位名，免得和图例挤在一起
+      legend: { top: 4, type: "scroll" as const },
       grid: {
-        top: 44,
+        top: 84,
         left: 56,
         right: Math.max(56, (units.length - 1) * 56 + 16),
         bottom: 64,
