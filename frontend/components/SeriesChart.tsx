@@ -50,10 +50,8 @@ const KIND_STYLES: { symbol: string; type: "solid" | "dashed" | "dotted" }[] = [
 // scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）；CurveSection 的罐号图例按同一顺序画图标
 export const GROUP_SYMBOLS = ["circle", "rect", "triangle", "diamond", "pin", "arrow", "roundRect"];
 
-// 右侧第 2、3… 根纵轴各占的宽度（像素），与 grid.right 的算法一致
+// 右侧第 2、3… 根纵轴各占的宽度（像素）
 const EXTRA_AXIS_W = 56;
-// 坐标轴可拖动/滚轮缩放的热区宽度（像素）：纵轴取轴线外侧这么宽，横轴取轴线下方这么高
-const AXIS_HIT = 60;
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
 
@@ -73,9 +71,6 @@ interface TooltipParam {
   seriesName: string;
   value: number | number[];
 }
-
-// 鼠标落在哪根轴上（坐标轴直接拖动 / 滚轮缩放用）
-type AxisHit = { kind: "x" } | { kind: "y"; idx: number };
 
 export function SeriesChart({
   series,
@@ -118,11 +113,6 @@ export function SeriesChart({
 }) {
   const instRef = useRef<EchartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 每根纵轴当前的缩放位置（百分比）。图重建（notMerge）时从这里恢复，不然一刷新数据就回到全览
-  const yZoomRef = useRef<Record<number, { start: number; end: number }>>({});
-  // 正在拖动哪根轴
-  const dragRef = useRef<(AxisHit & { lastX: number; lastY: number }) | null>(null);
-  const yCountRef = useRef(1);
 
   const option = useMemo(() => {
     // 只保留横轴有限的点；纵轴 NaN/Infinity 去掉（会让 echarts 算坐标轴时崩溃），null 保留当断线标记
@@ -153,7 +143,6 @@ export function SeriesChart({
       extent.set(u, e);
     }
     units.sort((a, b) => Number(wantLeft.has(b)) - Number(wantLeft.has(a)));
-    yCountRef.current = units.length;
 
     // 颜色 = 批次（多批次时），线型 + 标记 = 指标；只有一个批次时颜色 = 指标固定色
     const groups: string[] = [];
@@ -297,17 +286,6 @@ export function SeriesChart({
           start: z.start,
           end: z.end,
         },
-        // [2..] 每根纵轴一个：不响应鼠标（免得和横轴缩放打架），只由下面"直接拖坐标轴"的代码驱动
-        ...yAxis.map((_, i) => ({
-          type: "inside" as const,
-          yAxisIndex: i,
-          filterMode: "none" as const,
-          zoomOnMouseWheel: false,
-          moveOnMouseMove: false,
-          moveOnMouseWheel: false,
-          start: yZoomRef.current[i]?.start ?? 0,
-          end: yZoomRef.current[i]?.end ?? 100,
-        })),
       ],
       series: clean.map((s, i) => {
         const ki = s.kind ? kinds.indexOf(s.kind) : -1;
@@ -341,17 +319,13 @@ export function SeriesChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers, scheme, showLegend]);
 
-  // 任何缩放动作后：横轴 → 防抖后按新窗口取数；纵轴 → 记住位置供图重建时恢复
+  // 横轴缩放后：防抖，停稳再按新窗口取数
   function handleDataZoom() {
     const inst = instRef.current;
-    if (!inst) return;
+    if (!inst || !fullRange) return;
     const opt = inst.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
-    const dzs = opt.dataZoom ?? [];
-    dzs.slice(2).forEach((d, i) => {
-      yZoomRef.current[i] = { start: d.start ?? 0, end: d.end ?? 100 };
-    });
-    const dz = dzs[0];
-    if (!dz || !fullRange) return;
+    const dz = opt.dataZoom?.[0];
+    if (!dz) return;
     const start = dz.start ?? 0;
     const end = dz.end ?? 100;
 
@@ -363,105 +337,12 @@ export function SeriesChart({
       const next = isFull
         ? null
         : { min: fullRange.min + (start / 100) * span, max: fullRange.min + (end / 100) * span };
-      // 没变就不通知（纵轴动作也会触发 datazoom 事件）
+      // 没变就不通知
       const same =
         (next === null && !viewWindow) ||
         (next && viewWindow && Math.abs(next.min - viewWindow.min) < 1e-6 && Math.abs(next.max - viewWindow.max) < 1e-6);
       if (!same) onWindowChange?.(next);
     }, 300);
-  }
-
-  // ---- 直接在坐标轴上操作（像 Plotly 那样）：拖动 = 平移，滚轮 = 以鼠标位置为中心缩放，双击 = 复位 ----
-  function bindAxisDrag(inst: EchartsInstance) {
-    const zr = inst.getZr();
-    // 绘图区矩形（不含轴标签）；echarts 没有公开接口，走模型对象拿
-    const gridRect = (): { x: number; y: number; width: number; height: number } | null => {
-      try {
-        return inst.getModel().getComponent("grid", 0).coordinateSystem.getRect();
-      } catch {
-        return null;
-      }
-    };
-    const hit = (x: number, y: number): AxisHit | null => {
-      const r = gridRect();
-      if (!r) return null;
-      const inY = y >= r.y && y <= r.y + r.height;
-      if (x >= r.x && x <= r.x + r.width && y > r.y + r.height && y <= r.y + r.height + AXIS_HIT) return { kind: "x" };
-      if (!inY) return null;
-      if (x < r.x && x >= 0) return { kind: "y", idx: 0 }; // 左轴：整个左侧标签区都算
-      for (let i = 1; i < yCountRef.current; i++) {
-        const ax = r.x + r.width + (i - 1) * EXTRA_AXIS_W;
-        if (x >= ax && x < ax + EXTRA_AXIS_W) return { kind: "y", idx: i };
-      }
-      return null;
-    };
-    const zoomOf = (h: AxisHit) => {
-      const opt = inst.getOption() as { dataZoom?: Array<{ start?: number; end?: number }> };
-      const d = opt.dataZoom?.[h.kind === "x" ? 0 : 2 + h.idx];
-      return { start: d?.start ?? 0, end: d?.end ?? 100 };
-    };
-    const apply = (h: AxisHit, start: number, end: number) => {
-      // 限制在 0–100 内，保持跨度不变
-      const span = Math.min(100, Math.max(0.5, end - start));
-      let s = start;
-      if (s < 0) s = 0;
-      if (s + span > 100) s = 100 - span;
-      inst.dispatchAction({ type: "dataZoom", dataZoomIndex: h.kind === "x" ? 0 : 2 + h.idx, start: s, end: s + span });
-    };
-
-    zr.on("mousedown", (e) => {
-      const h = hit(e.offsetX, e.offsetY);
-      if (!h) return;
-      dragRef.current = { ...h, lastX: e.offsetX, lastY: e.offsetY };
-    });
-    zr.on("mousemove", (e) => {
-      const d = dragRef.current;
-      if (!d) {
-        const h = hit(e.offsetX, e.offsetY);
-        zr.setCursorStyle(h ? (h.kind === "y" ? "ns-resize" : "ew-resize") : "default");
-        return;
-      }
-      const r = gridRect();
-      if (!r) return;
-      const { start, end } = zoomOf(d);
-      const span = end - start;
-      if (d.kind === "y") {
-        // 往下拖 → 曲线跟着往下走 → 显示区间往高处移（屏幕 y 向下增大，与数值方向相反）
-        const shift = ((e.offsetY - d.lastY) / r.height) * span;
-        apply(d, start + shift, end + shift);
-      } else {
-        // 往右拖 → 曲线跟着往右走 → 显示区间往左移
-        const shift = ((e.offsetX - d.lastX) / r.width) * span;
-        apply(d, start - shift, end - shift);
-      }
-      d.lastX = e.offsetX;
-      d.lastY = e.offsetY;
-    });
-    const stop = () => {
-      dragRef.current = null;
-    };
-    zr.on("mouseup", stop);
-    zr.on("globalout", stop);
-    zr.on("mousewheel", (e) => {
-      const h = hit(e.offsetX, e.offsetY);
-      if (!h) return;
-      e.event?.preventDefault?.();
-      const r = gridRect();
-      if (!r) return;
-      const { start, end } = zoomOf(h);
-      const span = end - start;
-      // 滚轮向上 = 放大（区间变小），以鼠标所在位置为中心
-      const factor = e.wheelDelta > 0 ? 0.85 : 1 / 0.85;
-      const frac = h.kind === "y" ? 1 - (e.offsetY - r.y) / r.height : (e.offsetX - r.x) / r.width;
-      const center = start + frac * span;
-      const ns = Math.min(100, Math.max(0.5, span * factor));
-      apply(h, center - frac * ns, center - frac * ns + ns);
-    });
-    zr.on("dblclick", (e) => {
-      const h = hit(e.offsetX, e.offsetY);
-      if (!h) return;
-      apply(h, 0, 100);
-    });
   }
 
   if (!series.length) {
@@ -484,11 +365,8 @@ export function SeriesChart({
         style={{ height: "100%", width: "100%" }}
         notMerge
         opts={{ renderer: "canvas" }}
-        onChartReady={(chart: unknown) => {
-          // getModel 在 echarts 的类型里是私有的，这里按最小接口用（拿绘图区矩形要靠它）
-          const inst = chart as EchartsInstance;
+        onChartReady={(inst: EchartsInstance) => {
           instRef.current = inst;
-          bindAxisDrag(inst);
         }}
         onEvents={{ datazoom: handleDataZoom }}
       />
@@ -496,22 +374,7 @@ export function SeriesChart({
   );
 }
 
-// zrender 鼠标事件（只用到这几个字段）
-interface ZrMouseEvent {
-  offsetX: number;
-  offsetY: number;
-  wheelDelta: number;
-  event?: { preventDefault?: () => void };
-}
-
 // echarts 实例的最小类型（避免额外引入 echarts 类型依赖）
 interface EchartsInstance {
   getOption: () => unknown;
-  dispatchAction: (payload: { type: string } & Record<string, unknown>) => void;
-  getZr: () => {
-    on: (name: string, handler: (e: ZrMouseEvent) => void) => void;
-    setCursorStyle: (cursor: string) => void;
-  };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getModel: () => any;
 }
