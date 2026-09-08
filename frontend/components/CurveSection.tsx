@@ -5,7 +5,7 @@
 import { useMemo, type ReactNode } from "react";
 import { useQueries, keepPreviousData } from "@tanstack/react-query";
 import type { OverviewBatch } from "@/lib/api";
-import { SeriesChart, type ChartSeries } from "@/components/SeriesChart";
+import { SeriesChart, GROUP_GLYPHS, type ChartSeries } from "@/components/SeriesChart";
 import type { MetricDef } from "@/lib/metrics";
 import { batchLabel, toggleIn } from "@/lib/batches";
 
@@ -86,29 +86,58 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
           </span>
           {extra}
         </div>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {/* 指标按钮。scheme="metric" 时按钮就是图例：勾上 = 该线的颜色 */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {defs.map((m) => {
             const on = chosen.includes(m.code);
+            const asLegend = scheme === "metric";
             return (
               <button
                 key={m.code}
                 onClick={() => onChosen(toggleIn(chosen, m.code))}
+                style={asLegend && on ? { backgroundColor: m.color, borderColor: m.color } : undefined}
                 className={`rounded-full border px-2 py-0.5 text-xs transition ${
                   on
-                    ? "border-blue-500 bg-blue-500 text-white"
+                    ? asLegend
+                      ? "text-white"
+                      : "border-blue-500 bg-blue-500 text-white"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                 }`}
               >
+                {asLegend && !on && (
+                  <span
+                    className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                    style={{ backgroundColor: m.color, opacity: 0.6 }}
+                  />
+                )}
                 {m.name}
                 {m.unit && <span className={on ? "opacity-80" : "text-slate-400"}> {m.unit}</span>}
               </button>
             );
           })}
+          {/* 多个罐时：罐 → 标记形状 的对照（颜色归指标，罐靠形状分） */}
+          {scheme === "metric" && withData.length > 1 && (
+            <span className="ml-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              {withData.map((b, i) => (
+                <span key={b.batch_key}>
+                  <span className="mr-0.5 text-slate-700">{GROUP_GLYPHS[i % GROUP_GLYPHS.length]}</span>
+                  {batchLabel(b)}
+                </span>
+              ))}
+            </span>
+          )}
         </div>
       </div>
       <div className="h-[clamp(24rem,60vh,44rem)] p-3">
         {withData.length ? (
-          <SeriesChart series={series} loading={qs.some((q) => q.isFetching)} xName="培养天 (day)" markers scheme={scheme} />
+          <SeriesChart
+            series={series}
+            loading={qs.some((q) => q.isFetching)}
+            xName="培养天 (day)"
+            markers
+            scheme={scheme}
+            showLegend={scheme !== "metric"}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">{emptyText}</div>
         )}

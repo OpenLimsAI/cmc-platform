@@ -47,8 +47,9 @@ const KIND_STYLES: { symbol: string; type: "solid" | "dashed" | "dotted" }[] = [
   { symbol: "arrow", type: "dotted" },
 ];
 
-// scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）
-const GROUP_SYMBOLS = ["circle", "rect", "triangle", "diamond", "pin", "arrow", "roundRect"];
+// scheme="metric" 时用来区分不同罐/批次的标记形状（颜色留给指标）；GROUP_GLYPHS 是页面上画自制图例用的对应符号
+export const GROUP_SYMBOLS = ["circle", "rect", "triangle", "diamond", "pin", "arrow", "roundRect"];
+export const GROUP_GLYPHS = ["●", "■", "▲", "◆", "⬟", "➤", "▣"];
 
 const pad2 = (n: number) => (n < 10 ? `0${n}` : String(n));
 
@@ -81,6 +82,7 @@ export function SeriesChart({
   startTime,
   markers = false,
   scheme = "batch",
+  showLegend = true,
 }: {
   series: ChartSeries[];
   loading?: boolean;
@@ -104,6 +106,8 @@ export function SeriesChart({
   //   "batch"  颜色 = 罐/批次，线型 + 标记 = 指标（默认）
   //   "metric" 颜色 = 指标（固定色）、全部实线，标记形状 = 罐/批次（生长曲线用）
   scheme?: "batch" | "metric";
+  // 图内自带的图例；页面上已用指标按钮当图例时传 false，绘图区相应上移
+  showLegend?: boolean;
 }) {
   const instRef = useRef<echartsInstance | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -233,9 +237,9 @@ export function SeriesChart({
       color: COLORS,
       tooltip,
       // 图例贴顶、绘图区往下让 —— 中间留出空隙给纵轴的单位名，免得和图例挤在一起
-      legend: { top: 4, type: "scroll" as const },
+      legend: { show: showLegend, top: 4, type: "scroll" as const },
       grid: {
-        top: 84,
+        top: showLegend ? 84 : 40,
         left: 56,
         right: Math.max(56, (units.length - 1) * 56 + 16),
         bottom: 64,
@@ -303,7 +307,7 @@ export function SeriesChart({
       }),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers, scheme]);
+  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime, markers, scheme, showLegend]);
 
   function handleDataZoom() {
     const inst = instRef.current;
