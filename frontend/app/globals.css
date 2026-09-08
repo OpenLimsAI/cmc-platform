@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
+/* 看板固定为白底深字，不跟系统深色/浅色外观切换（否则深色模式下标题会变成浅灰，看不清） */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 @theme inline {
@@ -12,11 +13,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
