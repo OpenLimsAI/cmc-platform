@@ -6,13 +6,24 @@ export const PROJ_NONE = "__none__";
 export const projValue = (b: OverviewBatch) => b.project_id ?? PROJ_NONE;
 export const projLabel = (v: string) => (v === PROJ_NONE ? "未识别（不规范名）" : v);
 
-// 项目编号排序：按数字大小升序，"未识别" 垫底
+// 项目编号排序（负责人 2026-09-08 定）：按数字从小到大，同一开头的归在一起——
+// 4 位的 0071 / 0072 / 0082 / 0092 视为 007 / 008 / 009 的分支，紧跟在主编号后面：
+//   007、0071、0072、008、0082、009、0092、015、016、022、515、807、820、2026；
+// 非数字的（A10 / CHO 这类假项目）排后，"未识别" 垫底。
+function projectRank(code: string): [number, string] | null {
+  const m = /^(00\d)(\d)$/.exec(code); // 0071 → 主编号 007 + 分支 1
+  if (m) return [parseInt(m[1], 10), m[2]];
+  if (/^\d+$/.test(code)) return [parseInt(code, 10), ""];
+  return null;
+}
 export function sortProject(a: string, b: string): number {
   if (a === PROJ_NONE) return 1;
   if (b === PROJ_NONE) return -1;
-  const na = parseInt(a, 10);
-  const nb = parseInt(b, 10);
-  if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+  const ra = projectRank(a);
+  const rb = projectRank(b);
+  if (ra && rb) return ra[0] - rb[0] || ra[1].localeCompare(rb[1]);
+  if (ra) return -1;
+  if (rb) return 1;
   return a.localeCompare(b);
 }
 
