@@ -81,17 +81,29 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
 
     同一培养天若有多次取样则取平均，得到干净的一天一点曲线。
     """
-    avg_cols = ",\n            ".join(f"avg({m}) AS {m}" for m in METRICS)
+    avg_cols = ",\n            ".join(f"avg(n.{m}) AS {m}" for m in METRICS)
+    # 渗透压来自人工录入（mart.fact_manual_latest），按 (batch_key, culture_day) 拼上；
+    # 只录了渗透压、仪器没测的那天也出一行（FULL OUTER JOIN）
     sql = text(f"""
+        WITH n AS (
+            SELECT culture_day, {", ".join(METRICS)}
+            FROM {VIEW}
+            WHERE batch_key = :bk AND culture_day IS NOT NULL
+        ),
+        o AS (
+            SELECT culture_day, value AS osmolality
+            FROM mart.fact_manual_latest
+            WHERE batch_key = :bk AND metric_code = 'osmolality'
+        )
         SELECT
-            culture_day,
+            coalesce(n.culture_day, o.culture_day) AS culture_day,
             {avg_cols},
-            count(*) AS n
-        FROM {VIEW}
-        WHERE batch_key = :bk
-          AND culture_day IS NOT NULL
-        GROUP BY culture_day
-        ORDER BY culture_day
+            max(o.osmolality) AS osmolality,
+            count(n.culture_day) AS n
+        FROM n
+        FULL OUTER JOIN o ON o.culture_day = n.culture_day
+        GROUP BY coalesce(n.culture_day, o.culture_day)
+        ORDER BY 1
     """)
     meta_sql = text(f"""
         SELECT
@@ -116,6 +128,7 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
         {
             "culture_day": int(r["culture_day"]),
             **{m: num(r[m]) for m in METRICS},
+            "osmolality": num(r["osmolality"]),  # 人工录入，mOsm/kg
             "n": int(r["n"]),
         }
         for r in rows
@@ -126,7 +139,7 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
         "batch_number": meta["batch_number"] if meta else None,
         "bioreactor_id": meta["bioreactor_id"] if meta else None,
         "n_samples": int(meta["n_samples"]) if meta else 0,
-        "metrics": METRICS,
+        "metrics": METRICS + ["osmolality"],
         "points": points,
     }
 

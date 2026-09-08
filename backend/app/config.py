@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # 留空则「细胞生长曲线」接口不可用（工艺曲线不受影响）。
     analytics_database_url: str = ""
 
+    # 人工录入（渗透压等）的写库连接：cmc_analytics 的写账号 usp_writer，只对 manual.sample_result 有追加权限。
+    # 留空则「渗透压录入」页不可用（其余功能不受影响）。看板其它一切读操作仍走上面的只读连接。
+    manual_write_database_url: str = ""
+
     app_env: str = "dev"
     # 前端开发地址，逗号分隔，用于 CORS（如 http://localhost:5170）
     dev_extra_origins: str = ""

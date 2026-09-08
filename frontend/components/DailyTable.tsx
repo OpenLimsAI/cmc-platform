@@ -49,6 +49,7 @@ const NOVA_COLS: Col[] = [
   { key: "ph_nova", label: "pH离线", digits: 3 },
   { key: "po2", label: "pO₂", unit: "mmHg", digits: 1 },
   { key: "pco2", label: "pCO₂", unit: "mmHg", digits: 1 },
+  { key: "osmolality", label: "渗透压", unit: "mOsm/kg", digits: 0 },
 ];
 const METRIC_COLS = [...PROC_COLS, ...CELL_COLS, ...NOVA_COLS];
 

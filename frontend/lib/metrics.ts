@@ -53,6 +53,8 @@ export const NOVA_METRICS: MetricDef<NovaPoint>[] = [
   { code: "na", name: "钠", unit: "mmol/L", color: C.slate, shape: 5, axis: "right", pick: (p) => p.na },
   { code: "k", name: "钾", unit: "mmol/L", color: C.teal, shape: 0, axis: "right", pick: (p) => p.k },
   { code: "ca", name: "钙", unit: "mmol/L", color: C.brown, shape: 1, axis: "right", pick: (p) => p.ca },
+  // 渗透压：仪器不联网，试验员每天在「渗透压录入」页手填，自己一根轴
+  { code: "osmolality", name: "渗透压", unit: "mOsm/kg", color: C.cyan, shape: 2, axis: "right", pick: (p) => p.osmolality },
 ];
 export const NOVA_DEFAULT_METRICS = ["gluc", "lac", "nh4", "gln"];
 

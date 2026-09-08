@@ -221,6 +221,7 @@ _TABLE_NOVA_COLS = [
     "ph_nova",
     "po2",
     "pco2",
+    "osmolality",  # 人工录入（manual.sample_result 最新值）
 ]
 
 
@@ -264,6 +265,11 @@ async def get_daily_table(req: DailyTableRequest):
             WHERE batch_key = ANY(:keys) AND culture_day IS NOT NULL
             GROUP BY batch_key, culture_day
         ),
+        o AS (
+            SELECT batch_key, culture_day, value AS osmolality
+            FROM mart.fact_manual_latest
+            WHERE batch_key = ANY(:keys) AND metric_code = 'osmolality'
+        ),
         b AS (
             SELECT DISTINCT ON (batch_key) batch_key, procid, source_instance
             FROM mart.dim_batch
@@ -279,7 +285,7 @@ async def get_daily_table(req: DailyTableRequest):
             JOIN mart.fact_process_daily d
               ON d.source_instance = b.source_instance AND d.procid = b.procid
         ),
-        vn AS (
+        vn0 AS (
             SELECT
                 coalesce(v.batch_key, n.batch_key)     AS batch_key,
                 coalesce(v.culture_day, n.culture_day) AS culture_day,
@@ -294,6 +300,23 @@ async def get_daily_table(req: DailyTableRequest):
             FROM v
             FULL OUTER JOIN n
               ON n.batch_key = v.batch_key AND n.culture_day = v.culture_day
+        ),
+        vn AS (
+            SELECT
+                coalesce(vn0.batch_key, o.batch_key)     AS batch_key,
+                coalesce(vn0.culture_day, o.culture_day) AS culture_day,
+                vn0.sample_date,
+                vn0.density_tcd, vn0.density_vcd, vn0.viability_pct, vn0.avg_diameter_um,
+                vn0.gluc, vn0.lac, vn0.gln, vn0.glu, vn0.nh4, vn0.na, vn0.k, vn0.ca,
+                vn0.ph_nova, vn0.po2, vn0.pco2,
+                o.osmolality,
+                coalesce(vn0.n_vicell, 0) AS n_vicell,
+                coalesce(vn0.n_nova, 0)   AS n_nova,
+                vn0.vicell_sample_ids, vn0.vicell_status,
+                vn0.nova_sample_ids, vn0.nova_status
+            FROM vn0
+            FULL OUTER JOIN o
+              ON o.batch_key = vn0.batch_key AND o.culture_day = vn0.culture_day
         )
         SELECT
             coalesce(vn.batch_key, p.batch_key)     AS batch_key,
@@ -304,7 +327,7 @@ async def get_daily_table(req: DailyTableRequest):
             p.co2_mlmin_mean, p.alkali_cum_ml, p.acid_cum_ml,
             vn.density_tcd, vn.density_vcd, vn.viability_pct, vn.avg_diameter_um,
             vn.gluc, vn.lac, vn.gln, vn.glu, vn.nh4, vn.na, vn.k, vn.ca,
-            vn.ph_nova, vn.po2, vn.pco2,
+            vn.ph_nova, vn.po2, vn.pco2, vn.osmolality,
             coalesce(vn.n_vicell, 0) AS n_vicell,
             coalesce(vn.n_nova, 0)   AS n_nova,
             vn.vicell_sample_ids, vn.vicell_status,

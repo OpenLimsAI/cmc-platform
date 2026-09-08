@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import auth_configured, require_viewer
 from .config import settings
 from .db import dispose_engine, init_engine
-from .routers import auth, nova, overview, signals, vicell
+from .routers import auth, manual, nova, overview, signals, vicell
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.include_router(signals.router, dependencies=_guard)
 app.include_router(vicell.router, dependencies=_guard)
 app.include_router(nova.router, dependencies=_guard)
 app.include_router(overview.router, dependencies=_guard)
+app.include_router(manual.router, dependencies=_guard)
 
 
 @app.get("/health")

@@ -20,6 +20,7 @@ import { BatchFilter, type BatchNumOption } from "@/components/BatchFilter";
 import { CurveSection, type GapMarker } from "@/components/CurveSection";
 import { ProcessTimeseriesSection } from "@/components/ProcessTimeseriesSection";
 import { SamplesSection } from "@/components/SamplesSection";
+import { OsmolalityEntry } from "@/components/OsmolalityEntry";
 import { DailyTable } from "@/components/DailyTable";
 import {
   CELL_METRICS,
@@ -44,7 +45,7 @@ import {
   toggleIn,
 } from "@/lib/batches";
 
-type Section = "cell" | "nova" | "gas" | "process" | "timeseries" | "table" | "samples";
+type Section = "cell" | "nova" | "gas" | "process" | "timeseries" | "table" | "samples" | "entry";
 const SECTIONS: { code: Section; label: string; hint: string }[] = [
   { code: "cell", label: "生长曲线", hint: "Vi-CELL 细胞密度 / 活率，按培养天" },
   { code: "nova", label: "生化曲线", hint: "Nova FLEX2 葡萄糖 / 乳酸 / 氨…，按培养天" },
@@ -53,6 +54,7 @@ const SECTIONS: { code: Section; label: string; hint: string }[] = [
   { code: "timeseries", label: "工艺时序（全量）", hint: "Lucullus 按小时原始采样，可放大到分钟级" },
   { code: "table", label: "数据表", hint: "一行一个批次一个培养天，三源列并排" },
   { code: "samples", label: "取样明细", hint: "每次取样一行" },
+  { code: "entry", label: "渗透压录入", hint: "按日期列出当天取过样的样品，手工填渗透压（本看板唯一的写入功能）" },
 ];
 const DEFAULT_SECTIONS: Section[] = ["cell", "nova", "gas", "process"];
 
@@ -251,6 +253,13 @@ export function Dashboard() {
             </span>
           )}
         </div>
+
+        {/* 渗透压录入不依赖左侧批次选择：按日期列当天全部样品 */}
+        {show("entry") && (
+          <div className="px-5 pt-4">
+            <OsmolalityEntry />
+          </div>
+        )}
 
         {selected.length === 0 ? (
           <div className="flex h-96 flex-col items-center justify-center gap-1 text-slate-400">

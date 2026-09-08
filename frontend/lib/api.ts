@@ -219,6 +219,7 @@ export interface NovaPoint {
   ph: number | null;
   po2: number | null; // 氧分压 mmHg
   pco2: number | null; // 二氧化碳分压 mmHg
+  osmolality: number | null; // 渗透压 mOsm/kg（人工录入，manual.sample_result 最新值）
   n: number;
 }
 
@@ -354,6 +355,7 @@ export interface DailyTableRow {
   ph_nova: number | null;
   po2: number | null;
   pco2: number | null;
+  osmolality: number | null; // 渗透压（人工录入）
   n_vicell: number; // 当天细胞取样次数（>1 = 已平均）
   n_nova: number;
   // 溯源：原始样本名（仪器录入）与解析状态；项目/批号/罐号都拆自样本名
@@ -411,6 +413,68 @@ export async function fetchProcessBucketed(
 ): Promise<ProcessBucketed> {
   const { data } = await http.get<ProcessBucketed>("/api/process-bucketed", {
     params: { source_instance: sourceInstance, procid, bucket_hours: bucketHours },
+  });
+  return data;
+}
+
+// ============ 人工录入（渗透压等）——本看板唯一的写入点 ============
+
+export interface ManualStatus {
+  enabled: boolean; // 后端配了写账号才能录
+  metrics: Record<string, { name: string; unit: string; min: number; max: number }>;
+}
+
+export interface DailySheetRow {
+  batch_key: string;
+  project_id: string | null;
+  batch_number: string | null;
+  bioreactor_id: string | null;
+  culture_day: number;
+  sample_ids: string | null; // 当天该样品在仪器上的样本名
+  has_nova: boolean;
+  has_vicell: boolean;
+  existing_value: number | null; // 已录的最新值
+  existing_by: string | null;
+  existing_by_name: string | null;
+  existing_at: string | null;
+  existing_note: string | null;
+}
+
+export interface DailySheet {
+  sample_date: string;
+  metric: { code: string; name: string; unit: string; min: number; max: number };
+  rows: DailySheetRow[];
+}
+
+export async function fetchManualStatus(): Promise<ManualStatus> {
+  const { data } = await http.get<ManualStatus>("/api/manual/status");
+  return data;
+}
+
+export async function fetchDailySheet(sampleDate: string, metricCode = "osmolality"): Promise<DailySheet> {
+  const { data } = await http.get<DailySheet>("/api/manual/daily-sheet", {
+    params: { sample_date: sampleDate, metric_code: metricCode },
+  });
+  return data;
+}
+
+export interface ManualResultRow {
+  batch_key: string;
+  culture_day: number;
+  value: number;
+  note?: string | null;
+  source_sample_ids?: string | null;
+}
+
+export async function saveManualResults(
+  sampleDate: string,
+  rows: ManualResultRow[],
+  metricCode = "osmolality"
+): Promise<{ saved: number; skipped: number }> {
+  const { data } = await http.post<{ saved: number; skipped: number }>("/api/manual/results", {
+    sample_date: sampleDate,
+    metric_code: metricCode,
+    rows,
   });
   return data;
 }

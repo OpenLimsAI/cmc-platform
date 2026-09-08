@@ -13,6 +13,7 @@ from .config import settings
 
 _engine: AsyncEngine | None = None
 _analytics_engine: AsyncEngine | None = None
+_manual_write_engine: AsyncEngine | None = None  # 人工录入写库（usp_writer），唯一的写入点
 
 
 def _make_engine(url: str) -> AsyncEngine:
@@ -20,22 +21,29 @@ def _make_engine(url: str) -> AsyncEngine:
 
 
 def init_engine() -> None:
-    global _engine, _analytics_engine
+    global _engine, _analytics_engine, _manual_write_engine
     if not settings.raw_database_url:
         raise RuntimeError("RAW_DATABASE_URL 未配置，请复制 .env.example 为 .env 并填写")
     _engine = _make_engine(settings.raw_database_url)
     if settings.analytics_database_url:
         _analytics_engine = _make_engine(settings.analytics_database_url)
+    if settings.manual_write_database_url:
+        _manual_write_engine = create_async_engine(
+            settings.manual_write_database_url, pool_pre_ping=True, pool_size=2, max_overflow=2
+        )
 
 
 async def dispose_engine() -> None:
-    global _engine, _analytics_engine
+    global _engine, _analytics_engine, _manual_write_engine
     if _engine is not None:
         await _engine.dispose()
         _engine = None
     if _analytics_engine is not None:
         await _analytics_engine.dispose()
         _analytics_engine = None
+    if _manual_write_engine is not None:
+        await _manual_write_engine.dispose()
+        _manual_write_engine = None
 
 
 def engine() -> AsyncEngine:
@@ -50,3 +58,8 @@ def analytics_engine() -> AsyncEngine:
             "cmc_analytics 引擎未初始化：请在 .env 配置 ANALYTICS_DATABASE_URL"
         )
     return _analytics_engine
+
+
+def manual_write_engine() -> AsyncEngine | None:
+    """人工录入写库引擎；未配置 MANUAL_WRITE_DATABASE_URL 时为 None（录入功能关闭）。"""
+    return _manual_write_engine
