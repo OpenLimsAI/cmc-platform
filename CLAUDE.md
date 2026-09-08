@@ -37,7 +37,9 @@
 - **前端**：Next.js 16 + React + `@tanstack/react-query` + `echarts-for-react`。文件分工：
   `components/Dashboard.tsx`（主体：筛选状态 + 板块开关）、`BatchFilter.tsx`（左栏筛选）、`CurveSection.tsx`（生长/生化/日均工艺三个按天板块共用）、
   `ProcessTimeseriesSection.tsx`（全量时序，多段叠加 + 缩放取数）、`DailyTable.tsx`、`SamplesSection.tsx`、`SeriesChart.tsx`（echarts 封装）、
-  `lib/batches.ts`（排序/显示名小工具）、`lib/metrics.ts`（三源指标表）。
+  `lib/batches.ts`（排序/显示名小工具）、`lib/metrics.ts`（三源指标表 + **固定配色/线型**）。
+  - 曲线区分规则（负责人 2026-09-08 定）：单批次时**颜色跟指标固定**（活率蓝、活细胞密度红、总密度紫、葡萄糖橙、乳酸绿、温度橙红、溶氧绿…），
+    多批次叠图时**颜色 = 罐、线型+标记 = 指标**（也固定），都不随点击顺序变。改配色只改 `lib/metrics.ts` 里的表。
   - ⚠️ `frontend/AGENTS.md`：这是改过的 Next.js 16，写前端前先读 `node_modules/next/dist/docs/`。
 
 ## 数据在哪、怎么连（关键，先读）
