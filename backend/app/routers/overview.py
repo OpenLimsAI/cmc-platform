@@ -32,7 +32,9 @@ PROCESS_METRICS = [
 _YEAR_EXPR = """
     coalesce(
         CASE WHEN u.batch_number ~* '^R[0-9]{4}$'
-             THEN 2000 + substring(u.batch_number from 2 for 2)::int END,
+             THEN 2000 + substring(u.batch_number from 2 for 2)::int
+             WHEN u.batch_number ~ '^[0-9]{5}$'
+             THEN 2000 + substring(u.batch_number from 1 for 2)::int END,
         extract(year FROM u.first_at)::int
     )
 """

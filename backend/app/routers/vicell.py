@@ -19,13 +19,16 @@ router = APIRouter(prefix="/api/vicell", tags=["vicell"])
 SCHEMA = "mart"
 VIEW = f"{SCHEMA}.fact_vicell"
 
-# 批次年份从批号解析（与 signals.py 同规则）：R2601 -> 26 -> 2026。
+# 批次年份从批号解析（与 signals.py 同规则）：老批号 R2601 -> 26 -> 2026；
+# 登记系统新批号 26001（YYSEQ，年 2 位 + 年流水 3 位）-> 26 -> 2026。
 # 大多数 Vi-CELL 批次没关联到工艺维度 dim_batch，其 batch_year 列为空，
 # 所以优先按批号算，回退 dim_batch.batch_year，再回退取样日期年份。
 _YEAR_EXPR = """
     coalesce(
         CASE WHEN min(batch_number) ~* '^R[0-9]{4}$'
-             THEN 2000 + substring(min(batch_number) from 2 for 2)::int END,
+             THEN 2000 + substring(min(batch_number) from 2 for 2)::int
+             WHEN min(batch_number) ~ '^[0-9]{5}$'
+             THEN 2000 + substring(min(batch_number) from 1 for 2)::int END,
         min(batch_year),
         extract(year FROM min(run_date))::int
     )

@@ -28,7 +28,9 @@ METRICS = ["gluc", "lac", "gln", "glu", "nh4", "na", "k", "ca", "ph", "po2", "pc
 _YEAR_EXPR = """
     coalesce(
         CASE WHEN min(batch_number) ~* '^R[0-9]{4}$'
-             THEN 2000 + substring(min(batch_number) from 2 for 2)::int END,
+             THEN 2000 + substring(min(batch_number) from 2 for 2)::int
+             WHEN min(batch_number) ~ '^[0-9]{5}$'
+             THEN 2000 + substring(min(batch_number) from 1 for 2)::int END,
         min(batch_year),
         extract(year FROM min(measured_at))::int
     )

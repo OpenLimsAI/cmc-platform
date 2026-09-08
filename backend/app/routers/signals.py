@@ -18,8 +18,10 @@ SCHEMA = "raw_rd_usp_lucullus"
 # 批次名（procname）解析规则（负责人 2026-07 确认）。
 # 分隔符 `_` 或空格都可能；字段从左到右：项目编号 / 批号 R+4位 / 实验目的(可选) / 罐号。
 # 这里只解析看板筛选要用的两项：项目编号、批次年份。罐号一律以 reactor_name 列为权威。
-_TOKEN_SPLIT = re.compile(r"[_\s]+")
+_TOKEN_SPLIT = re.compile(r"[-_\s]+")  # 登记系统新规则批次名用 - 分隔（016-26003-A8）
 _BATCH_NUMBER = re.compile(r"^R(\d{2})(\d{2})$", re.IGNORECASE)  # R2605 -> 年26 流水05
+# 登记系统新批号 YYSEQ：年 2 位 + 全实验室年流水 3 位，如 26003 -> 年26 流水003
+_BATCH_NUMBER_V2 = re.compile(r"^(\d{2})(\d{3})$")
 
 
 def parse_batch_name(
@@ -28,8 +30,8 @@ def parse_batch_name(
     """从批次名解析 (项目编号, 批次年份, 批号)。
 
     - 项目编号：批次名第一段，纯数字才算，保留前导零当字符串（"016"≠"16"）；否则 None。
-    - 批号：批次名里 R+4位 的那段（R2605），统一大写；没有则 None。
-    - 批次年份：批号 R2605 的前两位 → 2026；批次名里没有 R+4位时，回退用开始时间的年份。
+    - 批号：批次名里 R+4位 的那段（R2605）或登记系统新批号 5 位 YYSEQ（26003）；没有则 None。
+    - 批次年份：R2605 取第 2~3 位 → 2026；26003 取前两位 → 2026；都没有时回退用开始时间的年份。
     解析不出来的批次（如 test610）项目编号 / 批号为 None，前端归入"未识别"。
     """
     project_code: str | None = None
@@ -40,7 +42,7 @@ def parse_batch_name(
         if tokens and tokens[0].isdigit():
             project_code = tokens[0]
         for t in tokens:
-            m = _BATCH_NUMBER.match(t)
+            m = _BATCH_NUMBER.match(t) or _BATCH_NUMBER_V2.match(t)
             if m:
                 batch_number = t.upper()
                 batch_year = 2000 + int(m.group(1))
