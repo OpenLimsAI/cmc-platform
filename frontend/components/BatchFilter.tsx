@@ -58,12 +58,10 @@ export function BatchFilter({
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="space-y-3 border-b border-slate-200 px-4 py-3">
-        <div className="text-xs font-semibold text-slate-600">先选批次（看谁）</div>
-
-        {/* ① 项目  ② 年份 */}
+        {/* 项目 / 年份 */}
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">① 项目编号</span>
+            <span className="mb-1 block text-xs font-medium text-slate-500">项目编号</span>
             <select value={project} onChange={(e) => onProject(e.target.value)} className={selectCls}>
               <option value="">全部项目</option>
               {projectOptions.map((p) => (
@@ -74,7 +72,7 @@ export function BatchFilter({
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">② 批次年份</span>
+            <span className="mb-1 block text-xs font-medium text-slate-500">批次年份</span>
             <select value={year} onChange={(e) => onYear(e.target.value)} className={selectCls}>
               <option value="">全部年份</option>
               {yearOptions.map((y) => (
@@ -86,11 +84,11 @@ export function BatchFilter({
           </label>
         </div>
 
-        {/* ③ 批号多选 */}
+        {/* 批号多选 */}
         <div>
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
-              ③ 批号 <span className="text-slate-400">（可多选，叠加对比）</span>
+              批号 <span className="text-slate-400">（可多选，叠加对比）</span>
             </span>
             <span className="flex gap-1">
               <button
@@ -143,11 +141,11 @@ export function BatchFilter({
           </div>
         </div>
 
-        {/* ④ 罐号：默认全部，点选收窄 */}
+        {/* 罐号：默认全部，点选收窄 */}
         <div>
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
-              ④ 罐号 <span className="text-slate-400">（默认全部，点选收窄）</span>
+              罐号 <span className="text-slate-400">（默认全部，点选收窄）</span>
             </span>
             {reactors.length > 0 && (
               <button

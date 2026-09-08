@@ -99,7 +99,7 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
           })}
         </div>
       </div>
-      <div className="h-80 p-3">
+      <div className="h-[clamp(24rem,60vh,44rem)] p-3">
         {withData.length ? (
           <SeriesChart series={series} loading={qs.some((q) => q.isFetching)} xName="培养天 (day)" />
         ) : (

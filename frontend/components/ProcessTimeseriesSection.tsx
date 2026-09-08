@@ -358,7 +358,7 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
               <span className="text-slate-300">滚轮 / 拖底部滑块放大，自动加载更精细数据</span>
             )}
           </div>
-          <div className="h-[30rem] p-3">
+          <div className="h-[clamp(28rem,68vh,50rem)] p-3">
             <SeriesChart
               series={chartSeries}
               loading={loading}

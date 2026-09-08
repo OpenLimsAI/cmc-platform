@@ -217,7 +217,6 @@ export function Dashboard() {
       <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50">
         {/* 第二层：看什么（可同开多块） */}
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-5 py-2.5">
-          <span className="text-xs font-semibold text-slate-600">再选看什么：</span>
           {SECTIONS.map((s) => {
             const on = show(s.code);
             return (
@@ -244,11 +243,11 @@ export function Dashboard() {
 
         {selected.length === 0 ? (
           <div className="flex h-96 flex-col items-center justify-center gap-1 text-slate-400">
-            <div>← 左侧按「项目 → 年份 → 批号 → 罐号」选好批次</div>
-            <div className="text-xs text-slate-300">然后这里按板块显示曲线，可多个板块同屏、多批次叠加</div>
+            <div>← 左侧选好项目 / 年份 / 批号 / 罐号</div>
+            <div className="text-xs text-slate-300">上方按钮选要看的曲线，可多个板块同屏、多批次叠加</div>
           </div>
         ) : (
-          <div className="mx-auto max-w-6xl space-y-4 px-5 py-4">
+          <div className="space-y-4 px-5 py-4">
             {show("cell") && (
               <CurveSection
                 title="生长曲线"
