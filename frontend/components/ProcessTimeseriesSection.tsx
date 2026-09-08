@@ -16,7 +16,7 @@ import {
   type OverviewBatch,
 } from "@/lib/api";
 import { SeriesChart, type ChartSeries, type ViewWindow } from "@/components/SeriesChart";
-import { batchLabel, toggleIn } from "@/lib/batches";
+import { batchLabel, runOffsets, toggleIn } from "@/lib/batches";
 
 // 首次打开默认勾选的通道（温度 / pH / 溶氧）
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
@@ -33,7 +33,8 @@ interface Run {
   key: string; // 工作站#procid
   batch: OverviewBatch;
   run: LucullusRun;
-  label: string; // 图例前缀：批次身份（多段时再带原始批次名）
+  label: string; // 图例前缀：批次身份（多段时再带开始日期）
+  offsetHours: number; // 同一批次多段记录按真实开始时间接续：本段在横轴上从第几小时画起
 }
 
 // 通道选项：同一物理量（canonical_key 相同）跨工作站 / 别名归并成一个选项
@@ -56,12 +57,12 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
   const [cellMetrics, setCellMetrics] = useState<string[]>([]);
   const [viewWindow, setViewWindow] = useState<ViewWindow | null>(null);
 
-  // 展开成"段"：一个批次几段工艺记录就几条曲线
+  // 展开成"段"：一个批次几段工艺记录就几条曲线；多段按真实开始时间接续（不是都从 0 画起）
   const runs = useMemo<Run[]>(() => {
     const out: Run[] = [];
     batches.forEach((b) => {
       const multi = b.lucullus_runs.length > 1;
-      b.lucullus_runs.forEach((r) => {
+      runOffsets(b).forEach(({ run: r, offsetHours }) => {
         out.push({
           key: `${r.source_instance}#${r.procid}`,
           batch: b,
@@ -71,6 +72,7 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
             multi && !b.unparsed
               ? `${batchLabel(b)}·${r.starttime ? r.starttime.slice(5, 10) : r.procid}`
               : batchLabel(b),
+          offsetHours,
         });
       });
     });
@@ -161,10 +163,11 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
   const fullRange = useMemo<ViewWindow | null>(() => {
     let min = Infinity;
     let max = -Infinity;
-    channelsQs.forEach((q) => {
+    channelsQs.forEach((q, i) => {
+      const off = runs[i]?.offsetHours ?? 0;
       q.data?.forEach((c) => {
-        if (c.t_min_h != null && c.t_min_h < min) min = c.t_min_h;
-        if (c.t_max_h != null && c.t_max_h > max) max = c.t_max_h;
+        if (c.t_min_h != null && c.t_min_h + off < min) min = c.t_min_h + off;
+        if (c.t_max_h != null && c.t_max_h + off > max) max = c.t_max_h + off;
       });
     });
     if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return null;
@@ -189,8 +192,16 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
   const seriesQs = useQueries({
     queries: tasks.map((t) => ({
       queryKey: ["series", t.run.run.source_instance, t.run.run.procid, t.ch.channel_code, winKey],
+      // 可见窗口是接续后的横轴，取数时要减掉本段的偏移换回该段自己的小时数
       queryFn: () =>
-        fetchSeries(t.run.run.source_instance, t.run.run.procid, t.ch.channel_code, 2000, viewWindow?.min, viewWindow?.max),
+        fetchSeries(
+          t.run.run.source_instance,
+          t.run.run.procid,
+          t.ch.channel_code,
+          2000,
+          viewWindow ? viewWindow.min - t.run.offsetHours : undefined,
+          viewWindow ? viewWindow.max - t.run.offsetHours : undefined
+        ),
       placeholderData: keepPreviousData,
     })),
   });
@@ -211,11 +222,12 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
     tasks.forEach((t, i) => {
       const data = seriesQs[i]?.data;
       if (!data) return;
+      const off = t.run.offsetHours;
       out.push({
         code: `${t.run.key}:${t.ch.channel_code}`,
         name: multi ? `${t.run.label} ${t.opt.display_name}` : t.opt.display_name,
         unit: t.ch.unitsymbol,
-        points: data.points,
+        points: off ? data.points.map((p) => ({ ...p, time_hours: p.time_hours + off })) : data.points,
       });
     });
     cellBatches.forEach((b, i) => {
@@ -258,6 +270,7 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
           <h2 className="text-sm font-semibold">工艺时序（全量）</h2>
           <span className="text-xs text-slate-400">
             Lucullus · 按小时原始采样 · {runs.length} 段工艺记录
+            {runs.length > batches.length ? "（同一批次多段按真实时间先后接续）" : ""}
             {single && single.run.starttime
               ? ` · ${workstationLabel(single.run.source_instance)} · 开始 ${fmtUtc(new Date(single.run.starttime))}`
               : ""}

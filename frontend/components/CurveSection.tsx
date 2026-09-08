@@ -9,7 +9,10 @@ import { SeriesChart, type ChartSeries } from "@/components/SeriesChart";
 import type { MetricDef } from "@/lib/metrics";
 import { batchLabel, toggleIn } from "@/lib/batches";
 
-export function CurveSection<P extends { culture_day: number }>({
+// 数据点可带 __gap=true 表示"这里是两段记录之间的空档"，画成断线而不是连一条斜线
+export type GapMarker = { __gap?: boolean };
+
+export function CurveSection<P extends { culture_day: number } & GapMarker>({
   title,
   source,
   batches,
@@ -57,8 +60,8 @@ export function CurveSection<P extends { culture_day: number }>({
             name: multi ? `${batchLabel(b)} ${m.name}` : m.name,
             unit: m.unit || null,
             points: pts
-              .filter((p) => m.pick(p) != null)
-              .map((p) => ({ time_hours: p.culture_day, ts: "", value: m.pick(p) as number })),
+              .filter((p) => p.__gap || m.pick(p) != null)
+              .map((p) => ({ time_hours: p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),
           });
         });
     });

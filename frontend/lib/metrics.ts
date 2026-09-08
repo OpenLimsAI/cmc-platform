@@ -1,6 +1,6 @@
 // 三类曲线的可选指标定义（批次曲线页公用）。
 // 不同单位 SeriesChart 会自动左右分坐标轴。
-import type { GrowthPoint, NovaPoint, ProcessDailyPoint } from "./api";
+import type { GrowthPoint, NovaPoint, ProcessBucketPoint } from "./api";
 
 export interface MetricDef<P> {
   code: string;
@@ -34,17 +34,23 @@ export const NOVA_METRICS: MetricDef<NovaPoint>[] = [
 ];
 export const NOVA_DEFAULT_METRICS = ["gluc", "lac", "nh4", "gln"];
 
-// 工艺按天汇总（Lucullus；日均值，加碱/加酸为当天累计末值）
-export const PROCESS_METRICS: MetricDef<ProcessDailyPoint>[] = [
-  { code: "temp_c_mean", name: "温度", unit: "°C", pick: (p) => p.temp_c_mean },
-  { code: "ph_mean", name: "pH", unit: "", pick: (p) => p.ph_mean },
-  { code: "do_pct_mean", name: "溶氧", unit: "%", pick: (p) => p.do_pct_mean },
+// 工艺按时段汇总（Lucullus 原始时序按每 N 小时一格；平均值，溶氧另有格内最低，加碱/加酸为格内累计末值）
+export const PROCESS_METRICS: MetricDef<ProcessBucketPoint>[] = [
+  { code: "temp_c", name: "温度", unit: "°C", pick: (p) => p.temp_c },
+  { code: "ph", name: "pH", unit: "", pick: (p) => p.ph },
+  { code: "do_pct", name: "溶氧", unit: "%", pick: (p) => p.do_pct },
   { code: "do_pct_min", name: "溶氧最低", unit: "%", pick: (p) => p.do_pct_min },
-  { code: "stirrer_rpm_mean", name: "搅拌", unit: "rpm", pick: (p) => p.stirrer_rpm_mean },
-  { code: "o2_mlmin_mean", name: "O₂流量", unit: "ml/min", pick: (p) => p.o2_mlmin_mean },
-  { code: "air_mlmin_mean", name: "空气流量", unit: "ml/min", pick: (p) => p.air_mlmin_mean },
-  { code: "co2_mlmin_mean", name: "CO₂流量", unit: "ml/min", pick: (p) => p.co2_mlmin_mean },
-  { code: "alkali_cum_ml", name: "加碱累计", unit: "ml", pick: (p) => p.alkali_cum_ml },
-  { code: "acid_cum_ml", name: "加酸累计", unit: "ml", pick: (p) => p.acid_cum_ml },
+  { code: "stirrer_rpm", name: "搅拌", unit: "rpm", pick: (p) => p.stirrer_rpm },
+  { code: "air_surface", name: "空气(表层)", unit: "mL/min", pick: (p) => p.air_surface },
+  { code: "air_sparge", name: "空气(深层)", unit: "mL/min", pick: (p) => p.air_sparge },
+  { code: "o2", name: "O₂(0-1000)", unit: "mL/min", pick: (p) => p.o2 },
+  { code: "o2_low", name: "O₂(0-100)", unit: "mL/min", pick: (p) => p.o2_low },
+  { code: "co2", name: "CO₂", unit: "mL/min", pick: (p) => p.co2 },
+  { code: "alkali_cum", name: "加碱累计", unit: "mL", pick: (p) => p.alkali_cum },
+  { code: "acid_cum", name: "加酸累计", unit: "mL", pick: (p) => p.acid_cum },
 ];
-export const PROCESS_DEFAULT_METRICS = ["temp_c_mean", "ph_mean", "do_pct_mean"];
+export const PROCESS_DEFAULT_METRICS = ["temp_c", "ph", "do_pct"];
+
+// 时段粒度选项（小时），默认 6h（负责人 2026-09-08 定）
+export const BUCKET_OPTIONS = [24, 12, 6, 3, 1];
+export const DEFAULT_BUCKET_HOURS = 6;

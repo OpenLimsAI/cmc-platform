@@ -7,11 +7,16 @@ import type { SeriesPoint } from "@/lib/api";
 // echarts 在模块加载时会用到 window，禁用 SSR
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
+// 图上一条线。value 为 null 的点 = 断线标记（多段工艺记录之间的空档），echarts 在此处断开不连线
+export interface ChartPoint {
+  time_hours: number;
+  value: number | null;
+}
 export interface ChartSeries {
   code: string;
   name: string;
   unit: string | null;
-  points: SeriesPoint[];
+  points: (SeriesPoint | ChartPoint)[];
 }
 
 export interface ViewWindow {
@@ -75,11 +80,11 @@ export function SeriesChart({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const option = useMemo(() => {
-    // 只保留有限数值的点，避免 NaN/Infinity 让 echarts 算坐标轴时崩溃
+    // 只保留横轴有限的点；纵轴 NaN/Infinity 去掉（会让 echarts 算坐标轴时崩溃），null 保留当断线标记
     const clean = series.map((s) => ({
       ...s,
       points: s.points.filter(
-        (p) => Number.isFinite(p.time_hours) && Number.isFinite(p.value)
+        (p) => Number.isFinite(p.time_hours) && (p.value === null || Number.isFinite(p.value))
       ),
     }));
 
@@ -91,6 +96,7 @@ export function SeriesChart({
       if (!units.includes(u)) units.push(u);
       const e = extent.get(u) ?? { min: Infinity, max: -Infinity };
       for (const p of s.points) {
+        if (p.value === null) continue;
         if (p.value < e.min) e.min = p.value;
         if (p.value > e.max) e.max = p.value;
       }
@@ -217,6 +223,7 @@ export function SeriesChart({
         type: "line" as const,
         showSymbol: false,
         smooth: false,
+        connectNulls: false,
         yAxisIndex: units.indexOf(s.unit || "无单位"),
         data: s.points.map((p) => [p.time_hours, p.value]),
       })),

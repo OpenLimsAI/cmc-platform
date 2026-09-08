@@ -376,35 +376,41 @@ export async function fetchDailyTable(batchKeys: string[]): Promise<DailyTable> 
   return data;
 }
 
-// 工艺参数按天汇总（mart.fact_process_daily，总览页嵌图）
-export interface ProcessDailyPoint {
-  culture_day: number;
-  ph_mean: number | null;
-  temp_c_mean: number | null; // 温度 °C
-  do_pct_mean: number | null; // 溶氧 %
-  do_pct_min: number | null;
-  stirrer_rpm_mean: number | null; // 搅拌 rpm
-  o2_mlmin_mean: number | null; // O₂ 流量 ml/min
-  air_mlmin_mean: number | null;
-  co2_mlmin_mean: number | null;
-  alkali_cum_ml: number | null; // 加碱累计 ml
-  acid_cum_ml: number | null;
-  n_samples_max: number | null;
+// ============ 工艺参数按时段汇总（直接从原始时序算，每 N 小时一格；板块「工艺参数（按时段）」用） ============
+
+export interface ProcessBucketPoint {
+  bucket: number;
+  time_hours: number; // 该格起点（培养小时）
+  culture_day: number; // 该格起点换算成培养天（6h 一格 = 0, 0.25, 0.5…），与生长/生化同轴
+  temp_c: number | null;
+  ph: number | null;
+  do_pct: number | null;
+  do_pct_min: number | null; // 格内最低
+  stirrer_rpm: number | null;
+  air_surface: number | null; // 表层空气 mL/min
+  air_sparge: number | null; // 深层空气 mL/min
+  o2: number | null; // O₂(0-1000) mL/min
+  o2_low: number | null; // O₂(0-100) mL/min
+  co2: number | null;
+  alkali_cum: number | null; // 格内末值（累计量）
+  acid_cum: number | null;
 }
 
-export interface ProcessDaily {
+export interface ProcessBucketed {
   source_instance: string;
   procid: number;
-  metrics: string[];
-  points: ProcessDailyPoint[];
+  bucket_hours: number;
+  metrics: { code: string; name: string; unit: string; agg: string; channel: string | null }[];
+  points: ProcessBucketPoint[];
 }
 
-export async function fetchProcessDaily(
+export async function fetchProcessBucketed(
   sourceInstance: string,
-  procid: number
-): Promise<ProcessDaily> {
-  const { data } = await http.get<ProcessDaily>("/api/overview/process-daily", {
-    params: { source_instance: sourceInstance, procid },
+  procid: number,
+  bucketHours: number
+): Promise<ProcessBucketed> {
+  const { data } = await http.get<ProcessBucketed>("/api/process-bucketed", {
+    params: { source_instance: sourceInstance, procid, bucket_hours: bucketHours },
   });
   return data;
 }

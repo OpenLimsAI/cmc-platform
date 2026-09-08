@@ -1,5 +1,5 @@
 // 批次名单的公用小工具：项目桶 / 排序 / 显示名。全站筛选（Dashboard + BatchFilter）共用。
-import type { OverviewBatch } from "./api";
+import type { LucullusRun, OverviewBatch } from "./api";
 
 // 项目编号解析不出的批次归入这个桶（工艺批次名不规范：test610 这类）
 export const PROJ_NONE = "__none__";
@@ -53,4 +53,21 @@ export const fmtNum = (v: number | null, digits = 2) =>
 
 export function toggleIn<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+}
+
+// 同一批次的多段工艺记录（中途重开）不是并行而是先后发生的：
+// 以最早一段的开始时刻为 0，其余各段按真实开始时间往后挪（小时），拼成一条连续时间轴。
+// 开始时间缺失的段偏移记 0。返回按时间升序排好的 [段, 偏移小时]。
+export function runOffsets(b: OverviewBatch): { run: LucullusRun; offsetHours: number }[] {
+  const runs = [...b.lucullus_runs].sort((x, y) => {
+    const tx = x.starttime ? Date.parse(x.starttime) : Infinity;
+    const ty = y.starttime ? Date.parse(y.starttime) : Infinity;
+    return tx - ty;
+  });
+  const t0 = runs.length && runs[0].starttime ? Date.parse(runs[0].starttime) : NaN;
+  return runs.map((run) => {
+    const t = run.starttime ? Date.parse(run.starttime) : NaN;
+    const off = Number.isFinite(t0) && Number.isFinite(t) ? (t - t0) / 3600_000 : 0;
+    return { run, offsetHours: Math.max(0, off) };
+  });
 }

@@ -2,7 +2,7 @@
 
 // 看板主体（全站只有这一页）：
 //   左栏 = 先选批次（看谁）：项目编号 → 批次年份 → 批号（多选）→ 罐号（多选），全站唯一一份；
-//   右栏 = 再选看什么：生长曲线 / 生化曲线 / 工艺参数（日均）/ 工艺时序（全量）/ 数据表 / 取样明细，
+//   右栏 = 再选看什么：生长曲线 / 生化曲线 / 工艺参数（按时段）/ 工艺时序（全量）/ 数据表 / 取样明细，
 //          可同屏多开，横轴统一培养天（全量时序为培养小时）。板块切换绝不动左栏的批次选择。
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
@@ -10,12 +10,13 @@ import {
   fetchOverviewBatches,
   fetchGrowth,
   fetchNovaSeries,
-  fetchProcessDaily,
+  fetchProcessBucketed,
   fetchDailyTable,
   type OverviewBatch,
+  type ProcessBucketPoint,
 } from "@/lib/api";
 import { BatchFilter, type BatchNumOption } from "@/components/BatchFilter";
-import { CurveSection } from "@/components/CurveSection";
+import { CurveSection, type GapMarker } from "@/components/CurveSection";
 import { ProcessTimeseriesSection } from "@/components/ProcessTimeseriesSection";
 import { SamplesSection } from "@/components/SamplesSection";
 import { DailyTable } from "@/components/DailyTable";
@@ -26,14 +27,16 @@ import {
   NOVA_DEFAULT_METRICS,
   PROCESS_METRICS,
   PROCESS_DEFAULT_METRICS,
+  BUCKET_OPTIONS,
+  DEFAULT_BUCKET_HOURS,
 } from "@/lib/metrics";
-import { projValue, sortBatchNumberDesc, sortProject, sortReactor, toggleIn } from "@/lib/batches";
+import { projValue, runOffsets, sortBatchNumberDesc, sortProject, sortReactor, toggleIn } from "@/lib/batches";
 
 type Section = "cell" | "nova" | "process" | "timeseries" | "table" | "samples";
 const SECTIONS: { code: Section; label: string; hint: string }[] = [
   { code: "cell", label: "生长曲线", hint: "Vi-CELL 细胞密度 / 活率，按培养天" },
   { code: "nova", label: "生化曲线", hint: "Nova FLEX2 葡萄糖 / 乳酸 / 氨…，按培养天" },
-  { code: "process", label: "工艺参数（日均）", hint: "Lucullus 温度 / pH / 溶氧…按天汇总" },
+  { code: "process", label: "工艺参数（按时段）", hint: "Lucullus 温度 / pH / 溶氧…每 N 小时一格（默认 6h）" },
   { code: "timeseries", label: "工艺时序（全量）", hint: "Lucullus 按小时原始采样，可放大到分钟级" },
   { code: "table", label: "数据表", hint: "一行一个批次一个培养天，三源列并排" },
   { code: "samples", label: "取样明细", hint: "每次取样一行" },
@@ -53,6 +56,7 @@ export function Dashboard() {
   const [cellMetrics, setCellMetrics] = useState<string[]>(CELL_DEFAULT_METRICS);
   const [novaMetrics, setNovaMetrics] = useState<string[]>(NOVA_DEFAULT_METRICS);
   const [procMetrics, setProcMetrics] = useState<string[]>(PROCESS_DEFAULT_METRICS);
+  const [bucketHours, setBucketHours] = useState<number>(DEFAULT_BUCKET_HOURS); // 工艺参数每格几小时
 
   const batchesQ = useQuery({ queryKey: ["overview-batches"], queryFn: fetchOverviewBatches });
   const all = useMemo(() => batchesQ.data ?? [], [batchesQ.data]);
@@ -151,7 +155,31 @@ export function Dashboard() {
   });
 
   const show = (s: Section) => sections.includes(s);
-  const hasProc = (b: OverviewBatch) => b.lucullus_procid != null && !!b.lucullus_source_instance;
+  const hasProc = (b: OverviewBatch) => b.lucullus_runs.length > 0;
+
+  // 按时段工艺参数：该批次几段工艺记录各取一份，按真实开始时间往后挪再拼成一条（中途重开不是并行）
+  async function fetchProcessForBatch(b: OverviewBatch, bucket: number) {
+    const parts = await Promise.all(
+      runOffsets(b).map(async ({ run, offsetHours }) => {
+        const d = await fetchProcessBucketed(run.source_instance, run.procid, bucket);
+        return d.points.map((p) => ({
+          ...p,
+          time_hours: p.time_hours + offsetHours,
+          culture_day: (p.time_hours + offsetHours) / 24,
+        }));
+      })
+    );
+    // 段与段之间插一个断线标记，避免空档被画成一条斜线
+    const points: (ProcessBucketPoint & GapMarker)[] = [];
+    parts.forEach((seg, i) => {
+      if (i > 0 && seg.length && points.length) {
+        const last = points[points.length - 1];
+        points.push({ ...last, culture_day: last.culture_day + 1e-6, __gap: true });
+      }
+      points.push(...seg);
+    });
+    return { points };
+  }
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -240,25 +268,42 @@ export function Dashboard() {
             )}
             {show("process") && (
               <CurveSection
-                title="工艺参数（日均）"
-                source="Lucullus · 按培养天汇总"
+                title="工艺参数（按时段）"
+                source={`Lucullus · 每 ${bucketHours} 小时一格取平均`}
                 batches={selected}
                 hasData={hasProc}
-                queryKey={(b) => ["process-daily", b.lucullus_source_instance, b.lucullus_procid]}
-                fetch={(b) => fetchProcessDaily(b.lucullus_source_instance!, b.lucullus_procid!)}
+                queryKey={(b) => ["process-bucketed", b.batch_key, bucketHours]}
+                fetch={(b) => fetchProcessForBatch(b, bucketHours)}
                 defs={PROCESS_METRICS}
                 chosen={procMetrics}
                 onChosen={setProcMetrics}
                 emptyText="所选批次都没有 Lucullus 工艺数据"
                 extra={
-                  !show("timeseries") && selected.some(hasProc) ? (
-                    <button
-                      onClick={() => setSections((prev) => [...prev, "timeseries"])}
-                      className="ml-auto rounded border border-blue-300 px-1.5 py-0.5 text-xs text-blue-600 transition hover:bg-blue-50"
-                    >
-                      看小时级全量时序 →
-                    </button>
-                  ) : null
+                  <span className="ml-auto flex items-center gap-2">
+                    {/* 时段粒度：一格几小时 */}
+                    <span className="flex items-center gap-0.5 rounded-md border border-slate-200 p-0.5">
+                      {BUCKET_OPTIONS.map((h) => (
+                        <button
+                          key={h}
+                          onClick={() => setBucketHours(h)}
+                          title={`每 ${h} 小时一个点`}
+                          className={`rounded px-1.5 py-0.5 text-xs transition ${
+                            bucketHours === h ? "bg-slate-700 text-white" : "text-slate-500 hover:bg-slate-100"
+                          }`}
+                        >
+                          {h}h
+                        </button>
+                      ))}
+                    </span>
+                    {!show("timeseries") && selected.some(hasProc) && (
+                      <button
+                        onClick={() => setSections((prev) => [...prev, "timeseries"])}
+                        className="rounded border border-blue-300 px-1.5 py-0.5 text-xs text-blue-600 transition hover:bg-blue-50"
+                      >
+                        看全量时序 →
+                      </button>
+                    )}
+                  </span>
                 }
               />
             )}
