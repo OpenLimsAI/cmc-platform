@@ -21,6 +21,8 @@ export interface ChartSeries {
   // 不传时退回"每条线一个颜色"。
   group?: string; // 批次身份，如 016_R2604_A6
   kind?: string; // 指标代号，如 viable_per_ml
+  color?: string; // 该指标的固定颜色（单批次时用；不传按出现顺序取调色板）
+  shape?: number; // 该指标的固定线型/标记序号（多批次时用；不传按指标出现顺序取）
 }
 
 export interface ViewWindow {
@@ -121,6 +123,24 @@ export function SeriesChart({
       extent.set(u, e);
     }
 
+    // 颜色 = 批次（多批次时），线型 + 标记 = 指标；只有一个批次时颜色 = 指标固定色
+    const groups: string[] = [];
+    const kinds: string[] = [];
+    for (const s of clean) {
+      if (s.group && !groups.includes(s.group)) groups.push(s.group);
+      if (s.kind && !kinds.includes(s.kind)) kinds.push(s.kind);
+    }
+    const multiGroup = groups.length > 1;
+    const seriesColor = clean.map((s, i) => {
+      const gi = s.group ? groups.indexOf(s.group) : -1;
+      return multiGroup && gi >= 0 ? COLORS[gi % COLORS.length] : s.color ?? COLORS[i % COLORS.length];
+    });
+    // 每条纵轴的颜色跟挂在它上面的第一条线走（活率的 % 轴就是活率的颜色）
+    const axisColor = (u: string) => {
+      const idx = clean.findIndex((s) => (s.unit || "无单位") === u);
+      return idx >= 0 ? seriesColor[idx] : COLORS[0];
+    };
+
     const yAxis = units.map((u, i) => {
       const e = extent.get(u)!;
       // 常量通道（min==max）或无数据时，手动给个范围，否则 echarts 会算出非法刻度
@@ -145,7 +165,7 @@ export function SeriesChart({
         scale: true,
         axisLine: {
           show: true,
-          lineStyle: { color: COLORS[i % COLORS.length] },
+          lineStyle: { color: axisColor(u) },
         },
         splitLine: { show: i === 0 },
       };
@@ -193,15 +213,6 @@ export function SeriesChart({
             typeof v === "number" ? v.toFixed(3) : v,
         };
 
-    // 颜色 = 批次（多批次时），线型 + 标记 = 指标；只有一个批次时仍按线分颜色（更好认）
-    const groups: string[] = [];
-    const kinds: string[] = [];
-    for (const s of clean) {
-      if (s.group && !groups.includes(s.group)) groups.push(s.group);
-      if (s.kind && !kinds.includes(s.kind)) kinds.push(s.kind);
-    }
-    const multiGroup = groups.length > 1;
-
     return {
       animation: false,
       color: COLORS,
@@ -248,10 +259,11 @@ export function SeriesChart({
         },
       ],
       series: clean.map((s, i) => {
-        const gi = s.group ? groups.indexOf(s.group) : -1;
         const ki = s.kind ? kinds.indexOf(s.kind) : -1;
-        const color = multiGroup && gi >= 0 ? COLORS[gi % COLORS.length] : COLORS[i % COLORS.length];
-        const style = ki >= 0 ? KIND_STYLES[ki % KIND_STYLES.length] : KIND_STYLES[0];
+        // 单批次：颜色 = 指标固定色；多批次：颜色 = 罐，线型/标记 = 指标固定形状
+        const color = seriesColor[i];
+        const si = s.shape ?? (ki >= 0 ? ki : 0);
+        const style = KIND_STYLES[si % KIND_STYLES.length];
         return {
           name: `${s.name || s.code}${s.unit ? " (" + s.unit + ")" : ""}`,
           type: "line" as const,

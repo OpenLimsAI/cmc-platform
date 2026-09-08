@@ -59,8 +59,10 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
             code: `${b.batch_key}:${m.code}`,
             name: multi ? `${batchLabel(b)} ${m.name}` : m.name,
             unit: m.unit || null,
-            group: b.batch_key, // 颜色按批次
-            kind: m.code, // 线型 / 标记按指标
+            group: b.batch_key, // 多批次时颜色按批次
+            kind: m.code,
+            color: m.color, // 单批次时颜色固定跟指标
+            shape: m.shape, // 多批次时线型 / 标记固定跟指标
             points: pts
               .filter((p) => p.__gap || m.pick(p) != null)
               .map((p) => ({ time_hours: p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),

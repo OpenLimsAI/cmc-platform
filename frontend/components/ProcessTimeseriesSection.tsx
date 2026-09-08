@@ -17,15 +17,23 @@ import {
 } from "@/lib/api";
 import { SeriesChart, type ChartSeries, type ViewWindow } from "@/components/SeriesChart";
 import { batchLabel, runOffsets, toggleIn } from "@/lib/batches";
+import { C, channelColor, channelShape } from "@/lib/metrics";
 
 // 首次打开默认勾选的通道（温度 / pH / 溶氧）
 const DEFAULT_CHANNELS = ["m_temp", "m_ph", "m_do"];
 
-// 可叠到工艺时序上的细胞指标（横轴培养天 ×24 → 培养小时）
-const CELL_OVERLAYS: { code: string; name: string; unit: string; pick: (p: GrowthPoint) => number | null }[] = [
-  { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", pick: (p) => p.viable_per_ml },
-  { code: "total_per_ml", name: "总细胞密度", unit: "×10⁶/ml", pick: (p) => p.total_per_ml },
-  { code: "viability_pct", name: "活率", unit: "%", pick: (p) => p.viability_pct },
+// 可叠到工艺时序上的细胞指标（横轴培养天 ×24 → 培养小时）；颜色/形状与生长曲线板块一致
+const CELL_OVERLAYS: {
+  code: string;
+  name: string;
+  unit: string;
+  color: string;
+  shape: number;
+  pick: (p: GrowthPoint) => number | null;
+}[] = [
+  { code: "viable_per_ml", name: "活细胞密度", unit: "×10⁶/ml", color: C.red, shape: 0, pick: (p) => p.viable_per_ml },
+  { code: "total_per_ml", name: "总细胞密度", unit: "×10⁶/ml", color: C.purple, shape: 2, pick: (p) => p.total_per_ml },
+  { code: "viability_pct", name: "活率", unit: "%", color: C.blue, shape: 1, pick: (p) => p.viability_pct },
 ];
 
 // 一段要画的工艺记录
@@ -227,8 +235,10 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
         code: `${t.run.key}:${t.ch.channel_code}`,
         name: multi ? `${t.run.label} ${t.opt.display_name}` : t.opt.display_name,
         unit: t.ch.unitsymbol,
-        group: t.run.key, // 颜色按工艺记录段
-        kind: t.opt.key, // 线型按通道
+        group: t.run.key, // 多段时颜色按工艺记录段
+        kind: t.opt.key,
+        color: channelColor(t.opt.key), // 单段时颜色固定跟通道
+        shape: channelShape(t.opt.key),
         points: off ? data.points.map((p) => ({ ...p, time_hours: p.time_hours + off })) : data.points,
       });
     });
@@ -241,6 +251,8 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
           unit: m.unit,
           group: b.batch_key,
           kind: `cell:${m.code}`,
+          color: m.color,
+          shape: m.shape,
           points: pts
             .filter((p) => m.pick(p) != null)
             .map((p) => ({ time_hours: p.culture_day * 24, ts: "", value: m.pick(p) as number })),
