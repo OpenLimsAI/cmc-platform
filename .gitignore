@@ -26,3 +26,8 @@ Thumbs.db
 # 日志
 *.log
 logs/
+
+# Playwright MCP 截图/快照
+.playwright-mcp/
+*.png
+!frontend/public/*.png

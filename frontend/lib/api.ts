@@ -105,19 +105,6 @@ export async function fetchMe(): Promise<Me> {
   return data;
 }
 
-export interface Batch {
-  source_instance: string;
-  procid: number;
-  procname: string;
-  starttime: string | null;
-  endtime: string | null;
-  reactor_name: string | null;
-  project_code: string | null; // 项目编号（解析自批次名，保留前导零；解析不出为 null）
-  batch_year: number | null; // 批次年份（R2605→2026，无则用开始日期年份）
-  batch_number: string | null; // 批号（解析自批次名，R+4位大写；解析不出为 null）
-  reactor: string | null; // 罐号（= reactor_name，权威列）
-}
-
 export interface Channel {
   channel_code: string;
   channel_name: string | null; // 源系统长名（Lucullus logiportname）
@@ -148,11 +135,6 @@ export interface Series {
   raw_count: number; // 该时间窗口内的原始采集点数
   returned: number; // 抽稀后返回的点数
   points: SeriesPoint[];
-}
-
-export async function fetchBatches(): Promise<Batch[]> {
-  const { data } = await http.get<Batch[]>("/api/batches");
-  return data;
 }
 
 export async function fetchChannels(
@@ -188,19 +170,6 @@ export async function fetchSeries(
 
 // ============ Vi-CELL 细胞计数生长曲线 ============
 
-export interface VicellBatch {
-  batch_key: string; // 项目_批号_罐，如 0071_R2601_B2
-  project_id: string | null;
-  batch_number: string | null;
-  bioreactor_id: string | null;
-  batch_year: number | null; // 批号解析，如 R2601 -> 2026
-  n_samples: number;
-  day_min: number | null;
-  day_max: number | null;
-  first_run_date: string | null;
-  has_process_link: boolean; // 是否已关联到工艺批次（Phase 2 叠图用）
-}
-
 export interface GrowthPoint {
   culture_day: number;
   viable_per_ml: number | null; // 活细胞密度 ×10⁶/ml
@@ -221,31 +190,9 @@ export interface Growth {
   points: GrowthPoint[];
 }
 
-export async function fetchVicellBatches(): Promise<VicellBatch[]> {
-  const { data } = await http.get<VicellBatch[]>("/api/vicell/batches");
-  return data;
-}
-
 export async function fetchGrowth(batchKey: string): Promise<Growth> {
   const { data } = await http.get<Growth>("/api/vicell/growth", {
     params: { batch_key: batchKey },
-  });
-  return data;
-}
-
-// 按工艺批次（source_instance + procid）取关联的细胞生长曲线，用于工艺图叠加
-export interface GrowthByProcid {
-  source_instance: string;
-  procid: number;
-  points: GrowthPoint[];
-}
-
-export async function fetchGrowthByProcid(
-  sourceInstance: string,
-  procid: number
-): Promise<GrowthByProcid> {
-  const { data } = await http.get<GrowthByProcid>("/api/vicell/growth-by-procid", {
-    params: { source_instance: sourceInstance, procid },
   });
   return data;
 }
@@ -257,19 +204,6 @@ export function workstationLabel(sourceInstance: string): string {
 }
 
 // ============ Nova FLEX2 生化分析趋势 ============
-
-export interface NovaBatch {
-  batch_key: string; // 项目_批号_罐，与 Vi-CELL 同一套身份
-  project_id: string | null;
-  batch_number: string | null;
-  bioreactor_id: string | null;
-  batch_year: number | null;
-  n_samples: number;
-  day_min: number | null;
-  day_max: number | null;
-  first_measured_at: string | null;
-  has_process_link: boolean;
-}
 
 // 一个培养天的全部生化指标（同天多次取样已平均）
 export interface NovaPoint {
@@ -296,11 +230,6 @@ export interface NovaSeries {
   n_samples: number;
   metrics: string[];
   points: NovaPoint[];
-}
-
-export async function fetchNovaBatches(): Promise<NovaBatch[]> {
-  const { data } = await http.get<NovaBatch[]>("/api/nova/batches");
-  return data;
 }
 
 export async function fetchNovaSeries(batchKey: string): Promise<NovaSeries> {
@@ -337,21 +266,33 @@ export async function fetchNovaSamples(batchKey: string): Promise<NovaSample[]> 
   return data;
 }
 
-// ============ 批次总览（一个批号看全部数据源） ============
+// ============ 批次总名单（三源合并：细胞 / 生化 / 工艺，全站唯一的筛选数据源） ============
+
+// 一段 Lucullus 工艺记录。同一批次中途重开会有 2~3 段（按开始时间倒序，[0] 为主记录）
+export interface LucullusRun {
+  source_instance: string; // Lucullus 工作站编码（rd_ws01_usp_lucullus_01）
+  procid: number;
+  procname: string | null; // 原始批次名（工作站里录的）
+  starttime: string | null;
+  endtime: string | null;
+}
 
 export interface OverviewBatch {
-  batch_key: string;
-  project_id: string | null;
-  batch_number: string | null;
+  batch_key: string; // 批次身份 项目_批号_罐；不规范名批次为 lucullus:<工作站>#<procid>
+  project_id: string | null; // null = 拆不出项目（前端归入「未识别」）
+  batch_number: string | null; // 批号；不规范名批次这里放原始批次名
   bioreactor_id: string | null;
   batch_year: number | null;
   n_vicell: number; // 细胞取样数（0 = 该源没有此批）
   n_nova: number; // 生化取样数
   day_min: number | null;
   day_max: number | null;
-  first_at: string | null;
-  lucullus_procid: number | null; // 工艺关联（跳转工艺曲线视图用）
+  first_at: string | null; // 最早的取样 / 工艺开始时间
+  unparsed: boolean; // true = 工艺批次名不规范（test610 这类），只能按原始名字选
+  lucullus_runs: LucullusRun[]; // 全部工艺记录；空 = 没有工艺数据
+  lucullus_procid: number | null; // 主工艺记录（= runs[0]），日均工艺参数板块用
   lucullus_source_instance: string | null;
+  lucullus_procname: string | null;
 }
 
 export async function fetchOverviewBatches(): Promise<OverviewBatch[]> {

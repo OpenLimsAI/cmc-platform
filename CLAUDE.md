@@ -8,20 +8,32 @@
 
 ## 这是什么
 
-一个 **USP 上游多源分析看板**。顶部两个视图切换：
+一个 **USP 上游多源分析看板**，全站只有一页，交互分两层（负责人 2026-09-08 定稿）：
 
-1. **工艺曲线**（Lucullus）：看生物反应器 USP 上游工艺的**时序数据**——温度、pH、溶氧、搅拌、气体、液位、泵等通道（ETL 白名单 78 个）随时间变化的曲线，横轴培养小时。数据来自 `rd-lucullus-etl`（工作站 Oracle → PostgreSQL）。
-2. **细胞生长曲线**（Vi-CELL）：看 Beckman Vi-CELL XR 细胞计数的**生长曲线**——活细胞密度 + 活率随培养天变化（双轴）。数据来自 `rd-vicell-etl`。
+1. **先选批次（看谁）**——左栏全站唯一的筛选：项目编号 → 批次年份 → 批号（可多选）→ 罐号（可多选，默认全部）。
+   选出的批次集合就是"要看的对象"，右侧所有板块共用；板块切换绝不动这里的选择。
+2. **再选看什么**——右栏板块开关，可同屏多开、多批次叠加：
+   - **生长曲线**（Vi-CELL 细胞密度 / 活率，按培养天，`rd-vicell-etl`）
+   - **生化曲线**（Nova FLEX2 葡萄糖 / 乳酸 / 氨…，按培养天，`rd-nova-etl`）
+   - **工艺参数（日均）**（Lucullus 温度 / pH / 溶氧…按天汇总，`mart.fact_process_daily`）
+   - **工艺时序（全量）**（Lucullus 按小时原始采样，78 个通道，放大自动加载更细的点；同一批次多段工艺记录各画一条）
+   - **数据表**（一行 = 一个批次一个培养天，三源列并排，对齐《项目第一表》）
+   - **取样明细**（每次取样一行）
 
-**多源定位**：三者同批次/同罐/同培养天，最终能叠着看。将来还会加生化分析仪结果曲线。
-> 「细胞曲线叠加工艺参数(pH/DO/温度)」是 Phase 2，需 Lucullus 侧把 `mart.fact_process_daily` 物化出来（当前空）。
+**批次名单是三源合并的**：`GET /api/overview/batches`（`routers/overview.py`）把细胞、生化、工艺（`mart.dim_batch` 中有时序数据的记录）
+按 `batch_key` 并成一张总名单，只有工艺没细胞/生化的批次、以及工艺批次名不规范（test610 这类）的批次也在（后者归「未识别」项目，
+`batch_key` 用 `lucullus:<工作站>#<procid>` 顶替）。每个批次带 `lucullus_runs`（全部工艺记录段）。
+> 旧的 `GET /api/batches`（直接读 `process_src` 解析批次名）前端已不用，仅留给脚本。
 
 本项目对所有库**只读、不写**。
 
 ## 技术栈（对齐 cmc-rd-lims-dashboard）
 
 - **后端**：FastAPI + uvicorn + SQLAlchemy 2.0 + asyncpg（用 `uv` 管理，`backend/pyproject.toml`）。手写 SQL + 参数绑定（见 `routers/signals.py`、`routers/vicell.py`），新代码沿用这个风格。
-- **前端**：Next.js 16 + React + `@tanstack/react-query` + `echarts-for-react`。**已建好在用**（`frontend/app/page.tsx` + `components/SeriesChart.tsx`（图）+ `components/CellGrowthView.tsx`（细胞视图））。
+- **前端**：Next.js 16 + React + `@tanstack/react-query` + `echarts-for-react`。文件分工：
+  `components/Dashboard.tsx`（主体：筛选状态 + 板块开关）、`BatchFilter.tsx`（左栏筛选）、`CurveSection.tsx`（生长/生化/日均工艺三个按天板块共用）、
+  `ProcessTimeseriesSection.tsx`（全量时序，多段叠加 + 缩放取数）、`DailyTable.tsx`、`SamplesSection.tsx`、`SeriesChart.tsx`（echarts 封装）、
+  `lib/batches.ts`（排序/显示名小工具）、`lib/metrics.ts`（三源指标表）。
   - ⚠️ `frontend/AGENTS.md`：这是改过的 Next.js 16，写前端前先读 `node_modules/next/dist/docs/`。
 
 ## 数据在哪、怎么连（关键，先读）

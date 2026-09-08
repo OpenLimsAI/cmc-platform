@@ -51,6 +51,7 @@ export function SeriesChart({
   onWindowChange,
   xName = "培养时间 (h)",
   xTickInterval,
+  hoursAxis = false,
   startTime,
 }: {
   series: ChartSeries[];
@@ -65,7 +66,9 @@ export function SeriesChart({
   xName?: string;
   // 横轴刻度固定间隔（工艺曲线传 24 = 每 24 小时一格；不传则 echarts 自动定刻度）
   xTickInterval?: number;
-  // 批次开始时刻（ISO）。传了 = 横轴是培养小时：tooltip 顶部补「第 N 天」+ 北京时间
+  // 横轴是培养小时（工艺全量时序）：tooltip 顶部补「第 N 天 · N h」
+  hoursAxis?: boolean;
+  // 批次开始时刻（ISO，单批次时传）：tooltip 顶部再补北京时间
   startTime?: string | null;
 }) {
   const instRef = useRef<echartsInstance | null>(null);
@@ -133,10 +136,10 @@ export function SeriesChart({
     }
     const z = { start: zStart, end: zEnd };
 
-    // 横轴是培养小时时（工艺曲线），tooltip 顶部除小时外再补「第 N 天」+ 北京时间。
+    // 横轴是培养小时时（工艺曲线），tooltip 顶部除小时外再补「第 N 天」（+ 单批次时的北京时间）。
     // 天数规则：0h=第0天，满 24h 进第 1 天 → floor(小时/24)。
     const baseMs = startTime ? new Date(startTime).getTime() : NaN;
-    const tooltip = startTime
+    const tooltip = hoursAxis || startTime
       ? {
           trigger: "axis" as const,
           axisPointer: { type: "cross" as const },
@@ -219,7 +222,7 @@ export function SeriesChart({
       })),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, fullRange, viewWindow, xName, xTickInterval, startTime]);
+  }, [series, fullRange, viewWindow, xName, xTickInterval, hoursAxis, startTime]);
 
   function handleDataZoom() {
     const inst = instRef.current;
@@ -249,7 +252,7 @@ export function SeriesChart({
   if (!series.length) {
     return (
       <div className="flex h-full items-center justify-center text-slate-400">
-        {loading ? "加载中…" : "从左侧选一个批次，再勾选要看的通道"}
+        {loading ? "加载中…" : "勾选要看的指标 / 通道"}
       </div>
     );
   }
