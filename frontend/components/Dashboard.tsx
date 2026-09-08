@@ -30,7 +30,16 @@ import {
   BUCKET_OPTIONS,
   DEFAULT_BUCKET_HOURS,
 } from "@/lib/metrics";
-import { projValue, runOffsets, sortBatchNumberDesc, sortProject, sortReactor, toggleIn } from "@/lib/batches";
+import {
+  projValue,
+  reactorValue,
+  REACTOR_OTHER,
+  runOffsets,
+  sortBatchNumberDesc,
+  sortProject,
+  sortReactor,
+  toggleIn,
+} from "@/lib/batches";
 
 type Section = "cell" | "nova" | "process" | "timeseries" | "table" | "samples";
 const SECTIONS: { code: Section; label: string; hint: string }[] = [
@@ -79,40 +88,28 @@ export function Dashboard() {
 
   const batchNumOptions = useMemo<BatchNumOption[]>(() => {
     const m = new Map<string, BatchNumOption>();
-    const dates = new Map<string, string[]>();
     all.forEach((b) => {
       if (fProject && projValue(b) !== fProject) return;
       if (fYear && String(b.batch_year) !== fYear) return;
       if (!b.batch_number) return;
       const o = m.get(b.batch_number) ?? {
         value: b.batch_number,
-        when: null,
         count: 0,
         hasCell: false,
         hasNova: false,
         hasProc: false,
       };
       o.count += 1;
-      if (b.first_at) dates.set(b.batch_number, [...(dates.get(b.batch_number) ?? []), b.first_at]);
       o.hasCell ||= b.n_vicell > 0;
       o.hasNova ||= b.n_nova > 0;
       o.hasProc ||= b.lucullus_runs.length > 0;
       m.set(b.batch_number, o);
     });
-    m.forEach((o) => {
-      const ds = (dates.get(o.value) ?? []).sort();
-      o.when = ds.length ? ds[Math.floor(ds.length / 2)] : null;
-    });
-    // 按实际时间倒序（最新批号在最上面）；同时间或没时间的再按批号规则倒序
-    return [...m.values()].sort((a, b) => {
-      if (a.when && b.when && a.when !== b.when) return a.when < b.when ? 1 : -1;
-      if (a.when && !b.when) return -1;
-      if (!a.when && b.when) return 1;
-      return sortBatchNumberDesc(a.value, b.value);
-    });
+    // 新批号（26003）在上、R 批号在下，各自数字从大到小
+    return [...m.values()].sort((a, b) => sortBatchNumberDesc(a.value, b.value));
   }, [all, fProject, fYear]);
 
-  // 罐号选项只在勾了批号之后才列（否则全库上千个罐号没意义）
+  // 罐号选项只在勾了批号之后才列；只认真罐号 A1–A10/B1–B8/R1–R4/C1，其余折成「其它」放末尾
   const reactorOptions = useMemo(() => {
     const s = new Set<string>();
     if (!selBatchNums.length) return [];
@@ -120,9 +117,10 @@ export function Dashboard() {
       if (fProject && projValue(b) !== fProject) return;
       if (fYear && String(b.batch_year) !== fYear) return;
       if (!selBatchNums.includes(b.batch_number ?? "")) return;
-      if (b.bioreactor_id) s.add(b.bioreactor_id);
+      s.add(reactorValue(b));
     });
-    return [...s].sort(sortReactor);
+    const real = [...s].filter((r) => r !== REACTOR_OTHER).sort(sortReactor);
+    return s.has(REACTOR_OTHER) ? [...real, REACTOR_OTHER] : real;
   }, [all, fProject, fYear, selBatchNums]);
 
   // 命中的批次（= 要看的对象）
@@ -132,7 +130,7 @@ export function Dashboard() {
       if (fProject && projValue(b) !== fProject) return false;
       if (fYear && String(b.batch_year) !== fYear) return false;
       if (!selBatchNums.includes(b.batch_number ?? "")) return false;
-      if (selReactors.length && !selReactors.includes(b.bioreactor_id ?? "")) return false;
+      if (selReactors.length && !selReactors.includes(reactorValue(b))) return false;
       return true;
     });
   }, [all, fProject, fYear, selBatchNums, selReactors]);

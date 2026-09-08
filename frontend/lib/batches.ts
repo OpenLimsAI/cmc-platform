@@ -27,20 +27,33 @@ export function sortReactor(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-// 批号排序：新的在前。老批号 R2607 / 新批号 26003 都是「年 2 位 + 流水」，
-// 按 (年份 desc, 流水 desc) 排；拆不出的按字符串倒序垫后。
-function batchNumRank(bn: string): [number, number] | null {
-  const m = /^R(\d{2})(\d{2})$/i.exec(bn) ?? /^(\d{2})(\d{3})$/.exec(bn);
-  return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : null;
+// 批号排序（负责人 2026-09-08 定，越简单越好）：
+//   登记系统新批号（5 位数字，如 26003）全部放最上面，按数字从大到小；
+//   老批号 R+数字（如 R2607）放它们下面，按 R 后面的数字从大到小；
+//   其它拆不出来的（不规范名）垫底，按字符串倒序。
+function batchNumGroup(bn: string): [number, number] {
+  let m = /^(\d{5})$/.exec(bn);
+  if (m) return [0, parseInt(m[1], 10)];
+  m = /^R(\d+)$/i.exec(bn);
+  if (m) return [1, parseInt(m[1], 10)];
+  return [2, 0];
 }
 export function sortBatchNumberDesc(a: string, b: string): number {
-  const ra = batchNumRank(a);
-  const rb = batchNumRank(b);
-  if (ra && rb) return rb[0] - ra[0] || rb[1] - ra[1];
-  if (ra) return -1;
-  if (rb) return 1;
+  const [ga, na] = batchNumGroup(a);
+  const [gb, nb] = batchNumGroup(b);
+  if (ga !== gb) return ga - gb;
+  if (na !== nb) return nb - na;
   return b.localeCompare(a);
 }
+
+// 真罐号集合：A1–A10、B1–B8、R1–R4、C1。其余（样本名录错拆出来的 "1"、"demo"、"SF3"…）折叠成「其它」
+const REAL_REACTOR = /^(?:A(?:10|[1-9])|B[1-8]|R[1-4]|C1)$/i;
+export const REACTOR_OTHER = "__other__";
+export const isRealReactor = (code: string | null | undefined) => !!code && REAL_REACTOR.test(code);
+// 批次在罐号筛选里的取值：真罐号原样，其余归「其它」
+export const reactorValue = (b: OverviewBatch) =>
+  isRealReactor(b.bioreactor_id) ? (b.bioreactor_id as string).toUpperCase() : REACTOR_OTHER;
+export const reactorLabel = (v: string) => (v === REACTOR_OTHER ? "其它" : v);
 
 // 批次在图例 / 列表里的显示名：正常批次用 batch_key；不规范名批次直接用原始批次名
 export function batchLabel(b: OverviewBatch): string {

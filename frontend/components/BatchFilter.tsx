@@ -4,11 +4,10 @@
 // 选出来的批次集合就是"要看的对象"，右侧所有板块共用；板块切换绝不动这里的选择。
 // 状态由 Dashboard 持有，这里只是受控展示。
 import type { OverviewBatch } from "@/lib/api";
-import { batchLabel, fmtDate, PROJ_NONE, projLabel, toggleIn } from "@/lib/batches";
+import { batchLabel, fmtDate, PROJ_NONE, projLabel, reactorLabel, REACTOR_OTHER, toggleIn } from "@/lib/batches";
 
 export interface BatchNumOption {
   value: string;
-  when: string | null; // 该批号的代表时间 = 各罐开工/取样时间的中位数（排序用：最新在上；取中位数是防个别录错的样本带偏）
   count: number; // 该批号下有几个罐（批次）
   hasCell: boolean;
   hasNova: boolean;
@@ -166,13 +165,16 @@ export function BatchFilter({
                 <button
                   key={r}
                   onClick={() => onReactors(toggleIn(reactors, r))}
+                  title={r === REACTOR_OTHER ? "不是标准罐号的批次（样本名录入不规范拆出来的），统一归这里" : undefined}
                   className={`rounded border px-1.5 py-0.5 text-xs transition ${
                     on
                       ? "border-blue-500 bg-blue-500 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      : r === REACTOR_OTHER
+                        ? "border-dashed border-slate-300 bg-white text-slate-400 hover:border-slate-400"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   }`}
                 >
-                  {r}
+                  {reactorLabel(r)}
                 </button>
               );
             })}
