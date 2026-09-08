@@ -8,6 +8,7 @@ import { batchLabel, fmtDate, PROJ_NONE, projLabel, toggleIn } from "@/lib/batch
 
 export interface BatchNumOption {
   value: string;
+  when: string | null; // 该批号的代表时间 = 各罐开工/取样时间的中位数（排序用：最新在上；取中位数是防个别录错的样本带偏）
   count: number; // 该批号下有几个罐（批次）
   hasCell: boolean;
   hasNova: boolean;

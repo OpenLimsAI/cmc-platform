@@ -79,24 +79,37 @@ export function Dashboard() {
 
   const batchNumOptions = useMemo<BatchNumOption[]>(() => {
     const m = new Map<string, BatchNumOption>();
+    const dates = new Map<string, string[]>();
     all.forEach((b) => {
       if (fProject && projValue(b) !== fProject) return;
       if (fYear && String(b.batch_year) !== fYear) return;
       if (!b.batch_number) return;
       const o = m.get(b.batch_number) ?? {
         value: b.batch_number,
+        when: null,
         count: 0,
         hasCell: false,
         hasNova: false,
         hasProc: false,
       };
       o.count += 1;
+      if (b.first_at) dates.set(b.batch_number, [...(dates.get(b.batch_number) ?? []), b.first_at]);
       o.hasCell ||= b.n_vicell > 0;
       o.hasNova ||= b.n_nova > 0;
       o.hasProc ||= b.lucullus_runs.length > 0;
       m.set(b.batch_number, o);
     });
-    return [...m.values()].sort((a, b) => sortBatchNumberDesc(a.value, b.value));
+    m.forEach((o) => {
+      const ds = (dates.get(o.value) ?? []).sort();
+      o.when = ds.length ? ds[Math.floor(ds.length / 2)] : null;
+    });
+    // 按实际时间倒序（最新批号在最上面）；同时间或没时间的再按批号规则倒序
+    return [...m.values()].sort((a, b) => {
+      if (a.when && b.when && a.when !== b.when) return a.when < b.when ? 1 : -1;
+      if (a.when && !b.when) return -1;
+      if (!a.when && b.when) return 1;
+      return sortBatchNumberDesc(a.value, b.value);
+    });
   }, [all, fProject, fYear]);
 
   // 罐号选项只在勾了批号之后才列（否则全库上千个罐号没意义）
