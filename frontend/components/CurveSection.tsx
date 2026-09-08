@@ -115,19 +115,19 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
               </button>
             );
           })}
-          {/* 多个罐时：罐 → 标记形状 的对照（颜色归指标，罐靠形状分） */}
-          {scheme === "metric" && withData.length > 1 && (
-            <span className="ml-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              {withData.map((b, i) => (
-                <span key={b.batch_key}>
-                  <span className="mr-0.5 text-slate-700">{GROUP_GLYPHS[i % GROUP_GLYPHS.length]}</span>
-                  {batchLabel(b)}
-                </span>
-              ))}
-            </span>
-          )}
         </div>
       </div>
+      {/* 多个罐时：罐 → 标记形状 的对照，放在图正上方（原来颜色图例的位置）；颜色归指标，罐靠形状分 */}
+      {scheme === "metric" && withData.length > 1 && (
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 pt-2 text-xs text-slate-600">
+          {withData.map((b, i) => (
+            <span key={b.batch_key} className="flex items-center gap-1">
+              <span className="text-base leading-none text-slate-700">{GROUP_GLYPHS[i % GROUP_GLYPHS.length]}</span>
+              {batchLabel(b)}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="h-[clamp(24rem,60vh,44rem)] p-3">
         {withData.length ? (
           <SeriesChart
