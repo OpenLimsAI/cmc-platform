@@ -101,6 +101,16 @@ export const HUB_APPS: HubApp[] = [
     color: '#eb2f96',
   },
   {
+    id: 'qv',
+    name: '验证工具箱',
+    description: '温度均匀度计算（温度分布验证）',
+    icon: 'audit',
+    path: '/qv/',
+    requires: 'authenticated', // 2026-09-09 负责人：工具箱暂独立于 CMC 体系、自身无登录，门户上登录即可见
+    status: 'live',
+    color: '#2f54eb',
+  },
+  {
     id: 'cost',
     name: '成本模型',
     description: '工艺成本测算与情景比较',

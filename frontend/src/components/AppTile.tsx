@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  AuditOutlined,
   BarcodeOutlined,
   CalculatorOutlined,
   DashboardOutlined,
@@ -22,6 +23,7 @@ const ICONS: Record<string, ReactNode> = {
   dashboard: <DashboardOutlined />,
   calculator: <CalculatorOutlined />,
   'dot-chart': <DotChartOutlined />,
+  audit: <AuditOutlined />,
 }
 
 export default function AppTile({ app }: { app: HubApp }) {
