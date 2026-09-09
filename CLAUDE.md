@@ -30,7 +30,7 @@
    仪器（Nova / Vi-CELL）当天实测样品；批次 / 罐 / 培养天 / 样品名 / **取样时刻**（自动取自仪器记录，Nova 真 UTC 换北京时间、
    Vi-CELL 表里钟点直接当北京时间——ETL 时区 bug）自动带出，试验员只填数值；同一样品当天仪器记录相隔 ≥2h 自动分成多次取样
    （第二次起样品名带 -T1），时刻/样品名可改，每行「＋」再加一次取样；没取样的行点 × 删（本机记忆、可恢复），临时样品「添加一行」。存 `cmc_analytics.manual.sample_result`（通用人工录入表，含 sampled_at / sample_name，只追加不覆盖，按 (批次, 天, 样品名)
-   取最新一行；录入人 = MDM 登录人工号+姓名快照）。曲线上渗透压按自己的取样时刻定位。生化曲线的「渗透压」线和数据表的渗透压列读视图 `mart.fact_manual_latest`。写库走单独账号 `usp_writer`
+   取最新一行；录入人 = MDM 登录人工号+姓名快照）。曲线上渗透压按自己的取样时刻定位；录入时没填时刻的，画图时自动借同一批次同一天仪器（Nova / Vi-CELL）最早记录的时刻，都没有才放正午（`routers/nova.py` 读时现算，不改库）。生化曲线的「渗透压」线和数据表的渗透压列读视图 `mart.fact_manual_latest`。写库走单独账号 `usp_writer`
    （只对该表有 INSERT），配置项 `MANUAL_WRITE_DATABASE_URL`，留空则录入页不可用。以后滴度等人工指标复用这张表
    （`metric_code`），后端 `routers/manual.py` 的 `METRICS` 登记 + 放开表 CHECK。
 

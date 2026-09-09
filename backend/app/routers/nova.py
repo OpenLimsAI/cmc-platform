@@ -83,23 +83,38 @@ _T_DAY = "culture_day + extract(epoch FROM (measured_at AT TIME ZONE 'Asia/Shang
 async def get_series(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
     """某批次的生化趋势：每次取样一个点，全部指标一次返回，前端勾选展示。
 
-    t_day = 该点在横轴上的位置（培养天 + 当天时刻）。渗透压来自人工录入（只有"天"没有时刻），
-    挂在当天第一次取样的点上；那天仪器没测、只录了渗透压的，单独出一个点放在当天中午（day + 0.5）。
+    t_day = 该点在横轴上的位置（培养天 + 当天时刻）。渗透压来自人工录入，单独成点，时刻按三级取：
+    ① 录入时填的取样时刻；② 没填的，借同一批次同一天生化仪 / 细胞计数仪最早一次记录的时刻
+    （录入时留空、仪器数据后到也能自动归位，不改库里任何数据）；③ 都没有才放当天中午（day + 0.5）。
     """
     cols = ", ".join(METRICS)
-    # 渗透压（人工录入）按自己的取样时刻单独成点：有时刻用时刻，没有的放当天中午（day + 0.5）
     sql = text(f"""
+        WITH inst AS (
+            SELECT culture_day, min(t) AS t
+            FROM (
+                SELECT culture_day, (measured_at AT TIME ZONE 'Asia/Shanghai')::time AS t
+                FROM mart.fact_nova
+                WHERE batch_key = :bk AND culture_day IS NOT NULL AND measured_at IS NOT NULL
+                UNION ALL
+                SELECT culture_day, (run_date AT TIME ZONE 'UTC')::time
+                FROM mart.fact_vicell
+                WHERE batch_key = :bk AND culture_day IS NOT NULL AND run_date IS NOT NULL
+            ) u
+            GROUP BY culture_day
+        )
         SELECT culture_day, {_T_DAY} AS t_day, {cols}, NULL::double precision AS osmolality
         FROM {VIEW}
         WHERE batch_key = :bk AND culture_day IS NOT NULL
         UNION ALL
-        SELECT culture_day,
-               CASE WHEN sampled_at IS NOT NULL
-                    THEN culture_day + extract(epoch FROM (sampled_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0
-                    ELSE culture_day + 0.5 END AS t_day,
-               {", ".join("NULL::double precision" for _ in METRICS)}, value
-        FROM mart.fact_manual_latest
-        WHERE batch_key = :bk AND metric_code = 'osmolality'
+        SELECT m.culture_day,
+               m.culture_day + COALESCE(
+                   extract(epoch FROM (m.sampled_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0,
+                   extract(epoch FROM i.t) / 86400.0,
+                   0.5) AS t_day,
+               {", ".join("NULL::double precision" for _ in METRICS)}, m.value
+        FROM mart.fact_manual_latest m
+        LEFT JOIN inst i ON i.culture_day = m.culture_day
+        WHERE m.batch_key = :bk AND m.metric_code = 'osmolality'
         ORDER BY 2
     """)
     meta_sql = text(f"""
