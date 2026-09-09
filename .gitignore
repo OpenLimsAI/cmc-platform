@@ -31,3 +31,6 @@ logs/
 .playwright-mcp/
 *.png
 !frontend/public/*.png
+
+# 负责人放在根目录的 Excel（项目第一表等），不进 git
+*.xlsx
