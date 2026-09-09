@@ -504,3 +504,90 @@ export interface MethodMonthlyResponse {
 
 export const fetchMethodMonthly = (params: { months?: number; groups?: string[] }) =>
   api.get<MethodMonthlyResponse>("/api/v1/lims/stats/method-monthly", { params }).then((r) => r.data)
+
+// ---------- 检验员工作台（docs/tester_workbench.md） ----------
+
+export interface TesterOption {
+  employee_id: string
+  employee_name: string | null
+  group_ids: string[]
+  pending_n: number
+}
+
+export interface TesterSummary {
+  tester: string
+  employee_name: string | null
+  as_of: string
+  default_target: number
+  soon_days: number
+  pending_n: number
+  over_target_n: number
+  due_soon_n: number
+  unauthorized_n: number
+  oldest_received_dt: string | null
+  month_completed_n: number
+  month_std_hours: number
+  month_avg_cycle_days: number | null
+  prev_month_completed_n: number
+  prev_month_avg_cycle_days: number | null
+}
+
+export interface TesterTaskItem {
+  test_id: string
+  sample_id: string | null
+  project_id: string | null
+  sample_name: string | null
+  batch_number: string | null
+  group_id: string | null
+  method_code: string | null
+  method_name: string | null
+  sample_received_dt: string | null
+  assigned_dt: string | null
+  test_completed_dt: string | null
+  test_status: string | null
+  bucket: "inprogress" | "unauthorized"
+  elapsed_biz_days: number
+  target_days: number
+  target_is_default: boolean
+  remaining_biz_days: number
+  is_over_target: boolean
+  is_due_soon: boolean
+}
+
+export interface TesterTasksResponse {
+  tester: string
+  as_of: string
+  items: TesterTaskItem[]
+}
+
+export interface TesterMonthlyItem {
+  ym: string
+  completed_n: number
+  std_hours: number
+  avg_cycle_days: number | null
+}
+
+export interface TesterMonthlyResponse {
+  tester: string
+  months: number
+  items: TesterMonthlyItem[]
+}
+
+export interface TesterQueryParams {
+  tester: string
+  as_of?: string
+  default_target?: number
+  soon_days?: number
+}
+
+export const fetchTesterList = (params: { groups?: string[] }) =>
+  api.get<TesterOption[]>("/api/v1/lims/tester/list", { params }).then((r) => r.data)
+
+export const fetchTesterSummary = (params: TesterQueryParams) =>
+  api.get<TesterSummary>("/api/v1/lims/tester/summary", { params }).then((r) => r.data)
+
+export const fetchTesterTasks = (params: TesterQueryParams) =>
+  api.get<TesterTasksResponse>("/api/v1/lims/tester/tasks", { params }).then((r) => r.data)
+
+export const fetchTesterMonthly = (params: { tester: string; months?: number }) =>
+  api.get<TesterMonthlyResponse>("/api/v1/lims/tester/monthly", { params }).then((r) => r.data)

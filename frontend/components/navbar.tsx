@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
   { href: "/dashboard/overview", label: "检验概况" },
+  { href: "/dashboard/tester", label: "检验员" },
   { href: "/dashboard/cycle-time", label: "检验周期" },
   { href: "/dashboard/overdue", label: "超期未检" },
   { href: "/dashboard/workload", label: "员工工时" },

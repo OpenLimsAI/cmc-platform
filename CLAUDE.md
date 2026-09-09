@@ -47,6 +47,7 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
 - `api/v1/auth.py` — MDM 统一登录代理（login/refresh/logout 转发 `MDM_BASE_URL`，refresh 走 HttpOnly Cookie 中转，接法对齐 labops，见 `~/code/CLAUDE.md` 第 8 节）
 - `core/security.py` + `core/auth.py` — JWT 验签（HS256 共享密钥/RS256）+ 角色依赖。三角色在 MDM 维护：`CMC_LIMS_ANALYST`(查看) / `CMC_LIMS_CHEMIST`(查看+导出) / `CMC_LIMS_ADMIN`(查看+导出+admin 后台)，`SYS_ADMIN` 恒放行。看板读接口在 `router.py` 统一挂 `require_view`；`/api/v1/health` 与 `/api/v1/auth/*` 开放。未配 `JWT_SECRET_KEY` = 本地开放模式（不鉴权）；`AUTH_REQUIRED=true` 且没配密钥则启动报错
 - `api/v1/admin/` — CRUD for `cmc_analytics.mdm.test_method` / `mdm.personnel`；依赖 `get_mdm_db()`；鉴权走 `verify_admin`（= `require_admin`，旧共享密码 + x-admin-token 机制已废除）；list/get/update 都带 `WHERE deleted_at IS NULL`
+- `api/v1/lims/tester.py` + `services/lims/tester_service.py` + `schemas/lims/tester.py` — 检验员工作台（2026-09-09）：单人在手检项/超时限/本月产出，口径与检验周期页一致，见 `docs/tester_workbench.md`
 - `services/lims/stats_service.py` — 所有 SQL 查询逻辑。常用辅助：
   - `_group_clause(groups)` — 构建 `group_id = ANY(ARRAY['TT1',...])` 或 `TRUE`；group 内联为字面量，避免 asyncpg 类型推断报错
   - `_workload_where(scope, group_sql)` — 工时三口径 WHERE 子句
@@ -61,7 +62,7 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
 ### Frontend (`frontend/`)
 
 - `app/dashboard/layout.tsx` — 看板壳：sidebar + 主内容
-- `app/dashboard/*/page.tsx` — 6 个看板页面（overview/cycle-time/overdue/workload/samples/monthly），全部 `"use client"` + `export const dynamic = "force-dynamic"`（用了 `useSearchParams`）
+- `app/dashboard/*/page.tsx` — 7 个看板页面（overview/tester/cycle-time/overdue/workload/samples/monthly），全部 `"use client"` + `export const dynamic = "force-dynamic"`（用了 `useSearchParams`）
 - `app/login/page.tsx` — MDM 统一登录页（工号+密码）；`components/auth-guard.tsx` 未登录跳 /login
 - `app/admin/page.tsx` — admin 面板；管理员角色（`CMC_LIMS_ADMIN`/`SYS_ADMIN`）免密直入，无角色提示无权限
 - `lib/auth.ts` — token 存 `localStorage`（key `lims_token`），前端只 base64 解 payload 取角色做显隐（真鉴权在后端）

@@ -9,6 +9,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.lims.meta import router as meta_router
 from app.api.v1.lims.samples import router as samples_router
 from app.api.v1.lims.stats import health_router, router as stats_router
+from app.api.v1.lims.tester import router as tester_router
 from app.core.auth import require_view
 
 api_router = APIRouter()
@@ -17,6 +18,7 @@ api_router.include_router(auth_router, prefix="/auth", tags=["认证"])
 api_router.include_router(health_router, tags=["健康检查"])
 api_router.include_router(stats_router, tags=["统计"], dependencies=[Depends(require_view)])
 api_router.include_router(meta_router, tags=["元数据"], dependencies=[Depends(require_view)])
+api_router.include_router(tester_router, tags=["检验员工作台"], dependencies=[Depends(require_view)])
 api_router.include_router(
     samples_router, prefix="/lims/samples", tags=["样品"], dependencies=[Depends(require_view)]
 )

@@ -107,6 +107,7 @@ cd frontend && pnpm dev
 | 页面 | 路径 | 主要数据来源 |
 |---|---|---|
 | 概况 | `/dashboard/overview` | `mart.vw_test_task_monitor` |
+| 检验员工作台 | `/dashboard/tester` | `mart.vw_test_task_monitor` + `mart.dim_method` + `mart.dim_employee`（口径见 `docs/tester_workbench.md`） |
 | 员工工时 | `/dashboard/workload` | `mart.vw_test_task_monitor` + `mart.dim_method` + `mart.dim_employee` |
 | 检验周期 | `/dashboard/cycle-time` | `mart.vw_test_task_monitor` + `mart.dim_method` |
 | 超期未检 | `/dashboard/overdue` | `mart.vw_test_task_monitor` |
