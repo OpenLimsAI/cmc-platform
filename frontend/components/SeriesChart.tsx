@@ -237,10 +237,24 @@ export function SeriesChart({
           },
         }
       : {
+          // 按天的图：点的位置是「培养天 + 当天时刻」，顶部显示成「第 3 天 · 10:05」
           trigger: "axis" as const,
           axisPointer: { type: "cross" as const },
-          valueFormatter: (v: number) =>
-            typeof v === "number" ? v.toFixed(3) : v,
+          formatter: (params: TooltipParam[]) => {
+            if (!params.length) return "";
+            const x = Number(params[0].axisValue);
+            const day = Math.floor(x);
+            const mins = Math.round((x - day) * 24 * 60);
+            const head = `第 ${day} 天 · ${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}`;
+            const rows = params
+              .map((p) => {
+                const y = Array.isArray(p.value) ? p.value[1] : p.value;
+                const vs = typeof y === "number" ? y.toFixed(3) : y;
+                return `<div>${p.marker}${p.seriesName}: <b>${vs}</b></div>`;
+              })
+              .join("");
+            return `<div style="font-weight:600;margin-bottom:4px">${head}</div>${rows}`;
+          },
         };
 
     return {
@@ -264,8 +278,9 @@ export function SeriesChart({
         nameGap: 28,
         min: fullRange ? fullRange.min : 0,
         max: fullRange ? fullRange.max : undefined,
-        // 传了固定间隔（如 24h）就每格对齐，否则让 echarts 自动定
+        // 传了固定间隔（如 24h）就每格对齐，否则让 echarts 自动定；按天的图刻度只落在整数天
         interval: xTickInterval,
+        minInterval: hoursAxis ? undefined : 1,
         axisLabel: {
           formatter: (v: number) => (Math.round(v * 10) / 10).toString(),
         },

@@ -73,25 +73,28 @@ async def list_batches(limit: int = Query(5000, ge=1, le=20000)):
     return out
 
 
+# 取样点在横轴上的位置：培养天 + 当天时刻占一天的比例，如第 3 天 10:00 → 3.42。
+# 同一天两次取样就是两个点，不再平均（负责人 2026-09-09 定）。刻度仍按整数天画。
+# ⚠️ Vi-CELL 的 run_date 是 rd-vicell-etl 把仪器上的北京时间当 UTC 存进去的（2026-09-09 按小时分布核实：
+#    UTC 小时集中在 8–17 点），所以这里**不做时区换算**，直接取表里的钟点当北京时间；ETL 修好后要改回 Asia/Shanghai。
+_T_DAY = "culture_day + extract(epoch FROM ({ts} AT TIME ZONE 'UTC')::time) / 86400.0"
+
+
 @router.get("/growth")
 async def get_growth(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
-    """某批次按培养天的生长曲线：活细胞密度 + 活率（+ 总密度、直径）。
+    """某批次的生长曲线：每次取样一个点（活细胞密度 + 活率 + 总密度、直径）。
 
-    同一培养天若有多次取样则取平均，得到干净的一天一点曲线。
+    t_day = 该点在横轴上的位置（培养天 + 当天时刻），culture_day 仍是整数培养天。
     """
     sql = text(f"""
         SELECT
             culture_day,
-            avg(viable_per_ml)   AS viable_per_ml,
-            avg(viability_pct)   AS viability_pct,
-            avg(total_per_ml)    AS total_per_ml,
-            avg(avg_diameter_um) AS avg_diameter_um,
-            count(*)             AS n
+            {_T_DAY.format(ts='run_date')} AS t_day,
+            viable_per_ml, viability_pct, total_per_ml, avg_diameter_um
         FROM {VIEW}
         WHERE batch_key = :bk
           AND culture_day IS NOT NULL
-        GROUP BY culture_day
-        ORDER BY culture_day
+        ORDER BY t_day, run_id
     """)
     # LEFT JOIN 研发批号登记系统的权威维度 batch.v_batch_dim（rd-batch-registry），
     # 拿到看板原本没有的「代次 generation」与「父容器 seeded_from_stages（谁分自谁）」。
@@ -121,11 +124,12 @@ async def get_growth(batch_key: str = Query(..., description="批次身份，如
     points = [
         {
             "culture_day": int(r["culture_day"]),
+            "t_day": float(r["t_day"]) if r["t_day"] is not None else float(r["culture_day"]),
             "viable_per_ml": num(r["viable_per_ml"]),
             "viability_pct": num(r["viability_pct"]),
             "total_per_ml": num(r["total_per_ml"]),
             "avg_diameter_um": num(r["avg_diameter_um"]),
-            "n": int(r["n"]),
+            "n": 1,
         }
         for r in rows
     ]

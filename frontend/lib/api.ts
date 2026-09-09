@@ -171,7 +171,8 @@ export async function fetchSeries(
 // ============ Vi-CELL 细胞计数生长曲线 ============
 
 export interface GrowthPoint {
-  culture_day: number;
+  culture_day: number; // 整数培养天
+  t_day: number; // 在横轴上的位置 = 培养天 + 当天时刻（第 3 天 10:00 → 3.42）；每次取样一个点
   viable_per_ml: number | null; // 活细胞密度 ×10⁶/ml
   viability_pct: number | null; // 活率 %
   total_per_ml: number | null;
@@ -208,6 +209,7 @@ export function workstationLabel(sourceInstance: string): string {
 // 一个培养天的全部生化指标（同天多次取样已平均）
 export interface NovaPoint {
   culture_day: number;
+  t_day: number; // 横轴位置 = 培养天 + 当天时刻
   gluc: number | null; // 葡萄糖 g/L
   lac: number | null; // 乳酸 g/L
   gln: number | null; // 谷氨酰胺 mmol/L
@@ -384,6 +386,7 @@ export interface ProcessBucketPoint {
   bucket: number;
   time_hours: number; // 该格起点（培养小时）
   culture_day: number; // 该格起点换算成培养天（6h 一格 = 0, 0.25, 0.5…），与生长/生化同轴
+  t_day: number; // 同 culture_day（统一字段名，画图用）
   temp_c: number | null;
   ph: number | null;
   do_pct: number | null;

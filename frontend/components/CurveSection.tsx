@@ -47,7 +47,7 @@ function MarkerIcon({ index, color = "#334155" }: { index: number; color?: strin
   );
 }
 
-export function CurveSection<P extends { culture_day: number } & GapMarker>({
+export function CurveSection<P extends { culture_day: number; t_day?: number } & GapMarker>({
   title,
   source,
   batches,
@@ -103,7 +103,8 @@ export function CurveSection<P extends { culture_day: number } & GapMarker>({
             axis: m.axis,
             points: pts
               .filter((p) => p.__gap || m.pick(p) != null)
-              .map((p) => ({ time_hours: p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),
+              // 横轴位置用 t_day（培养天 + 当天时刻）：同一天两次取样就是两个点
+              .map((p) => ({ time_hours: p.t_day ?? p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),
           });
         });
     });

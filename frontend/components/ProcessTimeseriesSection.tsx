@@ -266,7 +266,7 @@ export function ProcessTimeseriesSection({ batches }: { batches: OverviewBatch[]
           shape: m.shape,
           points: pts
             .filter((p) => m.pick(p) != null)
-            .map((p) => ({ time_hours: p.culture_day * 24, ts: "", value: m.pick(p) as number })),
+            .map((p) => ({ time_hours: (p.t_day ?? p.culture_day) * 24, ts: "", value: m.pick(p) as number })),
         });
       });
     });

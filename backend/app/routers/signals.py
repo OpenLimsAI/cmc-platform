@@ -291,6 +291,7 @@ async def get_process_bucketed(
             "bucket": b,
             "time_hours": b * bucket_hours,
             "culture_day": b * bucket_hours / 24,
+            "t_day": b * bucket_hours / 24,
         }
         for m in _BUCKET_METRICS:
             c = chosen.get(m["code"])

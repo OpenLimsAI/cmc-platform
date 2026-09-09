@@ -75,18 +75,22 @@ async def list_batches(limit: int = Query(5000, ge=1, le=20000)):
     return out
 
 
+# 取样点在横轴上的位置：培养天 + 当天时刻占一天的比例（北京时间）。同一天两次取样 = 两个点，不平均。
+_T_DAY = "culture_day + extract(epoch FROM (measured_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0"
+
+
 @router.get("/series")
 async def get_series(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
-    """某批次按培养天的生化趋势：全部指标一次返回，前端勾选展示。
+    """某批次的生化趋势：每次取样一个点，全部指标一次返回，前端勾选展示。
 
-    同一培养天若有多次取样则取平均，得到干净的一天一点曲线。
+    t_day = 该点在横轴上的位置（培养天 + 当天时刻）。渗透压来自人工录入（只有"天"没有时刻），
+    挂在当天第一次取样的点上；那天仪器没测、只录了渗透压的，单独出一个点放在当天中午（day + 0.5）。
     """
-    avg_cols = ",\n            ".join(f"avg(n.{m}) AS {m}" for m in METRICS)
-    # 渗透压来自人工录入（mart.fact_manual_latest），按 (batch_key, culture_day) 拼上；
-    # 只录了渗透压、仪器没测的那天也出一行（FULL OUTER JOIN）
+    cols = ", ".join(METRICS)
     sql = text(f"""
         WITH n AS (
-            SELECT culture_day, {", ".join(METRICS)}
+            SELECT culture_day, {_T_DAY} AS t_day, {cols},
+                   row_number() OVER (PARTITION BY culture_day ORDER BY measured_at, sample_result_id) AS rn
             FROM {VIEW}
             WHERE batch_key = :bk AND culture_day IS NOT NULL
         ),
@@ -95,15 +99,14 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
             FROM mart.fact_manual_latest
             WHERE batch_key = :bk AND metric_code = 'osmolality'
         )
-        SELECT
-            coalesce(n.culture_day, o.culture_day) AS culture_day,
-            {avg_cols},
-            max(o.osmolality) AS osmolality,
-            count(n.culture_day) AS n
-        FROM n
-        FULL OUTER JOIN o ON o.culture_day = n.culture_day
-        GROUP BY coalesce(n.culture_day, o.culture_day)
-        ORDER BY 1
+        SELECT n.culture_day, n.t_day, {", ".join("n." + m for m in METRICS)},
+               CASE WHEN n.rn = 1 THEN o.osmolality END AS osmolality
+        FROM n LEFT JOIN o ON o.culture_day = n.culture_day
+        UNION ALL
+        SELECT o.culture_day, o.culture_day + 0.5, {", ".join("NULL::double precision" for _ in METRICS)}, o.osmolality
+        FROM o
+        WHERE NOT EXISTS (SELECT 1 FROM n WHERE n.culture_day = o.culture_day)
+        ORDER BY 2
     """)
     meta_sql = text(f"""
         SELECT
@@ -127,9 +130,10 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
     points = [
         {
             "culture_day": int(r["culture_day"]),
+            "t_day": float(r["t_day"]),
             **{m: num(r[m]) for m in METRICS},
             "osmolality": num(r["osmolality"]),  # 人工录入，mOsm/kg
-            "n": int(r["n"]),
+            "n": 1,
         }
         for r in rows
     ]

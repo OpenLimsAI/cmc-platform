@@ -188,6 +188,7 @@ export function Dashboard() {
           ...p,
           time_hours: p.time_hours + offsetHours,
           culture_day: (p.time_hours + offsetHours) / 24,
+          t_day: (p.time_hours + offsetHours) / 24,
         }));
       })
     );
