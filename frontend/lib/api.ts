@@ -433,8 +433,9 @@ export interface DailySheetRow {
   batch_number: string | null;
   bioreactor_id: string | null; // 罐号 / 阶段码（登记系统的样品是阶段码，如 A1 / N1 / S2a）
   culture_day: number;
-  sample_name: string | null; // 登记系统给的标准样品名（如 0092-26001-A1-D05）
-  kind: string | null; // 登记系统的容器类型
+  sample_name: string; // 标准样品名（登记系统给的，或按批次身份拼的）；一天多次取样第二次起带 -T1 尾缀
+  sample_time: string | null; // 取样时刻 HH:MM（自动从仪器当天记录带出；可改）
+  kind?: string | null; // 前端临时加的行标 "extra"
   planned: boolean; // 在登记系统"当天该取样"清单里
   sample_ids: string | null; // 当天该样品在仪器上的样本名
   has_nova: boolean;
@@ -470,6 +471,8 @@ export interface ManualResultRow {
   batch_key: string;
   culture_day: number;
   value: number;
+  sample_name?: string | null;
+  sample_time?: string | null; // HH:MM
   note?: string | null;
   source_sample_ids?: string | null;
 }

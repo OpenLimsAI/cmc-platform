@@ -87,25 +87,19 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
     挂在当天第一次取样的点上；那天仪器没测、只录了渗透压的，单独出一个点放在当天中午（day + 0.5）。
     """
     cols = ", ".join(METRICS)
+    # 渗透压（人工录入）按自己的取样时刻单独成点：有时刻用时刻，没有的放当天中午（day + 0.5）
     sql = text(f"""
-        WITH n AS (
-            SELECT culture_day, {_T_DAY} AS t_day, {cols},
-                   row_number() OVER (PARTITION BY culture_day ORDER BY measured_at, sample_result_id) AS rn
-            FROM {VIEW}
-            WHERE batch_key = :bk AND culture_day IS NOT NULL
-        ),
-        o AS (
-            SELECT culture_day, value AS osmolality
-            FROM mart.fact_manual_latest
-            WHERE batch_key = :bk AND metric_code = 'osmolality'
-        )
-        SELECT n.culture_day, n.t_day, {", ".join("n." + m for m in METRICS)},
-               CASE WHEN n.rn = 1 THEN o.osmolality END AS osmolality
-        FROM n LEFT JOIN o ON o.culture_day = n.culture_day
+        SELECT culture_day, {_T_DAY} AS t_day, {cols}, NULL::double precision AS osmolality
+        FROM {VIEW}
+        WHERE batch_key = :bk AND culture_day IS NOT NULL
         UNION ALL
-        SELECT o.culture_day, o.culture_day + 0.5, {", ".join("NULL::double precision" for _ in METRICS)}, o.osmolality
-        FROM o
-        WHERE NOT EXISTS (SELECT 1 FROM n WHERE n.culture_day = o.culture_day)
+        SELECT culture_day,
+               CASE WHEN sampled_at IS NOT NULL
+                    THEN culture_day + extract(epoch FROM (sampled_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0
+                    ELSE culture_day + 0.5 END AS t_day,
+               {", ".join("NULL::double precision" for _ in METRICS)}, value
+        FROM mart.fact_manual_latest
+        WHERE batch_key = :bk AND metric_code = 'osmolality'
         ORDER BY 2
     """)
     meta_sql = text(f"""

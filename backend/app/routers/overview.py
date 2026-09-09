@@ -266,9 +266,10 @@ async def get_daily_table(req: DailyTableRequest):
             GROUP BY batch_key, culture_day
         ),
         o AS (
-            SELECT batch_key, culture_day, value AS osmolality
+            SELECT batch_key, culture_day, avg(value) AS osmolality
             FROM mart.fact_manual_latest
             WHERE batch_key = ANY(:keys) AND metric_code = 'osmolality'
+            GROUP BY batch_key, culture_day
         ),
         b AS (
             SELECT DISTINCT ON (batch_key) batch_key, procid, source_instance
