@@ -9,7 +9,8 @@ export default function EntryPage() {
   const { user, logout } = useAuth();
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3">
+      {/* 顶栏固定在页面顶部，表再长也能随时点「返回看板」 */}
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3">
         <h1 className="text-lg font-semibold">渗透压录入</h1>
         <span className="text-sm text-slate-400">每天把当天所有样品的渗透压填进来，生化曲线里就有渗透压这条线</span>
         <Link
