@@ -27,6 +27,7 @@ export function ChangePasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
+  const clearMustChangePassword = useAuthStore((s) => s.clearMustChangePassword);
   const [form] = Form.useForm<FormValues>();
   const isForced = searchParams.get('required') === '1';
 
@@ -35,11 +36,15 @@ export function ChangePasswordPage() {
       authApi.changePassword(payload),
     onSuccess: () => {
       message.success('密码已修改，3 秒后将自动退出登录。请用新密码重新登录。');
+      // 先清强制改密标记：否则这 3 秒内任何跳转都会被 ProtectedRoute 弹回本页
+      clearMustChangePassword();
       // 后端 password_changed_at 更新后，旧 token 立即失效（M2.5.2）。
       // 主动登出 + 跳登录，避免后续请求触发 401 跳登录的二次跳转。
+      // 带 changed=1 且**不带 redirect**：带 redirect 会在重新登录后把人送回本页，
+      // 看起来就像"改完密码退不出去"（2026-09-10 验证部实际反馈）。
       setTimeout(() => {
         logout();
-        navigate('/login', { replace: true });
+        navigate('/login?changed=1', { replace: true });
       }, 3000);
     },
     onError: (err: any) => {

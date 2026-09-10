@@ -10,7 +10,8 @@
     - 已存在的工号 / 邮箱：跳过并提示，不覆盖（幂等，可反复跑）
     - 新建：随机 16 位临时密码 + force_password_change=TRUE（首次登录强制改密），状态 active
     - 每人写一条 audit_log CREATE（entity auth.user，change_summary 含角色）
-    - 结束打印「工号 | 姓名 | 临时密码」表，管理员通过安全渠道告知本人；临时密码不落盘、不写日志
+    - 结束打印「工号 | 姓名 | 临时密码」表，管理员通过安全渠道告知本人；临时密码不写库日志，
+      但会出现在本次命令的终端输出里，注意别把终端记录转发出去
     - --dry-run 只校验和预览，不写库
 
 运行：
@@ -82,7 +83,8 @@ async def main() -> int:
     args = ap.parse_args()
 
     if args.file == "-":
-        text = sys.stdin.read()
+        # Excel 导出的 CSV 带 BOM，走标准输入时没有 utf-8-sig 帮忙去掉，首列表头会变成 "\ufeff姓名"
+        text = sys.stdin.read().lstrip("\ufeff")
     else:
         with open(args.file, encoding="utf-8-sig") as fh:
             text = fh.read()

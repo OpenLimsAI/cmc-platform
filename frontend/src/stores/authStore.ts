@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { queryClient } from '@/shared/queryClient';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import type { LoginResponseUser } from '@/api/types';
 
@@ -101,6 +102,8 @@ interface AuthState {
   hasPermission: (perm: string) => boolean;
   /** 是否有任一主数据域读权限（仪表盘 / 首页落点用） */
   hasAnyReadPermission: () => boolean;
+  /** 强制改密完成后清标记：否则 ProtectedRoute 会一直把人弹回改密页 */
+  clearMustChangePassword: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -128,6 +131,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // 清 React Query 缓存：登出走 SPA 跳转不刷新页面，不清会把上一个人的
+        // 列表/仪表盘/角色下拉带给下一个登录的人（2026-09-10 体检发现）
+        queryClient.clear();
         set({
           token: null,
           user: null,
@@ -147,6 +153,12 @@ export const useAuthStore = create<AuthState>()(
         const state = get();
         if (state.isAdmin) return true;
         return DOMAIN_READ_PERMISSIONS.some((p) => state.permissions.has(p));
+      },
+
+      clearMustChangePassword: () => {
+        const user = get().user;
+        if (!user?.must_change_password) return;
+        set({ user: { ...user, must_change_password: false } });
       },
     }),
     {

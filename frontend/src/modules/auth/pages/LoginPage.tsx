@@ -13,6 +13,23 @@ const REASON_NOTICE: Record<string, string> = {
   expired: '登录已过期，请重新登录',
 };
 
+// 登录成功后不该跳过去的页面：改密页会让人"改完又回到改密页"，登录页会自己套自己
+const NO_REDIRECT_BACK = ['/login', '/profile/password'];
+
+function safeRedirect(raw: string | null): string | null {
+  if (!raw) return null;
+  let path: string;
+  try {
+    path = decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+  // 只接受站内相对路径，挡掉 //evil.com 与绝对 URL
+  if (!path.startsWith('/') || path.startsWith('//')) return null;
+  if (NO_REDIRECT_BACK.some((p) => path.startsWith(p))) return null;
+  return path;
+}
+
 const { Title, Text } = Typography;
 
 export function LoginPage() {
@@ -21,7 +38,10 @@ export function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const reasonNotice = REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null;
+  const reasonNotice =
+    searchParams.get('changed') === '1'
+      ? '密码已修改成功，请用新密码登录'
+      : (REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null);
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -37,8 +57,8 @@ export function LoginPage() {
         return;
       }
       message.success(`欢迎回来，${result.user.full_name}`);
-      const redirect = searchParams.get('redirect');
-      navigate(redirect ? decodeURIComponent(redirect) : '/'); // '/' 按权限落到仪表盘 / 用户管理 / 个人中心
+      // '/' 按权限落到仪表盘 / 用户管理 / 个人中心；脏 redirect（改密页/登录页/站外）一律忽略
+      navigate(safeRedirect(searchParams.get('redirect')) ?? '/');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       setErrorMessage(err.response?.data?.message || '登录失败');

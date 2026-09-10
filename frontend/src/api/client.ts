@@ -58,12 +58,19 @@ export async function performRefresh(): Promise<string> {
   return refreshPromise;
 }
 
+// 登录后不该被自动送回去的页面（与 routes/ProtectedRoute.tsx 同口径）：
+// 改密页若被记成 redirect，用户改完密码重新登录会被送回改密页，像"退不出来"
+const NO_REDIRECT_BACK = ['/login', '/profile/password'];
+
 function gotoLogin() {
   const path = stripBase(window.location.pathname); // 去掉 /mdm 前缀，redirect 只存站内相对路径
-  if (!path.startsWith('/login')) {
-    const redirect = encodeURIComponent(path + window.location.search);
-    window.location.href = withBase(`/login?redirect=${redirect}`);
+  if (path.startsWith('/login')) return;
+  if (NO_REDIRECT_BACK.some((p) => path.startsWith(p))) {
+    window.location.href = withBase('/login');
+    return;
   }
+  const redirect = encodeURIComponent(path + window.location.search);
+  window.location.href = withBase(`/login?redirect=${redirect}`);
 }
 
 // ============== 响应拦截器 ==============

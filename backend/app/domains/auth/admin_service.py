@@ -354,6 +354,10 @@ class UserAdminService:
         current = {r.role_code for r in user.roles}
 
         if scope is not None and scope.dept_scoped:
+            # 不能给自己挂角色：否则一旦白名单里混进带管理权限的角色即可自我提权
+            if user.user_id == scope.actor.user_id:
+                raise PermissionDeniedError("部门管理员不能修改自己的角色，请联系系统管理员")
+            self._ensure_not_protected(user, scope, "调整角色")
             # 部门管理员：提交的每个角色都必须在白名单内；目标已持有的非白名单角色原样保留
             # （前端下拉只出白名单角色，提交的就是「白名单部分」的完整集合）
             policy = await load_dept_admin_policy(self.db)

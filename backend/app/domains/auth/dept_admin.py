@@ -38,6 +38,10 @@ PROTECTED_ROLES = frozenset({SYS_ADMIN_ROLE, DEPT_ADMIN_ROLE})
 KEY_DELEGABLE_PREFIXES = "dept_admin.delegable_role_prefixes"
 DEFAULT_DELEGABLE_PREFIXES: tuple[str, ...] = ("QV_",)
 _PREFIX_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+# 前缀太短会误伤：'Q' 顺带覆盖 QA_REVIEWER、'C' 覆盖 CMC_* 全家，等于把真实业务权限下放出去
+_MIN_PREFIX_LEN = 3
+# 带这些权限的角色一律不可下放：拿到任一条就等于跳出部门边界
+ESCALATING_PERMISSIONS = frozenset({"user:manage", "role:manage", "system:config", "audit:read"})
 
 
 # =============================================================================
@@ -80,6 +84,10 @@ def validate_prefixes(prefixes: tuple[str, ...]) -> None:
     for p in prefixes:
         if len(p) > 32 or not _PREFIX_RE.match(p):
             raise ValidationError(f"角色前缀 {p!r} 不合法：须大写字母开头，仅含大写字母/数字/下划线")
+        if len(p) < _MIN_PREFIX_LEN:
+            raise ValidationError(
+                f"角色前缀 {p!r} 太短（至少 {_MIN_PREFIX_LEN} 个字符）：一两个字母会连带覆盖别的角色"
+            )
         if any(r.startswith(p) for r in PROTECTED_ROLES):
             raise ValidationError(f"角色前缀 {p!r} 会覆盖受保护角色 SYS_ADMIN / DEPT_ADMIN，不允许")
 
@@ -93,12 +101,38 @@ async def load_dept_admin_policy(db: AsyncSession) -> DeptAdminPolicy:
     )
 
 
+async def _reject_escalating_roles(db: AsyncSession, prefixes: tuple[str, ...]) -> None:
+    """白名单不得命中「带管理类权限」的角色，否则部门管理员可借它跳出部门边界。"""
+    if not prefixes:
+        return
+    from sqlalchemy import select
+
+    from app.domains.auth.models import Permission, Role, RolePermission
+
+    rows = (
+        await db.execute(
+            select(Role.role_code, Permission.permission_code)
+            .join(RolePermission, RolePermission.role_id == Role.role_id)
+            .join(Permission, Permission.permission_id == RolePermission.permission_id)
+            .where(Role.deleted_at.is_(None), Permission.permission_code.in_(ESCALATING_PERMISSIONS))
+        )
+    ).all()
+    bad = sorted(
+        {f"{code}（{perm}）" for code, perm in rows if any(code.startswith(p) for p in prefixes)}
+    )
+    if bad:
+        raise ValidationError(
+            "以下角色带管理类权限，不能下放给部门管理员：" + "；".join(bad) + "。请改用更精确的前缀"
+        )
+
+
 async def save_dept_admin_policy(
     db: AsyncSession, prefixes: list[str], updated_by: int | None
 ) -> tuple[DeptAdminPolicy, tuple[str, ...], tuple[str, ...]]:
     """写入并返回 (保存后的策略, 旧前缀, 新前缀)。调用方负责 commit + 审计。"""
     new = parse_prefixes(",".join(prefixes))
     validate_prefixes(new)
+    await _reject_escalating_roles(db, new)
     current = await load_dept_admin_policy(db)
     if new != current.delegable_role_prefixes:
         row = await db.get(SystemConfig, KEY_DELEGABLE_PREFIXES)

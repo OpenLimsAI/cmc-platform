@@ -58,7 +58,7 @@ export function UserRoleAssignModal({ open, user, deptScoped = false, onClose, o
       confirmLoading={mutation.isPending}
       okText="保存"
       cancelText="取消"
-      okButtonProps={{ disabled: !deptScoped && selected.length === 0 }}
+      okButtonProps={{ disabled: rolesLoading || (!deptScoped && selected.length === 0) }}
     >
       <Alert
         type="info"

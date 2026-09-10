@@ -160,77 +160,80 @@ export default function App() {
   // key=路径：换页时错误边界自动复位，不会一处出错后整站一直显示错误卡片
   const location = useLocation();
   return (
-    <AppErrorBoundary key={location.pathname}>
+    <>
+      {/* 必须放在 keyed 边界之外：key 变化会重挂组件，「已知过期→下次换页刷新」就永远不触发 */}
       <AppUpdateWatcher />
-      <Suspense fallback={PageFallback}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+      <AppErrorBoundary key={location.pathname}>
+        <Suspense fallback={PageFallback}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<HomeRedirect />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<HomeRedirect />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
 
-              {/* SRS */}
-              <Route path="/substances" element={<SubstanceListPage />} />
-              <Route path="/substances/new" element={<SubstanceCreatePage />} />
-              <Route path="/substances/:code" element={<SubstanceDetailPage />} />
-              <Route path="/substances/:code/edit" element={<SubstanceEditPage />} />
+                {/* SRS */}
+                <Route path="/substances" element={<SubstanceListPage />} />
+                <Route path="/substances/new" element={<SubstanceCreatePage />} />
+                <Route path="/substances/:code" element={<SubstanceDetailPage />} />
+                <Route path="/substances/:code/edit" element={<SubstanceEditPage />} />
 
-              {/* PRS */}
-              <Route path="/projects" element={<ProjectListPage />} />
-              <Route path="/projects/new" element={<ProjectCreatePage />} />
-              <Route path="/projects/:code" element={<ProjectDetailPage />} />
-              <Route path="/projects/:code/edit" element={<ProjectEditPage />} />
+                {/* PRS */}
+                <Route path="/projects" element={<ProjectListPage />} />
+                <Route path="/projects/new" element={<ProjectCreatePage />} />
+                <Route path="/projects/:code" element={<ProjectDetailPage />} />
+                <Route path="/projects/:code/edit" element={<ProjectEditPage />} />
 
-              {/* ARS */}
-              <Route path="/assets" element={<AssetListPage />} />
-              <Route path="/assets/new" element={<AssetCreatePage />} />
-              <Route path="/assets/:code" element={<AssetDetailPage />} />
-              <Route path="/assets/:code/edit" element={<AssetEditPage />} />
+                {/* ARS */}
+                <Route path="/assets" element={<AssetListPage />} />
+                <Route path="/assets/new" element={<AssetCreatePage />} />
+                <Route path="/assets/:code" element={<AssetDetailPage />} />
+                <Route path="/assets/:code/edit" element={<AssetEditPage />} />
 
-              {/* MM (Phase 4.A) */}
-              <Route path="/materials" element={<MaterialListPage />} />
-              <Route path="/materials/new" element={<MaterialCreatePage />} />
-              <Route path="/materials/:code" element={<MaterialDetailPage />} />
-              <Route path="/materials/:code/edit" element={<MaterialEditPage />} />
+                {/* MM (Phase 4.A) */}
+                <Route path="/materials" element={<MaterialListPage />} />
+                <Route path="/materials/new" element={<MaterialCreatePage />} />
+                <Route path="/materials/:code" element={<MaterialDetailPage />} />
+                <Route path="/materials/:code/edit" element={<MaterialEditPage />} />
 
-              {/* EQP 设备主数据域 */}
-              <Route path="/equipments" element={<EquipmentListPage />} />
-              <Route path="/equipments/new" element={<EquipmentCreatePage />} />
-              <Route path="/equipments/:code" element={<EquipmentDetailPage />} />
-              <Route path="/equipments/:code/edit" element={<EquipmentEditPage />} />
+                {/* EQP 设备主数据域 */}
+                <Route path="/equipments" element={<EquipmentListPage />} />
+                <Route path="/equipments/new" element={<EquipmentCreatePage />} />
+                <Route path="/equipments/:code" element={<EquipmentDetailPage />} />
+                <Route path="/equipments/:code/edit" element={<EquipmentEditPage />} />
 
-              {/* 靶点域 tgt */}
-              <Route path="/targets" element={<TargetListPage />} />
-              <Route path="/targets/new" element={<TargetCreatePage />} />
-              <Route path="/targets/:code" element={<TargetDetailPage />} />
-              <Route path="/targets/:code/edit" element={<TargetEditPage />} />
+                {/* 靶点域 tgt */}
+                <Route path="/targets" element={<TargetListPage />} />
+                <Route path="/targets/new" element={<TargetCreatePage />} />
+                <Route path="/targets/:code" element={<TargetDetailPage />} />
+                <Route path="/targets/:code/edit" element={<TargetEditPage />} />
 
-              {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
-              <Route path="/admin/users" element={<UserListPage />} />
-              <Route path="/admin/audit-logs" element={<AuditLogPage />} />
-              <Route path="/admin/signatures" element={<SignatureListPage />} />
-              {/* 部门管理员（DEPT_ADMIN）只有用户页；下面几页仅全公司范围管理员可进 */}
-              <Route element={<FullAdminRoute />}>
-                <Route path="/admin/roles" element={<RoleListPage />} />
-                <Route path="/admin/permissions" element={<PermissionListPage />} />
-                <Route path="/admin/session-policy" element={<SessionPolicyPage />} />
-                <Route path="/admin/dept-admin-policy" element={<DeptAdminPolicyPage />} />
+                {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
+                <Route path="/admin/users" element={<UserListPage />} />
+                <Route path="/admin/audit-logs" element={<AuditLogPage />} />
+                <Route path="/admin/signatures" element={<SignatureListPage />} />
+                {/* 部门管理员（DEPT_ADMIN）只有用户页；下面几页仅全公司范围管理员可进 */}
+                <Route element={<FullAdminRoute />}>
+                  <Route path="/admin/roles" element={<RoleListPage />} />
+                  <Route path="/admin/permissions" element={<PermissionListPage />} />
+                  <Route path="/admin/session-policy" element={<SessionPolicyPage />} />
+                  <Route path="/admin/dept-admin-policy" element={<DeptAdminPolicyPage />} />
+                </Route>
+                <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
+
+                {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}
+                <Route path="/audit/*" element={<Navigate to="/admin/audit-logs" replace />} />
+                {/* M5.4 个人中心 */}
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/profile/password" element={<ChangePasswordPage />} />
+
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
-              <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
-
-              {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}
-              <Route path="/audit/*" element={<Navigate to="/admin/audit-logs" replace />} />
-              {/* M5.4 个人中心 */}
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/password" element={<ChangePasswordPage />} />
-
-              <Route path="*" element={<NotFoundPage />} />
             </Route>
-          </Route>
-        </Routes>
-      </Suspense>
-    </AppErrorBoundary>
+          </Routes>
+        </Suspense>
+      </AppErrorBoundary>
+    </>
   );
 }
