@@ -63,6 +63,11 @@ def verify_access_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="令牌无效（验签失败）") from e
     if claims.get("type") != "access":
         raise HTTPException(status_code=401, detail="令牌类型错误（需 access 令牌）")
+    # 2026-09-11：拿临时密码（管理员重置后）的人只能先去 MDM 改密码。
+    # MDM 自己早就拦了，但下游本地验签、不回调 MDM，所以靠令牌里的 must_change_password 标记。
+    # 用 403 不用 401：401 会被前端当成会话过期去续期，续出来的新令牌照样带这个标记，会转圈。
+    if claims.get("must_change_password"):
+        raise HTTPException(status_code=403, detail="请先到主数据平台（MDM）修改临时密码，再使用本系统")
     return claims
 
 
