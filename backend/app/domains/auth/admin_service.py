@@ -192,6 +192,7 @@ class UserAdminService:
         page: int,
         page_size: int,
         scope: UserAdminScope | None = None,
+        department: str | None = None,
     ) -> tuple[list[UserListItem], int]:
         stmt = select(User).where(User.deleted_at.is_(None)).options(selectinload(User.roles))
         count_stmt = select(func.count(User.user_id)).where(User.deleted_at.is_(None))
@@ -209,6 +210,11 @@ class UserAdminService:
             )
             stmt = stmt.where(cond)
             count_stmt = count_stmt.where(cond)
+        if department:
+            # 包含匹配（不分大小写）：下拉里选 TT5 精确命中，手输 TT 则 TT1/TT5/TT7 全出
+            dept_pattern = f"%{department.strip()}%"
+            stmt = stmt.where(User.department.ilike(dept_pattern))
+            count_stmt = count_stmt.where(User.department.ilike(dept_pattern))
         if status:
             stmt = stmt.where(User.status == status)
             count_stmt = count_stmt.where(User.status == status)
@@ -242,6 +248,21 @@ class UserAdminService:
             for u in users
         ]
         return items, total
+
+    async def list_departments(self, scope: UserAdminScope | None = None) -> list[str]:
+        """用户表里实际出现过的部门清单（去空白、去重、排序），供筛选下拉使用。
+
+        部门是自由文本（与 auth.user.department 同口径），没有独立字典表，所以从现有数据里取。
+        部门管理员只会看到自己那一个部门。"""
+        stmt = select(func.trim(User.department)).where(
+            User.deleted_at.is_(None),
+            User.department.isnot(None),
+            func.trim(User.department) != "",
+        )
+        if scope is not None and scope.dept_scoped:
+            stmt = stmt.where(func.trim(User.department) == scope.department)
+        result = await self.db.execute(stmt.distinct().order_by(func.trim(User.department)))
+        return [d for (d,) in result.all()]
 
     async def get_user(self, username: str, scope: UserAdminScope | None = None) -> UserDetail:
         user = await _load_user(self.db, username)

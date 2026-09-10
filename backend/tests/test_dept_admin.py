@@ -399,3 +399,17 @@ async def test_access_token_carries_department(admin_client, http_client, dept_e
     b64 = token2.split(".")[1]
     b64 += "=" * (-len(b64) % 4)
     assert json.loads(base64.urlsafe_b64decode(b64))["department"] == dept_env["dept"]
+
+
+# ============== 部门筛选对部门管理员的收口（2026-09-10）==============
+@pytest.mark.asyncio
+async def test_dept_admin_departments_only_own(dept_env):
+    """部门管理员拿到的部门清单只有自己那一个；用别的部门去筛也筛不出人"""
+    c = dept_env["client"]
+    r = await c.get("/api/v1/users/departments")
+    assert r.status_code == 200, r.text
+    assert r.json()["data"] == [dept_env["dept"]]
+
+    r = await c.get("/api/v1/users?department=OTHER&page_size=100")
+    assert r.status_code == 200
+    assert r.json()["data"] == []

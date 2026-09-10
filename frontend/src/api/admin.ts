@@ -29,6 +29,9 @@ export const adminUsersApi = {
   list: (query: UserListQuery = {}) =>
     unwrapList<UserListItem>(api.get('/users', { params: query })),
 
+  /** 部门清单（取自现有用户，供筛选下拉；部门是自由文本，没有字典表） */
+  departments: () => unwrap<string[]>(api.get('/users/departments')),
+
   get: (username: string) =>
     unwrap<UserDetail>(api.get(`/users/${encodeURIComponent(username)}`)),
 

@@ -143,6 +143,8 @@ export interface UserUpdatePayload {
 export interface UserListQuery {
   q?: string;
   role_code?: string;
+  /** 部门：包含匹配、不分大小写（输入 TT 可命中 TT1/TT5/TT7） */
+  department?: string;
   status?: UserStatus;
   page?: number;
   page_size?: number;

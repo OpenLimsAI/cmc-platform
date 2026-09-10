@@ -33,6 +33,7 @@ async def list_users(
     request: Request,
     q: str | None = None,
     role_code: str | None = None,
+    department: str | None = Query(None, max_length=64, description="部门，包含匹配、不分大小写"),
     status: str | None = Query(None, pattern="^(active|locked|disabled)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -40,7 +41,9 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
 ):
     service = UserAdminService(db)
-    items, total = await service.list_users(q, role_code, status, page, page_size, scope=scope)
+    items, total = await service.list_users(
+        q, role_code, status, page, page_size, scope=scope, department=department
+    )
     return success(
         data=[i.model_dump(mode="json") for i in items],
         request_id=getattr(request.state, "request_id", None),
@@ -60,6 +63,23 @@ async def create_user(
     return success(
         data=detail.model_dump(mode="json"),
         message="用户创建成功",
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.get("/departments", summary="部门清单（admin，供筛选下拉）")
+async def list_departments(
+    request: Request,
+    scope: UserAdminScope = Depends(user_admin_scope()),
+    db: AsyncSession = Depends(get_db),
+):
+    """用户表里实际出现过的部门（自由文本，无字典表）。
+
+    ⚠️ 必须注册在 /{username} 之前，否则会被当成 username="departments" 去查用户。
+    """
+    service = UserAdminService(db)
+    return success(
+        data=await service.list_departments(scope=scope),
         request_id=getattr(request.state, "request_id", None),
     )
 

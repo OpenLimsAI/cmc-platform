@@ -290,3 +290,52 @@ async def test_readonly_forbidden(readonly_client):
 
     r3 = await readonly_client.post("/api/v1/users/admin:lock")
     assert r3.status_code == 403
+
+
+# ============== 2026-09-10：部门筛选（用户管理页新增的部门搜索框）==============
+@pytest.mark.asyncio
+async def test_department_filter_and_list(admin_client, unique_suffix):
+    """部门筛选走包含匹配、不分大小写；/users/departments 返回现有部门清单"""
+    a = _payload(f"da{unique_suffix}", email=f"da{unique_suffix}@test.com", department=f"TT{unique_suffix[:3]}")
+    b = _payload(f"db{unique_suffix}", email=f"db{unique_suffix}@test.com", department=f"QV{unique_suffix[:3]}")
+    for p in (a, b):
+        assert (await admin_client.post("/api/v1/users", json=p)).status_code == 201
+
+    # 精确命中
+    r = await admin_client.get(f"/api/v1/users?department=TT{unique_suffix[:3]}&page_size=100")
+    assert r.status_code == 200, r.text
+    names = {u["username"] for u in r.json()["data"]}
+    assert a["username"] in names and b["username"] not in names
+
+    # 包含匹配 + 不分大小写：小写前缀也能命中
+    r = await admin_client.get(f"/api/v1/users?department=tt{unique_suffix[:3].lower()}&page_size=100")
+    assert r.status_code == 200
+    assert a["username"] in {u["username"] for u in r.json()["data"]}
+
+    # 与 q 是「且」关系，不是「或」
+    r = await admin_client.get(
+        f"/api/v1/users?department=TT{unique_suffix[:3]}&q={b['username']}&page_size=100"
+    )
+    assert r.status_code == 200
+    assert r.json()["data"] == []
+
+    # 部门清单：包含刚建的两个部门，且不含空值
+    r = await admin_client.get("/api/v1/users/departments")
+    assert r.status_code == 200, r.text
+    depts = r.json()["data"]
+    assert f"TT{unique_suffix[:3]}" in depts and f"QV{unique_suffix[:3]}" in depts
+    assert all(d and d == d.strip() for d in depts)
+    assert depts == sorted(depts)
+
+
+@pytest.mark.asyncio
+async def test_departments_endpoint_not_shadowed_by_username_route(admin_client):
+    """/users/departments 必须命中专用端点，而不是被 /{username} 当成用户名去查"""
+    r = await admin_client.get("/api/v1/users/departments")
+    assert r.status_code == 200
+    assert isinstance(r.json()["data"], list)
+
+
+@pytest.mark.asyncio
+async def test_readonly_cannot_list_departments(readonly_client):
+    assert (await readonly_client.get("/api/v1/users/departments")).status_code == 403

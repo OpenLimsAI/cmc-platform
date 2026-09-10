@@ -64,9 +64,12 @@ export function UserListPage() {
   const [filters, setFilters] = useState<{
     q?: string;
     role_code?: string;
+    department?: string;
     status?: UserStatus;
   }>({});
   const [pendingQ, setPendingQ] = useState('');
+  // 部门筛选：可手输（包含匹配，输 TT 出 TT1/TT5/TT7），也可从下拉选现有部门
+  const [pendingDept, setPendingDept] = useState('');
 
   // Drawer / Modal 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -77,6 +80,27 @@ export function UserListPage() {
 
   // M5.2：角色筛选下拉动态拉取
   const { options: roleFilterOptions } = useRoleOptions();
+
+  // 部门下拉候选：取自现有用户的部门（部门管理员只会拿到自己那一个）
+  const { data: departments = [] } = useQuery({
+    queryKey: ['admin-user-departments'],
+    queryFn: adminUsersApi.departments,
+    staleTime: 5 * 60_000,
+  });
+  const applyDept = (v: string) => {
+    setPage(1);
+    setFilters((f) => ({ ...f, department: v.trim() || undefined }));
+  };
+
+  // 下拉里列出全部现有部门；如果输入的内容不是现成部门（例如输 TT 想一次看 TT1/TT5/TT7），
+  // 就在最前面补一条「按“TT”筛选」，回车或点它即按包含匹配筛选。
+  const typedDept = pendingDept.trim();
+  const deptOptions = [
+    ...(typedDept && !departments.some((d) => d.toLowerCase() === typedDept.toLowerCase())
+      ? [{ value: typedDept, label: `按“${typedDept}”筛选` }]
+      : []),
+    ...departments.map((d) => ({ value: d, label: d })),
+  ];
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-users', page, pageSize, filters],
@@ -335,6 +359,26 @@ export function UserListPage() {
             }}
             options={roleFilterOptions}
           />
+          {!deptScoped && (
+            // 部门：点开列出全部现有部门，也可直接输入（按包含匹配筛，输 TT 出 TT1/TT5/TT7）
+            <Select
+              showSearch
+              allowClear
+              placeholder="部门（可输入或选择）"
+              style={{ width: 210 }}
+              value={filters.department}
+              searchValue={pendingDept}
+              options={deptOptions}
+              filterOption={(input, opt) =>
+                String(opt?.value ?? '').toLowerCase().includes(input.trim().toLowerCase())
+              }
+              onSearch={setPendingDept}
+              onChange={(v: string | undefined) => {
+                setPendingDept('');
+                applyDept(v ?? '');
+              }}
+            />
+          )}
           <Select
             placeholder="状态"
             allowClear
@@ -349,6 +393,7 @@ export function UserListPage() {
           <Button
             onClick={() => {
               setPendingQ('');
+              setPendingDept('');
               setFilters({});
               setPage(1);
             }}
