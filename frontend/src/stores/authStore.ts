@@ -71,6 +71,16 @@ const unifiedStorage: StateStorage = {
  */
 export type UserAdminScope = 'all' | 'department' | null;
 
+/** 六个主数据域的读权限；一个都没有 = 只用下游系统的账号，MDM 里只给个人中心 */
+export const DOMAIN_READ_PERMISSIONS = [
+  'substance:read',
+  'project:read',
+  'asset:read',
+  'material:read',
+  'equipment:read',
+  'target:read',
+] as const;
+
 function computeUserAdminScope(user: LoginResponseUser | null): UserAdminScope {
   if (!user) return null;
   if (user.roles.includes('SYS_ADMIN') || user.permissions.includes('user:manage')) return 'all';
@@ -89,6 +99,8 @@ interface AuthState {
   updateToken: (token: string) => void;
   logout: () => void;
   hasPermission: (perm: string) => boolean;
+  /** 是否有任一主数据域读权限（仪表盘 / 首页落点用） */
+  hasAnyReadPermission: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -129,6 +141,12 @@ export const useAuthStore = create<AuthState>()(
         const state = get();
         if (state.isAdmin) return true;
         return state.permissions.has(perm);
+      },
+
+      hasAnyReadPermission: () => {
+        const state = get();
+        if (state.isAdmin) return true;
+        return DOMAIN_READ_PERMISSIONS.some((p) => state.permissions.has(p));
       },
     }),
     {

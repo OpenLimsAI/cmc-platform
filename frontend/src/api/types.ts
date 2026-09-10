@@ -294,16 +294,13 @@ export interface TrendPoint {
   count: number;
 }
 
+export type DashboardDomain = 'substance' | 'project' | 'asset' | 'material' | 'equipment' | 'target';
+
+/** 2026-09-10 起按读权限裁剪：只含用户能进的域，缺的键就是没权限 */
 export interface DashboardSummary {
-  totals: {
-    substance: number;
-    project: number;
-    asset: number;
-    material: number;
-    equipment: number;
-    target: number;
-  };
-  distributions: {
+  visible_domains: DashboardDomain[];
+  totals: Partial<Record<DashboardDomain, number>>;
+  distributions: Partial<{
     substance_by_type: DistributionItem[];
     substance_by_status: DistributionItem[];
     project_by_status: DistributionItem[];
@@ -316,15 +313,8 @@ export interface DashboardSummary {
     equipment_by_status: DistributionItem[];
     target_by_status: DistributionItem[];
     target_by_entry_type: DistributionItem[];
-  };
-  trend_30d: {
-    substance: TrendPoint[];
-    project: TrendPoint[];
-    asset: TrendPoint[];
-    material: TrendPoint[];
-    equipment: TrendPoint[];
-    target: TrendPoint[];
-  };
+  }>;
+  trend_30d: Partial<Record<DashboardDomain, TrendPoint[]>>;
 }
 
 export interface GanttMilestone {

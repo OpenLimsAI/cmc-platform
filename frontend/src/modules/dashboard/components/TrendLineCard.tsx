@@ -18,9 +18,12 @@ const SERIES_META: { key: keyof DashboardSummary['trend_30d']; name: string; col
 
 export function TrendLineCard({ trend }: Props) {
   // x 轴用第一个 series 的日期序列（4 域日期对齐）
-  const xLabels = trend.substance.map((p) => dayjs(p.date).format('MM-DD'));
-  const totalNew = SERIES_META.reduce(
-    (acc, m) => acc + trend[m.key].reduce((s, p) => s + p.count, 0),
+  // 2026-09-10：按读权限裁剪后 trend 只含可见域，只画有的；x 轴取第一个有的域
+  const series_meta = SERIES_META.filter((m) => Array.isArray(trend[m.key]));
+  const first = series_meta.length ? trend[series_meta[0].key] ?? [] : [];
+  const xLabels = first.map((p) => dayjs(p.date).format('MM-DD'));
+  const totalNew = series_meta.reduce(
+    (acc, m) => acc + (trend[m.key] ?? []).reduce((s, p) => s + p.count, 0),
     0,
   );
 
@@ -37,11 +40,11 @@ export function TrendLineCard({ trend }: Props) {
 
   const option = {
     tooltip: { trigger: 'axis' },
-    legend: { data: SERIES_META.map((s) => s.name), top: 0 },
+    legend: { data: series_meta.map((s) => s.name), top: 0 },
     grid: { left: 40, right: 30, top: 40, bottom: 30 },
     xAxis: { type: 'category', data: xLabels, boundaryGap: false },
     yAxis: { type: 'value', minInterval: 1 },
-    series: SERIES_META.map((m) => ({
+    series: series_meta.map((m) => ({
       name: m.name,
       type: 'line',
       smooth: true,
@@ -49,7 +52,7 @@ export function TrendLineCard({ trend }: Props) {
       symbolSize: 5,
       itemStyle: { color: m.color },
       areaStyle: { opacity: 0.08, color: m.color },
-      data: trend[m.key].map((p) => p.count),
+      data: (trend[m.key] ?? []).map((p) => p.count),
     })),
   };
 

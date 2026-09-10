@@ -18,7 +18,10 @@ async def test_summary_shape(admin_client):
     r = await admin_client.get("/api/v1/dashboard/summary")
     assert r.status_code == 200
     data = r.json()["data"]
-    assert set(data.keys()) == {"totals", "distributions", "trend_30d"}
+    assert set(data.keys()) == {"visible_domains", "totals", "distributions", "trend_30d"}
+    assert set(data["visible_domains"]) == {
+        "substance", "project", "asset", "material", "equipment", "target"
+    }
     assert set(data["totals"].keys()) == {
         "substance", "project", "asset", "material", "equipment", "target"
     }
@@ -132,3 +135,60 @@ async def test_gantt_shape(admin_client):
 async def test_gantt_requires_auth(http_client):
     r = await http_client.get("/api/v1/dashboard/gantt")
     assert r.status_code == 401
+
+
+# ============ 2026-09-10：仪表盘按读权限裁剪；无读权限 403 ============
+async def _login_as(http_client, username: str, password: str):
+    import asyncio
+
+    from tests.conftest import _AuthedClient
+
+    for _ in range(10):
+        r = await http_client.post("/api/v1/auth/login", json={"username": username, "password": password})
+        if r.status_code == 200:
+            return _AuthedClient(http_client, r.json()["data"]["access_token"])
+        await asyncio.sleep(0.2)
+    raise AssertionError(r.text)
+
+
+async def _make_user(admin_client, suffix: str, roles: list[str]):
+    pw = "Dash@2026!xyz"
+    username = f"dash_{suffix}"
+    r = await admin_client.post("/api/v1/users", json={
+        "username": username, "email": f"{username}@test.com", "password": pw,
+        "full_name": f"仪表盘 {suffix}", "department": "QV", "role_codes": roles,
+    })
+    assert r.status_code == 201, r.text
+    return username, pw
+
+
+@pytest.mark.asyncio
+async def test_summary_forbidden_without_any_read_permission(admin_client, http_client, unique_suffix):
+    """只有下游角色（QV_ENGINEER，MDM 内无任何权限）：仪表盘 403、甘特 403、搜索为空"""
+    username, pw = await _make_user(admin_client, unique_suffix, ["QV_ENGINEER"])
+    c = await _login_as(http_client, username, pw)
+    r = await c.get("/api/v1/dashboard/summary")
+    assert r.status_code == 403, r.text
+    r = await c.get("/api/v1/dashboard/gantt")
+    assert r.status_code == 403, r.text
+    r = await c.get("/api/v1/auth/me")
+    assert r.status_code == 200
+    assert r.json()["data"]["permissions"] == []
+
+
+@pytest.mark.asyncio
+async def test_summary_trimmed_to_readable_domains(admin_client, http_client, unique_suffix):
+    """只有设备管理员（equipment + material 读）：只回这两个域，其余键不出现；甘特无 project:read → 403"""
+    username, pw = await _make_user(admin_client, unique_suffix, ["CMC_EQUIPMENT_ADMIN"])
+    c = await _login_as(http_client, username, pw)
+    r = await c.get("/api/v1/dashboard/summary")
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert set(data["visible_domains"]) == {"equipment", "material"}
+    assert set(data["totals"]) == {"equipment", "material"}
+    assert set(data["trend_30d"]) == {"equipment", "material"}
+    assert set(data["distributions"]) == {
+        "equipment_by_category", "equipment_by_status", "material_by_type", "material_by_grade"
+    }
+    r = await c.get("/api/v1/dashboard/gantt")
+    assert r.status_code == 403

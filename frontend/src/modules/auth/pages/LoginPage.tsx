@@ -38,7 +38,7 @@ export function LoginPage() {
       }
       message.success(`欢迎回来，${result.user.full_name}`);
       const redirect = searchParams.get('redirect');
-      navigate(redirect ? decodeURIComponent(redirect) : '/dashboard');
+      navigate(redirect ? decodeURIComponent(redirect) : '/'); // '/' 按权限落到仪表盘 / 用户管理 / 个人中心
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       setErrorMessage(err.response?.data?.message || '登录失败');

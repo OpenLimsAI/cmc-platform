@@ -7,6 +7,7 @@ import { LoginPage } from './modules/auth/pages/LoginPage';
 import { MainLayout } from './shared/layouts/MainLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { FullAdminRoute } from './routes/FullAdminRoute';
+import { HomeRedirect } from './routes/HomeRedirect';
 import { NotFoundPage } from './modules/common/NotFoundPage';
 
 // 路由级懒加载：每个页面打成独立 chunk，按需下载（命名导出→default 适配）
@@ -165,7 +166,7 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<HomeRedirect />} />
               <Route path="/dashboard" element={<DashboardPage />} />
 
               {/* SRS */}

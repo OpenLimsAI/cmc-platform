@@ -56,76 +56,55 @@ async def _trend_30d(db: AsyncSession, table) -> list[dict]:
     return series
 
 
+# 仪表盘按域裁剪（2026-09-10 负责人：无读权限的域不查不返；一个读权限都没有的账号不开放仪表盘）
+DOMAINS = ("substance", "project", "asset", "material", "equipment", "target")
+DOMAIN_READ_PERMISSION = {d: f"{d}:read" for d in DOMAINS}
+
+
+def visible_domains_for(is_sys_admin: bool, permissions: set[str]) -> set[str]:
+    if is_sys_admin:
+        return set(DOMAINS)
+    return {d for d, perm in DOMAIN_READ_PERMISSION.items() if perm in permissions}
+
+
 class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_summary(self) -> dict:
-        # 4 域 totals
-        totals = {}
-        for key, table in [
-            ("substance", Substance),
-            ("project", Project),
-            ("asset", Asset),
-            ("material", Material),
-            ("equipment", Equipment),
-            ("target", Target),
-        ]:
+    async def get_summary(self, domains: set[str] | None = None) -> dict:
+        """domains：本次要统计的域（按调用方权限裁剪；None = 全部）。
+        返回体只包含可见域的 totals / distributions / trend_30d，并带 visible_domains。"""
+        visible = [d for d in DOMAINS if domains is None or d in domains]
+        tables = {
+            "substance": Substance, "project": Project, "asset": Asset,
+            "material": Material, "equipment": Equipment, "target": Target,
+        }
+        dist_spec: dict[str, list[tuple[str, object]]] = {
+            "substance": [("substance_by_type", Substance.substance_type), ("substance_by_status", Substance.status)],
+            "project": [("project_by_status", Project.status), ("project_by_priority", Project.priority)],
+            "asset": [("asset_by_phase", Asset.current_phase), ("asset_by_status", Asset.status)],
+            "material": [("material_by_type", Material.material_type), ("material_by_grade", Material.grade)],
+            "equipment": [("equipment_by_category", Equipment.category), ("equipment_by_status", Equipment.status)],
+            "target": [("target_by_status", Target.status), ("target_by_entry_type", Target.entry_type)],
+        }
+
+        totals: dict[str, int] = {}
+        distributions: dict[str, list[dict]] = {}
+        trend_30d: dict[str, list[dict]] = {}
+        for d in visible:
+            table = tables[d]
             r = await self.db.execute(
                 select(func.count()).select_from(table).where(table.deleted_at.is_(None))
             )
-            totals[key] = int(r.scalar_one())
-
-        # 分布
-        substance_by_type = await _group_count(
-            self.db, Substance, Substance.substance_type
-        )
-        substance_by_status = await _group_count(
-            self.db, Substance, Substance.status
-        )
-        project_by_status = await _group_count(self.db, Project, Project.status)
-        project_by_priority = await _group_count(
-            self.db, Project, Project.priority
-        )
-        asset_by_phase = await _group_count(self.db, Asset, Asset.current_phase)
-        asset_by_status = await _group_count(self.db, Asset, Asset.status)
-        material_by_type = await _group_count(
-            self.db, Material, Material.material_type
-        )
-        material_by_grade = await _group_count(self.db, Material, Material.grade)
-        equipment_by_category = await _group_count(
-            self.db, Equipment, Equipment.category
-        )
-        equipment_by_status = await _group_count(self.db, Equipment, Equipment.status)
-        target_by_status = await _group_count(self.db, Target, Target.status)
-        target_by_entry_type = await _group_count(self.db, Target, Target.entry_type)
-
-        # 30 天趋势（5 域并行不需要，单 await 串行即可，dev 数据量小）
-        trend_30d = {
-            "substance": await _trend_30d(self.db, Substance),
-            "project": await _trend_30d(self.db, Project),
-            "asset": await _trend_30d(self.db, Asset),
-            "material": await _trend_30d(self.db, Material),
-            "equipment": await _trend_30d(self.db, Equipment),
-            "target": await _trend_30d(self.db, Target),
-        }
+            totals[d] = int(r.scalar_one())
+            for name, col in dist_spec[d]:
+                distributions[name] = await _group_count(self.db, table, col)
+            trend_30d[d] = await _trend_30d(self.db, table)
 
         return {
+            "visible_domains": visible,
             "totals": totals,
-            "distributions": {
-                "substance_by_type": substance_by_type,
-                "substance_by_status": substance_by_status,
-                "project_by_status": project_by_status,
-                "project_by_priority": project_by_priority,
-                "asset_by_phase": asset_by_phase,
-                "asset_by_status": asset_by_status,
-                "material_by_type": material_by_type,
-                "material_by_grade": material_by_grade,
-                "equipment_by_category": equipment_by_category,
-                "equipment_by_status": equipment_by_status,
-                "target_by_status": target_by_status,
-                "target_by_entry_type": target_by_entry_type,
-            },
+            "distributions": distributions,
             "trend_30d": trend_30d,
         }
 
