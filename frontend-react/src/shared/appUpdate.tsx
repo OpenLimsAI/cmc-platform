@@ -75,8 +75,11 @@ export function AppUpdateWatcher() {
       if (document.visibilityState === "visible") void check("visible");
     };
     const onStorage = (e: StorageEvent) => {
-      // 别的标签页登录/登出 → 本页会被同步带着切换状态，若代码已过期就趁现在刷新
-      if (e.key === TOKEN_KEY) void check("storage");
+      if (e.key !== TOKEN_KEY) return;
+      // 只有「登录 / 登出」（令牌从无到有、从有到无）才算页面状态本来就要重来，可以立刻刷新；
+      // 续期只是令牌换了个值，此时整页刷新会丢掉用户正在填的表单，改走提示。
+      const switched = !e.oldValue !== !e.newValue;
+      void check(switched ? "storage" : "poll");
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);

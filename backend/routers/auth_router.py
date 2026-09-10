@@ -64,6 +64,7 @@ def _user_from_token(token: str | None) -> CurrentUser | None:
             full_name=claims.get("full_name", ""),
             roles=claims.get("roles", []),
             department=claims.get("department"),
+            has_department_claim="department" in claims,
         )
     except (JWTError, KeyError, ValueError, TypeError):
         return None

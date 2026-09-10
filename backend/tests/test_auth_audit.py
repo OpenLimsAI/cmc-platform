@@ -209,6 +209,25 @@ def test_sys_admin_bypasses_department(client):
     assert r.status_code == 200, r.text
 
 
+def test_empty_department_gets_403_not_401(client):
+    """部门为空(新令牌里 department=null)：应是 403 说明,不能被当成旧令牌 401 → 换证死循环"""
+    r = client.get("/api/materials", headers=_hdr(mint_token(["READ_ONLY_USER"], department=None)))
+    assert r.status_code == 401  # department=None 时 mint_token 不放该键 = 旧令牌
+    import json as _json
+
+    from jose import jwt as _jwt
+
+    from auth import MDM_JWT_ALGORITHM, MDM_SECRET_KEY
+    tok = mint_token(["READ_ONLY_USER"], department="X")
+    claims = _jwt.decode(tok, MDM_SECRET_KEY, algorithms=[MDM_JWT_ALGORITHM])
+    claims["department"] = None  # 键在、值为 null
+    tok2 = _jwt.encode(claims, MDM_SECRET_KEY, algorithm=MDM_JWT_ALGORITHM)
+    r2 = client.get("/api/materials", headers=_hdr(tok2))
+    assert r2.status_code == 403, r2.text
+    assert "实验室部门" in r2.json()["detail"]
+    assert _json is not None
+
+
 def test_legacy_token_without_department_gets_401(client):
     """旧令牌(无 department 字段)回 401,前端会去 MDM 换新令牌重放;不是 403"""
     r = client.get("/api/materials", headers=_hdr(mint_token(["CMC_WAREHOUSE_ADMIN"], department=None)))

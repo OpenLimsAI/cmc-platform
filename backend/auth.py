@@ -36,8 +36,11 @@ class CurrentUser:
     username: str
     full_name: str = ""
     roles: list[str] = field(default_factory=list)
-    # None = 令牌里没有该字段（MDM 2026-09-10 之前签发的旧令牌）；"" = 有字段但部门为空
     department: Optional[str] = None
+    # 令牌里到底有没有 department 这个键：MDM 2026-09-10 之前签发的旧令牌没有该键，
+    # 而「部门为空的用户」新令牌里键存在、值是 null——两者都取到 None，必须靠这个标志区分，
+    # 否则部门没填的人会被当成旧令牌无限 401 → 换证 → 还是 401 → 被强制登出（无法看到 403 说明）。
+    has_department_claim: bool = False
 
     @property
     def id(self) -> int:
@@ -85,6 +88,7 @@ def get_current_user(
         full_name=payload.get("full_name", ""),
         roles=payload.get("roles", []),
         department=payload.get("department"),
+        has_department_claim="department" in payload,
     )
 
 
@@ -94,7 +98,7 @@ def require_lab_member(current: CurrentUser = Depends(get_current_user)) -> Curr
     旧令牌（没有 department 字段）回 401 而不是 403：前端拦截器收到 401 会去 MDM 换一张新令牌
     并重放请求，新令牌带部门，用户无感；真正不符合部门的才回 403。
     """
-    if current.department is None and "SYS_ADMIN" not in current.roles:
+    if not current.has_department_claim and "SYS_ADMIN" not in current.roles:
         raise HTTPException(status_code=401, detail="登录凭证版本过旧，请刷新页面重新登录")
     if not current.is_lab_member:
         raise HTTPException(
@@ -134,6 +138,7 @@ def verify_reviewer(username: str, password: str) -> CurrentUser:
             full_name=claims.get("full_name", ""),
             roles=claims.get("roles", []),
             department=claims.get("department"),
+            has_department_claim="department" in claims,
         )
     except (JWTError, KeyError, ValueError, TypeError):
         raise HTTPException(status_code=502, detail="复核认证令牌解析失败")
