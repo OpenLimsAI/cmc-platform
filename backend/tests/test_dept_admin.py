@@ -373,3 +373,29 @@ async def test_sys_admin_unaffected(admin_client, dept_env):
     assert r.status_code == 200
     r = await admin_client.get("/api/v1/roles")
     assert "SYS_ADMIN" in {x["role_code"] for x in r.json()["data"]}
+
+
+# ============== 令牌带部门（2026-09-10：门户/LabOps 按部门前缀判定）==============
+@pytest.mark.asyncio
+async def test_access_token_carries_department(admin_client, http_client, dept_env):
+    import base64
+    import json
+
+    resp = await http_client.post(
+        "/api/v1/auth/login", json={"username": dept_env["da"], "password": PW}
+    )
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["data"]["access_token"]
+    payload_b64 = token.split(".")[1]
+    payload_b64 += "=" * (-len(payload_b64) % 4)
+    claims = json.loads(base64.urlsafe_b64decode(payload_b64))
+    assert claims["department"] == dept_env["dept"]
+    assert "DEPT_ADMIN" in claims["roles"]
+
+    # refresh 签发的新令牌同样带部门
+    r = await http_client.post("/api/v1/auth/refresh", cookies=resp.cookies)
+    assert r.status_code == 200, r.text
+    token2 = r.json()["data"]["access_token"]
+    b64 = token2.split(".")[1]
+    b64 += "=" * (-len(b64) % 4)
+    assert json.loads(base64.urlsafe_b64decode(b64))["department"] == dept_env["dept"]

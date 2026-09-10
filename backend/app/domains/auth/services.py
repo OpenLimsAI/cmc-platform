@@ -277,7 +277,13 @@ class AuthService:
 
         access_token = create_access_token(
             subject=user.user_id,
-            extra_claims={"username": user.username, "full_name": user.full_name, "roles": roles},
+            extra_claims={
+                "username": user.username,
+                "full_name": user.full_name,
+                "roles": roles,
+                # 2026-09-10：部门随令牌下发，供门户/LabOps 按部门前缀（TT/CMC）判定可见性；下游按名取值，多字段无影响
+                "department": user.department,
+            },
             expires_minutes=policy.access_token_minutes,
         )
 
@@ -440,7 +446,13 @@ class AuthService:
         # 签发新 access
         new_access = create_access_token(
             subject=user.user_id,
-            extra_claims={"username": user.username, "full_name": user.full_name, "roles": roles},
+            extra_claims={
+                "username": user.username,
+                "full_name": user.full_name,
+                "roles": roles,
+                # 2026-09-10：部门随令牌下发，供门户/LabOps 按部门前缀（TT/CMC）判定可见性；下游按名取值，多字段无影响
+                "department": user.department,
+            },
             expires_minutes=policy.access_token_minutes,
         )
 
