@@ -18,6 +18,7 @@ import { useMutation } from '@tanstack/react-query';
 import { equipmentsApi, type EquipmentCreatePayload } from '@/api/equipments';
 import { EQUIPMENT_CATEGORY_OPTIONS, IT_CATEGORY } from '../constants';
 import { WorkstationFields } from '../components/WorkstationFields';
+import { GovernanceFields } from '../components/GovernanceFields';
 
 const { Title, Text } = Typography;
 
@@ -57,6 +58,12 @@ export function EquipmentCreatePage() {
       purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
+      department: v.department,
+      site: v.site,
+      room: v.room,
+      criticality: v.criticality ?? null,
+      criticality_basis: v.criticality_basis,
+      commission_date: v.commission_date?.format('YYYY-MM-DD') ?? null,
       has_workstation: !!v.has_workstation,
       workstation_info: showWs ? (v.workstation_info ?? null) : null,
       description: v.description,
@@ -78,7 +85,7 @@ export function EquipmentCreatePage() {
           新建设备
         </Title>
         <Text type="secondary">
-          仅登记主数据（身份/采购属性）；位置、负责人、校验/维护/维修在 CMC LabOps Portal 维护
+          全公司设备清单（设备部维护）：身份、采购属性、使用部门/位置/分级；校准由计量专员、验证由验证部平台管理
         </Text>
       </Card>
 
@@ -184,6 +191,7 @@ export function EquipmentCreatePage() {
               </Form.Item>
             </Col>
           </Row>
+          <GovernanceFields />
           <WorkstationFields />
 
           <Form.Item name="description" label="主要性能参数描述">

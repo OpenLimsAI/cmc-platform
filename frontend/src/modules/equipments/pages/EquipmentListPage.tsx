@@ -20,6 +20,7 @@ import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
+  criticalityDef,
 } from '../constants';
 
 const { Title, Text } = Typography;
@@ -32,6 +33,8 @@ export function EquipmentListPage() {
     q?: string;
     category?: string;
     status?: string;
+    department?: string;
+    criticality?: string;
   }>({});
   const [pendingQ, setPendingQ] = useState('');
 
@@ -107,12 +110,31 @@ export function EquipmentListPage() {
       render: (v: string | null) => v ?? '—',
     },
     {
-      title: '序列号',
-      dataIndex: 'serial_no',
-      key: 'serial_no',
-      width: 140,
+      title: '使用部门',
+      dataIndex: 'department',
+      key: 'department',
+      width: 110,
       ellipsis: true,
       render: (v: string | null) => v ?? '—',
+    },
+    {
+      title: '存放位置',
+      key: 'location',
+      width: 150,
+      ellipsis: true,
+      render: (_: unknown, r: EquipmentBrief) =>
+        [r.site, r.room].filter(Boolean).join(' · ') || '—',
+    },
+    {
+      title: '分级',
+      dataIndex: 'criticality',
+      key: 'criticality',
+      width: 90,
+      render: (v: string | null) => {
+        if (!v) return '—';
+        const def = criticalityDef(v);
+        return <Tag color={def?.color ?? 'default'}>{def?.label ?? v}</Tag>;
+      },
     },
     {
       title: '状态',
@@ -144,7 +166,7 @@ export function EquipmentListPage() {
               设备（Equipments）
             </Title>
             <Text type="secondary">
-              全公司仪器设备身份注册（主数据）；日常校验/维护/维修在 CMC LabOps Portal 操作，共 {total} 条
+              全公司设备清单（设备部维护）；校准归计量专员、验证归验证部平台，共 {total} 条
             </Text>
           </div>
           <PermissionGuard permission="equipment:create">
@@ -163,7 +185,7 @@ export function EquipmentListPage() {
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} sm={10} md={8}>
             <Input
-              placeholder="搜索设备ID / 设备编号 / 固资编号 / 名称 / 型号 / 生产商 / 序列号（多关键词空格分隔）"
+              placeholder="搜索设备ID / 编号 / 名称 / 型号 / 生产商 / 序列号 / 部门 / 位置（多关键词空格分隔）"
               prefix={<SearchOutlined />}
               allowClear
               value={pendingQ}
@@ -198,6 +220,25 @@ export function EquipmentListPage() {
                 setFilters((f) => ({ ...f, status: v }));
               }}
               options={EQUIPMENT_STATUS_OPTIONS}
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="分级"
+              allowClear
+              style={{ width: 110 }}
+              value={filters.criticality}
+              onChange={(v) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, criticality: v }));
+              }}
+              options={[
+                { value: 'A', label: 'A 级' },
+                { value: 'B', label: 'B 级' },
+                { value: 'C', label: 'C 级' },
+                { value: '关键', label: '关键设备' },
+                { value: '一般', label: '一般设备' },
+              ]}
             />
           </Col>
           <Col>

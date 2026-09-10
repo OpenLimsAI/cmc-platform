@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import InvalidValueError, NotFoundError
 from app.domains.auth.models import User
 from app.domains.eqp.models import Equipment
 from app.domains.eqp.schemas import (
@@ -16,6 +16,7 @@ from app.domains.eqp.schemas import (
     EquipmentDetail,
     EquipmentFilter,
     EquipmentUpdate,
+    allowed_criticalities,
 )
 
 
@@ -48,6 +49,9 @@ class EquipmentService:
                         Equipment.model.ilike(kw),
                         Equipment.manufacturer.ilike(kw),
                         Equipment.serial_no.ilike(kw),
+                        Equipment.department.ilike(kw),
+                        Equipment.site.ilike(kw),
+                        Equipment.room.ilike(kw),
                     )
                 )
         if filter.category:
@@ -58,6 +62,15 @@ class EquipmentService:
             stmt = stmt.where(Equipment.status.in_(statuses))
         if filter.manufacturer:
             stmt = stmt.where(Equipment.manufacturer.ilike(f"%{filter.manufacturer}%"))
+        if filter.department:
+            depts = [d.strip() for d in filter.department.split(",")]
+            stmt = stmt.where(Equipment.department.in_(depts))
+        if filter.site:
+            sites = [x.strip() for x in filter.site.split(",")]
+            stmt = stmt.where(Equipment.site.in_(sites))
+        if filter.criticality:
+            crits = [c.strip() for c in filter.criticality.split(",")]
+            stmt = stmt.where(Equipment.criticality.in_(crits))
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = (await self.db.execute(count_stmt)).scalar_one()
@@ -114,6 +127,12 @@ class EquipmentService:
             purchase_date=payload.purchase_date,
             asset_value=payload.asset_value,
             supplier=payload.supplier,
+            department=payload.department,
+            site=payload.site,
+            room=payload.room,
+            criticality=payload.criticality,
+            criticality_basis=payload.criticality_basis,
+            commission_date=payload.commission_date,
             status="active",
             has_workstation=payload.has_workstation,
             workstation_info=payload.workstation_info,
@@ -141,6 +160,16 @@ class EquipmentService:
         equipment = await self._get_equipment_or_404(code)
 
         update_data = payload.model_dump(exclude_unset=True, exclude={"change_reason"})
+
+        # 分级字典跟着分类走：本次改了分类就按新分类判，否则按现有分类判
+        new_category = update_data.get("category", equipment.category)
+        new_criticality = update_data.get("criticality", equipment.criticality)
+        if new_criticality and new_criticality not in allowed_criticalities(new_category):
+            allowed = "/".join(allowed_criticalities(new_category))
+            raise InvalidValueError(
+                f"分类「{new_category}」的设备分级只能是 {allowed}，当前为「{new_criticality}」；"
+                "改分类时请一并调整分级"
+            )
         for k, v in update_data.items():
             setattr(equipment, k, v)
         equipment.updated_by = current_user.user_id

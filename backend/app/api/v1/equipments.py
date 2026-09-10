@@ -29,6 +29,9 @@ async def list_equipments(
     category: str | None = None,
     status: str | None = None,
     manufacturer: str | None = None,
+    department: str | None = None,
+    site: str | None = None,
+    criticality: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort: str | None = None,
@@ -40,6 +43,9 @@ async def list_equipments(
         category=category,
         status=status,
         manufacturer=manufacturer,
+        department=department,
+        site=site,
+        criticality=criticality,
     )
     service = EquipmentService(db)
     items, total = await service.list_equipments(filter, page, page_size, sort)

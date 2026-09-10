@@ -23,6 +23,7 @@ import {
   EQUIPMENT_STATUS_OPTIONS,
   IT_CATEGORY,
   WORKSTATION_FIELDS,
+  criticalityDef,
 } from '../constants';
 
 const { Title, Text } = Typography;
@@ -55,6 +56,7 @@ export function EquipmentDetailPage() {
 
   const categoryDef = EQUIPMENT_CATEGORY_OPTIONS.find((o) => o.value === eq.category);
   const statusDef = EQUIPMENT_STATUS_OPTIONS.find((o) => o.value === eq.status);
+  const critDef = criticalityDef(eq.criticality);
 
   return (
     <div>
@@ -73,9 +75,12 @@ export function EquipmentDetailPage() {
               {eq.equipment_code} — {eq.equipment_name}{' '}
               <Tag color={categoryDef?.color}>{eq.category}</Tag>
               <Tag color={statusDef?.color}>{statusDef?.label ?? eq.status}</Tag>
+              {eq.criticality && (
+                <Tag color={critDef?.color}>{critDef?.label ?? eq.criticality}</Tag>
+              )}
             </Title>
             <Text type="secondary">
-              主数据（身份/采购属性）；日常运营（位置/负责人/校验/维护/维修）在 CMC LabOps Portal
+              全公司设备清单（设备部维护）；校准由计量专员、验证由验证部平台管理
             </Text>
           </div>
           <Space>
@@ -108,6 +113,19 @@ export function EquipmentDetailPage() {
           <Descriptions.Item label="产地">{eq.origin ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="序列号">{eq.serial_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="供应商">{eq.supplier ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="使用部门">{eq.department ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="存放位置">
+            {[eq.site, eq.room].filter(Boolean).join(' · ') || '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="设备分级">
+            {eq.criticality ? (
+              <Tag color={critDef?.color}>{critDef?.label ?? eq.criticality}</Tag>
+            ) : (
+              '—'
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="分级依据">{eq.criticality_basis ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="首次启用日期">{eq.commission_date ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="购入日期">{eq.purchase_date ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="资产价值(元)">{eq.asset_value ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="创建时间">

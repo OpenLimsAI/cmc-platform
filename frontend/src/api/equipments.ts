@@ -8,6 +8,8 @@ export type EquipmentCategory =
   | '公用工程/环境与支持系统'
   | 'IT/自动化与数据系统';
 export type EquipmentStatus = 'active' | 'retired';
+// 设备分级：分析仪器 A/B/C（USP 口径）；其他分类 关键/一般
+export type EquipmentCriticality = 'A' | 'B' | 'C' | '关键' | '一般';
 
 export interface EquipmentBrief {
   equipment_code: string; // 设备ID（系统生成 EQP-）
@@ -19,6 +21,10 @@ export interface EquipmentBrief {
   model: string | null;
   manufacturer: string | null;
   serial_no: string | null;
+  department: string | null; // 使用部门
+  site: string | null; // 厂区
+  room: string | null; // 房间/存放位置
+  criticality: EquipmentCriticality | null; // 设备分级
   status: EquipmentStatus;
   created_at: string;
   updated_at: string;
@@ -42,6 +48,8 @@ export interface EquipmentDetail extends EquipmentBrief {
   equipment_id: number;
   rated_power: string | null;
   origin: string | null;
+  criticality_basis: string | null; // 分级依据
+  commission_date: string | null; // 首次启用日期
   purchase_date: string | null;
   asset_value: string | null;
   supplier: string | null;
@@ -68,6 +76,12 @@ export interface EquipmentCreatePayload {
   serial_no?: string | null;
   rated_power?: string | null;
   origin?: string | null;
+  department?: string | null;
+  site?: string | null;
+  room?: string | null;
+  criticality?: EquipmentCriticality | null;
+  criticality_basis?: string | null;
+  commission_date?: string | null;
   purchase_date?: string | null;
   asset_value?: string | number | null;
   supplier?: string | null;
@@ -87,6 +101,9 @@ export interface EquipmentListQuery {
   category?: string;
   status?: string;
   manufacturer?: string;
+  department?: string;
+  site?: string;
+  criticality?: string;
   page?: number;
   page_size?: number;
   sort?: string;

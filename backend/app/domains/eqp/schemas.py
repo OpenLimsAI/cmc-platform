@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 EquipmentCategory = Literal[
     "分析仪器",
@@ -16,6 +16,24 @@ EquipmentCategory = Literal[
     "IT/自动化与数据系统",
 ]
 EquipmentStatus = Literal["active", "retired"]
+
+# 设备分级（0056）：字典按分类走 —— 分析仪器(检验设备)用 USP 口径 A/B/C，
+# 其他分类(生产/公用/通用/IT)用 关键/一般。DB 有同名 CHECK 约束兜底。
+ANALYTICAL_CATEGORY = "分析仪器"
+CRITICALITY_ANALYTICAL = ("A", "B", "C")
+CRITICALITY_GENERAL = ("关键", "一般")
+EquipmentCriticality = Literal["A", "B", "C", "关键", "一般"]
+
+
+def allowed_criticalities(category: str | None) -> tuple[str, ...]:
+    """该分类允许的分级取值。category 为空时返回全集（留给服务层按现值判定）。"""
+    if category is None:
+        return CRITICALITY_ANALYTICAL + CRITICALITY_GENERAL
+    return (
+        CRITICALITY_ANALYTICAL
+        if category == ANALYTICAL_CATEGORY
+        else CRITICALITY_GENERAL
+    )
 
 
 class EquipmentBase(BaseModel):
@@ -34,6 +52,14 @@ class EquipmentBase(BaseModel):
     purchase_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
+    department: str | None = Field(None, max_length=64, description="使用部门")
+    site: str | None = Field(None, max_length=64, description="厂区（南楼/北楼/祥泰路）")
+    room: str | None = Field(None, max_length=100, description="房间/存放位置")
+    criticality: EquipmentCriticality | None = Field(
+        None, description="设备分级：分析仪器 A/B/C；其他分类 关键/一般"
+    )
+    criticality_basis: str | None = Field(None, description="分级依据")
+    commission_date: date | None = Field(None, description="首次启用日期")
     has_workstation: bool = Field(False, description="是否附带专用工作站")
     workstation_info: dict | None = Field(
         None,
@@ -50,6 +76,13 @@ class EquipmentCreate(EquipmentBase):
     设备ID(equipment_code)一律由系统生成 EQP-yyyy-NNNNNN，不接受手填——
     与物质编码一致。业务/历史号请填 equipment_no（设备编号）。
     """
+
+    @model_validator(mode="after")
+    def _check_criticality(self) -> "EquipmentCreate":
+        if self.criticality and self.criticality not in allowed_criticalities(self.category):
+            allowed = "/".join(allowed_criticalities(self.category))
+            raise ValueError(f"分类「{self.category}」的设备分级只能是 {allowed}")
+        return self
 
 
 class EquipmentUpdate(BaseModel):
@@ -71,6 +104,12 @@ class EquipmentUpdate(BaseModel):
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
     status: EquipmentStatus | None = None
+    department: str | None = Field(None, max_length=64, description="使用部门")
+    site: str | None = Field(None, max_length=64, description="厂区")
+    room: str | None = Field(None, max_length=100, description="房间/存放位置")
+    criticality: EquipmentCriticality | None = None
+    criticality_basis: str | None = Field(None, description="分级依据")
+    commission_date: date | None = None
     has_workstation: bool | None = None
     workstation_info: dict | None = None
     description: str | None = Field(None, description="主要性能参数描述")
@@ -96,6 +135,10 @@ class EquipmentBrief(BaseModel):
     model: str | None = None
     manufacturer: str | None = None
     serial_no: str | None = None
+    department: str | None = None
+    site: str | None = None
+    room: str | None = None
+    criticality: EquipmentCriticality | None = None
     status: EquipmentStatus
     created_at: datetime
     updated_at: datetime
@@ -123,3 +166,6 @@ class EquipmentFilter(BaseModel):
     category: str | None = None
     status: str | None = None
     manufacturer: str | None = None
+    department: str | None = None
+    site: str | None = None
+    criticality: str | None = None

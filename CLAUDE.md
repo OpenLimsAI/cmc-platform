@@ -97,6 +97,21 @@ make docs-check       # CI 文档一致性校验
 - 登录态用**全公司统一 key**：`localStorage['cmab_access_token']`（MDM JWT）+ `localStorage['cmab_user']`（MDM 登录响应 user 对象）；同源共享 → 门户登录一次这里免登。别再改回私有 key。 authStore 用 zustand 自定义 storage 落到这两个 key。Linux 主机 nginx 受管副本在 `deploy/nginx/linux-host/cmab-mdm.conf`。
 - 门户侧配置/路由/部署脚本在 `~/code/cmab-hub`（`nginx/hub-locations.conf`、`deploy/linux/`），约定见其 `CLAUDE.md`。
 
+## 设备域 EQP：全公司设备清单（2026-09-10 起，migration 0057）
+
+- **定位变了**：`eqp.equipment` 从「研发设备身份注册表」升级为**全公司设备清单**，由**设备部**维护（负责人 2026-09-10 拍板）。分工：设备部管清单、计量专员管校准、验证部平台（`cmab_qv`，门户 `/qv/`）管验证，LabOps 只留研发自己的领用/维修。LabOps 现有的校准表与位置字段属于历史遗留，后续迁出，本次未动。
+- **0057 新增 6 个字段**：`department`(使用部门，与 `auth.user.department` 同口径)、`site`(厂区)、`room`(房间/存放位置)、`criticality`(分级)、`criticality_basis`(分级依据)、`commission_date`(首次启用日期，与 `purchase_date` 购入日期分开)。迁移把已有 463 台（全是研发设备）的 `department` 回填为「研发部」。
+- **分级字典跟着分类走**（别写死成一个列表）：`分析仪器`（检验设备）= **A/B/C**（USP 口径）；其他分类（工艺制备=生产设备、公用工程、通用实验室、IT）= **关键/一般**。三处同口径校验：DB `ck_equipment_criticality` CHECK、Pydantic `EquipmentCreate` 校验器、service 层 update（改分类时按**新**分类判，不合法回 400 提示一并调整）。前端 `criticalityOptions(category)` 出选项，换分类自动清空不合法的旧值。
+- **不加「用途类型」字段**（生产/检验设备）：与现有 5 分类重叠。冰箱等归通用/公用，分级规则按分类区分即可。
+- **导入设备部台账**（受控表单 SMP-PES-001-F13，各部门一份，格式一致）：
+  ```bash
+  docker cp 台账.xlsx cmab-mdm-backend:/tmp/l.xlsx
+  docker exec cmab-mdm-backend python -m app.scripts.import_equipment_excel \
+    --xlsx /tmp/l.xlsx --dry-run --department 生产一部 --site 南楼 --report /tmp/r.csv
+  ```
+  台账**没有分类列** → 脚本按设备名称关键词预归类，报告列「需人工核对分类」=Y，**必须人工核一遍再去掉 --dry-run**。台账把「英文名/中文名」写在一格（`Bioreactor/225L生物反应器`）会自动拆；日期只到年月（`2016.05`）按当月 1 日入库；别名/出厂日期/总重等无正式列的信息进 `extra`，不丢。
+- **关键词表顺序敏感**（`CATEGORY_ALIASES`）：强信号（层析/装柱/压缩柱/轴向）排在最前，否则「装柱工作站」会被 IT 的「工作站」抢走；工艺物料罐只写具体名（补料罐/培养基罐…），不用泛词「罐」，否则抢走「液氮罐」。改这张表后跑 `tests/test_import_equipment_excel.py`。
+
 ## 部门管理员 DEPT_ADMIN（2026-09-10 起，migration 0055）
 
 - 背景：验证部平台（qv-validation-platform，门户 `/qv/`）登录/角色走 MDM，验证部负责人要能自己管本部门的人。

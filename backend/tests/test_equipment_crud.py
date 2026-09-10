@@ -246,3 +246,137 @@ async def test_equipment_readonly_cannot_write(readonly_client, unique_suffix):
         json={"equipment_name": f"pytest forbidden {unique_suffix}", "category": "通用实验室设备"},
     )
     assert resp.status_code == 403, resp.text
+
+
+# ============== 公司级设备清单治理字段（0057，2026-09-10）==============
+
+@pytest.mark.asyncio
+async def test_equipment_governance_fields_roundtrip(admin_client, unique_suffix):
+    """使用部门 / 厂区 / 房间 / 分级 / 分级依据 / 首次启用日期 创建→详情→更新 往返"""
+    resp = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 生物反应器 {unique_suffix}",
+            "category": "工艺/制备设备",
+            "department": "生产一部",
+            "site": "南楼",
+            "room": "3129培养间",
+            "criticality": "关键",
+            "criticality_basis": "直接接触产品",
+            "commission_date": "2016-05-01",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    d = resp.json()["data"]
+    code = d["equipment_code"]
+    assert d["department"] == "生产一部"
+    assert d["site"] == "南楼"
+    assert d["room"] == "3129培养间"
+    assert d["criticality"] == "关键"
+    assert d["commission_date"] == "2016-05-01"
+
+    got = (await admin_client.get(f"/api/v1/equipments/{code}")).json()["data"]
+    assert got["criticality_basis"] == "直接接触产品"
+
+    upd = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"criticality": "一般", "change_reason": "复评后降级"},
+    )
+    assert upd.status_code == 200, upd.text
+    assert upd.json()["data"]["criticality"] == "一般"
+    assert upd.json()["data"]["department"] == "生产一部"  # 未传不变
+
+
+@pytest.mark.asyncio
+async def test_equipment_criticality_dictionary_follows_category(admin_client, unique_suffix):
+    """分级字典跟分类走：分析仪器 A/B/C，其他分类 关键/一般，串用要被拒"""
+    # 分析仪器用 A/B/C
+    ok = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 液相 {unique_suffix}",
+            "category": "分析仪器",
+            "criticality": "A",
+        },
+    )
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["data"]["criticality"] == "A"
+
+    # 分析仪器不能用「关键」（请求体校验失败 → 40001/400）
+    bad = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 液相2 {unique_suffix}",
+            "category": "分析仪器",
+            "criticality": "关键",
+        },
+    )
+    assert bad.status_code == 400, bad.text
+    assert "A/B/C" in bad.text
+
+    # 生产设备不能用 A
+    bad2 = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 反应器2 {unique_suffix}",
+            "category": "工艺/制备设备",
+            "criticality": "A",
+        },
+    )
+    assert bad2.status_code == 400, bad2.text
+    assert "关键/一般" in bad2.text
+
+
+@pytest.mark.asyncio
+async def test_equipment_criticality_rejected_when_category_changes(admin_client, unique_suffix):
+    """把分析仪器改成生产设备时，原 A 级分级不再合法 → 400，提示一并调整"""
+    resp = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 待改分类 {unique_suffix}",
+            "category": "分析仪器",
+            "criticality": "B",
+        },
+    )
+    code = resp.json()["data"]["equipment_code"]
+
+    bad = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"category": "工艺/制备设备", "change_reason": "重新界定为生产设备"},
+    )
+    assert bad.status_code == 400, bad.text
+
+    # 分类和分级一起改则通过
+    ok = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={
+            "category": "工艺/制备设备",
+            "criticality": "关键",
+            "change_reason": "重新界定为生产设备并定级",
+        },
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["data"]["criticality"] == "关键"
+
+
+@pytest.mark.asyncio
+async def test_equipment_list_filter_by_department_and_criticality(admin_client, unique_suffix):
+    """列表按使用部门 / 分级过滤"""
+    dept = f"pytest部门{unique_suffix}"
+    await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest 部门过滤 {unique_suffix}",
+            "category": "工艺/制备设备",
+            "department": dept,
+            "criticality": "关键",
+        },
+    )
+    resp = await admin_client.get(
+        "/api/v1/equipments", params={"department": dept, "criticality": "关键"}
+    )
+    assert resp.status_code == 200, resp.text
+    items = resp.json()["data"]
+    assert len(items) == 1
+    assert items[0]["department"] == dept
+    assert items[0]["criticality"] == "关键"

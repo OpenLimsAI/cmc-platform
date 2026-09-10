@@ -24,6 +24,7 @@ import {
   IT_CATEGORY,
 } from '../constants';
 import { WorkstationFields } from '../components/WorkstationFields';
+import { GovernanceFields } from '../components/GovernanceFields';
 
 const { Title, Text } = Typography;
 
@@ -69,6 +70,12 @@ export function EquipmentEditPage() {
       purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
+      department: v.department,
+      site: v.site,
+      room: v.room,
+      criticality: v.criticality ?? null,
+      criticality_basis: v.criticality_basis,
+      commission_date: v.commission_date?.format('YYYY-MM-DD') ?? null,
       status: v.status,
       has_workstation: !!v.has_workstation,
       workstation_info:
@@ -106,6 +113,7 @@ export function EquipmentEditPage() {
           initialValues={{
             ...eq,
             purchase_date: eq.purchase_date ? dayjs(eq.purchase_date) : null,
+            commission_date: eq.commission_date ? dayjs(eq.commission_date) : null,
             asset_value: eq.asset_value != null ? Number(eq.asset_value) : null,
             workstation_info: eq.workstation_info ?? {},
           }}
@@ -209,6 +217,7 @@ export function EquipmentEditPage() {
               </Form.Item>
             </Col>
           </Row>
+          <GovernanceFields />
           <WorkstationFields />
 
           <Form.Item name="description" label="主要性能参数描述">

@@ -13,10 +13,12 @@ from app.scripts.import_equipment_excel import (
     _norm,
     detect_header,
     normalize_category,
+    normalize_status,
     parse_date,
     parse_decimal,
     parse_row,
     read_excel,
+    split_name,
 )
 
 
@@ -145,3 +147,134 @@ def test_read_excel_blank_code_ok(tmp_path):
     assert keep[0].equipment_name == "生物安全柜"
     assert keep[0].category == "公用工程/环境与支持系统"
     assert keep[0].equipment_no is None
+
+
+# ============== 设备部台账适配（0057，2026-09-10）==============
+
+def test_parse_date_year_month():
+    """设备部台账「首次启用日期」只写到年月 → 取当月 1 日"""
+    assert parse_date("2016.05") == date(2016, 5, 1)
+    assert parse_date("2016-05") == date(2016, 5, 1)
+    assert parse_date("2016年5月") == date(2016, 5, 1)
+    # 完整日期不受影响
+    assert parse_date("2016.05.20") == date(2016, 5, 20)
+
+
+@pytest.mark.parametrize("raw,zh,en", [
+    # 台账把英文名和中文名写在一格
+    ("Bioreactor/\n225L生物反应器", "225L生物反应器", "Bioreactor"),
+    ("Nutrient Tank/\n600L补料罐", "600L补料罐", "Nutrient Tank"),
+    # 两侧都是中文 = 一台设备的两个规格，不能拆
+    ("850L培养基罐/400L培养基罐", "850L培养基罐/400L培养基罐", None),
+    # 纯中文、纯英文都原样返回
+    ("蠕动泵", "蠕动泵", None),
+    ("HOT LIPS TUBE SEALER", "HOT LIPS TUBE SEALER", None),
+    (None, None, None),
+])
+def test_split_name(raw, zh, en):
+    assert split_name(raw) == (zh, en)
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("启用", "active"),
+    (None, "active"),
+    ("停用", "active"),  # 只有明确报废/退役才置 retired
+    ("已报废", "retired"),
+    ("退役", "retired"),
+])
+def test_normalize_status(raw, expected):
+    assert normalize_status(raw) == expected
+
+
+def test_category_process_beats_it_workstation():
+    """「装柱工作站」「轴向压缩柱工作站」是层析工艺设备，不能被 IT 的「工作站」抢走"""
+    assert normalize_category("电动装柱工作站") == ("工艺/制备设备", False)
+    assert normalize_category("电动轴向压缩柱工作站") == ("工艺/制备设备", False)
+    assert normalize_category("装柱站") == ("工艺/制备设备", False)
+    # 真正的 IT 工作站不受影响
+    assert normalize_category("数据采集工作站") == ("IT/自动化与数据系统", False)
+
+
+def test_category_liquid_nitrogen_tank_stays_utility():
+    """新增的工艺物料罐关键词不能抢走「液氮罐」"""
+    assert normalize_category("液氮罐") == ("公用工程/环境与支持系统", False)
+    assert normalize_category("600L补料罐") == ("工艺/制备设备", False)
+    assert normalize_category("850L缓冲液罐") == ("工艺/制备设备", False)
+
+
+def _ledger_sheet(rows: list[tuple]):
+    """造一张设备部台账样式的 sheet（表头在第 4 行，前 3 行是抬头）"""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["泰州迈博太科药业有限公司"])
+    ws.append(["生产一部  设备/设施统计台账"])
+    ws.append(["编号：SMP-PES-001-F13"])
+    ws.append([
+        "序号", "设备名称", "别名/曾用名", "型号", "设备编号", "首次启用日期",
+        "存放位置", "制造单位", "唯一编码", "出厂日期", "总功率", "总重", "设备状态",
+    ])
+    for r in rows:
+        ws.append(r)
+    return wb, ws
+
+
+def test_ledger_header_detection_maps_department_columns():
+    """设备部台账的列名（制造单位/唯一编码/总功率/存放位置/首次启用日期）都要认出来"""
+    _, ws = _ledger_sheet([])
+    header_row, col_field = detect_header(ws)
+    assert header_row == 4
+    fields = set(col_field.values())
+    assert {
+        "equipment_name", "model", "equipment_no", "commission_date",
+        "room", "manufacturer", "serial_no", "rated_power", "status_raw",
+    } <= fields
+    # 主数据没有正式列的三项进 extra
+    assert {"x_alias", "x_manufacture_date", "x_weight"} <= fields
+
+
+def test_ledger_row_roundtrip(tmp_path):
+    """整行解析：拆中英文名、年月日期、部门/厂区兜底、extra 收纳台账杂项"""
+    wb, _ = _ledger_sheet([
+        (1, "Bioreactor/\n225L生物反应器", "BR1-1;\n发酵线1", "225/150L",
+         "CC1-SC-001-01", "2016.05", "3129培养间", "Bioengineering AG",
+         "D3285", "2015.05", "16kW", "2150kg", "启用"),
+    ])
+    path = tmp_path / "ledger.xlsx"
+    wb.save(path)
+
+    rows = read_excel(path, None, default_department="生产一部", default_site="南楼")
+    assert len(rows) == 1
+    pr = rows[0]
+    assert pr.skip_reason is None
+    assert pr.equipment_name == "225L生物反应器"
+    assert pr.equipment_name_en == "Bioreactor"
+    assert pr.equipment_no == "CC1-SC-001-01"
+    assert pr.manufacturer == "Bioengineering AG"
+    assert pr.serial_no == "D3285"
+    assert pr.rated_power == "16kW"
+    assert pr.room == "3129培养间"
+    assert pr.commission_date == date(2016, 5, 1)
+    assert pr.purchase_date is None  # 启用日期 ≠ 购入日期，不能混
+    # 台账没有分类列 → 按名称预归类，并标记需人工核对
+    assert pr.category == "工艺/制备设备"
+    assert pr.category_source == "name_guess"
+    assert pr.status == "active"
+    # Excel 无部门/厂区列 → 用命令行统一指定的值兜底
+    assert pr.department == "生产一部"
+    assert pr.site == "南楼"
+    # 主数据无正式列的信息进 extra，不丢
+    extra = pr.build_extra()
+    assert extra["source"] == "eqp_ledger_excel"
+    assert extra["出厂日期"] == "2015.05"
+    assert extra["总重"] == "2150kg"
+    assert "BR1-1" in extra["别名"]
+
+
+def test_ledger_empty_name_skipped(tmp_path):
+    wb, _ = _ledger_sheet([
+        (1, None, None, None, "CC1-XX-999", None, None, None, None, None, None, None, None),
+    ])
+    path = tmp_path / "ledger.xlsx"
+    wb.save(path)
+    rows = read_excel(path, None)
+    assert rows[0].skip_reason == "empty_name"

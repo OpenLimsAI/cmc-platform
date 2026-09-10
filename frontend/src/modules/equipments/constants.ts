@@ -69,3 +69,33 @@ export const EQUIPMENT_STATUS_OPTIONS: {
   { value: 'active', label: '在册', color: 'success' },
   { value: 'retired', label: '已退役', color: 'default' },
 ];
+
+// ============== 设备分级（0056，负责人 2026-09-10）==============
+// 字典按分类走：分析仪器（检验设备）用 USP 口径 A/B/C；
+// 其他分类（工艺制备=生产设备、公用工程、通用实验室、IT）用 关键/一般。
+// 后端 schema + DB CHECK 同口径校验，这里只管表单显示。
+export const ANALYTICAL_CATEGORY: EquipmentCategory = '分析仪器';
+
+export const CRITICALITY_ANALYTICAL_OPTIONS = [
+  { value: 'A', label: 'A 级', color: 'red', hint: '直接产生 GMP 数据、结果直接判定放行的仪器' },
+  { value: 'B', label: 'B 级', color: 'orange', hint: '需校准/确认，但结果不单独决定放行' },
+  { value: 'C', label: 'C 级', color: 'green', hint: '仅作辅助测量，标准仪器或简单量具' },
+];
+
+export const CRITICALITY_GENERAL_OPTIONS = [
+  { value: '关键', label: '关键设备', color: 'red', hint: '直接接触产品或影响产品质量属性' },
+  { value: '一般', label: '一般设备', color: 'default', hint: '不直接影响产品质量' },
+];
+
+/** 该分类下可选的分级项（分析仪器 → A/B/C；其他 → 关键/一般） */
+export function criticalityOptions(category?: EquipmentCategory | null) {
+  return category === ANALYTICAL_CATEGORY
+    ? CRITICALITY_ANALYTICAL_OPTIONS
+    : CRITICALITY_GENERAL_OPTIONS;
+}
+
+export function criticalityDef(criticality?: string | null) {
+  return [...CRITICALITY_ANALYTICAL_OPTIONS, ...CRITICALITY_GENERAL_OPTIONS].find(
+    (o) => o.value === criticality,
+  );
+}

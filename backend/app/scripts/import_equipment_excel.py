@@ -30,6 +30,14 @@
     Excel 内部同样按上述键去重
   - 脏数据跳过：空 equipment_name
   - 审计 username = admin (excel-import) 可追溯
+
+设备部台账（SMP-PES-001-F13）适配（0056，2026-09-10）：
+  - 「制造单位/唯一编码/总功率/存放位置/首次启用日期」等列名认得了
+  - 「Bioreactor/225L生物反应器」这种一格两语言，自动拆中文名 + 英文名
+  - 日期只写到年月（2016.05）按当月 1 日入库
+  - 台账没有分类列 → 按设备名称关键词预归类，报告列「需人工核对分类」=Y 供核对
+  - 别名/出厂日期/总重等主数据无正式列的信息进 extra，不丢
+  - 使用部门/厂区用 --department / --site 统一指定（一个部门一份台账）
 """
 from __future__ import annotations
 
@@ -69,6 +77,12 @@ DEFAULT_CATEGORY = "通用实验室设备"  # 新体系无「其他」，无法�
 # category 别名 → 枚举值。命中 key（子串包含，按顺序首个命中）即归一化。
 # 顺序重要：把强信号（IT/公用工程/工艺）排在通用类前，避免被泛词抢走。
 CATEGORY_ALIASES: list[tuple[str, str]] = [
+    # 强信号：必须先于下面的泛词判定
+    # （「装柱工作站」「电动轴向压缩柱工作站」是层析工艺设备，不是 IT 工作站）
+    ("层析", "工艺/制备设备"),
+    ("装柱", "工艺/制备设备"),
+    ("压缩柱", "工艺/制备设备"),
+    ("轴向", "工艺/制备设备"),
     # IT / 自动化与数据系统
     ("电脑", "IT/自动化与数据系统"),
     ("计算机", "IT/自动化与数据系统"),
@@ -94,6 +108,16 @@ CATEGORY_ALIASES: list[tuple[str, str]] = [
     ("液氮", "公用工程/环境与支持系统"),
     ("公用", "公用工程/环境与支持系统"),
     ("环境", "公用工程/环境与支持系统"),
+    # 洁净区配套设施（设备部台账常见）
+    ("传递窗", "公用工程/环境与支持系统"),
+    ("层流", "公用工程/环境与支持系统"),
+    ("安全柜", "公用工程/环境与支持系统"),
+    ("工作台", "公用工程/环境与支持系统"),
+    ("烘手器", "公用工程/环境与支持系统"),
+    ("净手", "公用工程/环境与支持系统"),
+    ("冰柜", "公用工程/环境与支持系统"),
+    ("冷藏", "公用工程/环境与支持系统"),
+    ("冷冻箱", "公用工程/环境与支持系统"),
     # 工艺 / 制备设备
     ("反应器", "工艺/制备设备"),
     ("发酵", "工艺/制备设备"),
@@ -107,6 +131,22 @@ CATEGORY_ALIASES: list[tuple[str, str]] = [
     ("中试", "工艺/制备设备"),
     ("工艺", "工艺/制备设备"),
     ("生产", "工艺/制备设备"),
+    # 工艺物料容器 / 输送 / 过滤 / 密封（列具体名，不用泛词「罐」，
+    # 免得抢走上面的「液氮罐」）
+    ("补料罐", "工艺/制备设备"),
+    ("培养基罐", "工艺/制备设备"),
+    ("缓冲液罐", "工艺/制备设备"),
+    ("中间体罐", "工艺/制备设备"),
+    ("匀浆罐", "工艺/制备设备"),
+    ("移动罐", "工艺/制备设备"),
+    ("储罐", "工艺/制备设备"),
+    ("蠕动泵", "工艺/制备设备"),
+    ("过滤", "工艺/制备设备"),
+    ("夹具", "工艺/制备设备"),
+    ("接管机", "工艺/制备设备"),
+    ("封口", "工艺/制备设备"),
+    ("SEALER", "工艺/制备设备"),
+    ("夹断", "工艺/制备设备"),
     # 分析仪器
     ("色谱", "分析仪器"),
     ("光谱", "分析仪器"),
@@ -118,6 +158,9 @@ CATEGORY_ALIASES: list[tuple[str, str]] = [
     ("Biacore", "分析仪器"),
     ("溶出", "分析仪器"),
     ("电泳", "分析仪器"),
+    ("电导率", "分析仪器"),
+    ("浊度", "分析仪器"),
+    ("完整性", "分析仪器"),
     # 通用实验室设备
     ("离心", "通用实验室设备"),
     ("天平", "通用实验室设备"),
@@ -130,6 +173,11 @@ CATEGORY_ALIASES: list[tuple[str, str]] = [
     ("搅拌", "通用实验室设备"),
     ("振荡", "通用实验室设备"),
     ("显微镜", "通用实验室设备"),
+    ("清洗", "通用实验室设备"),
+    ("混合", "通用实验室设备"),
+    ("干燥箱", "通用实验室设备"),
+    ("烘箱", "通用实验室设备"),
+    ("水槽", "通用实验室设备"),
     # 泛词垫底：放在所有具体词之后，避免「分析天平」被「分析」抢成分析仪器
     ("检测", "分析仪器"),
     ("分析", "分析仪器"),
@@ -156,11 +204,23 @@ _reg("equipment_name", "设备名称", "名称", "仪器名称", "设备")
 _reg("equipment_name_en", "英文名称", "设备英文名", "英文名", "englishname", "name(en)")
 _reg("category", "类别", "分类", "设备类别", "设备分类", "类型")
 _reg("model", "型号", "规格型号", "规格/型号", "规格", "spec", "model")
-_reg("manufacturer", "生产商", "厂商", "制造商", "生产厂家", "厂家", "品牌", "manufacturer")
-_reg("serial_no", "序列号", "出厂编号", "出厂序列号", "sn", "serialno", "serialnumber")
-_reg("rated_power", "额定功率", "功率", "ratedpower", "power")
+_reg("manufacturer", "生产商", "厂商", "制造商", "制造单位", "生产厂家", "厂家", "品牌", "manufacturer")
+_reg("serial_no", "序列号", "出厂编号", "出厂序列号", "唯一编码", "sn", "serialno", "serialnumber")
+_reg("rated_power", "额定功率", "功率", "总功率", "ratedpower", "power")
 _reg("origin", "产地", "原产地", "生产国", "国别", "origin")
-_reg("purchase_date", "购置日期", "采购日期", "购入日期", "启用日期", "购置时间")
+_reg("purchase_date", "购置日期", "采购日期", "购入日期", "购置时间")
+# 设备部台账列（0056：使用部门/位置/分级/启用日期进主数据）
+_reg("commission_date", "首次启用日期", "启用日期", "投用日期", "首次使用日期")
+_reg("department", "使用部门", "所属部门", "部门", "使用单位")
+_reg("site", "厂区", "楼栋", "所在厂区")
+_reg("room", "存放位置", "存放地点", "位置", "房间", "安装位置", "放置地点")
+_reg("criticality", "设备分级", "分级", "关键性")
+_reg("criticality_basis", "分级依据", "分级理由")
+_reg("status_raw", "设备状态", "状态", "使用状态")
+# 台账有、主数据无正式列的 → 进 extra
+_reg("x_alias", "别名/曾用名", "别名", "曾用名", "原名称")
+_reg("x_manufacture_date", "出厂日期", "生产日期", "制造日期")
+_reg("x_weight", "总重", "重量", "净重")
 _reg("asset_value", "资产原值", "资产价值", "原值", "金额", "价值", "采购金额")
 _reg("supplier", "供应商", "供货商", "经销商", "代理商")
 _reg("description", "描述", "说明", "用途", "功能描述")
@@ -179,6 +239,17 @@ MAXLEN = {
     "rated_power": 64,
     "origin": 100,
     "supplier": 200,
+    "department": 64,
+    "site": 64,
+    "room": 100,
+    "criticality": 16,
+}
+
+# extra 里承载的台账列（主数据无正式列，但不能丢）：字段名 → JSON 键
+EXTRA_FIELDS = {
+    "x_alias": "别名",
+    "x_manufacture_date": "出厂日期",
+    "x_weight": "总重",
 }
 
 
@@ -200,9 +271,34 @@ class ParsedRow:
     supplier: str | None = None
     description: str | None = None
     notes: str | None = None
+    # 0056 治理字段
+    department: str | None = None
+    site: str | None = None
+    room: str | None = None
+    criticality: str | None = None
+    criticality_basis: str | None = None
+    commission_date: date | None = None
+    status_raw: str | None = None
+    # extra 承载列
+    x_alias: str | None = None
+    x_manufacture_date: str | None = None
+    x_weight: str | None = None
     # 计算字段
     category_defaulted: bool = False
+    category_source: str = "column"  # column / name_guess / default
+    status: str = "active"
     skip_reason: str | None = None
+
+    def build_extra(self) -> dict | None:
+        """台账里主数据没有正式列的信息，原样收进 extra，不丢。"""
+        extra: dict = {"source": "eqp_ledger_excel"}
+        for field, key in EXTRA_FIELDS.items():
+            val = getattr(self, field, None)
+            if val:
+                extra[key] = val
+        if self.status_raw and self.status_raw != "启用":
+            extra["台账状态"] = self.status_raw
+        return extra if len(extra) > 1 else None
 
     def natural_key(self) -> str:
         return "|".join([
@@ -244,7 +340,51 @@ def parse_date(val) -> date | None:
             return datetime.strptime(s, fmt).date()
         except ValueError:
             continue
+    # 设备部台账只写到年月（2016.05 / 2016-05 / 2016年5月），取当月 1 日
+    for fmt in ("%Y.%m", "%Y-%m", "%Y/%m", "%Y年%m月"):
+        try:
+            return datetime.strptime(s, fmt).date().replace(day=1)
+        except ValueError:
+            continue
     return None
+
+
+def _has_cjk(s: str) -> bool:
+    return any("\u4e00" <= ch <= "\u9fff" for ch in s)
+
+
+def split_name(raw: str | None) -> tuple[str | None, str | None]:
+    """拆「英文名/中文名」写在一格的台账写法。返回 (中文名, 英文名)。
+
+    设备部台账形如 'Bioreactor/\n225L生物反应器'、'Nutrient Tank/\n600L补料罐'。
+    只在「一侧全无汉字、另一侧有汉字」时才拆，避免误伤
+    '850L培养基罐/400L培养基罐'（两侧都是中文，是一台设备的两个规格）。
+    """
+    if raw is None:
+        return None, None
+    for sep in ("/", "\n"):
+        parts = [x.strip() for x in raw.split(sep) if x.strip()]
+        if len(parts) != 2:
+            continue
+        a, b = parts
+        if not _has_cjk(a) and _has_cjk(b):
+            return b, a
+        if _has_cjk(a) and not _has_cjk(b):
+            return a, b
+    return raw, None
+
+
+def normalize_status(raw: str | None) -> str:
+    """台账「设备状态」→ 主数据 status（只有 active/retired 两态）。
+
+    原值一并留在 extra，不丢信息。
+    """
+    if not raw:
+        return "active"
+    for kw in ("报废", "退役", "淘汰", "报停", "已处置"):
+        if kw in raw:
+            return "retired"
+    return "active"
 
 
 def parse_decimal(val) -> Decimal | None:
@@ -309,17 +449,23 @@ def detect_header(ws, scan_rows: int = 10) -> tuple[int, dict[int, str]]:
     )
 
 
-def parse_row(idx: int, row: tuple, col_field: dict[int, str]) -> ParsedRow:
+def parse_row(
+    idx: int,
+    row: tuple,
+    col_field: dict[int, str],
+    default_department: str | None = None,
+    default_site: str | None = None,
+) -> ParsedRow:
     pr = ParsedRow(excel_row=idx)
     for c_idx, field in col_field.items():
         if c_idx >= len(row):
             continue
         raw = row[c_idx]
-        if field == "purchase_date":
-            pr.purchase_date = parse_date(raw)
+        if field in ("purchase_date", "commission_date"):
+            setattr(pr, field, parse_date(raw))
         elif field == "asset_value":
             pr.asset_value = parse_decimal(raw)
-        elif field in ("description", "notes"):
+        elif field in ("description", "notes", "criticality_basis", "status_raw") or field.startswith("x_"):
             setattr(pr, field, _norm(raw))
         else:
             setattr(pr, field, _truncate(_norm(raw), MAXLEN.get(field, 255)))
@@ -328,13 +474,35 @@ def parse_row(idx: int, row: tuple, col_field: dict[int, str]) -> ParsedRow:
         pr.skip_reason = "empty_name"
         return pr
 
-    cat, defaulted = normalize_category(pr.category)
+    # 台账把「英文名/中文名」写在一格：拆开填中/英文名（Excel 已有英文名列时不覆盖）
+    zh, en = split_name(pr.equipment_name)
+    pr.equipment_name = _truncate(zh, MAXLEN["equipment_name"])
+    if en and not pr.equipment_name_en:
+        pr.equipment_name_en = _truncate(en, MAXLEN["equipment_name_en"])
+
+    # 分类：台账通常没有分类列 → 按设备名称关键词预归类，报告里标出来供人工核对
+    if pr.category:
+        cat, defaulted = normalize_category(pr.category)
+        pr.category_source = "default" if defaulted else "column"
+    else:
+        cat, defaulted = normalize_category(pr.equipment_name)
+        pr.category_source = "default" if defaulted else "name_guess"
     pr.category = cat
     pr.category_defaulted = defaulted
+
+    # 使用部门 / 厂区：Excel 没有列时用命令行统一指定（一个部门一份台账）
+    pr.department = pr.department or default_department
+    pr.site = pr.site or default_site
+    pr.status = normalize_status(pr.status_raw)
     return pr
 
 
-def read_excel(path: Path, sheet: str | None) -> list[ParsedRow]:
+def read_excel(
+    path: Path,
+    sheet: str | None,
+    default_department: str | None = None,
+    default_site: str | None = None,
+) -> list[ParsedRow]:
     wb = openpyxl.load_workbook(path, data_only=True)
     ws = wb[sheet] if sheet else wb[wb.sheetnames[0]]
     header_row, col_field = detect_header(ws)
@@ -348,7 +516,9 @@ def read_excel(path: Path, sheet: str | None) -> list[ParsedRow]:
     ):
         if not any(row):
             continue
-        out.append(parse_row(idx, row, col_field))
+        out.append(
+            parse_row(idx, row, col_field, default_department, default_site)
+        )
     return out
 
 
@@ -386,6 +556,7 @@ async def import_rows(
         "skipped_by_reason": {},
         "duplicated": 0,
         "category_defaulted": 0,
+        "category_guessed": 0,
         "to_insert": 0,
         "category_dist": {},
         "inserted": 0,
@@ -413,6 +584,8 @@ async def import_rows(
                     continue
                 if pr.category_defaulted:
                     stats["category_defaulted"] += 1
+                if pr.category_source == "name_guess":
+                    stats["category_guessed"] += 1
 
                 # 去重：有设备编号走编号，无编号走自然键
                 if pr.equipment_no:
@@ -463,9 +636,16 @@ async def import_rows(
                             purchase_date=pr.purchase_date,
                             asset_value=pr.asset_value,
                             supplier=pr.supplier,
-                            status="active",
+                            department=pr.department,
+                            site=pr.site,
+                            room=pr.room,
+                            criticality=pr.criticality,
+                            criticality_basis=pr.criticality_basis,
+                            commission_date=pr.commission_date,
+                            status=pr.status,
                             description=pr.description,
                             notes=pr.notes,
+                            extra=pr.build_extra(),
                             created_by=admin.user_id,
                             updated_by=admin.user_id,
                         )
@@ -490,21 +670,31 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
         w = csv.writer(f)
         w.writerow([
             "excel_row", "decision", "skip_reason",
-            "equipment_no", "fixed_asset_no", "equipment_name", "category",
-            "category_defaulted", "model", "manufacturer", "serial_no",
-            "purchase_date", "asset_value", "supplier", "notes",
+            "equipment_no", "fixed_asset_no", "equipment_name", "equipment_name_en",
+            "category", "category_source", "需人工核对分类",
+            "model", "manufacturer", "serial_no",
+            "department", "site", "room", "criticality", "commission_date",
+            "status", "purchase_date", "asset_value", "supplier", "notes", "extra",
         ])
         for pr in rows:
             decision = "SKIP" if pr.skip_reason else "IMPORT"
+            # 分类不是从 Excel 列直接来的（猜的或落默认值）→ 提示人工核对
+            needs_review = "Y" if pr.category_source != "column" else ""
+            extra = pr.build_extra() or {}
             w.writerow([
                 pr.excel_row, decision, pr.skip_reason or "",
                 pr.equipment_no or "", pr.fixed_asset_no or "",
-                pr.equipment_name or "", pr.category or "",
-                "Y" if pr.category_defaulted else "",
+                pr.equipment_name or "", pr.equipment_name_en or "",
+                pr.category or "", pr.category_source, needs_review,
                 pr.model or "", pr.manufacturer or "", pr.serial_no or "",
+                pr.department or "", pr.site or "", pr.room or "",
+                pr.criticality or "",
+                pr.commission_date.isoformat() if pr.commission_date else "",
+                pr.status,
                 pr.purchase_date.isoformat() if pr.purchase_date else "",
                 str(pr.asset_value) if pr.asset_value is not None else "",
                 pr.supplier or "", pr.notes or "",
+                "; ".join(f"{k}={v}" for k, v in extra.items() if k != "source"),
             ])
 
 
@@ -514,7 +704,8 @@ def print_stats(stats: dict) -> None:
     print(f"待插入:       {stats['to_insert']}")
     print(f"已实际插入:   {stats['inserted']}")
     print(f"已存在跳过:   {stats['duplicated']}")
-    print(f"category 默认为『其他』: {stats['category_defaulted']}")
+    print(f"分类按名称猜的:  {stats['category_guessed']}（报告『需人工核对分类』=Y）")
+    print(f"分类落默认值:    {stats['category_defaulted']}")
     print()
     print("--- 跳过原因 ---")
     for k, v in sorted(stats["skipped_by_reason"].items(), key=lambda x: -x[1]):
@@ -532,6 +723,14 @@ def main() -> int:
     ap.add_argument("--sheet", default=None, help="Sheet 名（默认第一个）")
     ap.add_argument("--dry-run", action="store_true", help="只生成报告不写库")
     ap.add_argument("--report", default="/tmp/eqp_import_report.csv", help="CSV 报告路径")
+    ap.add_argument(
+        "--department", default=None,
+        help="Excel 无「使用部门」列时统一指定（一个部门一份台账，如 生产一部）",
+    )
+    ap.add_argument(
+        "--site", default=None,
+        help="Excel 无「厂区」列时统一指定（南楼 / 北楼 / 祥泰路）",
+    )
     args = ap.parse_args()
 
     xlsx = Path(args.xlsx)
@@ -539,7 +738,7 @@ def main() -> int:
         logger.error(f"Excel 不存在: {xlsx}")
         return 2
 
-    rows = read_excel(xlsx, args.sheet)
+    rows = read_excel(xlsx, args.sheet, args.department, args.site)
     logger.info(f"读到数据行: {len(rows)}")
 
     stats = asyncio.run(import_rows(rows, dry_run=args.dry_run, sheet=args.sheet))

@@ -39,6 +39,13 @@ class Equipment(Base):
             "status IN ('active','retired')",
             name="ck_equipment_status",
         ),
+        # 分级字典按分类走：分析仪器(检验设备)=A/B/C(USP)；其他分类=关键/一般（0056）
+        CheckConstraint(
+            "criticality IS NULL "
+            "OR (category = '分析仪器' AND criticality IN ('A','B','C')) "
+            "OR (category <> '分析仪器' AND criticality IN ('关键','一般'))",
+            name="ck_equipment_criticality",
+        ),
         {"schema": "eqp"},
     )
 
@@ -65,6 +72,14 @@ class Equipment(Base):
     purchase_date: Mapped[date | None] = mapped_column(Date)
     asset_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     supplier: Mapped[str | None] = mapped_column(String(200))
+
+    # 公司级设备清单治理字段（0056，负责人 2026-09-10）
+    department: Mapped[str | None] = mapped_column(String(64))  # 使用部门
+    site: Mapped[str | None] = mapped_column(String(64))  # 厂区
+    room: Mapped[str | None] = mapped_column(String(100))  # 房间/存放位置
+    criticality: Mapped[str | None] = mapped_column(String(16))  # 分级 A/B/C 或 关键/一般
+    criticality_basis: Mapped[str | None] = mapped_column(Text)  # 分级依据
+    commission_date: Mapped[date | None] = mapped_column(Date)  # 首次启用日期
 
     # 主数据状态(无状态机,PUT 直接改;运营状态在 LabOps)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
