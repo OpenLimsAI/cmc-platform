@@ -63,11 +63,27 @@ const unifiedStorage: StateStorage = {
   },
 };
 
+/**
+ * 用户管理端点的操作范围（与后端 dept_admin.user_admin_scope 同口径）：
+ *  - 'all'        SYS_ADMIN 或持 user:manage → 全公司
+ *  - 'department' 仅持 DEPT_ADMIN（部门管理员）→ 本部门
+ *  - null         无用户管理能力
+ */
+export type UserAdminScope = 'all' | 'department' | null;
+
+function computeUserAdminScope(user: LoginResponseUser | null): UserAdminScope {
+  if (!user) return null;
+  if (user.roles.includes('SYS_ADMIN') || user.permissions.includes('user:manage')) return 'all';
+  if (user.roles.includes('DEPT_ADMIN')) return 'department';
+  return null;
+}
+
 interface AuthState {
   token: string | null;
   user: LoginResponseUser | null;
   permissions: Set<string>;
   isAdmin: boolean;
+  userAdminScope: UserAdminScope;
 
   setAuth: (token: string, user: LoginResponseUser) => void;
   updateToken: (token: string) => void;
@@ -82,6 +98,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       permissions: new Set(),
       isAdmin: false,
+      userAdminScope: null,
 
       setAuth: (token, user) => {
         set({
@@ -89,6 +106,7 @@ export const useAuthStore = create<AuthState>()(
           user,
           permissions: new Set(user.permissions),
           isAdmin: user.roles.includes('SYS_ADMIN'),
+          userAdminScope: computeUserAdminScope(user),
         });
       },
 
@@ -98,7 +116,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ token: null, user: null, permissions: new Set(), isAdmin: false });
+        set({
+          token: null,
+          user: null,
+          permissions: new Set(),
+          isAdmin: false,
+          userAdminScope: null,
+        });
       },
 
       hasPermission: (perm) => {
@@ -119,6 +143,7 @@ export const useAuthStore = create<AuthState>()(
         if (state?.user) {
           state.permissions = new Set(state.user.permissions);
           state.isAdmin = state.user.roles.includes('SYS_ADMIN');
+          state.userAdminScope = computeUserAdminScope(state.user);
         }
       },
     }

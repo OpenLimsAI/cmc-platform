@@ -173,6 +173,20 @@ export interface SessionPolicyUpdatePayload {
   reason?: string | null;
 }
 
+// ============== Admin: 部门管理员下放角色白名单（2026-09-10；migration 0055）==============
+export interface DeptAdminPolicy {
+  /** 部门管理员可挂/摘的角色码前缀，如 ['QV_'] */
+  delegable_role_prefixes: string[];
+  /** 永不可下放的角色（SYS_ADMIN / DEPT_ADMIN），后端常量 */
+  protected_roles: string[];
+  updated_at: string | null;
+}
+
+export interface DeptAdminPolicyUpdatePayload {
+  delegable_role_prefixes: string[];
+  reason?: string | null;
+}
+
 /** GET /auth/session-policy：当前用户生效值（展示模式账号 idle 已放宽） */
 export interface MySessionPolicy {
   access_token_minutes: number;

@@ -22,6 +22,7 @@ from app.core.exceptions import (
     RoleNotFoundError,
     SystemRoleProtectedError,
 )
+from app.domains.auth.dept_admin import load_dept_admin_policy
 from app.domains.auth.models import (
     Permission,
     Role,
@@ -104,7 +105,8 @@ class RoleAdminService:
         return list(result.scalars().all())
 
     # ----------- 公共方法 -----------
-    async def list_roles(self) -> list[RoleListItem]:
+    async def list_roles(self, *, delegable_only: bool = False) -> list[RoleListItem]:
+        """delegable_only=True：部门管理员视角，只返回白名单（可下放）角色"""
         # 单次查询取角色 + 聚合计数；无分页，角色数量极少（实施现状 6 系统 + N 自定义）
         result = await self.db.execute(
             select(Role).where(Role.deleted_at.is_(None)).order_by(
@@ -112,6 +114,9 @@ class RoleAdminService:
             )
         )
         roles = list(result.scalars().all())
+        if delegable_only:
+            policy = await load_dept_admin_policy(self.db)
+            roles = [r for r in roles if policy.is_delegable(r.role_code)]
 
         items: list[RoleListItem] = []
         for r in roles:

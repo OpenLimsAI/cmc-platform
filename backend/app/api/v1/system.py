@@ -14,8 +14,12 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.responses import success
 from app.domains.audit.models import AuditLog, ChangeHistory
+from app.domains.auth.dept_admin import (
+    load_dept_admin_policy,
+    save_dept_admin_policy,
+)
 from app.domains.auth.models import User
-from app.domains.auth.schemas import SessionPolicyUpdate
+from app.domains.auth.schemas import DeptAdminPolicyUpdate, SessionPolicyUpdate
 from app.domains.auth.session_policy import (
     LIMITS,
     SessionPolicy,
@@ -93,6 +97,69 @@ async def update_session_policy(
     return success(
         data={**saved.to_dict(), "limits": {k: list(v) for k, v in LIMITS.items()}},
         message="会话策略已更新" if changes else "无变更",
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+# =============================================================================
+# 部门管理员下放角色白名单（2026-09-10；migration 0055）—— 权限 system:config
+# =============================================================================
+
+
+@router.get("/dept-admin-policy", summary="部门管理员可下放角色前缀白名单（admin）")
+async def get_dept_admin_policy(
+    request: Request,
+    user: User = Depends(require_permission("system:config")),
+    db: AsyncSession = Depends(get_db),
+):
+    policy = await load_dept_admin_policy(db)
+    return success(
+        data=policy.to_dict(),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
+@router.put("/dept-admin-policy", summary="修改部门管理员可下放角色前缀白名单（admin，立即生效）")
+async def update_dept_admin_policy(
+    payload: DeptAdminPolicyUpdate,
+    request: Request,
+    user: User = Depends(require_permission("system:config")),
+    db: AsyncSession = Depends(get_db),
+):
+    saved, old, new = await save_dept_admin_policy(
+        db, payload.delegable_role_prefixes, updated_by=user.user_id
+    )
+    changed = old != new
+    if changed:
+        old_s, new_s = ",".join(old) or "（空）", ",".join(new) or "（空）"
+        log = AuditLog(
+            user_id=user.user_id,
+            username=user.username,
+            action="UPDATE",
+            entity_schema="meta",
+            entity_table="system_config",
+            entity_code="dept_admin_policy",
+            change_summary=f"delegable_role_prefixes: {old_s} → {new_s}",
+            reason=payload.reason,
+            ip_address=getattr(request.state, "ip_address", None),
+            user_agent=getattr(request.state, "user_agent", None),
+            request_id=audit_request_id.get(),
+        )
+        db.add(log)
+        await db.flush()
+        db.add(
+            ChangeHistory(
+                audit_log_id=log.log_id,
+                field_name="delegable_role_prefixes",
+                old_value=cast(Any, list(old)),
+                new_value=cast(Any, list(new)),
+            )
+        )
+        await db.flush()
+    await db.commit()
+    return success(
+        data=saved.to_dict(),
+        message="白名单已更新" if changed else "无变更",
         request_id=getattr(request.state, "request_id", None),
     )
 

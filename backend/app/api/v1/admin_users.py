@@ -3,6 +3,11 @@
 权限：user:manage（SYS_ADMIN 自动通过）
 合规：用户只能 lock（软停用），不可物理/软删除（GxP 审计链完整性）；
 管理员不能对自己执行 lock/reset-password（CannotOperateSelfError）。
+
+部门管理员（DEPT_ADMIN，2026-09-10）：list / detail / roles / lock / unlock 五个端点改用
+user_admin_scope() 依赖——SYS_ADMIN 或持 user:manage 为全公司范围（行为不变），
+DEPT_ADMIN 为本部门范围（service 内做部门过滤 + 角色白名单校验）。
+create / update / reset-password 仍只认 user:manage，部门管理员 403。
 """
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.responses import Pagination, success
 from app.domains.auth.admin_service import UserAdminService
+from app.domains.auth.dept_admin import UserAdminScope, user_admin_scope
 from app.domains.auth.models import User
 from app.domains.auth.schemas import (
     UserCreate,
@@ -30,11 +36,11 @@ async def list_users(
     status: str | None = Query(None, pattern="^(active|locked|disabled)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    user: User = Depends(require_permission("user:manage")),
+    scope: UserAdminScope = Depends(user_admin_scope()),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserAdminService(db)
-    items, total = await service.list_users(q, role_code, status, page, page_size)
+    items, total = await service.list_users(q, role_code, status, page, page_size, scope=scope)
     return success(
         data=[i.model_dump(mode="json") for i in items],
         request_id=getattr(request.state, "request_id", None),
@@ -62,11 +68,11 @@ async def create_user(
 async def get_user_detail(
     username: str,
     request: Request,
-    user: User = Depends(require_permission("user:manage")),
+    scope: UserAdminScope = Depends(user_admin_scope()),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserAdminService(db)
-    detail = await service.get_user(username)
+    detail = await service.get_user(username, scope=scope)
     return success(
         data=detail.model_dump(mode="json"),
         request_id=getattr(request.state, "request_id", None),
@@ -95,11 +101,11 @@ async def assign_user_roles(
     username: str,
     payload: UserRoleAssignment,
     request: Request,
-    user: User = Depends(require_permission("user:manage")),
+    scope: UserAdminScope = Depends(user_admin_scope()),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserAdminService(db)
-    detail = await service.assign_roles(username, payload.role_codes, user)
+    detail = await service.assign_roles(username, payload.role_codes, scope.actor, scope=scope)
     return success(
         data=detail.model_dump(mode="json"),
         message="角色已更新",
@@ -111,11 +117,11 @@ async def assign_user_roles(
 async def lock_user(
     username: str,
     request: Request,
-    user: User = Depends(require_permission("user:manage")),
+    scope: UserAdminScope = Depends(user_admin_scope()),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserAdminService(db)
-    detail = await service.lock_user(username, user)
+    detail = await service.lock_user(username, scope.actor, scope=scope)
     return success(
         data=detail.model_dump(mode="json"),
         message="用户已锁定",
@@ -127,11 +133,11 @@ async def lock_user(
 async def unlock_user(
     username: str,
     request: Request,
-    user: User = Depends(require_permission("user:manage")),
+    scope: UserAdminScope = Depends(user_admin_scope()),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserAdminService(db)
-    detail = await service.unlock_user(username, user)
+    detail = await service.unlock_user(username, scope.actor, scope=scope)
     return success(
         data=detail.model_dump(mode="json"),
         message="用户已解锁",

@@ -6,6 +6,8 @@ import { api, unwrap, unwrapList } from './client';
 import type {
   AuditLogItem,
   AuditLogQuery,
+  DeptAdminPolicy,
+  DeptAdminPolicyUpdatePayload,
   PermissionItem,
   ResetPasswordResult,
   RoleCreatePayload,
@@ -113,4 +115,8 @@ export const adminSystemApi = {
   getSessionPolicy: () => unwrap<SessionPolicy>(api.get('/system/session-policy')),
   updateSessionPolicy: (payload: SessionPolicyUpdatePayload) =>
     unwrap<SessionPolicy>(api.put('/system/session-policy', payload)),
+  /** 部门管理员可下放角色前缀白名单（权限 system:config） */
+  getDeptAdminPolicy: () => unwrap<DeptAdminPolicy>(api.get('/system/dept-admin-policy')),
+  updateDeptAdminPolicy: (payload: DeptAdminPolicyUpdatePayload) =>
+    unwrap<DeptAdminPolicy>(api.put('/system/dept-admin-policy', payload)),
 };

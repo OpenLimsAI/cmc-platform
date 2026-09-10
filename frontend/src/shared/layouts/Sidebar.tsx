@@ -93,6 +93,8 @@ export function Sidebar() {
   const location = useLocation();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  // 部门管理员（DEPT_ADMIN）没有 user:manage 权限，但要能进「系统管理 → 用户」管本部门
+  const isDeptAdmin = useAuthStore((s) => s.userAdminScope === 'department');
   const { token } = theme.useToken();
 
   // UI1（V1.1 §3.3）：Sidebar 底部健康检查绿点
@@ -118,12 +120,18 @@ export function Sidebar() {
 
   const items = useMemo(
     () =>
-      MENU_ITEMS.filter((m) => !m.permission || isAdmin || hasPermission(m.permission)).map((m) => ({
+      MENU_ITEMS.filter(
+        (m) =>
+          !m.permission ||
+          isAdmin ||
+          hasPermission(m.permission) ||
+          (m.key === 'admin' && isDeptAdmin),
+      ).map((m) => ({
         key: m.path,
         icon: m.icon,
         label: m.label,
       })),
-    [hasPermission, isAdmin]
+    [hasPermission, isAdmin, isDeptAdmin]
   );
 
   // 按顶层路径段匹配所属模块：菜单 key 是具体页(如 /admin/users)，

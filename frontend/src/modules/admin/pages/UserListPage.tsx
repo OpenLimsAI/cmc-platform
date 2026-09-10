@@ -36,6 +36,7 @@ import type {
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { useAuthStore } from '@/stores/authStore';
 import {
+  PROTECTED_ROLES,
   ROLE_COLORS,
   ROLE_LABELS,
   USER_STATUS_COLORS,
@@ -53,6 +54,10 @@ const { Title, Text } = Typography;
 export function UserListPage() {
   const queryClient = useQueryClient();
   const currentUsername = useAuthStore((s) => s.user?.username);
+  // 部门管理员（DEPT_ADMIN）：后端只返回本部门用户；这里只渲染允许的操作
+  // （分配白名单角色、锁定/解锁），新建/编辑/重置密码按钮不渲染，而不是点了报错。
+  const deptScoped = useAuthStore((s) => s.userAdminScope === 'department');
+  const myDepartment = useAuthStore((s) => s.user?.department);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -204,21 +209,11 @@ export function UserListPage() {
       fixed: 'right' as const,
       render: (_: unknown, r: UserListItem) => {
         const isSelf = r.username === currentUsername;
-        const menuItems = [
-          {
-            key: 'edit',
-            icon: <EditOutlined />,
-            label: '编辑信息',
-            onClick: () => openEdit(r.username),
-          },
-          {
-            key: 'roles',
-            icon: <UserSwitchOutlined />,
-            label: '分配角色',
-            onClick: () => openRoleAssign(r.username),
-          },
-          { type: 'divider' as const },
-          ...(r.status === 'locked'
+        // 部门管理员不能锁定/解锁持有 SYS_ADMIN / DEPT_ADMIN 的账号（后端同样拦）
+        const lockAllowed =
+          !deptScoped || !r.roles.some((role) => PROTECTED_ROLES.has(role.role_code));
+        const lockItems = lockAllowed
+          ? r.status === 'locked'
             ? [
                 {
                   key: 'unlock',
@@ -235,16 +230,42 @@ export function UserListPage() {
                   disabled: isSelf,
                   onClick: () => confirmLock(r.username),
                 },
-              ]),
-          {
-            key: 'reset',
-            icon: <KeyOutlined />,
-            label: '重置密码',
-            disabled: isSelf,
-            danger: true,
-            onClick: () => confirmReset(r.username),
-          },
-        ];
+              ]
+          : [];
+        const menuItems = deptScoped
+          ? [
+              {
+                key: 'roles',
+                icon: <UserSwitchOutlined />,
+                label: '分配角色',
+                onClick: () => openRoleAssign(r.username),
+              },
+              ...(lockItems.length ? [{ type: 'divider' as const }, ...lockItems] : []),
+            ]
+          : [
+              {
+                key: 'edit',
+                icon: <EditOutlined />,
+                label: '编辑信息',
+                onClick: () => openEdit(r.username),
+              },
+              {
+                key: 'roles',
+                icon: <UserSwitchOutlined />,
+                label: '分配角色',
+                onClick: () => openRoleAssign(r.username),
+              },
+              { type: 'divider' as const },
+              ...lockItems,
+              {
+                key: 'reset',
+                icon: <KeyOutlined />,
+                label: '重置密码',
+                disabled: isSelf,
+                danger: true,
+                onClick: () => confirmReset(r.username),
+              },
+            ];
         return (
           <Dropdown menu={{ items: menuItems }} trigger={['click']}>
             <Button type="text" icon={<MoreOutlined />} />
@@ -272,15 +293,19 @@ export function UserListPage() {
           <div>
             <Title level={3} style={{ margin: 0 }}>
               <SafetyOutlined style={{ marginRight: 8 }} />
-              用户管理
+              {deptScoped ? `本部门用户管理（${myDepartment ?? '未填写部门'}）` : '用户管理'}
             </Title>
             <Text type="secondary">
-              管理平台账户、角色与登录状态，共 {total} 个用户
+              {deptScoped
+                ? `只显示与你同部门的用户，共 ${total} 人；可分配验证部等允许下放的角色、锁定/解锁。新建用户、改资料、重置密码请联系系统管理员。`
+                : `管理平台账户、角色与登录状态，共 ${total} 个用户`}
             </Text>
           </div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新建用户
-          </Button>
+          {!deptScoped && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              新建用户
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -373,6 +398,7 @@ export function UserListPage() {
       <UserRoleAssignModal
         open={roleModalOpen}
         user={editingUser}
+        deptScoped={deptScoped}
         onClose={() => setRoleModalOpen(false)}
         onSaved={() => {
           message.success('角色已更新');

@@ -19,7 +19,15 @@ export const ROLE_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'CMC_EQUIPMENT_ADMIN', label: '设备管理员', color: 'geekblue' },
   { value: 'READ_ONLY_USER', label: '只读用户', color: 'default' },
   { value: 'DISPLAY_MODE', label: '展示模式', color: 'lime' },
+  { value: 'DEPT_ADMIN', label: '部门管理员', color: 'volcano' },
+  { value: 'QV_ADMIN', label: '验证部管理员', color: 'magenta' },
+  { value: 'QV_ENGINEER', label: '验证工程师', color: 'magenta' },
+  { value: 'QV_REVIEWER', label: '验证复核人', color: 'magenta' },
+  { value: 'QV_VIEWER', label: '验证只读', color: 'magenta' },
 ];
+
+/** 部门管理员永远碰不了的角色（与后端 dept_admin.PROTECTED_ROLES 一致）：持有者不显示锁定/解锁 */
+export const PROTECTED_ROLES = new Set(['SYS_ADMIN', 'DEPT_ADMIN']);
 
 export const ROLE_LABELS: Record<string, string> = Object.fromEntries(
   ROLE_OPTIONS.map((r) => [r.value, r.label]),

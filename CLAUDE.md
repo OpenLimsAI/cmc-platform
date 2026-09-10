@@ -96,3 +96,11 @@ make docs-check       # CI 文档一致性校验
 - 前端**自己认前缀** `/mdm/`：`vite.config` `base:'/mdm/'` + `main.tsx` `basename` + `src/shared/base.ts`（BASE/withBase/stripBase）。API 一律相对路径 `/mdm/api/...`，由门户 nginx 剥掉前缀转给后端（后端路由不变）。**不要**写死 host:端口，**不要**用不带前缀的绝对路径跳转/引资源。
 - 登录态用**全公司统一 key**：`localStorage['cmab_access_token']`（MDM JWT）+ `localStorage['cmab_user']`（MDM 登录响应 user 对象）；同源共享 → 门户登录一次这里免登。别再改回私有 key。 authStore 用 zustand 自定义 storage 落到这两个 key。Linux 主机 nginx 受管副本在 `deploy/nginx/linux-host/cmab-mdm.conf`。
 - 门户侧配置/路由/部署脚本在 `~/code/cmab-hub`（`nginx/hub-locations.conf`、`deploy/linux/`），约定见其 `CLAUDE.md`。
+
+## 部门管理员 DEPT_ADMIN（2026-09-10 起，migration 0055）
+
+- 背景：验证部平台（qv-validation-platform，门户 `/qv/`）登录/角色走 MDM，验证部负责人要能自己管本部门的人。
+- 角色码 `DEPT_ADMIN` 是身份标签（系统角色，不挂 permission），能力由 `app/domains/auth/dept_admin.py` 按角色码判定：范围 = `auth.user.department` 与自己**完全相同**的用户；可 查看 / 锁定解锁 / 挂摘「白名单角色」；不能 新建用户 / 改资料 / 改部门 / 重置密码，不能碰 `SYS_ADMIN`、`DEPT_ADMIN`（持有者也不能被其锁定）。
+- 白名单 = 角色码前缀，存 `meta.system_config` 键 `dept_admin.delegable_role_prefixes`（默认 `QV_`），系统管理 → 部门管理员（`/admin/dept-admin-policy`，权限 `system:config`）在线改。验证部四角色 `QV_ADMIN / QV_ENGINEER / QV_REVIEWER / QV_VIEWER` 由 0055 迁移建好（MDM 内不挂权限，下游按 JWT.roles 解释）。
+- 后端：`/users` 的 list/detail/roles/lock/unlock 用 `user_admin_scope()` 依赖（SYS_ADMIN 或 `user:manage` = 全公司，行为不变；DEPT_ADMIN = 本部门），create/update/reset-password 仍只认 `user:manage`；`GET /roles` 对 DEPT_ADMIN 只回白名单角色。跨部门 → 40303，非白名单角色 → 40301。角色分配 / 锁定 / 解锁**无论谁做**都写应用层 `audit_log`（auth 表没有触发器审计）。
+- 前端：`authStore.userAdminScope`（`'all' | 'department' | null`）驱动 Sidebar / AdminTabs / UserListPage / UserRoleAssignModal 的显隐；`routes/FullAdminRoute.tsx` 把部门管理员挡在角色/权限/策略页之外。测试 `tests/test_dept_admin.py`（只能 `make test-be`）。

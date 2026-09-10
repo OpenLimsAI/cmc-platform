@@ -5,6 +5,7 @@ import { Spin } from 'antd';
 import { LoginPage } from './modules/auth/pages/LoginPage';
 import { MainLayout } from './shared/layouts/MainLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { FullAdminRoute } from './routes/FullAdminRoute';
 import { NotFoundPage } from './modules/common/NotFoundPage';
 
 // 路由级懒加载：每个页面打成独立 chunk，按需下载（命名导出→default 适配）
@@ -137,6 +138,11 @@ const SessionPolicyPage = lazy(() =>
     default: m.SessionPolicyPage,
   })),
 );
+const DeptAdminPolicyPage = lazy(() =>
+  import('./modules/admin/pages/DeptAdminPolicyPage').then((m) => ({
+    default: m.DeptAdminPolicyPage,
+  })),
+);
 const ProfilePage = lazy(() =>
   import('./modules/profile/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 );
@@ -196,11 +202,15 @@ export default function App() {
 
             {/* 系统管理（Phase 5.A：M5.1 用户 / M5.2 角色权限 / M5.3 审计签名）*/}
             <Route path="/admin/users" element={<UserListPage />} />
-            <Route path="/admin/roles" element={<RoleListPage />} />
-            <Route path="/admin/permissions" element={<PermissionListPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogPage />} />
             <Route path="/admin/signatures" element={<SignatureListPage />} />
-            <Route path="/admin/session-policy" element={<SessionPolicyPage />} />
+            {/* 部门管理员（DEPT_ADMIN）只有用户页；下面几页仅全公司范围管理员可进 */}
+            <Route element={<FullAdminRoute />}>
+              <Route path="/admin/roles" element={<RoleListPage />} />
+              <Route path="/admin/permissions" element={<PermissionListPage />} />
+              <Route path="/admin/session-policy" element={<SessionPolicyPage />} />
+              <Route path="/admin/dept-admin-policy" element={<DeptAdminPolicyPage />} />
+            </Route>
             <Route path="/admin/*" element={<Navigate to="/admin/users" replace />} />
 
             {/* M5.3 审计页接入后，旧的 /audit/* 兜底重定向到全局审计 */}

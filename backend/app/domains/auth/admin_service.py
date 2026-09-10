@@ -6,6 +6,13 @@
 - 不做物理删除（用户拍板：lock = 软停用），保留全部审计链
 - 管理员不能 lock/disable/reset-password 自己（GxP 误操作防护）
 - reset-password 返回 16 位临时密码且 force_password_change=TRUE，用户首次登录强制改密
+
+部门管理员（2026-09-10；见 dept_admin.py）：
+- list/get/assign_roles/lock/unlock 接收 UserAdminScope；scope 限定部门时只能碰同部门用户
+  （跨部门 → DataAccessDeniedError 40303），挂/摘角色只能动白名单角色（其余 → 40301），
+  不能锁定持有 SYS_ADMIN / DEPT_ADMIN 的账号
+- 角色分配 / 锁定 / 解锁三类操作**无论谁做**都写一条应用层 audit_log
+  （auth 表没有触发器审计；谁、对谁、加了/去了什么角色、何时 + extra 明细）
 """
 from __future__ import annotations
 
@@ -21,13 +28,21 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.exceptions import (
     CannotOperateSelfError,
+    DataAccessDeniedError,
     EmailExistsError,
     OperationNotAllowedError,
+    PermissionDeniedError,
     UsernameExistsError,
     UserNotFoundError,
     ValidationError,
 )
 from app.core.security import hash_password
+from app.domains.audit.models import AuditLog
+from app.domains.auth.dept_admin import (
+    PROTECTED_ROLES,
+    UserAdminScope,
+    load_dept_admin_policy,
+)
 from app.domains.auth.models import (
     Permission,
     RefreshToken,
@@ -44,6 +59,7 @@ from app.domains.auth.schemas import (
     UserListItem,
     UserUpdate,
 )
+from app.shared.audit_context import audit_ip, audit_request_id
 
 # 16 位临时密码字符集（去掉易混淆字符 O/0/I/l）
 _TEMP_PW_ALPHABET = string.ascii_letters.replace("O", "").replace("I", "").replace("l", "")
@@ -87,6 +103,59 @@ class UserAdminService:
         self.db = db
 
     # ----------- 内部 -----------
+    @staticmethod
+    def _ensure_in_scope(target: User, scope: UserAdminScope | None) -> None:
+        """部门管理员只能碰同部门用户；scope=None 表示内部调用/全权限，不限制"""
+        if scope is not None and not scope.covers(target):
+            raise DataAccessDeniedError(
+                f"只能管理本部门（{scope.department}）的用户，{target.username} 不在本部门"
+            )
+
+    @staticmethod
+    def _ensure_not_protected(target: User, scope: UserAdminScope | None, verb: str) -> None:
+        """部门管理员不能锁定/解锁持有 SYS_ADMIN / DEPT_ADMIN 的账号"""
+        if scope is None or not scope.dept_scoped:
+            return
+        held = sorted({r.role_code for r in target.roles} & PROTECTED_ROLES)
+        if held:
+            raise PermissionDeniedError(
+                f"部门管理员不能{verb}持有 {', '.join(held)} 角色的账号"
+            )
+
+    def _audit(
+        self,
+        actor: User,
+        scope: UserAdminScope | None,
+        *,
+        action: str,
+        target: User,
+        summary: str,
+        extra: dict | None = None,
+    ) -> None:
+        """应用层审计：auth.user / auth.user_role 没有触发器审计，管理动作在这里落 audit_log。
+        与主事务同 session，业务失败则一起回滚（成功才有审计，不产生半条记录）。"""
+        payload = {
+            "actor_scope": "department" if (scope and scope.dept_scoped) else "all",
+            "actor_department": scope.department if scope and scope.dept_scoped else None,
+            "target_department": target.department,
+            **(extra or {}),
+        }
+        self.db.add(
+            AuditLog(
+                user_id=actor.user_id,
+                username=actor.username,
+                action=action,
+                entity_schema="auth",
+                entity_table="user",
+                entity_id=target.user_id,
+                entity_code=target.username,
+                change_summary=summary,
+                ip_address=audit_ip.get(),
+                request_id=audit_request_id.get(),
+                extra=payload,
+            )
+        )
+
     async def _resolve_role_ids(self, role_codes: list[str]) -> list[int]:
         if not role_codes:
             return []
@@ -122,10 +191,15 @@ class UserAdminService:
         status: str | None,
         page: int,
         page_size: int,
+        scope: UserAdminScope | None = None,
     ) -> tuple[list[UserListItem], int]:
         stmt = select(User).where(User.deleted_at.is_(None)).options(selectinload(User.roles))
         count_stmt = select(func.count(User.user_id)).where(User.deleted_at.is_(None))
 
+        if scope is not None and scope.dept_scoped:
+            dept_cond = func.trim(User.department) == scope.department
+            stmt = stmt.where(dept_cond)
+            count_stmt = count_stmt.where(dept_cond)
         if q:
             pattern = f"%{q}%"
             cond = or_(
@@ -169,8 +243,9 @@ class UserAdminService:
         ]
         return items, total
 
-    async def get_user(self, username: str) -> UserDetail:
+    async def get_user(self, username: str, scope: UserAdminScope | None = None) -> UserDetail:
         user = await _load_user(self.db, username)
+        self._ensure_in_scope(user, scope)
         permissions = await self._user_permissions(user)
         return UserDetail(
             user_id=user.user_id,
@@ -268,30 +343,49 @@ class UserAdminService:
         return await self.get_user(user.username)
 
     async def assign_roles(
-        self, username: str, role_codes: list[str], actor: User
+        self,
+        username: str,
+        role_codes: list[str],
+        actor: User,
+        scope: UserAdminScope | None = None,
     ) -> UserDetail:
         user = await _load_user(self.db, username)
+        self._ensure_in_scope(user, scope)
+        current = {r.role_code for r in user.roles}
+
+        if scope is not None and scope.dept_scoped:
+            # 部门管理员：提交的每个角色都必须在白名单内；目标已持有的非白名单角色原样保留
+            # （前端下拉只出白名单角色，提交的就是「白名单部分」的完整集合）
+            policy = await load_dept_admin_policy(self.db)
+            denied = sorted({c for c in role_codes if not policy.is_delegable(c)})
+            if denied:
+                raise PermissionDeniedError(
+                    f"部门管理员不能下放角色: {', '.join(denied)}"
+                    f"（当前允许前缀: {', '.join(policy.delegable_role_prefixes) or '无'}）"
+                )
+            keep = [c for c in sorted(current) if not policy.is_delegable(c)]
+            role_codes = keep + [c for c in role_codes if c not in keep]
 
         # SYS_ADMIN 防呆：管理员不能取消自己最后一个 SYS_ADMIN（避免锁死）
-        if user.user_id == actor.user_id and "SYS_ADMIN" not in role_codes:
-            current = {r.role_code for r in user.roles}
-            if "SYS_ADMIN" in current:
-                # 检查是否是最后一个 SYS_ADMIN
-                count_result = await self.db.execute(
-                    select(func.count(UserRole.user_id.distinct()))
-                    .join(Role, Role.role_id == UserRole.role_id)
-                    .join(User, User.user_id == UserRole.user_id)
-                    .where(
-                        Role.role_code == "SYS_ADMIN",
-                        User.deleted_at.is_(None),
-                        User.status == "active",
-                    )
+        if (
+            user.user_id == actor.user_id
+            and "SYS_ADMIN" not in role_codes
+            and "SYS_ADMIN" in current
+        ):
+            # 检查是否是最后一个 SYS_ADMIN
+            count_result = await self.db.execute(
+                select(func.count(UserRole.user_id.distinct()))
+                .join(Role, Role.role_id == UserRole.role_id)
+                .join(User, User.user_id == UserRole.user_id)
+                .where(
+                    Role.role_code == "SYS_ADMIN",
+                    User.deleted_at.is_(None),
+                    User.status == "active",
                 )
-                count = count_result.scalar_one()
-                if count <= 1:
-                    raise OperationNotAllowedError(
-                        "不能取消最后一个 SYS_ADMIN 的角色"
-                    )
+            )
+            count = count_result.scalar_one()
+            if count <= 1:
+                raise OperationNotAllowedError("不能取消最后一个 SYS_ADMIN 的角色")
 
         role_ids = await self._resolve_role_ids(role_codes)
 
@@ -302,15 +396,40 @@ class UserAdminService:
         for rid in role_ids:
             self.db.add(UserRole(user_id=user.user_id, role_id=rid, granted_by=actor.user_id))
         user.updated_by = actor.user_id
+
+        final = set(role_codes)
+        added, removed = sorted(final - current), sorted(current - final)
+        parts = []
+        if added:
+            parts.append("+" + ", +".join(added))
+        if removed:
+            parts.append("-" + ", -".join(removed))
+        self._audit(
+            actor, scope,
+            action="PERMISSION_CHANGE",
+            target=user,
+            summary=f"调整用户 {user.username} 角色：{'; '.join(parts) or '无变化'}",
+            extra={
+                "roles_before": sorted(current),
+                "roles_after": sorted(final),
+                "added": added,
+                "removed": removed,
+            },
+        )
         await self.db.flush()
         await self.db.refresh(user, ["roles"])
+        logger.info(f"{actor.username} 调整用户 {username} 角色：+{added} -{removed}")
         return await self.get_user(user.username)
 
     # ----------- 动作端点 -----------
-    async def lock_user(self, username: str, actor: User) -> UserDetail:
+    async def lock_user(
+        self, username: str, actor: User, scope: UserAdminScope | None = None
+    ) -> UserDetail:
         if username == actor.username:
             raise CannotOperateSelfError("不能锁定自己")
-        user = await _load_user(self.db, username, with_roles=False)
+        user = await _load_user(self.db, username)
+        self._ensure_in_scope(user, scope)
+        self._ensure_not_protected(user, scope, "锁定")
         if user.status == "locked":
             raise OperationNotAllowedError("用户已处于锁定状态")
         user.status = "locked"
@@ -322,18 +441,36 @@ class UserAdminService:
             .where(RefreshToken.user_id == user.user_id, RefreshToken.revoked_at.is_(None))
             .values(revoked_at=datetime.now(UTC), revoked_reason="admin")
         )
+        self._audit(
+            actor, scope,
+            action="UPDATE",
+            target=user,
+            summary=f"锁定用户 {user.username}（status: active → locked，活跃会话已撤销）",
+            extra={"field": "status", "old": "active", "new": "locked"},
+        )
         await self.db.flush()
         logger.info(f"管理员 {actor.username} 锁定用户 {username}")
         return await self.get_user(username)
 
-    async def unlock_user(self, username: str, actor: User) -> UserDetail:
-        user = await _load_user(self.db, username, with_roles=False)
+    async def unlock_user(
+        self, username: str, actor: User, scope: UserAdminScope | None = None
+    ) -> UserDetail:
+        user = await _load_user(self.db, username)
+        self._ensure_in_scope(user, scope)
+        self._ensure_not_protected(user, scope, "解锁")
         if user.status != "locked":
             raise OperationNotAllowedError("用户当前不是锁定状态")
         user.status = "active"
         user.locked_at = None
         user.failed_login_count = 0
         user.updated_by = actor.user_id
+        self._audit(
+            actor, scope,
+            action="UPDATE",
+            target=user,
+            summary=f"解锁用户 {user.username}（status: locked → active，失败计数清零）",
+            extra={"field": "status", "old": "locked", "new": "active"},
+        )
         await self.db.flush()
         logger.info(f"管理员 {actor.username} 解锁用户 {username}")
         return await self.get_user(username)

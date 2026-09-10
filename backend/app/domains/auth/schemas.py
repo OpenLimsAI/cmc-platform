@@ -75,6 +75,13 @@ class SessionPolicyUpdate(BaseModel):
     reason: str | None = Field(None, max_length=500)
 
 
+class DeptAdminPolicyUpdate(BaseModel):
+    """PUT /api/v1/system/dept-admin-policy：部门管理员可下放的角色码前缀白名单"""
+
+    delegable_role_prefixes: list[str] = Field(..., max_length=50)
+    reason: str | None = Field(None, max_length=500)
+
+
 class ChangePasswordRequest(BaseModel):
     old_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=12, max_length=128)

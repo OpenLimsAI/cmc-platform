@@ -7,6 +7,9 @@
 - PUT    /api/v1/roles/{role_code}    — 更新自定义角色（系统角色 40306）
 - DELETE /api/v1/roles/{role_code}    — 删除自定义角色（用户在用 42202；系统角色 40306）
 - GET    /api/v1/permissions          — 权限列表（只读）
+
+部门管理员（DEPT_ADMIN，2026-09-10）：仅 GET /roles 放行，且只返回白名单（可下放）角色，
+供前端角色下拉使用；其余端点仍只认 role:manage。
 """
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +20,7 @@ from app.domains.auth.admin_role_service import (
     PermissionAdminService,
     RoleAdminService,
 )
+from app.domains.auth.dept_admin import UserAdminScope, user_admin_scope
 from app.domains.auth.models import User
 from app.domains.auth.schemas import RoleCreate, RoleUpdate
 from app.shared.permissions import require_permission
@@ -28,11 +32,11 @@ permissions_router = APIRouter()
 @roles_router.get("", summary="角色列表（admin）")
 async def list_roles(
     request: Request,
-    user: User = Depends(require_permission("role:manage")),
+    scope: UserAdminScope = Depends(user_admin_scope("role:manage")),
     db: AsyncSession = Depends(get_db),
 ):
     service = RoleAdminService(db)
-    items = await service.list_roles()
+    items = await service.list_roles(delegable_only=scope.dept_scoped)
     return success(
         data=[i.model_dump(mode="json") for i in items],
         request_id=getattr(request.state, "request_id", None),
