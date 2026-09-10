@@ -22,6 +22,12 @@ export const MDM_API = '/mdm/api/v1'
 
 export type LogoutReason = 'idle' | 'expired' | 'other-tab'
 
+/**
+ * 拉不到会话策略时的保守兜底（与 MDM 默认值一致：通行证 15 分钟 / 空闲 30 分钟）。
+ * 不写进 policy 变量，这样后续 tick 仍会继续尝试取真实策略。
+ */
+const FALLBACK_POLICY = { access_token_minutes: 15, idle_timeout_minutes: 30 }
+
 export interface MdmUser {
   user_id: number
   username: string // = 员工工号
@@ -257,25 +263,9 @@ export function startSessionGuard(opts: SessionGuardOptions): () => void {
     }
   }
 
-  const tick = async () => {
-    if (stopped) return
-    const token = getToken()
-    if (!token) return
-    await ensurePolicy()
-    if (!policy || stopped) return
-
-    const now = Date.now()
-    const lastActive = readLastActive() || now
-    if (now - lastActive > policy.idle_timeout_minutes * 60_000) {
-      stopped = true
-      opts.onLogout('idle')
-      return
-    }
-
-    const exp = tokenExpMs(token)
-    if (!exp) return
-    const aheadMs = Math.min(5 * 60_000, (policy.access_token_minutes * 60_000) / 3)
-    if (exp - now > aheadMs || refreshing) return
+  /** 续期一次；失败即按「会话已失效」登出 */
+  const tryRefresh = async () => {
+    if (refreshing || stopped) return
     refreshing = true
     try {
       const t = await refresh()
@@ -288,6 +278,39 @@ export function startSessionGuard(opts: SessionGuardOptions): () => void {
     } finally {
       refreshing = false
     }
+  }
+
+  const tick = async () => {
+    if (stopped) return
+    const token = getToken()
+    if (!token) return
+    const now = Date.now()
+    const exp = tokenExpMs(token)
+
+    // 通行证已经过期：此刻去拉会话策略必然 401，不能等拿到策略再决定。
+    // 旧写法是「拉不到策略就 return」，于是令牌失效后守卫既不续期也不登出，
+    // 页面就一直停在已登录的样子（2026-09-10 负责人反馈「打开门户直接就进来了」，已实测复现）。
+    if (exp && exp <= now) {
+      await tryRefresh()
+      return
+    }
+
+    await ensurePolicy()
+    if (stopped) return
+    // 策略暂时拉不到（后端抖动等）就先用保守默认值，保证空闲登出照常生效
+    const p = policy ?? FALLBACK_POLICY
+
+    const lastActive = readLastActive() || now
+    if (now - lastActive > p.idle_timeout_minutes * 60_000) {
+      stopped = true
+      opts.onLogout('idle')
+      return
+    }
+
+    if (!exp) return
+    const aheadMs = Math.min(5 * 60_000, (p.access_token_minutes * 60_000) / 3)
+    if (exp - now > aheadMs) return
+    await tryRefresh()
   }
 
   const onStorage = (e: StorageEvent) => {
