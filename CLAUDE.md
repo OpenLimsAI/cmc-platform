@@ -44,6 +44,18 @@
   门户这边把除 MDM 外的磁贴变灰（`AppTile` 的 `locked`），顶部提示改密码。
 - `?redirect=` 只认站内路径（`LoginPage.safeRedirect`），外站地址一律回首页。
 
+## 传输压缩（2026-09-11）
+
+`nginx/compression.conf` 一份，Mac / Linux 两个 server 配置各 include 一次。**压缩开关本来在每台机器
+自己的 nginx 主配置里（不进 git，两台各是各的）**——实测 Mac 上是关的，发行版自带的通常只压 html、
+不压脚本/样式/JSON，且 `gzip_proxied` 默认 off 会让**转发给子系统的响应完全不压**。写进仓库 = 哪台机器都一样。
+
+实测（Mac，经 5100）：门户主脚本 662 KB → 224 KB；验证部平台一次计算结果 1.2 MB → 157 KB，
+计算耗时没有变化（1.65s → 1.67s，在噪声范围内）。
+
+`01_hub.sh` 部署末尾有压缩自检（主脚本必须回 `Content-Encoding`），不过就报警。
+没上 Brotli：效果更好但要额外装 nginx 模块，服务器上没有。
+
 ## 安全响应头（2026-09-11）
 
 `nginx/security-headers.conf` 一份，Mac / Linux 两个 server 配置各 include 一次。内容只挡「被别人套 iframe」
