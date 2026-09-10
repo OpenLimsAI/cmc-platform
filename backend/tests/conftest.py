@@ -47,8 +47,13 @@ def mint_token(
     user_id: int = 1,
     token_type: str = "access",
     expires_minutes: int = 30,
+    department: str | None = "TT1",
 ) -> str:
-    """本地铸一个与 MDM 签发结构一致的 JWT(测试不依赖真实 MDM 服务)。"""
+    """本地铸一个与 MDM 签发结构一致的 JWT(测试不依赖真实 MDM 服务)。
+
+    department: MDM 2026-09-10 起随令牌下发的部门;默认 TT1(实验室部门,可通过准入)。
+    传 None 模拟旧令牌(没有该字段)。
+    """
     payload = {
         "sub": str(user_id),
         "username": username,
@@ -57,6 +62,8 @@ def mint_token(
         # JWT exp 语义上就是 UTC,用显式带时区写法;项目"禁 utcnow"约定是针对落库的墙钟时间
         "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
     }
+    if department is not None:
+        payload["department"] = department
     return jwt.encode(payload, MDM_SECRET_KEY, algorithm=MDM_JWT_ALGORITHM)
 
 

@@ -182,3 +182,34 @@ def test_batch_create_audits_initial_txn(client, db, seed_material):
         "SELECT count(*) FROM audit_log WHERE action='inventory.in' AND entity_id=:eid"
     ), {"eid": str(txn_id)}).scalar()
     assert n_txn == 1
+
+
+# ============ 2026-09-10 准入:实验室部门(TT*/CMC*)或 SYS_ADMIN ============
+def _hdr(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_lab_member_department_prefix_allowed(client):
+    for dept in ("TT1", "TT7", "tt5", "CMC", "CMC R&D"):
+        r = client.get("/api/materials", headers=_hdr(mint_token(["READ_ONLY_USER"], department=dept)))
+        assert r.status_code == 200, (dept, r.text)
+
+
+def test_non_lab_department_forbidden(client):
+    for dept in ("QA", "IT", "研发", ""):
+        r = client.get("/api/materials", headers=_hdr(mint_token(["READ_ONLY_USER"], department=dept)))
+        assert r.status_code == 403, (dept, r.text)
+        assert "实验室部门" in r.json()["detail"]
+
+
+def test_sys_admin_bypasses_department(client):
+    r = client.get("/api/materials", headers=_hdr(mint_token(["SYS_ADMIN"], department="IT")))
+    assert r.status_code == 200, r.text
+    r = client.get("/api/materials", headers=_hdr(mint_token(["SYS_ADMIN"], department=None)))
+    assert r.status_code == 200, r.text
+
+
+def test_legacy_token_without_department_gets_401(client):
+    """旧令牌(无 department 字段)回 401,前端会去 MDM 换新令牌重放;不是 403"""
+    r = client.get("/api/materials", headers=_hdr(mint_token(["CMC_WAREHOUSE_ADMIN"], department=None)))
+    assert r.status_code == 401, r.text

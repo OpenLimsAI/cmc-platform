@@ -15,7 +15,7 @@ from routers import (
     admin_router, auth_router, batch, dashboard, equipment,
     intake, inventory, location, material, stock, storage,
 )
-from auth import get_current_user
+from auth import get_current_user, require_lab_member
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("cmc-labops")
@@ -75,8 +75,8 @@ def health():
 # auth_router 内部各 endpoint 自己控制鉴权（登录是匿名）
 app.include_router(auth_router.router)
 
-# 业务路由统一要求登录
-_AUTHED = [Depends(get_current_user)]
+# 业务路由统一要求：登录 + 实验室部门（TT*/CMC*）或 SYS_ADMIN（2026-09-10 负责人；见 auth.require_lab_member）
+_AUTHED = [Depends(require_lab_member)]
 app.include_router(material.router,    dependencies=_AUTHED)
 app.include_router(batch.router,       dependencies=_AUTHED)
 app.include_router(inventory.router,   dependencies=_AUTHED)

@@ -21,6 +21,11 @@ MDM_SECRET_KEY = os.getenv(
     "dev-secret-key-CHANGE-ME-IN-PRODUCTION-please-32-chars",
 )
 MDM_JWT_ALGORITHM = os.getenv("MDM_JWT_ALGORITHM", "HS256")
+# 2026-09-10 负责人：LabOps 是实验室系统，只对部门以 TT / CMC 开头的员工开放（SYS_ADMIN 例外）。
+# 部门来自 MDM access token 的 department 字段（MDM 2026-09-10 起下发）。逗号分隔，不分大小写。
+LAB_DEPARTMENT_PREFIXES = tuple(
+    p.strip().upper() for p in os.getenv("LAB_DEPARTMENT_PREFIXES", "TT,CMC").split(",") if p.strip()
+)
 MDM_BASE_URL = os.getenv("MDM_BASE_URL", "http://127.0.0.1:18000/api/v1")
 MDM_TIMEOUT = float(os.getenv("MDM_TIMEOUT", "5"))
 
@@ -31,10 +36,20 @@ class CurrentUser:
     username: str
     full_name: str = ""
     roles: list[str] = field(default_factory=list)
+    # None = 令牌里没有该字段（MDM 2026-09-10 之前签发的旧令牌）；"" = 有字段但部门为空
+    department: Optional[str] = None
 
     @property
     def id(self) -> int:
         return self.user_id
+
+    @property
+    def is_lab_member(self) -> bool:
+        """部门以 LAB_DEPARTMENT_PREFIXES 之一开头（不分大小写）；SYS_ADMIN 视同成员"""
+        if "SYS_ADMIN" in self.roles:
+            return True
+        dept = (self.department or "").strip().upper()
+        return any(dept.startswith(p) for p in LAB_DEPARTMENT_PREFIXES)
 
 
 def get_current_user(
@@ -69,7 +84,24 @@ def get_current_user(
         username=payload.get("username", ""),
         full_name=payload.get("full_name", ""),
         roles=payload.get("roles", []),
+        department=payload.get("department"),
     )
+
+
+def require_lab_member(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """LabOps 全部业务接口的准入：实验室部门（TT*/CMC*）员工或 SYS_ADMIN。
+
+    旧令牌（没有 department 字段）回 401 而不是 403：前端拦截器收到 401 会去 MDM 换一张新令牌
+    并重放请求，新令牌带部门，用户无感；真正不符合部门的才回 403。
+    """
+    if current.department is None and "SYS_ADMIN" not in current.roles:
+        raise HTTPException(status_code=401, detail="登录凭证版本过旧，请刷新页面重新登录")
+    if not current.is_lab_member:
+        raise HTTPException(
+            status_code=403,
+            detail="LabOps 仅对实验室部门（TT / CMC）员工开放；部门信息在 MDM 维护，如有疑问请联系管理员",
+        )
+    return current
 
 
 def verify_reviewer(username: str, password: str) -> CurrentUser:
@@ -101,6 +133,7 @@ def verify_reviewer(username: str, password: str) -> CurrentUser:
             username=claims.get("username", ""),
             full_name=claims.get("full_name", ""),
             roles=claims.get("roles", []),
+            department=claims.get("department"),
         )
     except (JWTError, KeyError, ValueError, TypeError):
         raise HTTPException(status_code=502, detail="复核认证令牌解析失败")
