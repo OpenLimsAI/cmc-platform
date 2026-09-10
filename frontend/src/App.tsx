@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Spin } from 'antd';
 import { AppErrorBoundary } from './shared/components/AppErrorBoundary';
+import { AppUpdateWatcher } from './shared/appUpdate';
 // 首屏/框架级组件保持即时加载（登录页、布局、守卫、404），其余页面懒加载
 import { LoginPage } from './modules/auth/pages/LoginPage';
 import { MainLayout } from './shared/layouts/MainLayout';
@@ -160,6 +161,7 @@ export default function App() {
   const location = useLocation();
   return (
     <AppErrorBoundary key={location.pathname}>
+      <AppUpdateWatcher />
       <Suspense fallback={PageFallback}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
