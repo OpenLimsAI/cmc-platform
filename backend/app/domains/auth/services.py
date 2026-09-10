@@ -283,6 +283,10 @@ class AuthService:
                 "roles": roles,
                 # 2026-09-10：部门随令牌下发，供门户/LabOps 按部门前缀（TT/CMC）判定可见性；下游按名取值，多字段无影响
                 "department": user.department,
+                # 2026-09-11：临时密码状态随令牌下发。MDM 自己早就拦住了（shared/permissions.py），
+                # 但下游系统本地验签、不回调 MDM，不下发就不知道 → 拿临时密码的人照样能在
+                # LabOps / 批号 / 看板里干活。下游据此一律 403 并提示先去 MDM 改密码。
+                "must_change_password": user.force_password_change,
             },
             expires_minutes=policy.access_token_minutes,
         )
@@ -452,6 +456,10 @@ class AuthService:
                 "roles": roles,
                 # 2026-09-10：部门随令牌下发，供门户/LabOps 按部门前缀（TT/CMC）判定可见性；下游按名取值，多字段无影响
                 "department": user.department,
+                # 2026-09-11：临时密码状态随令牌下发。MDM 自己早就拦住了（shared/permissions.py），
+                # 但下游系统本地验签、不回调 MDM，不下发就不知道 → 拿临时密码的人照样能在
+                # LabOps / 批号 / 看板里干活。下游据此一律 403 并提示先去 MDM 改密码。
+                "must_change_password": user.force_password_change,
             },
             expires_minutes=policy.access_token_minutes,
         )

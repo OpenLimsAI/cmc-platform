@@ -70,7 +70,7 @@ export function readLastActive(): number {
   return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
-/** 解 JWT 的 exp（毫秒）；解析失败返回 0（当作未知，交给 401 兜底） */
+/** 解 JWT 的 exp（毫秒）；解不开或没有 exp 返回 0 = 这张令牌不可信，守卫按失效处理 */
 export function tokenExpMs(token: string | null): number {
   if (!token) return 0;
   try {
@@ -135,7 +135,10 @@ export function startSessionGuard(opts: SessionGuardOptions): () => void {
     // 通行证已经过期：此刻去拉会话策略必然 401，不能等拿到策略再决定。
     // 旧写法是「拉不到策略就 return」，于是令牌失效后守卫既不续期也不登出，
     // 页面就一直停在已登录的样子（2026-09-10 负责人反馈「打开门户直接就进来了」，已实测复现）。
-    if (exp && exp <= now) {
+    //
+    // exp 为 0 = 令牌根本解不开或没写到期时间，同样按失效处理（2026-09-11）：
+    // 要么静默换一张真的，要么登出。绝不能既不续期也不登出把人挂在假登录状态里。
+    if (!exp || exp <= now) {
       await tryRefresh();
       return;
     }
@@ -152,7 +155,6 @@ export function startSessionGuard(opts: SessionGuardOptions): () => void {
       return;
     }
 
-    if (!exp) return;
     // 提前量：5 分钟与通行证时长 1/3 取小（通行证 15 分钟 → 提前 5 分钟）
     const aheadMs = Math.min(5 * 60_000, (p.access_token_minutes * 60_000) / 3);
     if (exp - now > aheadMs) return;
