@@ -52,9 +52,10 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="生物制药主数据管理平台 / Master Data Management Portal",
-    docs_url="/api/v1/docs" if settings.APP_DEBUG else None,
-    redoc_url="/api/v1/redoc" if settings.APP_DEBUG else None,
-    openapi_url="/api/v1/openapi.json" if settings.APP_DEBUG else None,
+    # 2026-09-10：改由 ENABLE_API_DOCS 控制（默认生产关、开发开），不再跟着 APP_DEBUG 走
+    docs_url="/api/v1/docs" if settings.enable_api_docs else None,
+    redoc_url="/api/v1/redoc" if settings.enable_api_docs else None,
+    openapi_url="/api/v1/openapi.json" if settings.enable_api_docs else None,
     lifespan=lifespan,
 )
 
@@ -168,12 +169,14 @@ async def request_validation_handler(request: Request, exc: RequestValidationErr
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """未捕获异常兜底"""
+    # 异常原文只进日志，不回传给浏览器（可能含 SQL / 路径 / 内部结构）；
+    # 排查时用 request_id 去 journalctl 里捞对应那条 traceback。
     logger.exception(f"未捕获异常: {exc}")
     return JSONResponse(
         status_code=500,
         content=error_response(
             code=50001,
-            message="服务器内部错误" if not settings.APP_DEBUG else str(exc),
+            message="服务器内部错误",
             error_type="internal_error",
             request_id=getattr(request.state, "request_id", None),
         ),

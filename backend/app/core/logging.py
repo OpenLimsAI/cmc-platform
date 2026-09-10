@@ -88,7 +88,9 @@ def setup_logging() -> None:
             level=level,
             colorize=True,
             backtrace=True,
-            diagnose=settings.APP_DEBUG,
+            # 恒 False：loguru 的 diagnose 会把栈帧局部变量打进日志，
+            # 登录失败路径的局部变量里有明文密码（2026-09-10 体检发现）
+            diagnose=False,
             format=(
                 "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
                 "<level>{level: <8}</level> | "

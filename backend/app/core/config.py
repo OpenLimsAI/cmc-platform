@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     # 此项仅在库里缺行时兜底。REFRESH_TOKEN_EXPIRE_DAYS 已废弃（空闲窗口 + 硬上限替代）。
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
 
+    # 2026-09-10 体检：以下三项原先都绑死在 APP_ENV/APP_DEBUG 上，导致「想开生产档就会连带
+    # 打开/关闭别的东西」。拆开后 Linux 才能在 HTTP 内网下安全地跑 production：
+    #   COOKIE_SECURE    refresh cookie 是否要求 HTTPS。绑死 is_production 时，一改 production
+    #                    浏览器就丢弃 cookie → 全员无法续期。内网 HTTP 必须显式设 false。
+    #   ENABLE_API_DOCS  /docs 与 openapi.json 是否对外开放（默认：生产关、开发开）
+    #   RATE_LIMIT_*     限流阈值，可按实际情况调，不必改代码
+    COOKIE_SECURE: bool | None = None
+    ENABLE_API_DOCS: bool | None = None
+
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173"
 
@@ -63,6 +72,10 @@ class Settings(BaseSettings):
     # ----------- 限流 -----------
     # 默认开启；测试 / 内网批量任务等可通过 env 关闭
     RATE_LIMIT_ENABLED: bool = True
+    # 阈值（留空则按环境取默认值，见下方 property）。格式如 "10/minute"
+    RATE_LIMIT_LOGIN: str | None = None
+    RATE_LIMIT_PUBLIC: str | None = None
+    RATE_LIMIT_DEFAULT: str | None = None
 
     @property
     def cors_origins_list(self) -> list[str]:
@@ -71,6 +84,38 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"
+
+    @property
+    def cookie_secure(self) -> bool:
+        """refresh cookie 是否带 Secure 标记。显式配置优先；未配置时跟随环境。
+
+        ⚠️ 内网 HTTP（http://172.19.0.105:5100）下必须为 false，否则浏览器直接丢弃该 cookie，
+        用户登录后无法续期，到点全部掉线。上 HTTPS 后再改回 true。"""
+        if self.COOKIE_SECURE is not None:
+            return self.COOKIE_SECURE
+        return self.is_production
+
+    @property
+    def enable_api_docs(self) -> bool:
+        """是否开放 /docs 与 openapi.json。默认：生产关、开发开。"""
+        if self.ENABLE_API_DOCS is not None:
+            return self.ENABLE_API_DOCS
+        return not self.is_production
+
+    @property
+    def rate_limit_login(self) -> str:
+        # 生产 10/min/IP 防口令爆破；开发放宽，否则测试 fixture 每个用例登录会被打爆
+        return self.RATE_LIMIT_LOGIN or ("10/minute" if self.is_production else "1000/minute")
+
+    @property
+    def rate_limit_public(self) -> str:
+        # refresh 等公开端点：需带合法签名 cookie，不是爆破目标；但一个人可能同时开着
+        # 门户 + 多个子系统，各自静默续期，10/min 会误伤，故放到 60/min
+        return self.RATE_LIMIT_PUBLIC or ("60/minute" if self.is_production else "1000/minute")
+
+    @property
+    def rate_limit_default(self) -> str:
+        return self.RATE_LIMIT_DEFAULT or ("300/minute" if self.is_production else "10000/minute")
 
     @property
     def is_development(self) -> bool:

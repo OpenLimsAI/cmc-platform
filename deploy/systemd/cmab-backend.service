@@ -1,0 +1,24 @@
+# Linux 正式环境 /etc/systemd/system/cmab-backend.service 的受管副本
+# 安装：bash deploy/linux/install_systemd.sh
+#
+# --proxy-headers --forwarded-allow-ips=127.0.0.1（2026-09-10 体检加）：
+#   请求经门户 nginx(5100) 转过来，不开这两项的话 uvicorn 认为来源永远是 127.0.0.1，
+#   后果有二：① 按 IP 的登录限流退化成「全公司共用一个桶」，任何人打满就让所有人登不上；
+#   ② 审计日志里的来源 IP 全是 127.0.0.1，追溯不到是哪台机器操作的。
+#   只信任本机的 nginx 转发头，外部无法伪造。
+[Unit]
+Description=CMAB MDM Portal Backend (FastAPI)
+After=network.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=prometheus
+WorkingDirectory=/opt/cmab-mdm-platform/backend
+ExecStart=/opt/cmab-mdm-platform/backend/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 18000 \
+    --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

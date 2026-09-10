@@ -193,7 +193,7 @@ async def get_system_info(request: Request, db: AsyncSession = Depends(get_db)):
         data={
             "app": settings.APP_NAME,
             "version": settings.APP_VERSION,
-            "environment": "development" if settings.APP_DEBUG else "production",
+            "environment": settings.APP_ENV,
             "database": "ok" if db_ok else "error",
             "config_summary": config_summary,
         },

@@ -30,7 +30,7 @@ REFRESH_COOKIE_PATH = "/api/v1/auth"
 
 
 def _set_refresh_cookie(response: Response, token: str, policy: SessionPolicy) -> None:
-    """写入 HttpOnly Cookie。生产环境强制 Secure。
+    """写入 HttpOnly Cookie。是否带 Secure 由 settings.cookie_secure 决定（内网 HTTP 须为 false）。
 
     max_age 取硬上限（cookie 可以活得比 refresh 久，真正到期以服务端 DB 为准）。"""
     response.set_cookie(
@@ -39,7 +39,7 @@ def _set_refresh_cookie(response: Response, token: str, policy: SessionPolicy) -
         max_age=policy.absolute_max_hours * 3600,
         path=REFRESH_COOKIE_PATH,
         httponly=True,
-        secure=settings.is_production,
+        secure=settings.cookie_secure,
         samesite="strict",
     )
 

@@ -39,9 +39,8 @@ def _key_ip(request: Request) -> str:
     return f"ip:{get_remote_address(request)}"
 
 
-# 普通用户档：生产 300/min/user，开发 10000/min/user（避免测试 fixture 高频调用被打爆）
-# 生产环境严守 V1.1 §3.5 第 2 档；nginx 层兜底
-_DEFAULT_LIMIT = "300/minute" if settings.is_production else "10000/minute"
+# 阈值集中在 core/config.py 的 rate_limit_* property（可用 RATE_LIMIT_* 环境变量覆盖）
+_DEFAULT_LIMIT = settings.rate_limit_default
 
 limiter = Limiter(
     key_func=_key_user_or_ip,
@@ -53,22 +52,21 @@ limiter = Limiter(
 )
 
 
-# 开发环境放宽：测试 fixture 每个用例都 login，10/min/IP 会被打爆
-# 生产仍严守 V1.1 §3.5 第 1 档（10/min/IP）— nginx 层兜底
-_LOGIN_LIMIT = "10/minute" if settings.is_production else "1000/minute"
-_PUBLIC_LIMIT = "10/minute" if settings.is_production else "1000/minute"
+_LOGIN_LIMIT = settings.rate_limit_login
+_PUBLIC_LIMIT = settings.rate_limit_public
 
 
 def login_rate_limit() -> Callable:
     """登录端点专用（V1.1 API §3.5 第 1 档）
 
-    生产：10/min/IP；开发：1000/min/IP（测试 fixture 高频 login）
+    生产 10/min/IP；开发放宽。⚠️ 按 IP 分桶依赖 uvicorn 的 --proxy-headers：
+    没开时所有请求的来源都是 nginx 的 127.0.0.1，限流会退化成「全公司共用一个桶」。
     """
     return limiter.limit(_LOGIN_LIMIT, key_func=_key_ip)
 
 
 def public_rate_limit() -> Callable:
-    """公开端点（refresh / 健康 / metrics 等）— 同登录档"""
+    """公开端点（refresh / 健康 / metrics 等）：生产 60/min/IP"""
     return limiter.limit(_PUBLIC_LIMIT, key_func=_key_ip)
 
 

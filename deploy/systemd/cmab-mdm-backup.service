@@ -1,0 +1,12 @@
+# 每日数据库备份（由 cmab-mdm-backup.timer 触发）
+# 安装：bash deploy/linux/install_systemd.sh
+[Unit]
+Description=CMAB MDM Portal 数据库每日备份
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=prometheus
+WorkingDirectory=/opt/cmab-mdm-platform
+Environment=RETENTION_DAYS=30
+ExecStart=/bin/bash /opt/cmab-mdm-platform/scripts/backup_db.sh
