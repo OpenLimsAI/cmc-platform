@@ -8,5 +8,8 @@ export function canAccess(app: HubApp, user: HubUser | null): boolean {
   if (app.status === 'hidden') return false
   if (app.requires === 'authenticated') return true
   if (user.roles.includes('SYS_ADMIN')) return true
-  return app.requires.some((r) => user.roles.includes(r))
+  if (Array.isArray(app.requires)) return app.requires.some((r) => user.roles.includes(r))
+  // 按部门前缀（如 LabOps：TT* / CMC*）；部门来自 MDM auth.user.department
+  const dept = (user.department ?? '').trim().toUpperCase()
+  return app.requires.departmentPrefixes.some((p) => dept.startsWith(p.toUpperCase()))
 }

@@ -3,6 +3,8 @@
 // requires 语义：
 //   - 'authenticated'      只要登录就能看
 //   - ['ROLE_A','ROLE_B']  拥有其中任一 MDM 角色码即可看；SYS_ADMIN 永远全可见
+//   - { departmentPrefixes: ['TT','CMC'] }  MDM 里的部门（auth.user.department）以其中任一前缀开头即可看
+//                          （不分大小写；SYS_ADMIN 永远全可见）。部门随登录用户信息和 access token 一起下发
 // status：live 正常可点；planned 建设中（显示但标灰、不可点）；hidden 暂不展示
 //
 // ⚠️ 各系统的角色码请以 MDM 后台 /admin/roles 里实际配置为准，这里的默认值来自各子系统当前代码：
@@ -10,7 +12,7 @@
 //   批号管理 认 CMC_USP_OPERATOR / CMC_USP_RESEARCHER / CMC_USP_MANAGER
 //   上游工艺看板 认 CMC_USP_OPERATOR / CMC_USP_MANAGER / CMC_USP_RESEARCHER；LIMS 看板 认 CMC_LIMS_* 三角色 + CMC_RESEARCHER + QA_REVIEWER（2026-09-04）
 
-export type AppRequirement = 'authenticated' | string[]
+export type AppRequirement = 'authenticated' | string[] | { departmentPrefixes: string[] }
 
 export interface HubApp {
   id: string
@@ -42,7 +44,7 @@ export const HUB_APPS: HubApp[] = [
     description: '仓库库存、设备台账与日常运营',
     icon: 'experiment',
     path: '/labops/',
-    requires: 'authenticated',
+    requires: { departmentPrefixes: ['TT', 'CMC'] }, // 2026-09-10 负责人：实验室系统，TT*/CMC* 部门员工可见（LabOps 后端同口径拦截）
     status: 'live',
     color: '#13c2c2',
   },
