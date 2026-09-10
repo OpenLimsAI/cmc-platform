@@ -6,6 +6,7 @@ import zhCN from "antd/locale/zh_CN";
 
 import MainLayout from "./shared/layouts/MainLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import { AppUpdateWatcher } from "./shared/appUpdate";
 import LoginPage from "./modules/admin/pages/LoginPage";
 import DashboardPage from "./modules/dashboard/pages/DashboardPage";
 import MaterialListPage from "./modules/materials/pages/MaterialListPage";
@@ -46,6 +47,7 @@ export default function App() {
         }}
       >
         <BrowserRouter basename={BASE}>
+          <AppUpdateWatcher />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
