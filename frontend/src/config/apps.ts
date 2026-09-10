@@ -5,6 +5,7 @@
 //   - ['ROLE_A','ROLE_B']  拥有其中任一 MDM 角色码即可看；SYS_ADMIN 永远全可见
 //   - { departmentPrefixes: ['TT','CMC'] }  MDM 里的部门（auth.user.department）以其中任一前缀开头即可看
 //                          （不分大小写；SYS_ADMIN 永远全可见）。部门随登录用户信息和 access token 一起下发
+//   - { anyPermission: true, roles: [...] } 在 MDM 里有任一业务权限，或持有列出的角色（对象内各条件为「或」）
 // status：live 正常可点；planned 建设中（显示但标灰、不可点）；hidden 暂不展示
 //
 // ⚠️ 各系统的角色码请以 MDM 后台 /admin/roles 里实际配置为准，这里的默认值来自各子系统当前代码：
@@ -12,7 +13,16 @@
 //   批号管理 认 CMC_USP_OPERATOR / CMC_USP_RESEARCHER / CMC_USP_MANAGER
 //   上游工艺看板 认 CMC_USP_OPERATOR / CMC_USP_MANAGER / CMC_USP_RESEARCHER；LIMS 看板 认 CMC_LIMS_* 三角色 + CMC_RESEARCHER + QA_REVIEWER（2026-09-04）
 
-export type AppRequirement = 'authenticated' | string[] | { departmentPrefixes: string[] }
+/**
+ * 对象形态各条件是「或」的关系，满足任一即可见：
+ *   roles              持有其中任一 MDM 角色码
+ *   departmentPrefixes 部门以其中任一前缀开头
+ *   anyPermission      在 MDM 里至少有一个业务权限（= 有 MDM 业务角色的人；只有下游角色的人没有）
+ */
+export type AppRequirement =
+  | 'authenticated'
+  | string[]
+  | { roles?: string[]; departmentPrefixes?: string[]; anyPermission?: boolean }
 
 export interface HubApp {
   id: string
@@ -34,7 +44,8 @@ export const HUB_APPS: HubApp[] = [
     description: '人员 / 角色 / 设备 / 物料 / 项目等主数据管理',
     icon: 'database',
     path: '/mdm/',
-    requires: 'authenticated',
+    // 2026-09-10 负责人：只有下游角色（如 QV_*）、MDM 内无任何权限的人不显示；部门管理员要进 MDM 管人所以列出
+    requires: { anyPermission: true, roles: ['DEPT_ADMIN'] },
     status: 'live',
     color: '#1677ff',
   },

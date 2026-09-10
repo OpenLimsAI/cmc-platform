@@ -9,7 +9,12 @@ export function canAccess(app: HubApp, user: HubUser | null): boolean {
   if (app.requires === 'authenticated') return true
   if (user.roles.includes('SYS_ADMIN')) return true
   if (Array.isArray(app.requires)) return app.requires.some((r) => user.roles.includes(r))
+  // 对象形态：各条件为「或」
+  const req = app.requires
+  if (req.roles?.some((r) => user.roles.includes(r))) return true
+  if (req.anyPermission && (user.permissions?.length ?? 0) > 0) return true
   // 按部门前缀（如 LabOps：TT* / CMC*）；部门来自 MDM auth.user.department
   const dept = (user.department ?? '').trim().toUpperCase()
-  return app.requires.departmentPrefixes.some((p) => dept.startsWith(p.toUpperCase()))
+  if (req.departmentPrefixes?.some((p) => dept.startsWith(p.toUpperCase()))) return true
+  return false
 }
