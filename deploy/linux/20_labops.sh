@@ -27,7 +27,9 @@ server {
     # 前端挂在统一门户 /labops/ 子路径下（vite base:'/labops/'）
     location = /            { return 302 /labops/; }
     location /labops/api/   { proxy_pass http://127.0.0.1:8010/api/; }
-    location /labops/       { alias /opt/cmc-labops/frontend-react/dist/; try_files $uri $uri/ /labops/index.html; }
+    # 缓存策略（2026-09-10，与 MDM/批号/验证部一致）：入口 no-cache 每次校验；assets/ 带哈希一年 immutable，缺文件 404
+    location /labops/assets/ { alias /opt/cmc-labops/frontend-react/dist/assets/; try_files $uri =404; add_header Cache-Control "public, max-age=31536000, immutable"; }
+    location /labops/       { alias /opt/cmc-labops/frontend-react/dist/; try_files $uri $uri/ /labops/index.html; add_header Cache-Control "no-cache"; }
     location /              { try_files $uri $uri/ /index.html; }
 }
 NGX
