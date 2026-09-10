@@ -10,6 +10,7 @@ CMC 数据平台**多个共享数据库结构的单一真理来源**，用多环
 | `cmc_analytics` | rd_pg : 5432 | dashboard / quality-analytics / 各 ETL（dim/staging/mart…）|
 | `cmc_data_platform` | rd_pg : 5432 | cmc-inventory / cmc-cost-modeler（material_mgmt / cost_accounting / equipment_mgmt）|
 | `cmc_gmp` | gmp_pg : 5434 | qc-lims-etl（GMP LabVantage raw + meta）|
+| `cmab_qv` | gmp_pg : 5434 | qv-validation-platform 验证部平台（validation / mapping / audit / meta，白皮书 D8）|
 
 > `cmab_mdm`（MDM Portal）**不在此**——它是单一 app 独占库，由 `cmab-mdm-platform` 自带 alembic（autogenerate）管理。
 > 但通过 `dbmig` 可用同一套命令访问它（见下）。架构定义见 `CMAB-DA-WP-001` 白皮书。
@@ -28,7 +29,7 @@ CMC 数据平台**多个共享数据库结构的单一真理来源**，用多环
 ./dbmig <库> current                  # 当前版本
 ```
 
-`<库>` ∈ `cmc_rd` / `cmc_analytics` / `cmc_data_platform` / `cmc_gmp` / `cmab_mdm`。
+`<库>` ∈ `cmc_rd` / `cmc_analytics` / `cmc_analytics_training` / `cmc_data_platform` / `cmc_gmp` / `cmab_qv` / `cmab_mdm`。
 （`cmab_mdm` 会自动转发到 `cmab-mdm-platform/backend` 的 alembic。）
 
 底层其实是 `alembic -n <库> ...`（一个 `alembic/env.py` 按 `-n` 选库），`dbmig` 只是薄封装。
@@ -93,10 +94,10 @@ PG_HOST=127.0.0.1
 PG_USER=postgres
 PG_PASSWORD=...          # Mac docker 与 Linux 原生 已统一为同一值
 PG_PORT_RD=5432          # cmc_rd / cmc_analytics / cmc_data_platform
-PG_PORT_GMP=5434         # cmc_gmp
+PG_PORT_GMP=5434         # cmc_gmp / cmab_qv
 ```
 
-`alembic/env.py` 据 `-n <库名>` 自动拼连接串：`cmc_gmp` 走 `PG_PORT_GMP`，其余走 `PG_PORT_RD`。
+`alembic/env.py` 据 `-n <库名>` 自动拼连接串：`cmc_gmp` / `cmab_qv` 走 `PG_PORT_GMP`，其余走 `PG_PORT_RD`。
 
 ---
 

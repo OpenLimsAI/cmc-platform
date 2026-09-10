@@ -12,7 +12,7 @@
 #   dbmig cmab_mdm upgrade head            # 转发到 cmab-mdm-platform app 自带 alembic
 #
 # 管理范围:
-#   cmc_rd / cmc_analytics / cmc_data_platform / cmc_gmp  → 本仓库多环境 alembic
+#   cmc_rd / cmc_analytics / cmc_data_platform / cmc_gmp / cmab_qv  → 本仓库多环境 alembic
 #   cmab_mdm                                              → cmab-mdm-platform/backend（autogenerate）
 #
 # 日常流程（任何库都一样）:
@@ -23,14 +23,14 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ALEMBIC="$REPO/.venv/bin/alembic"
 CMAB_DIR="${CMAB_DIR:-$(cd "$REPO/.." && pwd)/cmab-mdm-platform/backend}"
-CENTRAL="cmc_rd cmc_analytics cmc_analytics_training cmc_data_platform cmc_gmp"
+CENTRAL="cmc_rd cmc_analytics cmc_analytics_training cmc_data_platform cmc_gmp cmab_qv"
 
 cmab() { ( cd "$CMAB_DIR" && uv run alembic "$@" ); }
 
 db="${1:-list}"; shift || true
 
 case "$db" in
-  cmc_rd|cmc_analytics|cmc_analytics_training|cmc_data_platform|cmc_gmp)
+  cmc_rd|cmc_analytics|cmc_analytics_training|cmc_data_platform|cmc_gmp|cmab_qv)
     exec "$ALEMBIC" -n "$db" "$@" ;;
   cmab_mdm)
     cmab "$@" ;;
