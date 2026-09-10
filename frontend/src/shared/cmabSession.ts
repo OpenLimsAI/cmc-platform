@@ -131,7 +131,7 @@ export function readLastActive(): number {
   return Number.isFinite(v) && v > 0 ? v : 0
 }
 
-/** 解 JWT 的 exp（毫秒）；解析失败返回 0（当作未知，交给 401 兜底） */
+/** 解 JWT 的 exp（毫秒）；解不开或没有 exp 返回 0 = **这张令牌不可信**（见 isTokenReadable） */
 export function tokenExpMs(token: string | null): number {
   if (!token) return 0
   try {
@@ -141,6 +141,18 @@ export function tokenExpMs(token: string | null): number {
   } catch {
     return 0
   }
+}
+
+/**
+ * 令牌能不能看懂：解得开 + 带数字 exp。
+ *
+ * 看不懂的令牌（手工塞进 localStorage 的、被截断的、别的系统写脏的）一律当无效。
+ * 2026-09-11 复核发现的坑：以前这种令牌既不续期也不登出，人就一直挂在「看起来已登录」
+ * 的假状态里，和 2026-09-10 修的「打开门户直接就进来了」是同一个毛病的另一半。
+ * 注意这只是前端体验层——真鉴权在各后端验签。
+ */
+export function isTokenReadable(token: string | null): boolean {
+  return tokenExpMs(token) > 0
 }
 
 // ---------------- MDM 接口 ----------------
@@ -290,7 +302,10 @@ export function startSessionGuard(opts: SessionGuardOptions): () => void {
     // 通行证已经过期：此刻去拉会话策略必然 401，不能等拿到策略再决定。
     // 旧写法是「拉不到策略就 return」，于是令牌失效后守卫既不续期也不登出，
     // 页面就一直停在已登录的样子（2026-09-10 负责人反馈「打开门户直接就进来了」，已实测复现）。
-    if (exp && exp <= now) {
+    //
+    // exp 为 0 = 令牌根本解不开或没写到期时间，同样按失效处理（2026-09-11）：
+    // 要么静默换一张真的（refresh cookie 还在），要么登出。绝不能既不续期也不登出。
+    if (!exp || exp <= now) {
       await tryRefresh()
       return
     }
@@ -307,7 +322,6 @@ export function startSessionGuard(opts: SessionGuardOptions): () => void {
       return
     }
 
-    if (!exp) return
     const aheadMs = Math.min(5 * 60_000, (p.access_token_minutes * 60_000) / 3)
     if (exp - now > aheadMs) return
     await tryRefresh()

@@ -85,10 +85,11 @@ export function payloadFromToken(token: string): Record<string, unknown> | null 
   }
 }
 
-// 令牌是否已过期（exp 为秒级时间戳；留 30 秒余量）
+// 令牌是否已失效（exp 为秒级时间戳；留 30 秒余量）。
+// 解不开或没写到期时间的令牌 = 不可信，一律当失效（2026-09-11 复核；同 cmabSession.isTokenReadable）。
 export function isTokenExpired(token: string | null): boolean {
   if (!token) return true
   const exp = payloadFromToken(token)?.exp
-  if (typeof exp !== 'number') return false
+  if (typeof exp !== 'number') return true
   return exp * 1000 < Date.now() + 30_000
 }

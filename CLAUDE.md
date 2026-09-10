@@ -37,6 +37,22 @@
 - 各子系统接法（已全部接上）：登录页调 `mdmLogin`（不再走各自后端代理登录，代理端点保留仅供脚本）；API 客户端 401 → `mdmRefresh` 兜底续一次并重放，续不了回本系统 `/login?reason=expired`；主布局/AuthGate 挂 `startSessionGuard({ onLogout: logoutToLogin('<本系统登录页>') })`；登录页用 `logoutReasonText(?reason)` 显示「长时间未操作」提示。
 - 活动时间共用 `localStorage['cmab_last_active']`，令牌换新广播 `cmab-token-changed`（各 store 监听同步）。refresh Cookie 只在 `/mdm/api/v1/auth` 路径下，所以**续期必须直接打 MDM**，不能各自代理。
 - 新子系统接入：复制母本 + 照上面三步；登录页可直接复用门户登录（`/login?redirect=/xxx/`）。
+- **令牌看不懂就当失效**（2026-09-11）：`tokenExpMs` 解不开或没 exp 返回 0，守卫据此直接续期/登出（`isTokenReadable`），
+  门禁 `RequireAuth` 也不认这种令牌。以前这种令牌既不续期也不登出，人挂在假登录状态里，是 2026-09-10 那个毛病的另一半。
+  MDM 自己的 `sessionGuard.ts` 同步改过。
+- **临时密码不让进业务系统**（2026-09-11）：令牌里带 `must_change_password`，各后端 403 拦（总纲 §8.1），
+  门户这边把除 MDM 外的磁贴变灰（`AppTile` 的 `locked`），顶部提示改密码。
+- `?redirect=` 只认站内路径（`LoginPage.safeRedirect`），外站地址一律回首页。
+
+## 安全响应头（2026-09-11）
+
+`nginx/security-headers.conf` 一份，Mac / Linux 两个 server 配置各 include 一次。内容只挡「被别人套 iframe」
+「浏览器猜文件类型」「地址泄漏给外站」，**不限制脚本来源**（各子系统有内联脚本，收紧会白屏）。
+
+⚠️ nginx 规矩：某个 location 自己写了 `add_header`，上层的 `add_header` 就**全部失效**。所以 `/assets/` 和 `/`
+这两个写了 Cache-Control 的 location 里各自又 include 了一次，加新的带 `add_header` 的 location 时记得照做。
+
+> HTTPS 仍未上（对外只有明文 5100），密码在内网是明文传的。要不要上 TLS 是负责人 + IT 的决定，别自作主张改。
 
 ## 运维要点
 

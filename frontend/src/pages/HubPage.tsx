@@ -24,6 +24,8 @@ export default function HubPage() {
   const navigate = useNavigate()
 
   const visible = HUB_APPS.filter((a) => canAccess(a, user))
+  // 管理员重置密码后发的是临时密码：改完之前哪个系统都不让进（2026-09-11，各后端同步拦）
+  const mustChangePassword = Boolean(user?.must_change_password)
   // 没权限的应用直接不显示，也不提示「另有 N 个未显示」（负责人 2026-09-04）
 
   // 会话守卫：空闲超时自动登出 / 通行证快到期静默续期 / 别的标签页登出跟着退（规则由 MDM 会话策略配置）
@@ -55,15 +57,15 @@ export default function HubPage() {
       </header>
 
       <main className="hub-main">
-        {user?.must_change_password && (
+        {mustChangePassword && (
           <Alert
             type="warning"
             showIcon
             style={{ marginBottom: 20 }}
-            message="你的密码需要修改"
+            message="你用的是临时密码，请先修改"
             description={
               <span>
-                请先到 <a href="/mdm/">主数据 MDM</a> 修改密码，再使用其他系统。
+                改完才能进其他系统（现在其他图标是灰的，点不开）。去 <a href="/mdm/">主数据 MDM</a> 修改。
               </span>
             }
           />
@@ -90,7 +92,8 @@ export default function HubPage() {
             style={{ '--cols': Math.min(visible.length, 4) } as React.CSSProperties}
           >
             {visible.map((a) => (
-              <AppTile key={a.id} app={a} />
+              // 临时密码没改之前，除 MDM 外一律锁住（后端也会 403，见各系统 auth）
+              <AppTile key={a.id} app={a} locked={mustChangePassword && a.id !== 'mdm'} />
             ))}
           </div>
         )}

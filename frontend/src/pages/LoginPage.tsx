@@ -13,6 +13,19 @@ interface FormValues {
   password: string
 }
 
+/**
+ * 登录后往哪跳 —— 只认本门户站内的路径（`/xxx`）。
+ *
+ * `?redirect=` 是地址栏里来的，谁都能改。外站地址（`//别人家`、`http://…`）、
+ * `javascript:` 这类一律丢掉回首页，别把人送出去，也别让路由器拿到跳不了的地址报错。
+ * 反斜杠要一起挡：浏览器把 `/\别人家` 也当外站。
+ */
+function safeRedirect(raw: string | null): string {
+  if (!raw || !raw.startsWith('/')) return '/'
+  if (/^[/\\]{2}/.test(raw)) return '/'
+  return raw
+}
+
 export default function LoginPage() {
   const { token } = useAuth()
   const [params] = useSearchParams()
@@ -20,7 +33,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const redirect = params.get('redirect') || '/'
+  const redirect = safeRedirect(params.get('redirect'))
   const reasonNotice = logoutReasonText(params.get('reason')) // 被会话守卫踢回来时的说明
   if (token && !isTokenExpired(token)) return <Navigate to={redirect} replace />
 
