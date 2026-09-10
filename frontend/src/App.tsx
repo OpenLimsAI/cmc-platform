@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
 import HubPage from '@/pages/HubPage'
 import LoginPage from '@/pages/LoginPage'
+import { AppUpdateWatcher } from '@/shared/appUpdate'
 import { useAuth } from '@/stores/authStore'
 
 // 门禁：未登录一律回登录页（带 redirect 回跳）。
@@ -18,12 +19,15 @@ function RequireAuth() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<RequireAuth />}>
+    <>
+      <AppUpdateWatcher />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<RequireAuth />}>
         <Route path="/" element={<HubPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
