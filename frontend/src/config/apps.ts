@@ -119,7 +119,7 @@ export const HUB_APPS: HubApp[] = [
     description: '温湿度分布验证工具箱；验证台账与设备验证档案陆续上线',
     icon: 'audit',
     path: '/qv/',
-    requires: 'authenticated', // 2026-09-09 负责人：工具箱暂独立于 CMC 体系、自身无登录，门户上登录即可见
+    requires: 'authenticated', // 2026-09-11：验证部平台后端已强制 MDM 登录（任何有效账号可用），要收紧到 QV_* 角色需两边一起改（见该项目 CLAUDE.md「登录鉴权」）
     status: 'live',
     color: '#2f54eb',
   },
