@@ -7,14 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 CMC R&D LIMS Dashboard — CMC 研发 LIMS 检验进度与考核看板。FastAPI 后端 + Next.js 16 前端。前身项目 `tt-lims-platform`，按 CMC 数据中台架构 v0.1 重建：
 
 - 看板**只读** `cmc_analytics.mart`（mart 由数据侧负责建设，看板侧只消费）
-- admin 面板**读写** `cmc_analytics.mdm.{personnel, test_method}`（MDM 数据 2026-05-18 已由独立 `cmc_mdm` 库归并到 `cmc_analytics.mdm`，由数据侧维护表结构 + 软删除字段）
+- admin 面板**读写** `cmc_analytics.dim.{employee_master, method_master}`（2026-05-18 从独立 `cmc_mdm` 库归并为 `cmc_analytics.mdm.{personnel,test_method}`；**2026-09-10 按白皮书 D10 归入 `dim` 并改名**，表结构由 `cmc-schema-migrations` 维护 + 软删除字段）
 - 本 app **不拥有任何 DB 表**，因此不带 alembic
 - 原 Streamlit 看板的统计口径仍是基准，在 `/Users/qingcheng/Documents/Python/tt_lims_dashboard`
 
 数据流向：
 ```
 cmc_rd.raw_rd_lims_samplemanager  →  cmc_analytics.staging  →  cmc_analytics.mart  →  本看板
-cmc_analytics.mdm.{personnel,test_method}  →  mart.dim_{employee,method}（WHERE deleted_at IS NULL）  →  本看板
+cmc_analytics.dim.{employee_master,method_master}  →  mart.dim_{employee,method}（WHERE deleted_at IS NULL）  →  本看板
                                            ←——————— admin 面板（SELECT/INSERT/UPDATE，软删除）———————
 ```
 
@@ -46,7 +46,7 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
 - `api/v1/lims/stats.py` — 看板 read 端点；薄路由，业务逻辑在 `services/`，依赖 `get_analytics_db()`
 - `api/v1/auth.py` — MDM 统一登录代理（login/refresh/logout 转发 `MDM_BASE_URL`，refresh 走 HttpOnly Cookie 中转，接法对齐 labops，见 `~/code/CLAUDE.md` 第 8 节）
 - `core/security.py` + `core/auth.py` — JWT 验签（HS256 共享密钥/RS256）+ 角色依赖。三角色在 MDM 维护：`CMC_LIMS_ANALYST`(查看) / `CMC_LIMS_CHEMIST`(查看+导出) / `CMC_LIMS_ADMIN`(查看+导出+admin 后台)，`SYS_ADMIN` 恒放行。看板读接口在 `router.py` 统一挂 `require_view`；`/api/v1/health` 与 `/api/v1/auth/*` 开放。未配 `JWT_SECRET_KEY` = 本地开放模式（不鉴权）；`AUTH_REQUIRED=true` 且没配密钥则启动报错
-- `api/v1/admin/` — CRUD for `cmc_analytics.mdm.test_method` / `mdm.personnel`；依赖 `get_mdm_db()`；鉴权走 `verify_admin`（= `require_admin`，旧共享密码 + x-admin-token 机制已废除）；list/get/update 都带 `WHERE deleted_at IS NULL`
+- `api/v1/admin/` — CRUD for `cmc_analytics.dim.method_master` / `dim.employee_master`；依赖 `get_mdm_db()`；鉴权走 `verify_admin`（= `require_admin`，旧共享密码 + x-admin-token 机制已废除）；list/get/update 都带 `WHERE deleted_at IS NULL`
 - `api/v1/lims/tester.py` + `services/lims/tester_service.py` + `schemas/lims/tester.py` — 检验员工作台（2026-09-09）：单人在手检项/超时限/本月产出，口径与检验周期页一致，见 `docs/tester_workbench.md`
 - `services/lims/stats_service.py` — 所有 SQL 查询逻辑。常用辅助：
   - `_group_clause(groups)` — 构建 `group_id = ANY(ARRAY['TT1',...])` 或 `TRUE`；group 内联为字面量，避免 asyncpg 类型推断报错
@@ -55,7 +55,7 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
   - `_DATE_WINDOW_RECEIVED` / `_DATE_WINDOW_AUTHORISED` — 日期窗口
 - `schemas/lims/stats.py` — 所有 Pydantic 响应模型
 - `models/lims/views.py` — mart 视图 ORM（`mart.vw_test_task_monitor` / `mart.vw_sample_overview`）
-- `models/mdm/masters.py` — MDM 主数据 ORM（`mdm.test_method` / `mdm.personnel`），含软删除字段
+- `models/mdm/masters.py` — 主数据 ORM（`dim.method_master` / `dim.employee_master`；目录名 mdm 是历史遗留），含软删除字段
 - `core/database.py` — 双异步引擎都连 `cmc_analytics`：`analytics_engine`（`lims_reader`，pool=5）+ `mdm_engine`（`lims_mdm_writer`，pool=2）；分开仅为隔离读 / 写角色
 - `core/config.py` — pydantic-settings；读 `.env` 或 `../.env`
 
@@ -76,8 +76,8 @@ Browser → Next.js page (`app/dashboard/*/page.tsx`) → `lib/api.ts` (axios) �
 
 | 账号 | 权限 | 用途 |
 |---|---|---|
-| `lims_reader` | SELECT on `cmc_analytics`（mart / mdm 全部只读） | 看板 API（`get_analytics_db`） |
-| `lims_mdm_writer` | SELECT/INSERT/UPDATE on `cmc_analytics.mdm.{personnel,test_method}`（无 DELETE，强制走软删除） | admin API（`get_mdm_db`） |
+| `lims_reader` | SELECT on `cmc_analytics`（mart / dim 全部只读） | 看板 API（`get_analytics_db`） |
+| `lims_mdm_writer` | SELECT/INSERT/UPDATE on `cmc_analytics.dim.{employee_master,method_master}`（无 DELETE，强制走软删除） | admin API（`get_mdm_db`） |
 
 `.env` 关键变量：`ANALYTICS_DATABASE_URL`、`MDM_DATABASE_URL`、`JWT_SECRET_KEY`（须等于 MDM 的 SECRET_KEY）、`MDM_BASE_URL`、`AUTH_REQUIRED`（旧 `ADMIN_PASSWORD` 已废除）
 
@@ -93,13 +93,13 @@ Frontend env: `NEXT_PUBLIC_API_BASE_URL`（默认 `http://localhost:8030`）
 - **useSearchParams in Next.js**：调 `useSearchParams()` 的组件必须包 `<Suspense>`，页面必须 `export const dynamic = "force-dynamic"`
 - **Axios array params**：`lib/api.ts` 里自定义的 `paramsSerializer` 把数组序列化成 `?k=v1&k=v2`，不要用 `k[]=v1`
 - **cycle-time page date range**：本页日期范围由 `trendMonths` slider 控制，不是 sidebar 日期。`tableStart = dayjs().subtract(trendMonths-1, "month").startOf("month")`，跟后端 SQL 对齐
-- **MDM 软删除约定**：`cmc_analytics.mdm.{personnel,test_method}` 用 `deleted_at IS NOT NULL` 标记软删；admin 读 / 写、`mart.dim_employee` / `mart.dim_method` 视图都要过滤掉软删行。`lims_mdm_writer` 没有 DELETE 权限，物理删要走 DBA。
-- **旧 `cmc_mdm` 库 / `mdm_admin` 角色已删除**（2026-05-18）：所有 `mdm_quality.*` / `mdm_core.*` / `mdm_admin` 引用都已废弃，看到要立刻替换成 `cmc_analytics.mdm.*` / `lims_mdm_writer`。`docs/mdm_contracts.md` 与 `docs/mart_contracts.md` 里残留的旧契约描述属于历史快照，仅作参考。
+- **主数据软删除约定**：`cmc_analytics.dim.{employee_master,method_master}` 用 `deleted_at IS NOT NULL` 标记软删；admin 读 / 写、`mart.dim_employee` / `mart.dim_method` 视图都要过滤掉软删行。`lims_mdm_writer` 没有 DELETE 权限，物理删要走 DBA。
+- **旧 `cmc_mdm` 库 / `mdm_admin` 角色已删除**（2026-05-18）：所有 `mdm_quality.*` / `mdm_core.*` / `mdm_admin` 引用都已废弃，看到要立刻替换成 `cmc_analytics.dim.{employee_master,method_master}` / `lims_mdm_writer`；`cmc_analytics.mdm.*` 也已于 2026-09-10 废止。`docs/mdm_contracts.md` 与 `docs/mart_contracts.md` 里残留的旧契约描述属于历史快照，仅作参考。
 
 ## 重要文档
 
 - `docs/mart_contracts.md` — 看板与 mart 的接口（数据侧建表依据）
-- `docs/mdm_contracts.md` — admin 与 MDM 的接口（**历史快照**：原 `cmc_mdm` 独立库方案，现已归并到 `cmc_analytics.mdm.*`，文本未刷新仅作参考）
+- `docs/mdm_contracts.md` — admin 与 MDM 的接口（**历史快照**：原 `cmc_mdm` 独立库方案，现已归并到 `cmc_analytics.dim.*`，文本未刷新仅作参考）
 - `docs/README.md` — 项目说明
 - `docs/legacy/` — tt-lims-platform 历史文档（仅参考）
 
