@@ -33,7 +33,8 @@
 
 设备部台账（SMP-PES-001-F13）适配（0056，2026-09-10）：
   - 「制造单位/唯一编码/总功率/存放位置/首次启用日期」等列名认得了
-  - 「Bioreactor/225L生物反应器」这种一格两语言，自动拆中文名 + 英文名
+  - 「Bioreactor/225L生物反应器」这种一格两语言**原样入库**，不拆（2026-09-11 负责人拍板：
+    设备名称是一个整体；台账无独立英文名列，拆开等于改写主数据）
   - 日期只写到年月（2016.05）按当月 1 日入库
   - 台账没有分类列 → 按设备名称关键词预归类，报告列「需人工核对分类」=Y 供核对
   - 别名/出厂日期/总重等主数据无正式列的信息进 extra，不丢
@@ -44,6 +45,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import re
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -349,29 +351,19 @@ def parse_date(val) -> date | None:
     return None
 
 
-def _has_cjk(s: str) -> bool:
-    return any("\u4e00" <= ch <= "\u9fff" for ch in s)
+def normalize_name(raw: str | None) -> str | None:
+    """台账「设备名称」原样入库，只把单元格内的折行去掉。
 
+    2026-09-11 负责人拍板：设备名称是一个整体，形如 'Bioreactor/225L生物反应器' 的写法
+    **不许按斜杠拆成中文名 + 英文名**——台账没有独立英文名列，拆开等于擅自改写主数据。
+    （此前版本会拆，已在正式库把 13 台还原；本函数取代原 split_name。）
 
-def split_name(raw: str | None) -> tuple[str | None, str | None]:
-    """拆「英文名/中文名」写在一格的台账写法。返回 (中文名, 英文名)。
-
-    设备部台账形如 'Bioreactor/\n225L生物反应器'、'Nutrient Tank/\n600L补料罐'。
-    只在「一侧全无汉字、另一侧有汉字」时才拆，避免误伤
-    '850L培养基罐/400L培养基罐'（两侧都是中文，是一台设备的两个规格）。
+    单元格里的换行只是排版折行（'Bioreactor/\n225L生物反应器'），连同两侧空格一起去掉，
+    其余空格保留（'液氮罐 备用' 里的空格是名字的一部分）。
     """
     if raw is None:
-        return None, None
-    for sep in ("/", "\n"):
-        parts = [x.strip() for x in raw.split(sep) if x.strip()]
-        if len(parts) != 2:
-            continue
-        a, b = parts
-        if not _has_cjk(a) and _has_cjk(b):
-            return b, a
-        if _has_cjk(a) and not _has_cjk(b):
-            return a, b
-    return raw, None
+        return None
+    return re.sub(r"\s*\n\s*", "", raw).strip() or None
 
 
 def normalize_status(raw: str | None) -> str:
@@ -445,7 +437,7 @@ def detect_header(ws, scan_rows: int = 10) -> tuple[int, dict[int, str]]:
         if "equipment_name" in col_field.values():
             return r_idx, col_field
     raise RuntimeError(
-        "未能在前 %d 行内识别表头（需包含『设备名称/名称』列）" % scan_rows
+        f"未能在前 {scan_rows} 行内识别表头（需包含『设备名称/名称』列）"
     )
 
 
@@ -474,11 +466,8 @@ def parse_row(
         pr.skip_reason = "empty_name"
         return pr
 
-    # 台账把「英文名/中文名」写在一格：拆开填中/英文名（Excel 已有英文名列时不覆盖）
-    zh, en = split_name(pr.equipment_name)
-    pr.equipment_name = _truncate(zh, MAXLEN["equipment_name"])
-    if en and not pr.equipment_name_en:
-        pr.equipment_name_en = _truncate(en, MAXLEN["equipment_name_en"])
+    # 设备名称原样入库（只去折行）；英文名只认台账里真的有「英文名称」列的情况
+    pr.equipment_name = _truncate(normalize_name(pr.equipment_name), MAXLEN["equipment_name"])
 
     # 分类：台账通常没有分类列 → 按设备名称关键词预归类，报告里标出来供人工核对
     if pr.category:

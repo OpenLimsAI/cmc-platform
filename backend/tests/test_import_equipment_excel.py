@@ -13,12 +13,12 @@ from app.scripts.import_equipment_excel import (
     _norm,
     detect_header,
     normalize_category,
+    normalize_name,
     normalize_status,
     parse_date,
     parse_decimal,
     parse_row,
     read_excel,
-    split_name,
 )
 
 
@@ -160,19 +160,21 @@ def test_parse_date_year_month():
     assert parse_date("2016.05.20") == date(2016, 5, 20)
 
 
-@pytest.mark.parametrize("raw,zh,en", [
-    # 台账把英文名和中文名写在一格
-    ("Bioreactor/\n225L生物反应器", "225L生物反应器", "Bioreactor"),
-    ("Nutrient Tank/\n600L补料罐", "600L补料罐", "Nutrient Tank"),
-    # 两侧都是中文 = 一台设备的两个规格，不能拆
-    ("850L培养基罐/400L培养基罐", "850L培养基罐/400L培养基罐", None),
-    # 纯中文、纯英文都原样返回
-    ("蠕动泵", "蠕动泵", None),
-    ("HOT LIPS TUBE SEALER", "HOT LIPS TUBE SEALER", None),
-    (None, None, None),
+@pytest.mark.parametrize("raw,expected", [
+    # 2026-09-11：一格两语言原样入库，不拆——只去掉单元格里的折行
+    ("Bioreactor/\n225L生物反应器", "Bioreactor/225L生物反应器"),
+    ("Nutrient Tank/\n600L补料罐", "Nutrient Tank/600L补料罐"),
+    ("Ready To Process Wave25/\n波浪式生物反应器", "Ready To Process Wave25/波浪式生物反应器"),
+    # 两侧都是中文（一台设备的两个规格）同样原样
+    ("850L培养基罐/400L培养基罐", "850L培养基罐/400L培养基罐"),
+    # 纯中文、纯英文原样；名字中间的空格保留
+    ("蠕动泵", "蠕动泵"),
+    ("HOT LIPS TUBE SEALER", "HOT LIPS TUBE SEALER"),
+    ("液氮罐 备用", "液氮罐 备用"),
+    (None, None),
 ])
-def test_split_name(raw, zh, en):
-    assert split_name(raw) == (zh, en)
+def test_normalize_name_keeps_whole(raw, expected):
+    assert normalize_name(raw) == expected
 
 
 @pytest.mark.parametrize("raw,expected", [
@@ -233,7 +235,7 @@ def test_ledger_header_detection_maps_department_columns():
 
 
 def test_ledger_row_roundtrip(tmp_path):
-    """整行解析：拆中英文名、年月日期、部门/厂区兜底、extra 收纳台账杂项"""
+    """整行解析：名称原样（不拆）、年月日期、部门/厂区兜底、extra 收纳台账杂项"""
     wb, _ = _ledger_sheet([
         (1, "Bioreactor/\n225L生物反应器", "BR1-1;\n发酵线1", "225/150L",
          "CC1-SC-001-01", "2016.05", "3129培养间", "Bioengineering AG",
@@ -246,8 +248,8 @@ def test_ledger_row_roundtrip(tmp_path):
     assert len(rows) == 1
     pr = rows[0]
     assert pr.skip_reason is None
-    assert pr.equipment_name == "225L生物反应器"
-    assert pr.equipment_name_en == "Bioreactor"
+    assert pr.equipment_name == "Bioreactor/225L生物反应器"  # 整体入库，不拆
+    assert pr.equipment_name_en is None  # 台账没有独立英文名列
     assert pr.equipment_no == "CC1-SC-001-01"
     assert pr.manufacturer == "Bioengineering AG"
     assert pr.serial_no == "D3285"
