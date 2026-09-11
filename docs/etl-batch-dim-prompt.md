@@ -1,5 +1,9 @@
 # 给 rd-lucullus-etl 的实现 Prompt：构建批次维度（staging.stg_batch → mart.dim_batch）
 
+> **状态：已完成，存档备查（2026-09-11 标注）。** `mart.dim_batch` 早已建好并在用（看板批次名单、
+> 细胞↔工艺关联都读它），下面是当初交给 ETL 那边的实现说明，只作历史记录，不代表现在的表结构；
+> 现状以 `cmc-schema-migrations` 里的迁移和白皮书 V0.4 为准。
+
 > 把下面「PROMPT 开始 … PROMPT 结束」之间的全部内容，粘贴到在 `rd-lucullus-etl` 目录下新开的 Claude Code 会话里。
 
 ---

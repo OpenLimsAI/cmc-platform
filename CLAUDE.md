@@ -27,7 +27,7 @@
 
    另有独立页面 **数据录入**（`/usp/entry`，顶栏按钮进出；2026-09-09 起，**本看板唯一会写库的功能**；2026-09-11 从「渗透压录入」
    扩成「数据录入」，每行样品两格：**渗透压** mOsm/kg 100–1000、**葡萄糖** g/L 0.00–20.00）：按日期列出当天该取样的
-   全部样品——以**批号登记系统**（rd-batch-registry，`REGISTRY_BASE_URL`，接口 `batches:samples-by-date`）的当天清单为准，再并上
+   全部样品——以**批号注册系统**（仓库名 rd-batch-registry，负责人习惯叫「注册」，页面上的来源标签也写「批号注册系统」；`REGISTRY_BASE_URL`，接口 `batches:samples-by-date`）的当天清单为准，再并上
    仪器（Nova / Vi-CELL）当天实测样品；批次 / 罐 / 培养天 / 样品名 / **取样时刻**（自动取自仪器记录，Nova 真 UTC 换北京时间、
    Vi-CELL 表里钟点直接当北京时间——ETL 时区 bug）自动带出，试验员只填数值；同一样品当天仪器记录相隔 ≥2h 自动分成多次取样
    （第二次起样品名带 -T1），时刻/样品名可改，每行「＋」再加一次取样；没取样的行点 × 删（本机记忆、可恢复），临时样品「添加一行」。存 `cmc_analytics.manual.sample_result`（通用人工录入表，含 sampled_at / sample_name，只追加不覆盖，按 (批次, 天, 样品名)
@@ -55,7 +55,9 @@
 - **前端**：Next.js 16 + React + `@tanstack/react-query` + `echarts-for-react`。文件分工：
   `components/Dashboard.tsx`（主体：筛选状态 + 板块开关）、`BatchFilter.tsx`（左栏筛选）、`CurveSection.tsx`（生长/生化/日均工艺三个按天板块共用）、
   `ProcessTimeseriesSection.tsx`（全量时序，多段叠加 + 缩放取数）、`DailyTable.tsx`、`SamplesSection.tsx`、`SeriesChart.tsx`（echarts 封装）、
-  `lib/batches.ts`（排序/显示名小工具）、`lib/metrics.ts`（三源指标表 + **固定配色/线型**）。
+  `lib/batches.ts`（排序/显示名小工具）、`lib/metrics.ts`（三源指标表 + **固定配色/线型**）；
+  录入页 `DataEntry.tsx`（渗透压 / 葡萄糖，表头分隔线可拖改列宽、按本机 localStorage 记住），
+  登录门 `AuthGate.tsx` + `lib/cmabSession.ts`（全公司统一会话，见总纲 §8），`lib/usePersisted.ts`（本机记忆小工具）。
   - 曲线区分规则（负责人 2026-09-08/09 定，所有图统一）：**颜色永远跟指标固定**（活率红、活细胞密度蓝、总细胞密度橙黄、
     葡萄糖橙、乳酸绿、温度橙、溶氧绿…），全部实线；**不同罐/批次靠标记形状**（圆/方/三角…）区分，全量时序点太密改用线型
     （实线/虚线/点线）分段。指标按钮本身就是图例（勾上 = 该线颜色），图内不放图例，罐号图例放图正上方。
@@ -78,13 +80,13 @@
   - 读 `cmc_analytics` → 配置项 `ANALYTICS_DATABASE_URL`（留空则细胞视图不可用，工艺曲线不受影响）。
   - ⚠️ 授权走 `cmc-schema-migrations`（alembic），别裸 SQL 授到生产。基线 `deploy/linux-native/scripts/04_grants.sql` 已给 `lims_reader` 授 `cmc_analytics` 各 schema 读权，新视图 `mart.fact_vicell` 的显式补授见迁移 `cmc_analytics_vicell_read_grant`（上线前 `alembic upgrade` 并确认 `has_table_privilege('lims_reader','mart.fact_vicell','SELECT')=t`）。
 
-## 治理规矩（架构白皮书 V0.3，务必遵守）
+## 治理规矩（架构白皮书 V0.4，务必遵守）
 
 - **`cmc_rd` 是原始层，只读**。本项目**绝不往 `cmc_rd` 写东西**。
 - 如果要算/存分析结果（如批次特征、KPI），放到 **`cmc_analytics`**（分析层），不是 `cmc_rd`。
 - **不要字符串解析 `source_instance`**（如 `rd_ws01_usp_lucullus_01`）。要设备/产线信息就 join `meta.equipment_lookup`。
 - 部署：Mac 改 → git push → Linux pull → 跑（与其它项目一致）。
-- 完整白皮书：`~/code/CMAB_Data_Architecture_Whitepaper_V0_3.md`（新建项目准入清单见 Part V）。
+- 完整白皮书：`~/code/CMAB_Data_Architecture_Whitepaper_V0_4.md`（新建项目准入清单见 Part V；V0.3 已归档）。
 
 ## 数据模型（要查的主表）
 
@@ -110,7 +112,8 @@
   `display_name` / `category` / `canonical_key` / `is_preferred` / `sort_order`，另有 `GET /api/channel-dict` 查全表。
   改显示名 = 在 `cmc-schema-migrations` 里写一条 UPDATE 迁移改那张表，**不要**在前端/后端写通道名字典。
   同一物理量在两站/别名下的通道共用 `canonical_key`（如 ws01 的 `m_o2` 与 ws02 的 `m_mfc3` 都是 `mfc3_flow`），做跨站对比按它归并。
-- 目前库里已有数据：ws01 / ws02 的 2025、2026 年批次，约 92 批、3300 万行。更早年份 ETL 那边随时可补。
+- 数据规模（2026-09-11 核对）：`process_src` 登记 739 个批次（2019–2026），其中 **165 批真有时序数据**（2023–2026：2023 年 4、2024 年 38、2025 年 70、2026 年 53），
+  `signal_timeseries` 约 **6700 万行**。更早年份 ETL 那边随时可补；看板批次名单只列「有时序数据」的那些。
 
 ### 细胞计数（Vi-CELL）
 
@@ -126,8 +129,9 @@
 | `total_per_ml` / `avg_diameter_um` / `avg_circularity` | 总密度 / 直径 / 圆度 |
 | `lucullus_procid` / `batch_starttime` … | 工艺关联字段（来自 `mart.dim_batch`，只有约 61 批有；Phase 2 叠图用）|
 
-- 规模：共 ~18,473 样本，其中 ~15,361 带 `culture_day`、覆盖 ~1,389 批次 = 能画生长曲线的范围。
-- 数据质量：历史 `sample_id` 命名杂，约 84% `parse_status` 为 suspect/unparseable，按批次看只覆盖能拆出 `batch_key` 的那部分（**这是数据本身限制，不是 bug**）。
+- 规模（2026-09-11 核对）：共 ~17,574 样本，其中 ~16,539 带 `culture_day`、覆盖 ~1,603 批次 = 能画生长曲线的范围。
+- 数据质量（2026-09-11 核对）：`parse_status` ok 88.4%、unparseable 5.9%、suspect 5.7%（解析器几轮修正后已大幅好转；早期文档写的 84% 异常已作废）。
+  剩下拆不出 `batch_key` 的样本进不了曲线，**这是原始样本名本身的限制，不是 bug**。
 - 后端接口只取 `batch_key` 非空且 `culture_day` 非空的批次；`batch_year` 从批号 `R2601→2026` 在 SQL 里解析（多数批次没关联 dim_batch，别指望 `batch_year` 列）。
 
 ## 运行（后端）

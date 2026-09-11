@@ -1,35 +1,41 @@
 # 交接说明（新窗口从这里开始）
 
-这个项目是 `rd-lucullus-etl` 的**下游**：ETL 把 Lucullus 工艺时序数据同步进了 `cmc_rd`，本项目做**看板/分析**来用这些数据。骨架已搭好，接着开发即可。
+**先读 `CLAUDE.md`**：项目全貌、页面结构、数据在哪怎么连、治理规矩、数据模型、上线方式都在那。
+本文件只写「现在做到哪了 / 谁是谁 / 别踩什么坑」，不重复 CLAUDE.md 的内容。
 
-## 已经给你准备好的
+## 现在是什么状态（2026-09-11）
 
-- `CLAUDE.md` —— 项目全貌、技术栈、**数据在哪怎么连**、治理规矩、数据模型。**先读它。**
-- `backend/` —— 一个能跑的最小 FastAPI 后端（asyncpg 连 `cmc_rd`），已实现 3 个接口：
-  - `GET /api/batches` —— 批次列表（含批次名、反应器、起止时间）
-  - `GET /api/batches/{source_instance}/{procid}/channels` —— 该批次有哪些通道（已带人话名 `display_name`、分组 `category`，来自 `cmc_analytics.dim.channel_dict`）
-  - `GET /api/channel-dict` —— 通道字典全表
-  - `GET /api/series` —— 某批次某通道的**降采样**曲线（画图用）
-- `.env.example` —— 复制成 `.env` 填数据库连接。
-- `docs/` —— 放设计文档。
+已经是**在用的生产系统**，不是骨架了。正式入口 **http://172.19.0.105:5100/usp**（统一门户 cmab-hub 下的 `/usp`）。
 
-## 建议的第一步（按顺序）
+- **看板**：一页四层——左栏选批次（项目→年份→批号→罐），右栏板块开关（生长曲线 / 生化曲线 / 血气 / 工艺按时段 / 工艺全量时序 / 数据表 / 取样明细），可同屏多开、多批次叠加。
+- **数据录入**（`/usp/entry`，顶栏按钮进出）：本看板**唯一会写库**的功能。按日期列出当天该取样的全部样品，试验员填**渗透压**和**葡萄糖**（试剂盒法，当天没做生化分析时才填）。
+- **登录**：走公司统一认证（MDM Portal 发 JWT，本地验签），见总纲 `~/code/CLAUDE.md` §8。本地不配密钥 = 开放模式，不用登录。
 
-1. **打通数据连接**：开 SSH 隧道（见 CLAUDE.md），复制 `.env.example` → `.env` 填 `RAW_DATABASE_URL`，跑起后端，在 `/docs` 里点 `GET /api/batches` 看能不能返回批次列表。**先确认能读到真数据**，再往下做。
-2. **搭前端**：`cd frontend && npx create-next-app@latest .`，装 `echarts-for-react` + `@tanstack/react-query`。
-3. **做第一个页面**：选一个批次 → 选几个通道（温度/pH/溶氧）→ 用 echarts 画出随时间变化的曲线。这就是最小可用版。
-4. 之后再加：跨批次对比（多批次同一通道叠加）、批次筛选（按工作站/年份/反应器）等。
+## 项目里的东西
+
+- `backend/` —— FastAPI，接口分五组：`signals`（工艺时序 / 通道字典）、`vicell`（细胞）、`nova`（生化 + 血气 + 人工指标合并）、`overview`（批次总名单 / 数据表）、`manual`（数据录入，唯一写入点）、`auth`。
+- `frontend/` —— Next.js 16，`basePath=/usp`。组件分工见 CLAUDE.md「技术栈」一节。
+- `deploy.sh` —— **Linux 上一键部署**：拉代码 → `uv sync` → `npm ci && npm run build` → 重启 systemd（`cmc-usp-backend` / `cmc-usp-frontend`）→ 健康检查。
+- `docs/etl-batch-dim-prompt.md` —— 历史文档（`mart.dim_batch` 当初怎么建的），已完成，存档备查。
+
+## 改东西的流程
+
+Mac 改 → `git push` → Linux `cd /opt/cmc-rd-usp-dashboard && ./deploy.sh`。
+**动到数据库表结构**（含放开某张表的约束）要先在 `~/code/cmc-schema-migrations` 写迁移，两端各跑一次 `./dbmig cmc_analytics upgrade head`，**先跑迁移再部署代码**。
 
 ## 关键提醒（别踩坑）
 
-- **只读**：本项目绝不往 `cmc_rd` 写。分析结果要落库就放 `cmc_analytics`。
-- **别用写账号**：连库用只读角色，不要用 ETL 的 `lucullus_etl`。
-- **数据量大**：单批次上百万点，画图前一定降采样（后端 `/api/series` 已做，前端别一次拉全量原始点）。
-- **数据只在 Linux**：Mac 本地默认没有这份数据，靠 SSH 隧道连过去。
+- **只读**：本项目绝不往 `cmc_rd` 写。唯一的写入点是 `cmc_analytics.manual.sample_result`（只追加，走单独账号 `usp_writer`）。要算/存分析结果放 `cmc_analytics`。
+- **别用写账号**读数：只读走 `lims_reader`，不要用 ETL 的 `lucullus_etl` / `vicell_etl`。
+- **数据量大**：单批次上百万点，画图前一定降采样（后端已做，前端别一次拉全量原始点）。
+- **Mac 本地没有真数据**：只有空表结构 + 少量播种样本。看真数据开 SSH 隧道连 Linux（见 CLAUDE.md）。
+- **通道显示名在数据库里**（`dim.channel_dict`），不要在前后端写死字典。
 
 ## 相关项目
 
-- 数据来源 ETL：`~/code/rd-lucullus-etl`
+- 工艺数据 ETL：`~/code/rd-lucullus-etl`；细胞 / 生化 ETL：`~/code/rd-vicell-etl`、`~/code/rd-nova-etl`
+- 当天样品清单来源（批号注册系统）：`~/code/rd-batch-registry`
 - 结构迁移（谁管数据库表结构）：`~/code/cmc-schema-migrations`（命令 `dbmig`）
-- 架构白皮书：`~/code/CMAB_Data_Architecture_Whitepaper_V0_3.md`
+- 统一门户：`~/code/cmab-hub`；统一认证：`~/code/cmab-mdm-platform`
+- 架构白皮书：`~/code/CMAB_Data_Architecture_Whitepaper_V0_4.md`
 - 同类看板（技术栈参照）：`~/code/cmc-rd-lims-dashboard`
