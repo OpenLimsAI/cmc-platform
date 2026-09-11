@@ -302,6 +302,50 @@ export function DataEntry() {
     });
   }
 
+  // 列宽（像素）：拖表头右边那条线改，按本机浏览器记住，每个人各记各的。
+  // 拖动过程中先放在 dragWidths（不写本地），松手才存下来。
+  const [savedWidths, setSavedWidths] = usePersisted<Record<string, number>>("entry_col_widths", {});
+  const [dragWidths, setDragWidths] = useState<Record<string, number> | null>(null);
+  const widths = dragWidths ?? savedWidths;
+  // 列定义：w = 默认宽度（像素）；不写 w 的列自动占掉剩下的宽度
+  const cols = useMemo(
+    () => [
+      { key: "idx", label: "#", w: 40 },
+      { key: "project", label: "项目", w: 60 },
+      { key: "batch", label: "批号", w: 76 },
+      { key: "reactor", label: "罐 / 阶段", w: 84 },
+      { key: "day", label: "培养天", w: 62 },
+      { key: "name", label: "样品名", w: 220 },
+      { key: "time", label: "取样时刻", w: 92 },
+      { key: "src", label: "来源", w: 112 },
+      ...metrics.map((m) => ({ key: `m:${m.code}`, label: `${m.name} (${m.unit})`, w: 132, title: `合理范围 ${m.min}–${m.max} ${m.unit}` })),
+      { key: "by", label: "录入人 / 时间" }, // 不给宽度 = 自动吃掉剩余空间
+      { key: "ops", label: "", w: 64 },
+    ],
+    [metrics]
+  ) as { key: string; label: string; w?: number; title?: string }[];
+  const colWidth = (c: { key: string; w?: number }) => widths[c.key] ?? c.w;
+
+  function startResize(key: string, ev: React.MouseEvent) {
+    ev.preventDefault();
+    const th = (ev.currentTarget as HTMLElement).closest("th");
+    const startW = th ? th.getBoundingClientRect().width : 80;
+    const startX = ev.clientX;
+    const base = { ...savedWidths };
+    const calc = (x: number) => Math.max(40, Math.round(startW + x - startX));
+    const move = (e: MouseEvent) => setDragWidths({ ...base, [key]: calc(e.clientX) });
+    const up = (e: MouseEvent) => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      document.body.style.cursor = "";
+      setDragWidths(null);
+      setSavedWidths({ ...base, [key]: calc(e.clientX) });
+    };
+    document.body.style.cursor = "col-resize";
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  }
+
   const canWrite = !!user && (user.is_system || user.roles.length > 0);
   const sheet = sheetQ.data;
   const inputCls = "rounded-md border px-2 py-1 text-sm focus:outline-none";
@@ -364,24 +408,25 @@ export function DataEntry() {
           )}
           {rows.length > 0 && (
             <div className="overflow-x-auto p-4">
-              <table className="w-full text-sm">
+              <table className="w-full table-fixed text-sm">
+                <colgroup>
+                  {cols.map((c) => (
+                    <col key={c.key} style={colWidth(c) ? { width: colWidth(c) } : undefined} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr className="whitespace-nowrap border-b border-slate-200 text-left text-xs text-slate-500">
-                    <th className="px-2 py-1.5">#</th>
-                    <th className="px-2 py-1.5">项目</th>
-                    <th className="px-2 py-1.5">批号</th>
-                    <th className="px-2 py-1.5">罐 / 阶段</th>
-                    <th className="px-2 py-1.5 text-right">培养天</th>
-                    <th className="w-full px-2 py-1.5">样品名</th>
-                    <th className="px-2 py-1.5">取样时刻</th>
-                    <th className="px-2 py-1.5">来源</th>
-                    {metrics.map((m) => (
-                      <th key={m.code} className="px-2 py-1.5" title={`合理范围 ${m.min}–${m.max} ${m.unit}`}>
-                        {m.name} ({m.unit})
+                    {cols.map((c) => (
+                      <th key={c.key} title={c.title} className="relative select-none overflow-hidden px-2 py-1.5">
+                        {c.label}
+                        {/* 表头右边这条线可以拖，改这一列的宽度（本机记住） */}
+                        <span
+                          onMouseDown={(ev) => startResize(c.key, ev)}
+                          title="拖动改列宽"
+                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300"
+                        />
                       </th>
                     ))}
-                    <th className="px-2 py-1.5">录入人 / 时间</th>
-                    <th className="px-2 py-1.5"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -393,19 +438,19 @@ export function DataEntry() {
                     const last = lastEntry(r);
                     return (
                       <tr key={k} className={`whitespace-nowrap border-b border-slate-100 text-slate-700 ${isResample ? "bg-slate-50/60" : ""}`}>
-                        <td className="px-2 py-1 text-xs text-slate-400">{i + 1}</td>
-                        <td className="px-2 py-1">{isResample ? "" : r.project_id ?? "—"}</td>
-                        <td className="px-2 py-1">{isResample ? "" : r.batch_number ?? "—"}</td>
-                        <td className="px-2 py-1 font-medium">{isResample ? <span className="text-xs text-slate-400">↳ 再次取样</span> : r.bioreactor_id ?? "—"}</td>
-                        <td className="px-2 py-1 text-right">{r.culture_day}</td>
-                        <td className="w-full px-2 py-1">
+                        <td className="overflow-hidden px-2 py-1 text-xs text-slate-400">{i + 1}</td>
+                        <td className="overflow-hidden px-2 py-1">{isResample ? "" : r.project_id ?? "—"}</td>
+                        <td className="overflow-hidden px-2 py-1">{isResample ? "" : r.batch_number ?? "—"}</td>
+                        <td className="overflow-hidden px-2 py-1 font-medium">{isResample ? <span className="text-xs text-slate-400">↳ 再次取样</span> : r.bioreactor_id ?? "—"}</td>
+                        <td className="overflow-hidden px-2 py-1 text-right">{r.culture_day}</td>
+                        <td className="overflow-hidden px-2 py-1">
                           <input
                             type="text"
                             value={e.name}
                             disabled={!canWrite}
                             onChange={(ev) => setField(k, "name", ev.target.value)}
                             title={r.sample_ids ? `仪器上的样本名：${r.sample_ids}` : "样品名可改，如加 -T1 尾缀"}
-                            className={`${inputCls} w-full min-w-[13rem] font-mono text-xs ${draft[k]?.name != null && draft[k]?.name !== r.sample_name ? "border-blue-400 bg-blue-50" : "border-slate-200 text-slate-600 focus:border-blue-500"}`}
+                            className={`${inputCls} w-full font-mono text-xs ${draft[k]?.name != null && draft[k]?.name !== r.sample_name ? "border-blue-400 bg-blue-50" : "border-slate-200 text-slate-600 focus:border-blue-500"}`}
                           />
                         </td>
                         <td className="px-2 py-1">
@@ -416,7 +461,7 @@ export function DataEntry() {
                             placeholder="HH:MM"
                             disabled={!canWrite}
                             onChange={(ev) => setField(k, "time", ev.target.value)}
-                            className={`${inputCls} w-20 text-center tabular-nums ${timeBad ? "border-red-400 bg-red-50" : draft[k]?.time != null && draft[k]?.time !== (r.sample_time ?? "") ? "border-blue-400 bg-blue-50" : "border-slate-200 focus:border-blue-500"}`}
+                            className={`${inputCls} w-full text-center tabular-nums ${timeBad ? "border-red-400 bg-red-50" : draft[k]?.time != null && draft[k]?.time !== (r.sample_time ?? "") ? "border-blue-400 bg-blue-50" : "border-slate-200 focus:border-blue-500"}`}
                           />
                         </td>
                         <td className="px-2 py-1">
@@ -436,7 +481,7 @@ export function DataEntry() {
                           // 葡萄糖：当天做了生化分析就以仪器值为准，这里只灰字提示，格子仍可填
                           const instrument = m.code === "gluc" ? r.nova_gluc : null;
                           return (
-                            <td key={m.code} className="px-2 py-1 align-top">
+                            <td key={m.code} className="overflow-hidden px-2 py-1 align-top">
                               <input
                                 ref={(el) => {
                                   inputs.current[cellKey(r, m.code)] = el;
@@ -449,7 +494,7 @@ export function DataEntry() {
                                 onChange={(ev) => setValue(k, m.code, ev.target.value)}
                                 onKeyDown={(ev) => onKeyDown(ev, i, m.code)}
                                 onPaste={(ev) => onPaste(ev, i, m.code)}
-                                className={`${inputCls} w-32 text-right tabular-nums ${
+                                className={`${inputCls} w-full text-right tabular-nums ${
                                   bad
                                     ? "border-red-400 bg-red-50 text-red-700"
                                     : changed
@@ -471,7 +516,7 @@ export function DataEntry() {
                             </td>
                           );
                         })}
-                        <td className="whitespace-nowrap px-2 py-1 align-top text-xs text-slate-400">
+                        <td className="overflow-hidden px-2 py-1 align-top text-xs text-slate-400">
                           {last ? `${last.entered_by_name || last.entered_by} · ${fmtEnteredAt(last.entered_at)}` : ""}
                         </td>
                         <td className="whitespace-nowrap px-2 py-1 align-top">
@@ -540,6 +585,11 @@ export function DataEntry() {
                 </button>
               </span>
             )}
+            {Object.keys(savedWidths).length > 0 && (
+              <button onClick={() => setSavedWidths({})} className="text-xs text-slate-500 underline" title="把拖过的列宽恢复成默认">
+                恢复默认列宽
+              </button>
+            )}
             {removedCount > 0 && (
               <button onClick={restoreRemoved} className="text-xs text-slate-500 underline">
                 恢复已删的 {removedCount} 行
@@ -547,7 +597,7 @@ export function DataEntry() {
             )}
             {problems.length > 0 && <span className="text-xs text-red-600">{problems[0]}{problems.length > 1 ? ` 等 ${problems.length} 处` : ""}</span>}
             {message && <span className="text-xs text-slate-600">{message}</span>}
-            <span className="ml-auto text-xs text-slate-400">回车跳同一列下一行 · 可从 Excel 复制一列直接粘贴 · 每行「＋」= 再加一次取样</span>
+            <span className="ml-auto text-xs text-slate-400">回车跳同一列下一行 · 可从 Excel 复制一列直接粘贴 · 每行「＋」= 再加一次取样 · 表头分隔线可拖动改列宽</span>
           </div>
         </>
       )}
