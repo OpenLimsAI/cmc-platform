@@ -43,6 +43,11 @@ dependencies = [
 
     # 限流（P4.B ARCH11，依赖 Redis storage）
     "slowapi>=0.1.9",
+
+    # Excel 台账导入脚本（app/scripts/import_*_excel.py）用它读 xlsx。
+    # 2026-09-11：此前漏声明，Mac 容器里碰巧有、Linux 正式环境没有，
+    # 导致设备台账导入脚本在服务器上直接 ModuleNotFoundError 跑不起来。
+    "openpyxl>=3.1.0",
 ]
 
 [project.optional-dependencies]
