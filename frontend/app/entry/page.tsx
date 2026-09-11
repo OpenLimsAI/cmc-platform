@@ -37,7 +37,8 @@ export default function EntryPage() {
           </span>
         )}
       </header>
-      <main className="mx-auto w-full max-w-6xl px-5 py-4">
+      {/* 宽屏铺满：录入表列多，别再限宽到 1152px 让两边空着（负责人 2026-09-11） */}
+      <main className="w-full px-5 py-4">
         <DataEntry />
       </main>
     </div>

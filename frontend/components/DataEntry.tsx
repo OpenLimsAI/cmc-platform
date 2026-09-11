@@ -40,6 +40,13 @@ const rowKey = (r: { batch_key: string; culture_day: number; sample_name: string
 // 一个格子的身份 = 行 # 指标
 const cellKey = (r: DailySheetRow, code: string) => `${rowKey(r)}#${code}`;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+// 录入时间来自库里的 timestamptz（带 +00:00），直接截字符串会显示成 UTC，要按本机时区（北京）显示
+const fmtEnteredAt = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16).replace("T", " ");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 // 试验员临时加的取样行（本机记住，按日期）
 interface ExtraRow {
@@ -359,13 +366,13 @@ export function DataEntry() {
             <div className="overflow-x-auto p-4">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                  <tr className="whitespace-nowrap border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="px-2 py-1.5">#</th>
                     <th className="px-2 py-1.5">项目</th>
                     <th className="px-2 py-1.5">批号</th>
                     <th className="px-2 py-1.5">罐 / 阶段</th>
                     <th className="px-2 py-1.5 text-right">培养天</th>
-                    <th className="px-2 py-1.5">样品名</th>
+                    <th className="w-full px-2 py-1.5">样品名</th>
                     <th className="px-2 py-1.5">取样时刻</th>
                     <th className="px-2 py-1.5">来源</th>
                     {metrics.map((m) => (
@@ -385,20 +392,20 @@ export function DataEntry() {
                     const isResample = /-T\d+$/.test(r.sample_name);
                     const last = lastEntry(r);
                     return (
-                      <tr key={k} className={`border-b border-slate-100 text-slate-700 ${isResample ? "bg-slate-50/60" : ""}`}>
+                      <tr key={k} className={`whitespace-nowrap border-b border-slate-100 text-slate-700 ${isResample ? "bg-slate-50/60" : ""}`}>
                         <td className="px-2 py-1 text-xs text-slate-400">{i + 1}</td>
                         <td className="px-2 py-1">{isResample ? "" : r.project_id ?? "—"}</td>
                         <td className="px-2 py-1">{isResample ? "" : r.batch_number ?? "—"}</td>
                         <td className="px-2 py-1 font-medium">{isResample ? <span className="text-xs text-slate-400">↳ 再次取样</span> : r.bioreactor_id ?? "—"}</td>
                         <td className="px-2 py-1 text-right">{r.culture_day}</td>
-                        <td className="px-2 py-1">
+                        <td className="w-full px-2 py-1">
                           <input
                             type="text"
                             value={e.name}
                             disabled={!canWrite}
                             onChange={(ev) => setField(k, "name", ev.target.value)}
                             title={r.sample_ids ? `仪器上的样本名：${r.sample_ids}` : "样品名可改，如加 -T1 尾缀"}
-                            className={`${inputCls} w-52 font-mono text-xs ${draft[k]?.name != null && draft[k]?.name !== r.sample_name ? "border-blue-400 bg-blue-50" : "border-slate-200 text-slate-600 focus:border-blue-500"}`}
+                            className={`${inputCls} w-full min-w-[13rem] font-mono text-xs ${draft[k]?.name != null && draft[k]?.name !== r.sample_name ? "border-blue-400 bg-blue-50" : "border-slate-200 text-slate-600 focus:border-blue-500"}`}
                           />
                         </td>
                         <td className="px-2 py-1">
@@ -413,7 +420,7 @@ export function DataEntry() {
                           />
                         </td>
                         <td className="px-2 py-1">
-                          <span className="flex gap-1">
+                          <span className="flex gap-1 whitespace-nowrap">
                             {r.planned && <Badge cls="bg-blue-50 text-blue-700">计划</Badge>}
                             {r.has_nova && <Badge cls="bg-sky-50 text-sky-700">生化</Badge>}
                             {r.has_vicell && <Badge cls="bg-emerald-50 text-emerald-700">细胞</Badge>}
@@ -442,7 +449,7 @@ export function DataEntry() {
                                 onChange={(ev) => setValue(k, m.code, ev.target.value)}
                                 onKeyDown={(ev) => onKeyDown(ev, i, m.code)}
                                 onPaste={(ev) => onPaste(ev, i, m.code)}
-                                className={`${inputCls} w-28 text-right tabular-nums ${
+                                className={`${inputCls} w-32 text-right tabular-nums ${
                                   bad
                                     ? "border-red-400 bg-red-50 text-red-700"
                                     : changed
@@ -464,8 +471,8 @@ export function DataEntry() {
                             </td>
                           );
                         })}
-                        <td className="px-2 py-1 align-top text-xs text-slate-400">
-                          {last ? `${last.entered_by_name || last.entered_by} · ${last.entered_at?.slice(0, 16).replace("T", " ")}` : ""}
+                        <td className="whitespace-nowrap px-2 py-1 align-top text-xs text-slate-400">
+                          {last ? `${last.entered_by_name || last.entered_by} · ${fmtEnteredAt(last.entered_at)}` : ""}
                         </td>
                         <td className="whitespace-nowrap px-2 py-1 align-top">
                           <button
