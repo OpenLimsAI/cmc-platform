@@ -59,6 +59,9 @@ class Equipment(Base):
     # 基本信息
     equipment_name: Mapped[str] = mapped_column(String(255), nullable=False)
     equipment_name_en: Mapped[str | None] = mapped_column(String(255))
+    # 别名/曾用名（0059）：设备部台账有此列，老员工习惯叫旧称（BR1-1、发酵线1），
+    # 多个用 ; 分隔。列表搜索会一并匹配。
+    alias: Mapped[str | None] = mapped_column(String(255))
     category: Mapped[str] = mapped_column(String(64), nullable=False)
 
     # 厂商 & 规格(身份属性)

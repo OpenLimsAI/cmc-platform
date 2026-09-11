@@ -107,6 +107,7 @@ export function EquipmentDetailPage() {
           <Descriptions.Item label="固资编号">{eq.fixed_asset_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="设备名称（中文）">{eq.equipment_name}</Descriptions.Item>
           <Descriptions.Item label="设备名称（英文）">{eq.equipment_name_en ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="别名/曾用名">{eq.alias ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="型号规格">{eq.model ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="生产商">{eq.manufacturer ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="额定功率">{eq.rated_power ?? '—'}</Descriptions.Item>

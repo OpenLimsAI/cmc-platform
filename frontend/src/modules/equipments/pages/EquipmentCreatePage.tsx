@@ -49,6 +49,7 @@ export function EquipmentCreatePage() {
       fixed_asset_no: v.fixed_asset_no,
       equipment_name: v.equipment_name,
       equipment_name_en: v.equipment_name_en,
+      alias: v.alias,
       category: v.category,
       model: v.model,
       manufacturer: v.manufacturer,
@@ -142,6 +143,18 @@ export function EquipmentCreatePage() {
             <Col span={12}>
               <Form.Item name="equipment_name_en" label="设备名称（英文）" rules={[{ max: 255 }]}>
                 <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item
+                name="alias"
+                label="别名/曾用名"
+                tooltip="老员工习惯的旧称，多个用 ; 分隔（如 BR1-1;生物反应器系统1;发酵线1）。列表搜索会一并匹配。"
+                rules={[{ max: 255 }]}
+              >
+                <Input placeholder="BR1-1;生物反应器系统1;发酵线1" />
               </Form.Item>
             </Col>
           </Row>

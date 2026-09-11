@@ -220,7 +220,7 @@ _reg("criticality", "设备分级", "分级", "关键性")
 _reg("criticality_basis", "分级依据", "分级理由")
 _reg("status_raw", "设备状态", "状态", "使用状态")
 # 台账有、主数据无正式列的 → 进 extra
-_reg("x_alias", "别名/曾用名", "别名", "曾用名", "原名称")
+_reg("alias", "别名/曾用名", "别名", "曾用名", "原名称")
 _reg("x_manufacture_date", "出厂日期", "生产日期", "制造日期")
 _reg("x_weight", "总重", "重量", "净重")
 _reg("asset_value", "资产原值", "资产价值", "原值", "金额", "价值", "采购金额")
@@ -234,6 +234,7 @@ MAXLEN = {
     "fixed_asset_no": 64,
     "equipment_name": 255,
     "equipment_name_en": 255,
+    "alias": 255,
     "category": 64,
     "model": 200,
     "manufacturer": 100,
@@ -248,8 +249,8 @@ MAXLEN = {
 }
 
 # extra 里承载的台账列（主数据无正式列，但不能丢）：字段名 → JSON 键
+# 2026-09-11：别名/曾用名已转正为 eqp.equipment.alias 正式列（migration 0059），不再进 extra
 EXTRA_FIELDS = {
-    "x_alias": "别名",
     "x_manufacture_date": "出厂日期",
     "x_weight": "总重",
 }
@@ -262,6 +263,7 @@ class ParsedRow:
     fixed_asset_no: str | None = None
     equipment_name: str | None = None
     equipment_name_en: str | None = None
+    alias: str | None = None
     category: str | None = None
     model: str | None = None
     manufacturer: str | None = None
@@ -282,7 +284,6 @@ class ParsedRow:
     commission_date: date | None = None
     status_raw: str | None = None
     # extra 承载列
-    x_alias: str | None = None
     x_manufacture_date: str | None = None
     x_weight: str | None = None
     # 计算字段
@@ -616,6 +617,7 @@ async def import_rows(
                             fixed_asset_no=pr.fixed_asset_no,
                             equipment_name=pr.equipment_name,
                             equipment_name_en=pr.equipment_name_en,
+                            alias=pr.alias,
                             category=pr.category,
                             model=pr.model,
                             manufacturer=pr.manufacturer,
@@ -659,7 +661,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
         w = csv.writer(f)
         w.writerow([
             "excel_row", "decision", "skip_reason",
-            "equipment_no", "fixed_asset_no", "equipment_name", "equipment_name_en",
+            "equipment_no", "fixed_asset_no", "equipment_name", "equipment_name_en", "alias",
             "category", "category_source", "需人工核对分类",
             "model", "manufacturer", "serial_no",
             "department", "site", "room", "criticality", "commission_date",
@@ -673,7 +675,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
             w.writerow([
                 pr.excel_row, decision, pr.skip_reason or "",
                 pr.equipment_no or "", pr.fixed_asset_no or "",
-                pr.equipment_name or "", pr.equipment_name_en or "",
+                pr.equipment_name or "", pr.equipment_name_en or "", pr.alias or "",
                 pr.category or "", pr.category_source, needs_review,
                 pr.model or "", pr.manufacturer or "", pr.serial_no or "",
                 pr.department or "", pr.site or "", pr.room or "",

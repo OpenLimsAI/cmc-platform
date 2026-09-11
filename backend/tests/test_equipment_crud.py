@@ -380,3 +380,30 @@ async def test_equipment_list_filter_by_department_and_criticality(admin_client,
     assert len(items) == 1
     assert items[0]["department"] == dept
     assert items[0]["criticality"] == "关键"
+
+
+# ============ 别名/曾用名（migration 0059）============
+@pytest.mark.asyncio
+async def test_alias_create_update_and_search(admin_client, unique_suffix):
+    """别名是正式字段：能建、能改、能按旧称搜到"""
+    name = f"别名测试设备{unique_suffix}"
+    old_name = f"BR-OLD-{unique_suffix}"
+    r = await admin_client.post("/api/v1/equipments", json={
+        "equipment_name": name, "category": "工艺/制备设备",
+        "alias": f"{old_name};发酵线9",
+    })
+    assert r.status_code == 201, r.text
+    code = r.json()["data"]["equipment_code"]
+    assert r.json()["data"]["alias"] == f"{old_name};发酵线9"
+
+    # 按旧称搜得到
+    r = await admin_client.get(f"/api/v1/equipments?q={old_name}")
+    assert r.status_code == 200
+    assert code in {e["equipment_code"] for e in r.json()["data"]}
+
+    # 可改；改完按新旧称分别验证
+    r = await admin_client.put(f"/api/v1/equipments/{code}", json={"alias": "只剩一个旧称"})
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["alias"] == "只剩一个旧称"
+    r = await admin_client.get(f"/api/v1/equipments?q={old_name}")
+    assert code not in {e["equipment_code"] for e in r.json()["data"]}

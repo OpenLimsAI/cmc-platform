@@ -17,6 +17,8 @@ export interface EquipmentBrief {
   fixed_asset_no: string | null; // 固资编号
   equipment_name: string;
   equipment_name_en: string | null;
+  /** 别名/曾用名（多个用 ; 分隔），来自设备部台账 */
+  alias: string | null;
   category: EquipmentCategory;
   model: string | null;
   manufacturer: string | null;
@@ -70,6 +72,7 @@ export interface EquipmentCreatePayload {
   fixed_asset_no?: string | null; // 固资编号
   equipment_name: string;
   equipment_name_en?: string | null;
+  alias?: string | null;
   category: EquipmentCategory;
   model?: string | null;
   manufacturer?: string | null;

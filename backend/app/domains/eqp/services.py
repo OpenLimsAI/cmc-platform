@@ -46,6 +46,7 @@ class EquipmentService:
                         Equipment.fixed_asset_no.ilike(kw),
                         Equipment.equipment_name.ilike(kw),
                         Equipment.equipment_name_en.ilike(kw),
+                        Equipment.alias.ilike(kw),  # 0059：按旧称也能搜到
                         Equipment.model.ilike(kw),
                         Equipment.manufacturer.ilike(kw),
                         Equipment.serial_no.ilike(kw),
@@ -118,6 +119,7 @@ class EquipmentService:
             fixed_asset_no=payload.fixed_asset_no,
             equipment_name=payload.equipment_name,
             equipment_name_en=payload.equipment_name_en,
+            alias=payload.alias,
             category=payload.category,
             model=payload.model,
             manufacturer=payload.manufacturer,

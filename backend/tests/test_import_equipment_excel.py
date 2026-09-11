@@ -231,7 +231,7 @@ def test_ledger_header_detection_maps_department_columns():
         "room", "manufacturer", "serial_no", "rated_power", "status_raw",
     } <= fields
     # 主数据没有正式列的三项进 extra
-    assert {"x_alias", "x_manufacture_date", "x_weight"} <= fields
+    assert {"alias", "x_manufacture_date", "x_weight"} <= fields  # 0059：别名已转正为正式列
 
 
 def test_ledger_row_roundtrip(tmp_path):
@@ -264,12 +264,14 @@ def test_ledger_row_roundtrip(tmp_path):
     # Excel 无部门/厂区列 → 用命令行统一指定的值兜底
     assert pr.department == "生产一部"
     assert pr.site == "南楼"
-    # 主数据无正式列的信息进 extra，不丢
+    # 别名/曾用名进正式列（0059），不再塞进 extra
+    assert pr.alias is not None and "BR1-1" in pr.alias
+    # 主数据仍无正式列的信息进 extra，不丢
     extra = pr.build_extra()
     assert extra["source"] == "eqp_ledger_excel"
     assert extra["出厂日期"] == "2015.05"
     assert extra["总重"] == "2150kg"
-    assert "BR1-1" in extra["别名"]
+    assert "别名" not in extra
 
 
 def test_ledger_empty_name_skipped(tmp_path):

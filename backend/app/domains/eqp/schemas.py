@@ -41,6 +41,7 @@ class EquipmentBase(BaseModel):
 
     equipment_name: str = Field(..., max_length=255, description="设备名称（中文）")
     equipment_name_en: str | None = Field(None, max_length=255, description="设备名称（英文）")
+    alias: str | None = Field(None, max_length=255, description="别名/曾用名（多个用 ; 分隔）")
     category: EquipmentCategory
     equipment_no: str | None = Field(None, max_length=64, description="设备编号（业务/历史号）")
     fixed_asset_no: str | None = Field(None, max_length=64, description="固资编号")
@@ -92,6 +93,7 @@ class EquipmentUpdate(BaseModel):
 
     equipment_name: str | None = Field(None, max_length=255, description="设备名称（中文）")
     equipment_name_en: str | None = Field(None, max_length=255, description="设备名称（英文）")
+    alias: str | None = Field(None, max_length=255, description="别名/曾用名（多个用 ; 分隔）")
     category: EquipmentCategory | None = None
     equipment_no: str | None = Field(None, max_length=64, description="设备编号（业务/历史号）")
     fixed_asset_no: str | None = Field(None, max_length=64, description="固资编号")
@@ -131,6 +133,7 @@ class EquipmentBrief(BaseModel):
     fixed_asset_no: str | None = None
     equipment_name: str
     equipment_name_en: str | None = None
+    alias: str | None = None
     category: EquipmentCategory
     model: str | None = None
     manufacturer: str | None = None
