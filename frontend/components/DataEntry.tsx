@@ -415,16 +415,20 @@ export function DataEntry() {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr className="whitespace-nowrap border-b border-slate-200 text-left text-xs text-slate-500">
-                    {cols.map((c) => (
-                      <th key={c.key} title={c.title} className="relative select-none overflow-hidden px-2 py-1.5">
+                  <tr className="whitespace-nowrap border-b border-slate-200 text-left text-xs font-medium text-slate-600">
+                    {cols.map((c, ci) => (
+                      <th key={c.key} title={c.title} className="relative select-none overflow-hidden px-2 py-2">
                         {c.label}
-                        {/* 表头右边这条线可以拖，改这一列的宽度（本机记住） */}
-                        <span
-                          onMouseDown={(ev) => startResize(c.key, ev)}
-                          title="拖动改列宽"
-                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300"
-                        />
+                        {/* 表头之间的浅竖线（与 MDM 设备列表一致）；按住它左右拖 = 改这一列的宽度（本机记住） */}
+                        {ci < cols.length - 1 && (
+                          <span
+                            onMouseDown={(ev) => startResize(c.key, ev)}
+                            title="拖动改列宽"
+                            className="group absolute right-0 top-0 flex h-full w-2 cursor-col-resize items-center justify-end"
+                          >
+                            <span className="h-4 w-px bg-slate-200 transition-all group-hover:h-full group-hover:w-0.5 group-hover:bg-blue-300" />
+                          </span>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -437,7 +441,7 @@ export function DataEntry() {
                     const isResample = /-T\d+$/.test(r.sample_name);
                     const last = lastEntry(r);
                     return (
-                      <tr key={k} className={`whitespace-nowrap border-b border-slate-100 text-slate-700 ${isResample ? "bg-slate-50/60" : ""}`}>
+                      <tr key={k} className={`whitespace-nowrap border-b border-slate-100 text-slate-700 transition-colors hover:bg-slate-50 ${isResample ? "bg-slate-50/60" : ""}`}>
                         <td className="overflow-hidden px-2 py-1 text-xs text-slate-400">{i + 1}</td>
                         <td className="overflow-hidden px-2 py-1">{isResample ? "" : r.project_id ?? "—"}</td>
                         <td className="overflow-hidden px-2 py-1">{isResample ? "" : r.batch_number ?? "—"}</td>
