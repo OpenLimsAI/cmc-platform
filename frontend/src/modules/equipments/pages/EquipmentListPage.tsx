@@ -1,21 +1,11 @@
 import { useState } from 'react';
-import {
-  Breadcrumb,
-  Button,
-  Card,
-  Col,
-  Input,
-  Row,
-  Select,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Breadcrumb, Button, Card, Col, Input, Row, Select, Table, Tag, Tooltip, Typography } from 'antd';
+import { ColumnWidthOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { equipmentsApi, type EquipmentBrief } from '@/api/equipments';
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
+import { useResizableColumns } from '@/shared/components/useResizableColumns';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
@@ -47,12 +37,12 @@ export function EquipmentListPage() {
   const items: EquipmentBrief[] = data?.items ?? [];
   const total = data?.pagination.total ?? 0;
 
-  const columns = [
+  const baseColumns = [
     {
       title: '设备ID',
       dataIndex: 'equipment_code',
       key: 'equipment_code',
-      width: 150,
+      width: 140,
       render: (code: string) => (
         <Link to={`/equipments/${encodeURIComponent(code)}`}>{code}</Link>
       ),
@@ -61,21 +51,23 @@ export function EquipmentListPage() {
       title: '设备编号',
       dataIndex: 'equipment_no',
       key: 'equipment_no',
-      width: 130,
+      width: 125,
       ellipsis: true,
       render: (v: string | null) => v ?? '—',
     },
     {
+      // 最关键的一列：默认给足宽度，放不下时鼠标悬停看全称（还可拖表头边缘自行调整）
       title: '名称',
       dataIndex: 'equipment_name',
       key: 'equipment_name',
-      ellipsis: true,
+      width: 280,
+      ellipsis: { showTitle: true } as const,
     },
     {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      width: 200,
+      width: 150,
       render: (c: string) => {
         const def = EQUIPMENT_CATEGORY_OPTIONS.find((o) => o.value === c);
         return (
@@ -97,7 +89,7 @@ export function EquipmentListPage() {
       title: '型号',
       dataIndex: 'model',
       key: 'model',
-      width: 160,
+      width: 140,
       ellipsis: true,
       render: (v: string | null) => v ?? '—',
     },
@@ -105,7 +97,7 @@ export function EquipmentListPage() {
       title: '生产商',
       dataIndex: 'manufacturer',
       key: 'manufacturer',
-      width: 130,
+      width: 120,
       ellipsis: true,
       render: (v: string | null) => v ?? '—',
     },
@@ -113,14 +105,14 @@ export function EquipmentListPage() {
       title: '使用部门',
       dataIndex: 'department',
       key: 'department',
-      width: 110,
+      width: 100,
       ellipsis: true,
       render: (v: string | null) => v ?? '—',
     },
     {
       title: '存放位置',
       key: 'location',
-      width: 150,
+      width: 160,
       ellipsis: true,
       render: (_: unknown, r: EquipmentBrief) =>
         [r.site, r.room].filter(Boolean).join(' · ') || '—',
@@ -150,10 +142,16 @@ export function EquipmentListPage() {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      width: 120,
+      width: 110,
       render: (v: string) => <TimeDisplay value={v} />,
     },
   ];
+
+  // 列宽可拖拽调整，按登录人分别记在本机（见 shared/components/resizableColumns）
+  const { columns, components, resetWidths, totalWidth, isCustomized } = useResizableColumns(
+    'equipments',
+    baseColumns,
+  );
 
   return (
     <div>
@@ -257,12 +255,22 @@ export function EquipmentListPage() {
               刷新
             </Button>
           </Col>
+          {isCustomized && (
+            <Col>
+              <Tooltip title="把列宽恢复成系统默认（只影响你自己这台电脑）">
+                <Button icon={<ColumnWidthOutlined />} onClick={resetWidths}>
+                  恢复列宽
+                </Button>
+              </Tooltip>
+            </Col>
+          )}
         </Row>
       </Card>
 
       <Card>
         <Table<EquipmentBrief>
           columns={columns}
+          components={components}
           dataSource={items}
           rowKey="equipment_code"
           loading={isLoading}
@@ -279,7 +287,7 @@ export function EquipmentListPage() {
               setPageSize(size);
             },
           }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: Math.max(totalWidth, 1200) }}
         />
       </Card>
     </div>
