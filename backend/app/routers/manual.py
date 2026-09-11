@@ -63,7 +63,7 @@ async def _registry_samples(target: date) -> tuple[list[dict], str | None]:
         data = body.get("data", body)
     except Exception as e:  # noqa: BLE001 —— 登记系统不可达不能拖垮录入页
         log.warning("批号登记系统取当天样品失败: %s", e)
-        return [], f"批号登记系统暂时连不上（{type(e).__name__}），下面只列了仪器实测到的样品"
+        return [], f"批号注册系统暂时连不上（{type(e).__name__}），下面只列了仪器实测到的样品"
     out = []
     for b in data.get("batches", []):
         batch_no = b.get("business_batch_no") or ""

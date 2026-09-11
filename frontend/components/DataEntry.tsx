@@ -317,7 +317,7 @@ export function DataEntry() {
       { key: "day", label: "培养天", w: 62 },
       { key: "name", label: "样品名", w: 220 },
       { key: "time", label: "取样时刻", w: 92 },
-      { key: "src", label: "来源", w: 112 },
+      { key: "src", label: "来源", w: 172, title: "这一行是哪来的：批号注册系统排的计划样品 / 仪器当天实测到的样品 / 本页手工加的临时样品" },
       ...metrics.map((m) => ({ key: `m:${m.code}`, label: `${m.name} (${m.unit})`, w: 132, title: `合理范围 ${m.min}–${m.max} ${m.unit}` })),
       { key: "by", label: "录入人 / 时间" }, // 不给宽度 = 自动吃掉剩余空间
       { key: "ops", label: "", w: 64 },
@@ -376,7 +376,7 @@ export function DataEntry() {
         </span>
         {sheet && (
           <span className="text-xs text-slate-400">
-            {sheet.registry_used ? "样品清单来自批号登记系统，并已合并仪器实测样品" : "样品清单来自仪器实测（Nova / Vi-CELL）"}
+            {sheet.registry_used ? "样品清单来自批号注册系统，并已合并仪器实测样品" : "样品清单来自仪器实测（Nova / Vi-CELL）"}
             {" · 取样时刻自动取自仪器记录，可改 · 葡萄糖当天做了生化分析就用仪器值，只有没做的才填"}
           </span>
         )}
@@ -402,7 +402,7 @@ export function DataEntry() {
                   <button onClick={restoreRemoved} className="text-blue-600 underline">恢复</button>。
                 </>
               ) : (
-                "批号登记系统里这天没有该取样的样品，仪器上也没有实测记录；可用下面的「添加一行」录临时样品。"
+                "批号注册系统里这天没有该取样的样品，仪器上也没有实测记录；可用下面的「添加一行」录临时样品。"
               )}
             </div>
           )}
@@ -469,11 +469,28 @@ export function DataEntry() {
                           />
                         </td>
                         <td className="px-2 py-1">
+                          {/* 鼠标停上去有解释（原生 title，不额外跑代码、不影响速度） */}
                           <span className="flex gap-1 whitespace-nowrap">
-                            {r.planned && <Badge cls="bg-blue-50 text-blue-700">计划</Badge>}
-                            {r.has_nova && <Badge cls="bg-sky-50 text-sky-700">生化</Badge>}
-                            {r.has_vicell && <Badge cls="bg-emerald-50 text-emerald-700">细胞</Badge>}
-                            {r.kind === "extra" && <Badge cls="bg-amber-50 text-amber-700">临时</Badge>}
+                            {r.planned && (
+                              <Badge cls="bg-blue-50 text-blue-700" title="批号注册系统里排了这天要取这个样（不管有没有真的上机测）">
+                                批号注册系统
+                              </Badge>
+                            )}
+                            {r.has_nova && (
+                              <Badge cls="bg-sky-50 text-sky-700" title="这天这个样品在 Nova 生化分析仪上有实测记录；葡萄糖以仪器值为准">
+                                生化
+                              </Badge>
+                            )}
+                            {r.has_vicell && (
+                              <Badge cls="bg-emerald-50 text-emerald-700" title="这天这个样品在 Vi-CELL 细胞计数仪上有实测记录">
+                                细胞
+                              </Badge>
+                            )}
+                            {r.kind === "extra" && (
+                              <Badge cls="bg-amber-50 text-amber-700" title="批号注册系统和仪器都没有，是在本页用「添加一行」手工加的临时样品">
+                                临时
+                              </Badge>
+                            )}
                           </span>
                         </td>
                         {metrics.map((m) => {
@@ -609,6 +626,10 @@ export function DataEntry() {
   );
 }
 
-function Badge({ cls, children }: { cls: string; children: React.ReactNode }) {
-  return <span className={`rounded px-1 py-0.5 text-[10px] ${cls}`}>{children}</span>;
+function Badge({ cls, title, children }: { cls: string; title?: string; children: React.ReactNode }) {
+  return (
+    <span title={title} className={`rounded px-1 py-0.5 text-[10px] ${cls}`}>
+      {children}
+    </span>
+  );
 }
