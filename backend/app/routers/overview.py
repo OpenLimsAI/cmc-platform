@@ -266,9 +266,12 @@ async def get_daily_table(req: DailyTableRequest):
             GROUP BY batch_key, culture_day
         ),
         o AS (
-            SELECT batch_key, culture_day, avg(value) AS osmolality
+            -- 人工录入：渗透压 + 试剂盒法葡萄糖（当天没做生化分析时用，见下面的 coalesce）
+            SELECT batch_key, culture_day,
+                   avg(value) FILTER (WHERE metric_code = 'osmolality') AS osmolality,
+                   avg(value) FILTER (WHERE metric_code = 'gluc')       AS gluc_manual
             FROM mart.fact_manual_latest
-            WHERE batch_key = ANY(:keys) AND metric_code = 'osmolality'
+            WHERE batch_key = ANY(:keys) AND metric_code IN ('osmolality', 'gluc')
             GROUP BY batch_key, culture_day
         ),
         b AS (
@@ -308,7 +311,10 @@ async def get_daily_table(req: DailyTableRequest):
                 coalesce(vn0.culture_day, o.culture_day) AS culture_day,
                 vn0.sample_date,
                 vn0.density_tcd, vn0.density_vcd, vn0.viability_pct, vn0.avg_diameter_um,
-                vn0.gluc, vn0.lac, vn0.gln, vn0.glu, vn0.nh4, vn0.na, vn0.k, vn0.ca,
+                -- 葡萄糖：生化仪测了就用仪器值，没测才用人工录入值（gluc_manual 标出是哪一种）
+                coalesce(vn0.gluc, o.gluc_manual) AS gluc,
+                (vn0.gluc IS NULL AND o.gluc_manual IS NOT NULL) AS gluc_manual,
+                vn0.lac, vn0.gln, vn0.glu, vn0.nh4, vn0.na, vn0.k, vn0.ca,
                 vn0.ph_nova, vn0.po2, vn0.pco2,
                 o.osmolality,
                 coalesce(vn0.n_vicell, 0) AS n_vicell,
@@ -327,7 +333,7 @@ async def get_daily_table(req: DailyTableRequest):
             p.stirrer_rpm_mean, p.air_mlmin_mean, p.o2_mlmin_mean,
             p.co2_mlmin_mean, p.alkali_cum_ml, p.acid_cum_ml,
             vn.density_tcd, vn.density_vcd, vn.viability_pct, vn.avg_diameter_um,
-            vn.gluc, vn.lac, vn.gln, vn.glu, vn.nh4, vn.na, vn.k, vn.ca,
+            vn.gluc, vn.gluc_manual, vn.lac, vn.gln, vn.glu, vn.nh4, vn.na, vn.k, vn.ca,
             vn.ph_nova, vn.po2, vn.pco2, vn.osmolality,
             coalesce(vn.n_vicell, 0) AS n_vicell,
             coalesce(vn.n_nova, 0)   AS n_nova,
@@ -353,6 +359,7 @@ async def get_daily_table(req: DailyTableRequest):
             "culture_day": int(r["culture_day"]) if r["culture_day"] is not None else None,
             "sample_date": r["sample_date"].isoformat() if r["sample_date"] else None,
             **{c: num(r[c]) for c in metric_cols},
+            "gluc_manual": bool(r["gluc_manual"]),  # true = 葡萄糖这格是人工录的（当天没做生化）
             "n_vicell": int(r["n_vicell"]),
             "n_nova": int(r["n_nova"]),
             # 溯源列：原始样本名（仪器上录入的名字）+ 解析状态 + 是否有工艺关联。

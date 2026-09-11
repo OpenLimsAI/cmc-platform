@@ -1,6 +1,11 @@
 "use client";
 
-// 渗透压录入（独立页面 /entry）——本看板唯一会写数据库的地方（负责人 2026-09-09 定）。
+// 数据录入（独立页面 /entry）——本看板唯一会写数据库的地方（负责人 2026-09-09 定，2026-09-11 从
+// 「渗透压录入」扩成「数据录入」）。目前两个指标：渗透压（mOsm/kg）、葡萄糖（g/L，试剂盒法）。
+// 葡萄糖为什么也要人工录：摇瓶 / 摇管常常不做生化分析，只用试剂盒单测葡萄糖，仪器不联网、系统采不到。
+// 取数优先级：同一批次同一培养天生化仪测了葡萄糖就用仪器值，没测才用人工录的（后端 routers/nova.py、
+// overview.py 里做，这里只管录）。有仪器值的格子会灰字显示仪器值，仍可填，填了只留档不上图。
+//
 // 按日期（默认今天）自动列出当天该取样的全部样品：批号登记系统的"当天样品清单"为准，再并上仪器
 // （Nova / Vi-CELL）当天实测到的样品。一行 = 一次取样：取样时刻自动从仪器记录带出，同一样品当天
 // 多次取样自动分行（第二次起样品名带 -T1）；时刻和样品名都可改，每行「＋」可再加一次取样。
@@ -14,6 +19,7 @@ import {
   fetchOverviewBatches,
   saveManualResults,
   type DailySheetRow,
+  type ManualMetric,
 } from "@/lib/api";
 import { useAuth } from "@/components/AuthGate";
 import { usePersisted } from "@/lib/usePersisted";
@@ -31,6 +37,8 @@ const shiftDate = (s: string, days: number) => {
 // 一行的身份 = 批次 # 培养天 # 样品名
 const rowKey = (r: { batch_key: string; culture_day: number; sample_name: string }) =>
   `${r.batch_key}#${r.culture_day}#${r.sample_name}`;
+// 一个格子的身份 = 行 # 指标
+const cellKey = (r: DailySheetRow, code: string) => `${rowKey(r)}#${code}`;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // 试验员临时加的取样行（本机记住，按日期）
@@ -40,14 +48,14 @@ interface ExtraRow {
   sample_name: string;
   sample_time: string | null;
 }
-// 每行可编辑的三个格子
+// 一行里可编辑的东西：各指标的值 + 取样时刻 + 样品名
 interface Draft {
-  value?: string;
+  values?: Record<string, string>;
   time?: string;
   name?: string;
 }
 
-export function OsmolalityEntry() {
+export function DataEntry() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [date, setDate] = useState(today());
@@ -78,7 +86,7 @@ export function OsmolalityEntry() {
     setAdding(false);
   }, [date]);
 
-  const metric = sheetQ.data?.metric;
+  const metrics = useMemo<ManualMetric[]>(() => sheetQ.data?.metrics ?? [], [sheetQ.data]);
 
   // 最终显示的行 = 清单里的行（去掉删掉的）+ 临时加的行（按样品名去重）
   const rows = useMemo<DailySheetRow[]>(() => {
@@ -108,11 +116,8 @@ export function OsmolalityEntry() {
           sample_ids: null,
           has_nova: false,
           has_vicell: false,
-          existing_value: null,
-          existing_by: null,
-          existing_by_name: null,
-          existing_at: null,
-          existing_note: null,
+          nova_gluc: null,
+          entries: {},
         };
       });
     const all = [...base, ...extraRows];
@@ -130,39 +135,52 @@ export function OsmolalityEntry() {
   const effective = (r: DailySheetRow) => {
     const d = draft[rowKey(r)] ?? {};
     return {
-      value: d.value ?? "",
+      values: d.values ?? {},
       time: d.time ?? r.sample_time ?? "",
       name: d.name ?? r.sample_name ?? "",
     };
   };
+  const cellValue = (r: DailySheetRow, code: string) => effective(r).values[code] ?? "";
+  // 这一行最近一次录入是谁、什么时候（几个指标取最新的那条）
+  const lastEntry = (r: DailySheetRow) =>
+    Object.values(r.entries ?? {})
+      .filter((e) => e)
+      .sort((a, b) => ((a!.entered_at ?? "") < (b!.entered_at ?? "") ? 1 : -1))[0] ?? null;
 
-  // 待保存的行：填了数、且和已录值不同
+  // 待保存的格子：填了数、且和已录值不同（或样品名改了，要跟着改存）
   const pending = useMemo(() => {
-    const out: { row: DailySheetRow; value: number; time: string; name: string }[] = [];
+    const out: { row: DailySheetRow; code: string; value: number; time: string; name: string }[] = [];
     rows.forEach((r) => {
       const e = effective(r);
-      if (e.value.trim() === "") return;
-      const v = Number(e.value);
-      if (!Number.isFinite(v)) return;
-      if (r.existing_value != null && Math.abs(r.existing_value - v) < 1e-9 && e.name === r.sample_name) return;
-      out.push({ row: r, value: v, time: e.time, name: e.name.trim() });
+      metrics.forEach((m) => {
+        const raw = (e.values[m.code] ?? "").trim();
+        if (raw === "") return;
+        const v = Number(raw);
+        if (!Number.isFinite(v)) return;
+        const cur = r.entries?.[m.code]?.value ?? null;
+        if (cur != null && Math.abs(cur - v) < 1e-9 && e.name === r.sample_name) return;
+        out.push({ row: r, code: m.code, value: v, time: e.time, name: e.name.trim() });
+      });
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, draft]);
+  }, [rows, draft, metrics]);
 
   const problems = useMemo(() => {
     const out: string[] = [];
-    if (!metric) return out;
+    if (metrics.length === 0) return out;
     const names = new Map<string, number>();
     rows.forEach((r) => {
       const e = effective(r);
       const key = `${r.batch_key}#${r.culture_day}#${e.name.trim()}`;
       names.set(key, (names.get(key) ?? 0) + 1);
-      if (e.value.trim() !== "") {
-        const v = Number(e.value);
-        if (!Number.isFinite(v) || v < metric.min || v > metric.max) out.push(`${e.name}：数值要在 ${metric.min}–${metric.max}`);
-      }
+      metrics.forEach((m) => {
+        const raw = (e.values[m.code] ?? "").trim();
+        if (raw === "") return;
+        const v = Number(raw);
+        if (!Number.isFinite(v) || v < m.min || v > m.max)
+          out.push(`${e.name} 的${m.name}：要在 ${m.min}–${m.max} ${m.unit}`);
+      });
       if (e.time && !TIME_RE.test(e.time)) out.push(`${e.name}：时刻格式应为 HH:MM`);
       if (!e.name.trim()) out.push(`${r.batch_key} 第 ${r.culture_day} 天：样品名不能为空`);
     });
@@ -171,15 +189,16 @@ export function OsmolalityEntry() {
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, draft, metric]);
+  }, [rows, draft, metrics]);
 
   const saveM = useMutation({
     mutationFn: () =>
       saveManualResults(
         date,
-        pending.map(({ row, value, time, name }) => ({
+        pending.map(({ row, code, value, time, name }) => ({
           batch_key: row.batch_key,
           culture_day: row.culture_day,
+          metric_code: code,
           value,
           sample_name: name,
           sample_time: TIME_RE.test(time) ? time : null,
@@ -199,8 +218,14 @@ export function OsmolalityEntry() {
     },
   });
 
-  function setField(k: string, field: keyof Draft, v: string) {
+  function setField(k: string, field: "time" | "name", v: string) {
     setDraft((prev) => ({ ...prev, [k]: { ...(prev[k] ?? {}), [field]: v } }));
+  }
+  function setValue(k: string, code: string, v: string) {
+    setDraft((prev) => ({
+      ...prev,
+      [k]: { ...(prev[k] ?? {}), values: { ...((prev[k] ?? {}).values ?? {}), [code]: v } },
+    }));
   }
   function removeRow(r: DailySheetRow) {
     const k = rowKey(r);
@@ -224,7 +249,8 @@ export function OsmolalityEntry() {
       [date]: [...(prev[date] ?? []).filter((x) => rowKey(x) !== rowKey(e)), e],
     }));
     setRemovedByDate((prev) => ({ ...prev, [date]: (prev[date] ?? []).filter((k) => k !== rowKey(e)) }));
-    setTimeout(() => inputs.current[rowKey(e)]?.focus(), 50);
+    const first = metrics[0]?.code;
+    if (first) setTimeout(() => inputs.current[`${rowKey(e)}#${first}`]?.focus(), 50);
   }
   // 同一样品再加一次取样：样品名接着 -T1 / -T2 往下编
   function addResample(r: DailySheetRow) {
@@ -244,15 +270,15 @@ export function OsmolalityEntry() {
     setAdding(false);
   }
 
-  // 回车 → 下一行；粘贴多行（从 Excel 复制一列）→ 从当前行往下依次填
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>, idx: number) {
+  // 回车 → 同一列的下一行；粘贴多行（从 Excel 复制一列）→ 从当前格往下依次填
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>, idx: number, code: string) {
     if (e.key === "Enter") {
       e.preventDefault();
       const next = rows[idx + 1];
-      if (next) inputs.current[rowKey(next)]?.focus();
+      if (next) inputs.current[cellKey(next, code)]?.focus();
     }
   }
-  function onPaste(e: React.ClipboardEvent<HTMLInputElement>, idx: number) {
+  function onPaste(e: React.ClipboardEvent<HTMLInputElement>, idx: number, code: string) {
     const text = e.clipboardData.getData("text");
     const parts = text.split(/\r?\n/).map((t) => t.trim()).filter((t) => t !== "");
     if (parts.length <= 1) return;
@@ -261,7 +287,9 @@ export function OsmolalityEntry() {
       const next = { ...prev };
       parts.forEach((t, i) => {
         const r = rows[idx + i];
-        if (r) next[rowKey(r)] = { ...(next[rowKey(r)] ?? {}), value: t.replace(/[^\d.\-]/g, "") };
+        if (!r) return;
+        const k = rowKey(r);
+        next[k] = { ...(next[k] ?? {}), values: { ...((next[k] ?? {}).values ?? {}), [code]: t.replace(/[^\d.\-]/g, "") } };
       });
       return next;
     });
@@ -298,8 +326,7 @@ export function OsmolalityEntry() {
         {sheet && (
           <span className="text-xs text-slate-400">
             {sheet.registry_used ? "样品清单来自批号登记系统，并已合并仪器实测样品" : "样品清单来自仪器实测（Nova / Vi-CELL）"}
-            {" · 取样时刻自动取自仪器记录，可改 · 单位 "}
-            {metric?.unit}
+            {" · 取样时刻自动取自仪器记录，可改 · 葡萄糖当天做了生化分析就用仪器值，只有没做的才填"}
           </span>
         )}
         <span className="ml-auto text-xs text-slate-400">录入人：{user?.full_name || user?.username || "—"}</span>
@@ -329,7 +356,7 @@ export function OsmolalityEntry() {
             </div>
           )}
           {rows.length > 0 && (
-            <div className="p-4">
+            <div className="overflow-x-auto p-4">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
@@ -341,9 +368,12 @@ export function OsmolalityEntry() {
                     <th className="px-2 py-1.5">样品名</th>
                     <th className="px-2 py-1.5">取样时刻</th>
                     <th className="px-2 py-1.5">来源</th>
-                    <th className="px-2 py-1.5 text-right">已录值</th>
+                    {metrics.map((m) => (
+                      <th key={m.code} className="px-2 py-1.5" title={`合理范围 ${m.min}–${m.max} ${m.unit}`}>
+                        {m.name} ({m.unit})
+                      </th>
+                    ))}
                     <th className="px-2 py-1.5">录入人 / 时间</th>
-                    <th className="px-2 py-1.5">渗透压 ({metric?.unit})</th>
                     <th className="px-2 py-1.5"></th>
                   </tr>
                 </thead>
@@ -351,11 +381,9 @@ export function OsmolalityEntry() {
                   {rows.map((r, i) => {
                     const k = rowKey(r);
                     const e = effective(r);
-                    const v = e.value.trim() === "" ? null : Number(e.value);
-                    const bad = v != null && metric && (!Number.isFinite(v) || v < metric.min || v > metric.max);
-                    const changed = v != null && Number.isFinite(v) && (r.existing_value == null || Math.abs(r.existing_value - v) >= 1e-9);
                     const timeBad = e.time !== "" && !TIME_RE.test(e.time);
                     const isResample = /-T\d+$/.test(r.sample_name);
+                    const last = lastEntry(r);
                     return (
                       <tr key={k} className={`border-b border-slate-100 text-slate-700 ${isResample ? "bg-slate-50/60" : ""}`}>
                         <td className="px-2 py-1 text-xs text-slate-400">{i + 1}</td>
@@ -392,29 +420,54 @@ export function OsmolalityEntry() {
                             {r.kind === "extra" && <Badge cls="bg-amber-50 text-amber-700">临时</Badge>}
                           </span>
                         </td>
-                        <td className="px-2 py-1 text-right tabular-nums">
-                          {r.existing_value != null ? r.existing_value.toFixed(0) : <span className="text-slate-300">未录</span>}
+                        {metrics.map((m) => {
+                          const raw = cellValue(r, m.code);
+                          const v = raw.trim() === "" ? null : Number(raw);
+                          const bad = v != null && (!Number.isFinite(v) || v < m.min || v > m.max);
+                          const cur = r.entries?.[m.code]?.value ?? null;
+                          const changed = v != null && Number.isFinite(v) && (cur == null || Math.abs(cur - v) >= 1e-9);
+                          // 葡萄糖：当天做了生化分析就以仪器值为准，这里只灰字提示，格子仍可填
+                          const instrument = m.code === "gluc" ? r.nova_gluc : null;
+                          return (
+                            <td key={m.code} className="px-2 py-1 align-top">
+                              <input
+                                ref={(el) => {
+                                  inputs.current[cellKey(r, m.code)] = el;
+                                }}
+                                type="text"
+                                inputMode="decimal"
+                                value={raw}
+                                placeholder={instrument != null ? "仪器已测" : cur != null ? "改数在此填新值" : "填数值"}
+                                disabled={!canWrite}
+                                onChange={(ev) => setValue(k, m.code, ev.target.value)}
+                                onKeyDown={(ev) => onKeyDown(ev, i, m.code)}
+                                onPaste={(ev) => onPaste(ev, i, m.code)}
+                                className={`${inputCls} w-28 text-right tabular-nums ${
+                                  bad
+                                    ? "border-red-400 bg-red-50 text-red-700"
+                                    : changed
+                                      ? "border-blue-400 bg-blue-50"
+                                      : instrument != null
+                                        ? "border-slate-200 bg-slate-50 focus:border-blue-500"
+                                        : "border-slate-300 focus:border-blue-500"
+                                }`}
+                              />
+                              <div className="px-1 pt-0.5 text-[10px] leading-tight text-slate-400">
+                                {instrument != null ? (
+                                  <span title="生化分析仪当天实测值，曲线和数据表以它为准">仪器 {instrument.toFixed(m.digits)}</span>
+                                ) : cur != null ? (
+                                  <span title="已录入的最新值">已录 {cur.toFixed(m.digits)}</span>
+                                ) : (
+                                  ""
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td className="px-2 py-1 align-top text-xs text-slate-400">
+                          {last ? `${last.entered_by_name || last.entered_by} · ${last.entered_at?.slice(0, 16).replace("T", " ")}` : ""}
                         </td>
-                        <td className="px-2 py-1 text-xs text-slate-400">
-                          {r.existing_by ? `${r.existing_by_name || r.existing_by} · ${r.existing_at?.slice(0, 16).replace("T", " ")}` : ""}
-                        </td>
-                        <td className="px-2 py-1">
-                          <input
-                            ref={(el) => {
-                              inputs.current[k] = el;
-                            }}
-                            type="text"
-                            inputMode="decimal"
-                            value={e.value}
-                            placeholder={r.existing_value != null ? "改数在此填新值" : "填数值"}
-                            disabled={!canWrite}
-                            onChange={(ev) => setField(k, "value", ev.target.value)}
-                            onKeyDown={(ev) => onKeyDown(ev, i)}
-                            onPaste={(ev) => onPaste(ev, i)}
-                            className={`${inputCls} w-28 text-right tabular-nums ${bad ? "border-red-400 bg-red-50 text-red-700" : changed ? "border-blue-400 bg-blue-50" : "border-slate-300 focus:border-blue-500"}`}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-1">
+                        <td className="whitespace-nowrap px-2 py-1 align-top">
                           <button
                             onClick={() => addResample(r)}
                             title="这个样品当天再加一次取样（样品名自动接 -T1 / -T2）"
@@ -487,7 +540,7 @@ export function OsmolalityEntry() {
             )}
             {problems.length > 0 && <span className="text-xs text-red-600">{problems[0]}{problems.length > 1 ? ` 等 ${problems.length} 处` : ""}</span>}
             {message && <span className="text-xs text-slate-600">{message}</span>}
-            <span className="ml-auto text-xs text-slate-400">回车跳下一行 · 可从 Excel 复制一列直接粘贴 · 每行「＋」= 再加一次取样</span>
+            <span className="ml-auto text-xs text-slate-400">回车跳同一列下一行 · 可从 Excel 复制一列直接粘贴 · 每行「＋」= 再加一次取样</span>
           </div>
         </>
       )}

@@ -104,7 +104,11 @@ export function CurveSection<P extends { culture_day: number; t_day?: number } &
             points: pts
               .filter((p) => p.__gap || m.pick(p) != null)
               // 横轴位置用 t_day（培养天 + 当天时刻）：同一天两次取样就是两个点
-              .map((p) => ({ time_hours: p.t_day ?? p.culture_day, value: p.__gap ? null : (m.pick(p) as number) })),
+              .map((p) => ({
+                time_hours: p.t_day ?? p.culture_day,
+                value: p.__gap ? null : (m.pick(p) as number),
+                manual: !p.__gap && m.manual?.(p) === true,
+              })),
           });
         });
     });

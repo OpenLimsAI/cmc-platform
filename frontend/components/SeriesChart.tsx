@@ -11,6 +11,7 @@ const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 export interface ChartPoint {
   time_hours: number;
   value: number | null;
+  manual?: boolean; // 人工录入的点（葡萄糖试剂盒法等）：画空心标记，提示框标「人工」
 }
 export interface ChartSeries {
   code: string;
@@ -72,6 +73,7 @@ interface TooltipParam {
   marker: string;
   seriesName: string;
   value: number | number[];
+  data?: unknown; // 点本身；人工录入的点是 { value, manual: true } 这种对象
 }
 
 export function SeriesChart({
@@ -230,7 +232,10 @@ export function SeriesChart({
               .map((p) => {
                 const y = Array.isArray(p.value) ? p.value[1] : p.value;
                 const vs = typeof y === "number" ? y.toFixed(3) : y;
-                return `<div>${p.marker}${p.seriesName}: <b>${vs}</b></div>`;
+                const manual = (p.data as { manual?: boolean } | undefined)?.manual
+                  ? ' <span style="color:#94a3b8">人工</span>'
+                  : "";
+                return `<div>${p.marker}${p.seriesName}: <b>${vs}</b>${manual}</div>`;
               })
               .join("");
             return `<div style="font-weight:600;margin-bottom:4px">${head}</div>${rows}`;
@@ -250,7 +255,10 @@ export function SeriesChart({
               .map((p) => {
                 const y = Array.isArray(p.value) ? p.value[1] : p.value;
                 const vs = typeof y === "number" ? y.toFixed(3) : y;
-                return `<div>${p.marker}${p.seriesName}: <b>${vs}</b></div>`;
+                const manual = (p.data as { manual?: boolean } | undefined)?.manual
+                  ? ' <span style="color:#94a3b8">人工</span>'
+                  : "";
+                return `<div>${p.marker}${p.seriesName}: <b>${vs}</b>${manual}</div>`;
               })
               .join("");
             return `<div style="font-weight:600;margin-bottom:4px">${head}</div>${rows}`;
@@ -334,7 +342,17 @@ export function SeriesChart({
           emphasis: { focus: "series" as const, scale: false, lineStyle: { width: 2 } },
           blur: { lineStyle: { opacity: 0.12 }, itemStyle: { opacity: 0.12 } },
           yAxisIndex: units.indexOf(s.unit || "无单位"),
-          data: s.points.map((p) => [p.time_hours, p.value]),
+          data: s.points.map((p) =>
+            (p as ChartPoint).manual
+              ? {
+                  // 人工录入的点：空心标记，一眼看出这天不是仪器测的
+                  value: [p.time_hours, p.value],
+                  manual: true,
+                  symbolSize: 8,
+                  itemStyle: { color: "#fff", borderColor: color, borderWidth: 2 },
+                }
+              : [p.time_hours, p.value]
+          ),
         };
       }),
     };

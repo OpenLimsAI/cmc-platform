@@ -1,8 +1,9 @@
 "use client";
 
-// 渗透压录入页（独立页面，不和曲线展示混在一起）。路径 /usp/entry。
+// 数据录入页（独立页面，不和曲线展示混在一起）。路径 /usp/entry。
+// 目前录两个指标：渗透压、葡萄糖（试剂盒法，摇瓶摇管不做生化分析时用）。
 import Link from "next/link";
-import { OsmolalityEntry } from "@/components/OsmolalityEntry";
+import { DataEntry } from "@/components/DataEntry";
 import { useAuth } from "@/components/AuthGate";
 
 export default function EntryPage() {
@@ -11,8 +12,10 @@ export default function EntryPage() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       {/* 顶栏固定在页面顶部，表再长也能随时点「返回看板」 */}
       <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-3">
-        <h1 className="text-lg font-semibold">渗透压录入</h1>
-        <span className="text-sm text-slate-400">每天把当天所有样品的渗透压填进来，生化曲线里就有渗透压这条线</span>
+        <h1 className="text-lg font-semibold">数据录入</h1>
+        <span className="text-sm text-slate-400">
+          每天把仪器采不到的结果填进来：渗透压、葡萄糖（试剂盒法，当天没做生化分析时才填），曲线和数据表里就有了
+        </span>
         <Link
           href="/"
           className="ml-auto rounded-md border border-slate-300 px-2.5 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
@@ -35,7 +38,7 @@ export default function EntryPage() {
         )}
       </header>
       <main className="mx-auto w-full max-w-6xl px-5 py-4">
-        <OsmolalityEntry />
+        <DataEntry />
       </main>
     </div>
   );

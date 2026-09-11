@@ -222,6 +222,7 @@ export interface NovaPoint {
   po2: number | null; // 氧分压 mmHg
   pco2: number | null; // 二氧化碳分压 mmHg
   osmolality: number | null; // 渗透压 mOsm/kg（人工录入，manual.sample_result 最新值）
+  gluc_manual: boolean; // true = 这个点的葡萄糖是人工录的（当天没做生化分析）
   n: number;
 }
 
@@ -358,6 +359,7 @@ export interface DailyTableRow {
   po2: number | null;
   pco2: number | null;
   osmolality: number | null; // 渗透压（人工录入）
+  gluc_manual: boolean; // true = 葡萄糖这格是人工录的（当天没做生化，用试剂盒单测）
   n_vicell: number; // 当天细胞取样次数（>1 = 已平均）
   n_nova: number;
   // 溯源：原始样本名（仪器录入）与解析状态；项目/批号/罐号都拆自样本名
@@ -420,11 +422,29 @@ export async function fetchProcessBucketed(
   return data;
 }
 
-// ============ 人工录入（渗透压等）——本看板唯一的写入点 ============
+// ============ 人工录入（渗透压 / 试剂盒葡萄糖等）——本看板唯一的写入点 ============
+
+export interface ManualMetric {
+  code: string;
+  name: string;
+  unit: string;
+  min: number;
+  max: number;
+  digits: number; // 输入/显示的小数位（渗透压 0 位、葡萄糖 2 位）
+}
 
 export interface ManualStatus {
   enabled: boolean; // 后端配了写账号才能录
-  metrics: Record<string, { name: string; unit: string; min: number; max: number }>;
+  metrics: Record<string, Omit<ManualMetric, "code">>;
+}
+
+// 某样品某指标已录的最新一条
+export interface ManualEntry {
+  value: number;
+  entered_by: string | null;
+  entered_by_name: string | null;
+  entered_at: string | null;
+  note: string | null;
 }
 
 export interface DailySheetRow {
@@ -440,16 +460,13 @@ export interface DailySheetRow {
   sample_ids: string | null; // 当天该样品在仪器上的样本名
   has_nova: boolean;
   has_vicell: boolean;
-  existing_value: number | null; // 已录的最新值
-  existing_by: string | null;
-  existing_by_name: string | null;
-  existing_at: string | null;
-  existing_note: string | null;
+  nova_gluc: number | null; // 这次取样生化仪实测的葡萄糖（有就以它为准，人工那格不用填）
+  entries: Record<string, ManualEntry | null>; // 各指标已录的最新值
 }
 
 export interface DailySheet {
   sample_date: string;
-  metric: { code: string; name: string; unit: string; min: number; max: number };
+  metrics: ManualMetric[];
   registry_used: boolean; // 当天清单是否来自批号登记系统
   registry_error: string | null; // 登记系统连不上时的说明（此时只列仪器实测样品）
   rows: DailySheetRow[];
@@ -460,16 +477,18 @@ export async function fetchManualStatus(): Promise<ManualStatus> {
   return data;
 }
 
-export async function fetchDailySheet(sampleDate: string, metricCode = "osmolality"): Promise<DailySheet> {
+export async function fetchDailySheet(sampleDate: string): Promise<DailySheet> {
   const { data } = await http.get<DailySheet>("/api/manual/daily-sheet", {
-    params: { sample_date: sampleDate, metric_code: metricCode },
+    params: { sample_date: sampleDate },
   });
   return data;
 }
 
+// 一条 = 某样品的某个指标（同一行样品填了两个指标 = 两条）
 export interface ManualResultRow {
   batch_key: string;
   culture_day: number;
+  metric_code: string;
   value: number;
   sample_name?: string | null;
   sample_time?: string | null; // HH:MM
@@ -479,12 +498,10 @@ export interface ManualResultRow {
 
 export async function saveManualResults(
   sampleDate: string,
-  rows: ManualResultRow[],
-  metricCode = "osmolality"
+  rows: ManualResultRow[]
 ): Promise<{ saved: number; skipped: number }> {
   const { data } = await http.post<{ saved: number; skipped: number }>("/api/manual/results", {
     sample_date: sampleDate,
-    metric_code: metricCode,
     rows,
   });
   return data;

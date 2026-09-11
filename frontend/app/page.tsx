@@ -13,12 +13,12 @@ export default function Home() {
         <span className="text-sm text-slate-400">
           先选批次（项目 → 年份 → 批号 → 罐），再选要看的曲线：生长 / 生化 / 工艺，同屏叠加对比
         </span>
-        {/* 渗透压录入是独立页面（本看板唯一会写库的功能） */}
+        {/* 数据录入是独立页面（本看板唯一会写库的功能）：渗透压、试剂盒法葡萄糖 */}
         <Link
           href="/entry"
           className="ml-auto rounded-md border border-blue-300 px-2.5 py-1 text-xs text-blue-600 transition hover:bg-blue-50"
         >
-          渗透压录入 →
+          数据录入 →
         </Link>
         {/* 后端开放模式（本地开发未配验签密钥）时提示一下 */}
         {user?.is_system && (

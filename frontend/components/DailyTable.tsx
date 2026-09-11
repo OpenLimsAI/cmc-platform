@@ -38,6 +38,7 @@ const CELL_COLS: Col[] = [
   { key: "avg_diameter_um", label: "直径", unit: "µm", digits: 1 },
 ];
 const NOVA_COLS: Col[] = [
+  // 葡萄糖：当天做了生化分析用仪器值，没做的用人工录入（试剂盒法），人工的值后面标一个「人」
   { key: "gluc", label: "葡萄糖", unit: "g/L", digits: 2 },
   { key: "lac", label: "乳酸", unit: "g/L", digits: 2 },
   { key: "gln", label: "谷氨酰胺", unit: "mmol/L", digits: 2 },
@@ -300,7 +301,14 @@ export function DailyTable({
                           : ""
                       }`}
                     >
-                      {fmt(r[c.key] as number | null, c.digits)}
+                      {c.key === "gluc" && r.gluc_manual && r.gluc != null ? (
+                        <span title="人工录入（当天没做生化分析，试剂盒法单测葡萄糖）">
+                          {fmt(r.gluc, c.digits)}
+                          <span className="ml-0.5 text-[10px] text-slate-400">人</span>
+                        </span>
+                      ) : (
+                        fmt(r[c.key] as number | null, c.digits)
+                      )}
                     </td>
                   ))}
                 </tr>

@@ -31,6 +31,8 @@ export interface MetricDef<P> {
   shape: number; // 固定线型/标记序号（多批次时用）：0 实线圆点 1 虚线方块 2 点线三角 3 实线菱形 4 虚线大头针 5 点线箭头
   axis?: "left" | "right"; // 该指标的纵轴放哪边（不填按出现顺序：第一个单位在左）
   pick: (p: P) => number | null;
+  // 这个点是不是人工录入的（画成空心标记，提示框标「人工」）；不填 = 都不是
+  manual?: (p: P) => boolean;
 }
 
 // 细胞（Vi-CELL）：活率红、活细胞密度蓝、总细胞密度橙黄、平均直径青（负责人 2026-09-08 定）；活率轴在左、密度轴在右
@@ -45,7 +47,9 @@ export const CELL_DEFAULT_METRICS = ["viable_per_ml", "viability_pct"];
 
 // 生化（Nova FLEX2；数据没有渗透压列）：g/L 的两个放左轴，mmol/L 的放右轴
 export const NOVA_METRICS: MetricDef<NovaPoint>[] = [
-  { code: "gluc", name: "葡萄糖", unit: "g/L", color: C.orange, shape: 0, axis: "left", pick: (p) => p.gluc },
+  // 葡萄糖：优先用生化仪的值；摇瓶摇管没做生化那几天用试剂盒法人工录入值（后端已按天二选一），
+  // 两种值画同一条线，人工的那些点画成空心标记、提示框标「人工」
+  { code: "gluc", name: "葡萄糖", unit: "g/L", color: C.orange, shape: 0, axis: "left", pick: (p) => p.gluc, manual: (p) => p.gluc_manual },
   { code: "lac", name: "乳酸", unit: "g/L", color: C.green, shape: 1, axis: "left", pick: (p) => p.lac },
   { code: "nh4", name: "氨", unit: "mmol/L", color: C.purple, shape: 2, axis: "right", pick: (p) => p.nh4 },
   { code: "gln", name: "谷氨酰胺", unit: "mmol/L", color: C.pink, shape: 3, axis: "right", pick: (p) => p.gln },
@@ -53,7 +57,7 @@ export const NOVA_METRICS: MetricDef<NovaPoint>[] = [
   { code: "na", name: "钠", unit: "mmol/L", color: C.slate, shape: 5, axis: "right", pick: (p) => p.na },
   { code: "k", name: "钾", unit: "mmol/L", color: C.teal, shape: 0, axis: "right", pick: (p) => p.k },
   { code: "ca", name: "钙", unit: "mmol/L", color: C.brown, shape: 1, axis: "right", pick: (p) => p.ca },
-  // 渗透压：仪器不联网，试验员每天在「渗透压录入」页手填，自己一根轴
+  // 渗透压：仪器不联网，试验员每天在「数据录入」页手填，自己一根轴
   { code: "osmolality", name: "渗透压", unit: "mOsm/kg", color: C.cyan, shape: 2, axis: "right", pick: (p) => p.osmolality },
 ];
 export const NOVA_DEFAULT_METRICS = ["gluc", "lac", "nh4", "gln"];

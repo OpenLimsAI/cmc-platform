@@ -83,11 +83,20 @@ _T_DAY = "culture_day + extract(epoch FROM (measured_at AT TIME ZONE 'Asia/Shang
 async def get_series(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
     """某批次的生化趋势：每次取样一个点，全部指标一次返回，前端勾选展示。
 
-    t_day = 该点在横轴上的位置（培养天 + 当天时刻）。渗透压来自人工录入，单独成点，时刻按三级取：
-    ① 录入时填的取样时刻；② 没填的，借同一批次同一天生化仪 / 细胞计数仪最早一次记录的时刻
-    （录入时留空、仪器数据后到也能自动归位，不改库里任何数据）；③ 都没有才放当天中午（day + 0.5）。
+    t_day = 该点在横轴上的位置（培养天 + 当天时刻）。渗透压、以及摇瓶摇管用试剂盒单测的葡萄糖
+    来自人工录入（manual.sample_result），单独成点，时刻按三级取：① 录入时填的取样时刻；
+    ② 没填的，借同一批次同一天生化仪 / 细胞计数仪最早一次记录的时刻（录入时留空、仪器数据后到
+    也能自动归位，不改库里任何数据）；③ 都没有才放当天中午（day + 0.5）。
+
+    葡萄糖优先仪器：同一批次同一培养天只要 Nova 测到了葡萄糖，人工录的那条就不上图（只留档）；
+    没做生化分析的那些天才用人工值，点上带 gluc_manual = true，前端提示框标「人工」。
     """
     cols = ", ".join(METRICS)
+    # 人工录入的行：只有对应指标那一列有值，其余列留空（各自成点，不和仪器点混在一行）
+    man_cols = ", ".join(
+        ("CASE WHEN m.metric_code = 'gluc' THEN m.value END" if c == "gluc" else "NULL::double precision")
+        for c in METRICS
+    )
     sql = text(f"""
         WITH inst AS (
             SELECT culture_day, min(t) AS t
@@ -102,7 +111,8 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
             ) u
             GROUP BY culture_day
         )
-        SELECT culture_day, {_T_DAY} AS t_day, {cols}, NULL::double precision AS osmolality
+        SELECT culture_day, {_T_DAY} AS t_day, {cols},
+               NULL::double precision AS osmolality, false AS gluc_manual
         FROM {VIEW}
         WHERE batch_key = :bk AND culture_day IS NOT NULL
         UNION ALL
@@ -111,10 +121,16 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
                    extract(epoch FROM (m.sampled_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0,
                    extract(epoch FROM i.t) / 86400.0,
                    0.5) AS t_day,
-               {", ".join("NULL::double precision" for _ in METRICS)}, m.value
+               {man_cols},
+               CASE WHEN m.metric_code = 'osmolality' THEN m.value END,
+               (m.metric_code = 'gluc') AS gluc_manual
         FROM mart.fact_manual_latest m
         LEFT JOIN inst i ON i.culture_day = m.culture_day
-        WHERE m.batch_key = :bk AND m.metric_code = 'osmolality'
+        WHERE m.batch_key = :bk AND m.metric_code IN ('osmolality', 'gluc')
+          -- 当天生化仪测到葡萄糖就以仪器值为准，人工录的那条不上图（库里仍留着）
+          AND NOT (m.metric_code = 'gluc' AND EXISTS (
+                SELECT 1 FROM {VIEW} n
+                WHERE n.batch_key = :bk AND n.culture_day = m.culture_day AND n.gluc IS NOT NULL))
         ORDER BY 2
     """)
     meta_sql = text(f"""
@@ -142,6 +158,7 @@ async def get_series(batch_key: str = Query(..., description="批次身份，如
             "t_day": float(r["t_day"]),
             **{m: num(r[m]) for m in METRICS},
             "osmolality": num(r["osmolality"]),  # 人工录入，mOsm/kg
+            "gluc_manual": bool(r["gluc_manual"]),  # true = 这个葡萄糖点是人工录的（当天没做生化）
             "n": 1,
         }
         for r in rows

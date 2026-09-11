@@ -25,14 +25,22 @@
    - **数据表**（一行 = 一个批次一个培养天，三源列并排，对齐《项目第一表》）
    - **取样明细**（每次取样一行）
 
-   另有独立页面 **渗透压录入**（`/usp/entry`，顶栏按钮进出；2026-09-09 起，**本看板唯一会写库的功能**）：按日期列出当天该取样的
+   另有独立页面 **数据录入**（`/usp/entry`，顶栏按钮进出；2026-09-09 起，**本看板唯一会写库的功能**；2026-09-11 从「渗透压录入」
+   扩成「数据录入」，每行样品两格：**渗透压** mOsm/kg 100–1000、**葡萄糖** g/L 0.00–20.00）：按日期列出当天该取样的
    全部样品——以**批号登记系统**（rd-batch-registry，`REGISTRY_BASE_URL`，接口 `batches:samples-by-date`）的当天清单为准，再并上
    仪器（Nova / Vi-CELL）当天实测样品；批次 / 罐 / 培养天 / 样品名 / **取样时刻**（自动取自仪器记录，Nova 真 UTC 换北京时间、
    Vi-CELL 表里钟点直接当北京时间——ETL 时区 bug）自动带出，试验员只填数值；同一样品当天仪器记录相隔 ≥2h 自动分成多次取样
    （第二次起样品名带 -T1），时刻/样品名可改，每行「＋」再加一次取样；没取样的行点 × 删（本机记忆、可恢复），临时样品「添加一行」。存 `cmc_analytics.manual.sample_result`（通用人工录入表，含 sampled_at / sample_name，只追加不覆盖，按 (批次, 天, 样品名)
    取最新一行；录入人 = MDM 登录人工号+姓名快照）。曲线上渗透压按自己的取样时刻定位；录入时没填时刻的，画图时自动借同一批次同一天仪器（Nova / Vi-CELL）最早记录的时刻，都没有才放正午（`routers/nova.py` 读时现算，不改库）。生化曲线的「渗透压」线和数据表的渗透压列读视图 `mart.fact_manual_latest`。写库走单独账号 `usp_writer`
    （只对该表有 INSERT），配置项 `MANUAL_WRITE_DATABASE_URL`，留空则录入页不可用。以后滴度等人工指标复用这张表
-   （`metric_code`），后端 `routers/manual.py` 的 `METRICS` 登记 + 放开表 CHECK。
+   （`metric_code`），后端 `routers/manual.py` 的 `METRICS` 登记 + 放开表 CHECK（迁移 `cmc_analytics_manual_metric_gluc`）。
+
+   **人工葡萄糖的取数规则（2026-09-11 负责人定）**：摇瓶 / 摇管常不做生化分析，只用试剂盒单测葡萄糖，仪器不联网采不到，
+   所以录入页留了这一格。**同一批次同一培养天，Nova 测了葡萄糖就用仪器值，没测才用人工值**——生化曲线（`routers/nova.py`
+   `/series`，人工点带 `gluc_manual=true`，前端画空心标记、提示框标「人工」）和数据表（`routers/overview.py` `/daily-table`，
+   `coalesce(仪器, 人工)` + `gluc_manual` 标记，人工值后面标个「人」）都按这个优先级，两种值画同一条葡萄糖线。
+   录入页对已有仪器值的格子灰字显示「仪器 x.xx」，仍可填（仪器数据当天没传到时先记着），填了只留档不上图。
+   摇瓶摇管一定会上 Vi-CELL，所以批次名单（三源合并）里跑得掉——人工录入**不是**批次名单的来源。
 
 **批次名单是三源合并的**：`GET /api/overview/batches`（`routers/overview.py`）把细胞、生化、工艺（`mart.dim_batch` 中有时序数据的记录）
 按 `batch_key` 并成一张总名单，只有工艺没细胞/生化的批次、以及工艺批次名不规范（test610 这类）的批次也在（后者归「未识别」项目，
@@ -132,7 +140,7 @@ uv run uvicorn app.main:app --reload --port 8070
 ```
 
 先复制 `.env.example` 为 `.env` 并填好 `RAW_DATABASE_URL`（工艺曲线，必填）、`ANALYTICS_DATABASE_URL`（细胞曲线，选填）、
-`MANUAL_WRITE_DATABASE_URL`（渗透压录入，选填；账号 `usp_writer` 的密码由运维 `ALTER ROLE usp_writer PASSWORD '...'` 设置，
+`MANUAL_WRITE_DATABASE_URL`（数据录入：渗透压 / 葡萄糖，选填；账号 `usp_writer` 的密码由运维 `ALTER ROLE usp_writer PASSWORD '...'` 设置，
 迁移 `cmc_analytics_manual_sample` 建表建角色）、`REGISTRY_BASE_URL`（批号登记系统后端，Linux 上 `http://localhost:8080`；录入页取当天样品清单用）。两者走同一 SSH 隧道 / Linux 本机，只换库名。前端 `cd frontend && npm run dev`（端口 5170）。
 
 ## 统一门户 cmab-hub（2026-08-17 起，改前端必读）
