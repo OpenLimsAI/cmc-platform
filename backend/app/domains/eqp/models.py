@@ -13,6 +13,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     Numeric,
     String,
     Text,
@@ -44,6 +45,10 @@ class Equipment(Base):
             "equipment_status IN ('enabled','sealed','scrapped')",
             name="ck_equipment_operational_status",
         ),
+        CheckConstraint(
+            "total_weight IS NULL OR total_weight >= 0",
+            name="ck_equipment_total_weight_nonnegative",
+        ),
         # 分级字典按分类走：分析仪器(检验设备)=A/B/C(USP)；其他分类=关键/一般（0056）
         CheckConstraint(
             "criticality IS NULL "
@@ -74,6 +79,7 @@ class Equipment(Base):
     manufacturer: Mapped[str | None] = mapped_column(String(100))
     serial_no: Mapped[str | None] = mapped_column(String(100))
     rated_power: Mapped[str | None] = mapped_column(String(64))  # 额定功率(自由文本)
+    total_weight: Mapped[float | None] = mapped_column(Float)  # 总重(kg)
     origin: Mapped[str | None] = mapped_column(String(100))  # 产地
 
     # 资产属性

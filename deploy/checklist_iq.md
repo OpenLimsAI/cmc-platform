@@ -88,7 +88,7 @@
 | 5.2 | 应用账号已建 | `cmab_app` 存在 + 可登录 | `psql -p 5433 -U postgres -c "\du cmab_app"` | ☐ |
 | 5.3 | 审计审查账号 | `cmab_audit_reader` 存在 + 仅 audit schema 只读 | `psql -p 5433 -U postgres -c "\du cmab_audit_reader"` | ☐ |
 | 5.4 | 全部 schema 已建 | auth / meta / audit / srs / prs / ars / mm / ref / eqp / tgt 共 10 个 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "\dn"` 核对（另含 public）| ☐ |
-| 5.5 | alembic head | `0061_eqp_manufacture_date` | `cd backend && .venv/bin/alembic current` | ⚠️ ☐ |
+| 5.5 | alembic head | `0062_eqp_total_weight` | `cd backend && .venv/bin/alembic current` | ⚠️ ☐ |
 | 5.6 | 基线权限与角色 | 基线 seed + 定向迁移产生的权限、系统角色和配置均存在；不要以历史固定行数代替名称核对 | 见 §9 执行命令 5.6 | ☐ |
 | 5.7 | code_sequence | substance / project / asset / material / equipment / target 取号配置就绪 | `psql -p 5433 -c "SELECT sequence_name FROM meta.code_sequence ORDER BY 1"` | ☐ |
 | 5.8 | 全部 audit trigger 在位 | 迁移定义的业务审计触发器逐项存在，不以历史固定数量判断 | 用 §9 的 5.8 查询导出 schema / table / trigger 清单，与当前 migration 核对 | ⚠️ ☐ |

@@ -4,12 +4,14 @@ EQP Excel 导入工具纯函数单测（不连库，进程内直接 import 模�
 覆盖：表头探测 / 行解析 / category 归一化 / 日期&金额解析 / 自然键去重信号。
 入库逻辑（import_rows）依赖真实 DB，由手工 --dry-run 验证，不在此单测。
 """
+import csv
 from datetime import date
 from decimal import Decimal
 
 import openpyxl
 import pytest
 from app.scripts.import_equipment_excel import (
+    ParsedRow,
     _norm,
     detect_header,
     normalize_category,
@@ -19,7 +21,9 @@ from app.scripts.import_equipment_excel import (
     parse_date,
     parse_decimal,
     parse_row,
+    parse_weight_kg,
     read_excel,
+    write_report,
 )
 
 
@@ -245,8 +249,8 @@ def test_ledger_header_detection_maps_department_columns():
         "equipment_name", "model", "equipment_no", "commission_date",
         "room", "manufacturer", "serial_no", "rated_power", "status_raw",
     } <= fields
-    # 别名、出厂日期均为正式列；总重仍进 extra。
-    assert {"alias", "manufacture_date", "x_weight"} <= fields
+    # 别名、出厂日期、总重均为正式列。
+    assert {"alias", "manufacture_date", "total_weight"} <= fields
 
 
 def test_ledger_row_roundtrip(tmp_path):
@@ -269,6 +273,7 @@ def test_ledger_row_roundtrip(tmp_path):
     assert pr.manufacturer == "Bioengineering AG"
     assert pr.serial_no == "D3285"
     assert pr.rated_power == "16kW"
+    assert pr.total_weight == 2150.0
     assert pr.room == "3129培养间"
     assert pr.commission_date == date(2016, 5, 1)
     assert pr.manufacture_date == date(2015, 5, 1)
@@ -282,12 +287,8 @@ def test_ledger_row_roundtrip(tmp_path):
     assert pr.site == "南楼"
     # 别名/曾用名进正式列（0059），不再塞进 extra
     assert pr.alias is not None and "BR1-1" in pr.alias
-    # 主数据仍无正式列的信息进 extra，不丢；出厂日期已转正，不再重复保存。
-    extra = pr.build_extra()
-    assert extra["source"] == "eqp_ledger_excel"
-    assert extra["总重"] == "2150kg"
-    assert "出厂日期" not in extra
-    assert "别名" not in extra
+    # 本行可识别信息均已转正，不再重复保存到 extra。
+    assert pr.build_extra() is None
 
 
 def test_ledger_empty_name_skipped(tmp_path):
@@ -298,3 +299,54 @@ def test_ledger_empty_name_skipped(tmp_path):
     wb.save(path)
     rows = read_excel(path, None)
     assert rows[0].skip_reason == "empty_name"
+
+
+def test_total_weight_converts_grams_and_ignores_invalid_value():
+    assert parse_weight_kg("20g") == (0.02, None)
+    assert parse_weight_kg("3 KG") == (3.0, None)
+    assert parse_weight_kg(12.5) == (12.5, None)
+    assert parse_weight_kg("2015.11") == (None, "2015.11")
+    assert parse_weight_kg("kg") == (None, "kg")
+    assert parse_weight_kg(float("inf")) == (None, "inf")
+    assert parse_weight_kg(-1) == (None, "-1")
+    row = ParsedRow(excel_row=2, total_weight_raw="2015.11", status_raw="封存")
+    assert row.build_extra() == {"source": "eqp_ledger_excel", "台账状态": "封存"}
+
+
+@pytest.mark.parametrize("weight", [2015.11, "2015.11"])
+def test_ledger_total_weight_does_not_import_copied_manufacture_date(tmp_path, weight):
+    """真实台账错误：CC1-SC-013 的出厂年月被重复填到总功率、总重栏。"""
+    wb, _ = _ledger_sheet([
+        (18, "蒸汽灭菌器", "脉动真空灭菌器", "XG1.DWE-0.6", "CC1-SC-013",
+         2016.05, "3111弃物间", "山东新华", 20152599, 2015.11, 2015.11, weight, "启用"),
+    ])
+    path = tmp_path / "ledger.xlsx"
+    wb.save(path)
+    pr = read_excel(path, None)[0]
+    assert pr.skip_reason is None
+    assert pr.equipment_no == "CC1-SC-013"
+    assert pr.manufacture_date == date(2015, 11, 1)
+    assert pr.total_weight is None
+    assert pr.total_weight_raw == "2015.11"
+    assert pr.build_extra() is None
+    # 明确带单位的实际重量仍可录入，即使数字恰好与年月相同。
+    assert parse_weight_kg("2015.11kg", pr.manufacture_date) == (2015.11, None)
+
+
+def test_weight_report_distinguishes_ignored_value_from_zero(tmp_path):
+    path = tmp_path / "report.csv"
+    write_report([
+        ParsedRow(excel_row=22, equipment_no="CC1-SC-013", total_weight_raw="2015.11"),
+        ParsedRow(excel_row=142, equipment_no="CC1-JC-028", total_weight_raw="kg"),
+        ParsedRow(excel_row=143, total_weight=0.0),
+    ], path)
+    with path.open(encoding="utf-8-sig", newline="") as source:
+        rows = list(csv.DictReader(source))
+    assert rows[0]["total_weight_kg"] == ""
+    assert rows[0]["忽略的总重原值"] == "2015.11"
+    assert rows[0]["extra"] == ""
+    assert rows[1]["total_weight_kg"] == ""
+    assert rows[1]["忽略的总重原值"] == "kg"
+    assert rows[1]["extra"] == ""
+    assert rows[2]["total_weight_kg"] == "0.0"
+    assert rows[2]["忽略的总重原值"] == ""

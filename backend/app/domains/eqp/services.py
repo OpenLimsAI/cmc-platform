@@ -128,6 +128,7 @@ class EquipmentService:
             manufacturer=payload.manufacturer,
             serial_no=payload.serial_no,
             rated_power=payload.rated_power,
+            total_weight=payload.total_weight,
             origin=payload.origin,
             manufacture_date=payload.manufacture_date,
             asset_value=payload.asset_value,

@@ -119,6 +119,9 @@ export function EquipmentDetailPage() {
           <Descriptions.Item label="型号规格">{eq.model ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="生产商">{eq.manufacturer ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="额定功率">{eq.rated_power ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="总重">
+            {eq.total_weight == null ? '—' : `${eq.total_weight} kg`}
+          </Descriptions.Item>
           <Descriptions.Item label="产地">{eq.origin ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="序列号">{eq.serial_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="供应商">{eq.supplier ?? '—'}</Descriptions.Item>

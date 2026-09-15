@@ -37,7 +37,7 @@
     设备名称是一个整体；台账无独立英文名列，拆开等于改写主数据）
   - 日期只写到年月（2016.05）按当月 1 日入库
   - 台账没有分类列 → 按设备名称关键词预归类，报告列「需人工核对分类」=Y 供核对
-  - 出厂日期进入正式字段；总重等主数据无正式列的信息进 extra，不丢
+  - 出厂日期、总重进入正式字段；总重统一换算为 kg，错误总重忽略，仅在导入报告列明
   - 使用部门/厂区用 --department / --site 统一指定（一个部门一份台账）
 """
 from __future__ import annotations
@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import csv
+import math
 import re
 import sys
 from dataclasses import dataclass
@@ -219,9 +220,9 @@ _reg("room", "存放位置", "存放地点", "位置", "房间", "安装位置",
 _reg("criticality", "设备分级", "分级", "关键性")
 _reg("criticality_basis", "分级依据", "分级理由")
 _reg("status_raw", "设备状态", "状态", "使用状态")
-# 台账有、主数据无正式列的 → 进 extra
+# 台账中的其余正式字段
 _reg("alias", "别名/曾用名", "别名", "曾用名", "原名称")
-_reg("x_weight", "总重", "重量", "净重")
+_reg("total_weight", "总重", "重量", "净重")
 _reg("asset_value", "资产原值", "资产价值", "原值", "金额", "价值", "采购金额")
 _reg("supplier", "供应商", "供货商", "经销商", "代理商")
 _reg("description", "描述", "说明", "用途", "功能描述")
@@ -247,12 +248,6 @@ MAXLEN = {
     "criticality": 16,
 }
 
-# extra 里承载的台账列（主数据无正式列，但不能丢）：字段名 → JSON 键
-# 别名和出厂日期已分别在 migration 0059 / 0061 转为正式字段。
-EXTRA_FIELDS = {
-    "x_weight": "总重",
-}
-
 
 @dataclass
 class ParsedRow:
@@ -267,6 +262,8 @@ class ParsedRow:
     manufacturer: str | None = None
     serial_no: str | None = None
     rated_power: str | None = None
+    total_weight: float | None = None
+    total_weight_raw: str | None = None  # 被忽略的原值，仅供导入报告，不写入 extra
     origin: str | None = None
     manufacture_date: date | None = None
     asset_value: Decimal | None = None
@@ -281,8 +278,6 @@ class ParsedRow:
     criticality_basis: str | None = None
     commission_date: date | None = None
     status_raw: str | None = None
-    # extra 承载列
-    x_weight: str | None = None
     # 计算字段
     category_defaulted: bool = False
     category_source: str = "column"  # column / name_guess / default
@@ -291,12 +286,8 @@ class ParsedRow:
     skip_reason: str | None = None
 
     def build_extra(self) -> dict | None:
-        """台账里主数据没有正式列的信息，原样收进 extra，不丢。"""
+        """保留非默认台账状态；总重只写入正式字段。"""
         extra: dict = {"source": "eqp_ledger_excel"}
-        for field, key in EXTRA_FIELDS.items():
-            val = getattr(self, field, None)
-            if val:
-                extra[key] = val
         if self.status_raw and self.status_raw != "启用":
             extra["台账状态"] = self.status_raw
         return extra if len(extra) > 1 else None
@@ -411,6 +402,29 @@ def parse_decimal(val) -> Decimal | None:
         return None
 
 
+def parse_weight_kg(val, manufacture_date: date | None = None) -> tuple[float | None, str | None]:
+    """将总重换算为 kg；异常值留空，原值仅供导入报告。"""
+    if val is None:
+        return None, None
+    if isinstance(val, (int, float, Decimal)):
+        # Excel 的 YYYY.MM 可能实际存为数字；与出厂年月相同则视为日期误复制。
+        if manufacture_date is not None and parse_date(val) == manufacture_date:
+            return None, str(val)
+        weight = float(val)
+        return (weight, None) if math.isfinite(weight) and weight >= 0 else (None, str(val))
+
+    raw = str(val).strip()
+    if not raw:
+        return None, None
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)\s*(kg|g)", raw, re.IGNORECASE)
+    if not match:
+        return None, raw
+    weight = float(match.group(1))
+    if match.group(2).lower() == "g":
+        weight /= 1000
+    return (weight, None) if math.isfinite(weight) else (None, raw)
+
+
 def normalize_category(raw: str | None) -> tuple[str, bool]:
     """返回 (category, defaulted)。无法识别 → (DEFAULT_CATEGORY=通用实验室设备, True)。
 
@@ -461,18 +475,24 @@ def parse_row(
     default_site: str | None = None,
 ) -> ParsedRow:
     pr = ParsedRow(excel_row=idx)
+    weight_cell = None
     for c_idx, field in col_field.items():
         if c_idx >= len(row):
             continue
         raw = row[c_idx]
         if field in ("manufacture_date", "commission_date"):
             setattr(pr, field, parse_date(raw))
+        elif field == "total_weight":
+            weight_cell = raw
         elif field == "asset_value":
             pr.asset_value = parse_decimal(raw)
         elif field in ("description", "notes", "criticality_basis", "status_raw") or field.startswith("x_"):
             setattr(pr, field, _norm(raw))
         else:
             setattr(pr, field, _truncate(_norm(raw), MAXLEN.get(field, 255)))
+
+    # 先取完整行的出厂日期，再判断总重是否误填了相同年月，不依赖列顺序。
+    pr.total_weight, pr.total_weight_raw = parse_weight_kg(weight_cell, pr.manufacture_date)
 
     if not pr.equipment_name:
         pr.skip_reason = "empty_name"
@@ -635,6 +655,7 @@ async def import_rows(
                             manufacturer=pr.manufacturer,
                             serial_no=pr.serial_no,
                             rated_power=pr.rated_power,
+                            total_weight=pr.total_weight,
                             origin=pr.origin,
                             manufacture_date=pr.manufacture_date,
                             asset_value=pr.asset_value,
@@ -676,7 +697,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
             "excel_row", "decision", "skip_reason",
             "equipment_no", "fixed_asset_no", "equipment_name", "equipment_name_en", "alias",
             "category", "category_source", "需人工核对分类",
-            "model", "manufacturer", "serial_no",
+            "model", "manufacturer", "serial_no", "total_weight_kg", "忽略的总重原值",
             "department", "site", "room", "criticality", "commission_date",
             "master_status", "equipment_status", "manufacture_date", "asset_value", "supplier", "notes", "extra",
         ])
@@ -691,6 +712,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
                 pr.equipment_name or "", pr.equipment_name_en or "", pr.alias or "",
                 pr.category or "", pr.category_source, needs_review,
                 pr.model or "", pr.manufacturer or "", pr.serial_no or "",
+                pr.total_weight if pr.total_weight is not None else "", pr.total_weight_raw or "",
                 pr.department or "", pr.site or "", pr.room or "",
                 pr.criticality or "",
                 pr.commission_date.isoformat() if pr.commission_date else "",

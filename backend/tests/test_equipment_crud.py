@@ -42,6 +42,7 @@ async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix
             "equipment_name": f"pytest 培养箱 {unique_suffix}",
             "category": "通用实验室设备",
             "rated_power": "1500W",
+            "total_weight": 85.5,
             "origin": "德国",
             "manufacture_date": "2024-06-15",
             "description": "温度范围 5-50℃，CO2 0-20%",
@@ -51,12 +52,14 @@ async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix
     code = resp.json()["data"]["equipment_code"]
     d = resp.json()["data"]
     assert d["rated_power"] == "1500W"
+    assert d["total_weight"] == 85.5
     assert d["origin"] == "德国"
     assert d["manufacture_date"] == "2024-06-15"
     assert d["description"] == "温度范围 5-50℃，CO2 0-20%"
 
     got = (await admin_client.get(f"/api/v1/equipments/{code}")).json()["data"]
     assert got["rated_power"] == "1500W"
+    assert got["total_weight"] == 85.5
     assert got["origin"] == "德国"
     assert got["manufacture_date"] == "2024-06-15"
 

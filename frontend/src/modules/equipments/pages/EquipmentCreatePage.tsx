@@ -55,6 +55,7 @@ export function EquipmentCreatePage() {
       manufacturer: v.manufacturer,
       serial_no: v.serial_no,
       rated_power: v.rated_power,
+      total_weight: v.total_weight,
       origin: v.origin,
       manufacture_date: v.manufacture_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
@@ -184,6 +185,11 @@ export function EquipmentCreatePage() {
             <Col span={8}>
               <Form.Item name="origin" label="产地" rules={[{ max: 100 }]}>
                 <Input placeholder="如 美国、德国、中国" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="total_weight" label="总重">
+                <InputNumber min={0} precision={3} addonAfter="kg" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>

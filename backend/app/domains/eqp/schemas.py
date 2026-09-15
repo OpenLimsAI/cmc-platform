@@ -50,6 +50,7 @@ class EquipmentBase(BaseModel):
     manufacturer: str | None = Field(None, max_length=100)
     serial_no: str | None = Field(None, max_length=100)
     rated_power: str | None = Field(None, max_length=64, description="额定功率（自由文本，如 1500W）")
+    total_weight: float | None = Field(None, ge=0, description="总重（kg）")
     origin: str | None = Field(None, max_length=100, description="产地")
     manufacture_date: date | None = Field(None, description="出厂日期")
     asset_value: Decimal | None = None
@@ -102,6 +103,7 @@ class EquipmentUpdate(BaseModel):
     manufacturer: str | None = Field(None, max_length=100)
     serial_no: str | None = Field(None, max_length=100)
     rated_power: str | None = Field(None, max_length=64, description="额定功率")
+    total_weight: float | None = Field(None, ge=0, description="总重（kg）")
     origin: str | None = Field(None, max_length=100, description="产地")
     manufacture_date: date | None = Field(None, description="出厂日期")
     asset_value: Decimal | None = None

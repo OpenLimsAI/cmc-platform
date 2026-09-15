@@ -6,14 +6,14 @@
 | 版本 | V1.0 |
 | 适用 | 首次生产部署 + 后续 alembic 升级 + 跨环境数据迁移（dev → UAT / UAT → 生产）|
 | 合规 | GAMP 5 / 21 CFR Part 11 §11.10(a) 数据完整性 / EU Annex 11 §4.5 数据迁移 |
-| 当前 head | `0061_eqp_manufacture_date`（共 61 个 migration，2026-09-15；已从空库实测迁移通过） |
+| 当前 head | `0062_eqp_total_weight`（共 62 个 migration，2026-09-15；已从空库回归验证） |
 
 ---
 
 ## 0. 用途与范围
 
 本 SOP 用于：
-1. **首次生产部署**：从空 PG 实例完整执行 0001→0061 全部 migration；仅空库经批准加载 baseline seed
+1. **首次生产部署**：从空 PG 实例完整执行 0001→0062 全部 migration；仅空库经批准加载 baseline seed
 2. **alembic 升级部署**：现有 head 升级到仓库 head
 3. **受控整库迁移**：仅用于获批的 UAT 克隆、服务器迁移或灾难恢复，不用开发库覆盖生产
 4. **基线快照演练**：UAT/Staging 环境上跑一次完整 reset → migrate → seed → 抽检，确保灾难恢复路径可走
@@ -64,7 +64,7 @@
 | 36 | 0043_eqp_workstation | 2026_06_05_0100 | EQP：has_workstation 布尔 + workstation_info JSONB（附带专用工作站配置）|
 | 37 | **0044_eqp_identifiers** | 2026_06_05_0200 | EQP：三标识体系 — equipment_code 定位为系统设备ID（不可改）+ 新增 equipment_no（业务）/ fixed_asset_no（财务）— 2026-06 历史基线 |
 
-### 1.1 0045—0061 增量迁移
+### 1.1 0045—0062 增量迁移
 
 | revision | 内容（简） |
 |---|---|
@@ -79,9 +79,10 @@
 | 0058 | 撤销滑动会话上线前遗留的长效 refresh token |
 | 0059_eqp_alias | 设备别名/曾用名正式字段及历史 `extra` 数据搬迁 |
 | 0060_eqp_device_status | 新增独立 `equipment_status`（启用/封存/报废）并收口 MDM；保留原 `status` 主数据状态，历史设备默认启用、上线后由设备专员复核 |
-| **0061_eqp_manufacture_date** | 购入日期改为出厂日期；历史 `extra.出厂日期` 转入正式字段，其他环境的非空购入日期先归档至 `extra.历史购入日期`——**当前 head** |
+| 0061_eqp_manufacture_date | 购入日期改为出厂日期；历史 `extra.出厂日期` 转入正式字段，其他环境的非空购入日期先归档至 `extra.历史购入日期` |
+| **0062_eqp_total_weight** | 新增总重浮点数值字段，单位统一为 kg；历史 kg/g 值换算后迁入并删除 `extra.总重`。错误值忽略、正式字段留空（已核对 `CC1-SC-013` 的 `2015.11`、`CC1-JC-028` 的 `kg`）——**当前 head** |
 
-> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 61 个 migration 用 `alembic history` 查看。
+> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 62 个 migration 用 `alembic history` 查看。
 
 ---
 
@@ -106,7 +107,7 @@ backend/.venv/bin/pip install -q -e backend
 
 # 3. 验证 head
 psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT version_num FROM alembic_version"
-# 应输出：0061_eqp_manufacture_date
+# 应输出：0062_eqp_total_weight
 
 # 4. 仅首次创建的空库、经负责人确认后加载 baseline seed；日常升级不得执行
 ( cd backend && .venv/bin/python -m app.scripts.seed_data )
@@ -124,13 +125,13 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 
 | 验证项 | 命令 | 期望 |
 |---|---|---|
-| alembic head | `psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT * FROM alembic_version"` | `0061_eqp_manufacture_date` |
+| alembic head | `psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT * FROM alembic_version"` | `0062_eqp_total_weight` |
 | schema 对齐 | `make check-schema`（仅本地 Docker 开发环境） | exit 0 |
 | 权限表 | `psql -c "SELECT permission_code FROM auth.permission ORDER BY 1"` | 与当前 `seed_data.py` 和定向权限脚本逐项一致 |
 | 角色表 | `psql -c "SELECT role_code FROM auth.role WHERE deleted_at IS NULL ORDER BY 1"` | 当前 baseline 14 个角色码逐项存在（含 DISPLAY_MODE、DEPT_ADMIN、QV_*） |
 | code_sequence | `psql -c "SELECT sequence_name FROM meta.code_sequence ORDER BY 1"` | substance/project/asset/material/equipment/target 六域就绪 |
 | audit trigger 在位 | 查询 `pg_trigger` 中 `trg_%_audit` 并导出 schema/table/trigger | 与当前 migration 定义逐项一致，不以历史固定数量判断 |
-| 自动化回归 | 本地隔离环境跑 `make test-be` | 共 409 项；设备状态相关项通过。最近两次全量运行各有 1 项既有账户管理用例偶发失败（失败点不同，2026-09-15 待治理）；不等于 OQ 映射已完整 |
+| 自动化回归 | 本地隔离环境跑 `make test-be` | 2026-09-15 最近运行 413 项：412 通过、1 项既有账户用例 `test_reset_password_flow` 失败（旧密码预期 401，实际 200）；设备相关项及新增日期误填、异常报告用例通过。此前 410 项基线曾全过；不等于 OQ 映射已完整 |
 
 ---
 
@@ -138,7 +139,7 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 
 ### 3.1 升级时机
 
-任何新增 migration（当前 head 之后即 `0062+`）合并到 main 后，先在 UAT 跑通，再走生产升级。
+任何新增 migration（当前 head 之后即 `0063+`）合并到 main 后，先在 UAT 跑通，再走生产升级。
 
 ### 3.2 升级步骤
 

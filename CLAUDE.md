@@ -100,7 +100,7 @@ make docs-check       # CI 文档一致性校验
 ## 设备域 EQP：全公司设备清单（2026-09-10 起，migration 0057）
 
 - **定位变了**：`eqp.equipment` 从「研发设备身份注册表」升级为**全公司设备清单**，由**设备部**维护（负责人 2026-09-10 拍板）。分工：设备部管清单和设备状态、计量专员管校准、验证部平台（`cmab_qv`，门户 `/qv/`）管验证，LabOps 只留研发自己的领用/维修。设备状态于 2026-09-15 正式收口 MDM（migration 0060）：保留 `status=active/retired` 表示主数据在册状态，新增 `equipment_status=enabled/sealed/scrapped` 表示启用/封存/报废；历史记录的设备状态默认启用，交由设备专员复核，不根据主数据状态自动猜测。LabOps 不再作为设备状态权威源。LabOps 现有的校准表与位置字段属于历史遗留，后续迁出，本次未动。
-- **0057 新增 6 个字段**：`department`(使用部门，与 `auth.user.department` 同口径)、`site`(厂区)、`room`(房间/存放位置)、`criticality`(分级)、`criticality_basis`(分级依据)、`commission_date`(首次启用日期)。迁移把已有 463 台（全是研发设备）的 `department` 回填为「研发部」。**0061** 删除无人使用的 `purchase_date`（购入日期），新增 `manufacture_date`（出厂日期），并把历史 `extra.出厂日期` 转入正式列。
+- **设备属性转正**：0057 新增 `department/site/room/criticality/criticality_basis/commission_date`；0061 删除无人使用的 `purchase_date`，新增 `manufacture_date`（出厂日期）并迁移历史 `extra.出厂日期`；0062 新增 `total_weight` 浮点数值字段，单位统一为 kg。迁移将历史 kg/g 值换算为 kg 后删除 `extra.总重`；错误值忽略、正式字段留空。已核对原台账：`CC1-SC-013` 的 `2015.11` 是重复填入总重栏的出厂年月，`CC1-JC-028` 只有 `kg` 没有数值。后续导入的错误总重仅列入报告，不写回 `extra`。
 - **分级字典跟着分类走**（别写死成一个列表）：`分析仪器`（检验设备）= **A/B/C**（USP 口径）；其他分类（工艺制备=生产设备、公用工程、通用实验室、IT）= **关键/一般**。三处同口径校验：DB `ck_equipment_criticality` CHECK、Pydantic `EquipmentCreate` 校验器、service 层 update（改分类时按**新**分类判，不合法回 400 提示一并调整）。前端 `criticalityOptions(category)` 出选项，换分类自动清空不合法的旧值。
 - **不加「用途类型」字段**（生产/检验设备）：与现有 5 分类重叠。冰箱等归通用/公用，分级规则按分类区分即可。
 - **导入设备部台账**（受控表单 SMP-PES-001-F13，各部门一份，格式一致）：
@@ -109,7 +109,7 @@ make docs-check       # CI 文档一致性校验
   docker exec cmab-mdm-backend python -m app.scripts.import_equipment_excel \
     --xlsx /tmp/l.xlsx --dry-run --department 生产一部 --site 南楼 --report /tmp/r.csv
   ```
-  台账**没有分类列** → 脚本按设备名称关键词预归类，报告列「需人工核对分类」=Y，**必须人工核一遍再去掉 --dry-run**。台账把「英文名/中文名」写在一格（`Bioreactor/225L生物反应器`）**原样入库，不拆**（2026-09-11 负责人拍板：设备名称是一个整体，台账没有独立英文名列，拆开等于擅自改写主数据；此前版本会拆，正式库 13 台已还原）；单元格里的折行会去掉；「别名/曾用名」进正式列 `alias`；「出厂日期」进正式列 `manufacture_date`；日期只到年月（`2016.05`）按当月 1 日入库；总重等无正式列的信息进 `extra`，不丢。
+  台账**没有分类列** → 脚本按设备名称关键词预归类，报告列「需人工核对分类」=Y，**必须人工核一遍再去掉 --dry-run**。台账把「英文名/中文名」写在一格（`Bioreactor/225L生物反应器`）**原样入库，不拆**（2026-09-11 负责人拍板：设备名称是一个整体，台账没有独立英文名列，拆开等于擅自改写主数据；此前版本会拆，正式库 13 台已还原）；单元格里的折行会去掉；「别名/曾用名」「出厂日期」「总重」分别进入正式列 `alias/manufacture_date/total_weight`；日期只到年月（`2016.05`）按当月 1 日入库；总重将 kg/g 换算为 kg 数值，无单位数值按 kg 处理，但与出厂年月相同的日期形数字忽略。错误总重仅在报告的「忽略的总重原值」列展示，不存入 `extra`。
 - **关键词表顺序敏感**（`CATEGORY_ALIASES`）：强信号（层析/装柱/压缩柱/轴向）排在最前，否则「装柱工作站」会被 IT 的「工作站」抢走；工艺物料罐只写具体名（补料罐/培养基罐…），不用泛词「罐」，否则抢走「液氮罐」。改这张表后跑 `tests/test_import_equipment_excel.py`。
 
 ## 部门管理员 DEPT_ADMIN（2026-09-10 起，migration 0055）

@@ -51,6 +51,7 @@ export interface WorkstationInfo {
 export interface EquipmentDetail extends EquipmentBrief {
   equipment_id: number;
   rated_power: string | null;
+  total_weight: number | null;
   origin: string | null;
   criticality_basis: string | null; // 分级依据
   commission_date: string | null; // 首次启用日期
@@ -80,6 +81,7 @@ export interface EquipmentCreatePayload {
   manufacturer?: string | null;
   serial_no?: string | null;
   rated_power?: string | null;
+  total_weight?: number | null;
   origin?: string | null;
   department?: string | null;
   site?: string | null;
