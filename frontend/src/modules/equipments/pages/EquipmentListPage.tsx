@@ -15,6 +15,8 @@ import {
 } from '../constants';
 
 const { Title, Text } = Typography;
+// 在服务端先排序再分页；设备ID用于同部门、同编号时稳定排序。
+const EQUIPMENT_LIST_SORT = 'department,equipment_no,equipment_code';
 
 export function EquipmentListPage() {
   const navigate = useNavigate();
@@ -31,9 +33,9 @@ export function EquipmentListPage() {
   const [pendingQ, setPendingQ] = useState('');
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['equipments', page, pageSize, filters],
+    queryKey: ['equipments', page, pageSize, filters, EQUIPMENT_LIST_SORT],
     queryFn: () =>
-      equipmentsApi.list({ page, page_size: pageSize, ...filters }),
+      equipmentsApi.list({ page, page_size: pageSize, ...filters, sort: EQUIPMENT_LIST_SORT }),
   });
 
   const items: EquipmentBrief[] = data?.items ?? [];

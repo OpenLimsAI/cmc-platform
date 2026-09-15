@@ -86,7 +86,13 @@ class EquipmentService:
                 fname = f.lstrip("-+")
                 col = getattr(Equipment, fname, None)
                 if col is not None:
-                    stmt = stmt.order_by(col.desc() if desc else col.asc())
+                    if fname in {"department", "equipment_no"}:
+                        # 空白与 NULL 都排在最后，仅处理排序，不修改台账原值。
+                        sort_col = func.nullif(func.btrim(col), "")
+                        order = sort_col.desc() if desc else sort_col.asc()
+                        stmt = stmt.order_by(order.nulls_last())
+                    else:
+                        stmt = stmt.order_by(col.desc() if desc else col.asc())
         else:
             stmt = stmt.order_by(Equipment.updated_at.desc())
 
