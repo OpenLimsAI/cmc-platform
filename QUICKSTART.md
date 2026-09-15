@@ -2,6 +2,10 @@
 
 > 5 分钟从零跑起 CMAB MDM Portal
 
+> **适用范围：全新、可丢弃的本地开发环境。** 当前日常开发库 `cmab_mdm` 已包含真实物料和设备数据，
+> 已存在 `.env` 和数据库卷时不要重复执行初始化、种子或重置步骤。测试统一执行 `make test-be`，
+> 它使用独立的 `cmab_test` 库。
+
 ## 前置要求
 
 - ✅ Docker Desktop（Mac/Windows）或 Docker Engine + Compose v2（Linux）
@@ -42,12 +46,15 @@ docker compose -f deploy/docker-compose.dev.yml ps
 
 确认所有服务状态为 `running` 或 `healthy`。
 
-### 4. 应用数据库迁移 + 加载种子数据
+### 4. 应用数据库迁移；仅全新空库加载基线种子
 
 ```bash
 make migrate
+# 仅限第一次创建的空开发库；已有开发库执行前必须确认
 make seed
 ```
+
+日常更新只执行 `make migrate`。不要为了补权限或字典而重跑整套 seed，应使用对应的幂等定向脚本。
 
 ### 5. 访问
 
@@ -108,7 +115,7 @@ make shell-be         # 进入容器排查
 alembic current       # 检查当前迁移状态
 ```
 
-### Q3：种子数据失败
+### Q3：全新空库的种子数据失败
 
 通常是迁移未应用。先确认 `alembic upgrade head` 成功。
 
@@ -129,11 +136,19 @@ docker compose -f deploy/docker-compose.dev.yml exec postgres \
     psql -U cmab_app -d cmab_mdm -c "SELECT username FROM auth.user"
 ```
 
-### Q6：完全重置
+### Q6：如何运行测试
 
 ```bash
-make reset-db
+make test-be
 ```
+
+该命令会重建独立测试库 `cmab_test`。禁止直接在后端容器运行 `pytest` 或使用
+`make test-be-dev`，否则可能连接到含真实数据的开发库。
+
+### Q7：完全重置
+
+`make reset-db` 会删除开发数据库卷。当前开发库含真实物料和设备数据，默认禁止执行；
+只有在负责人明确确认目标是可丢弃环境并已完成备份时才可使用。
 
 ---
 
@@ -147,6 +162,7 @@ cd backend
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 alembic upgrade head
+# 仅限全新空库，并须先确认
 python -m app.scripts.seed_data
 uvicorn app.main:app --reload
 ```

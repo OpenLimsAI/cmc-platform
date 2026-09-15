@@ -1,6 +1,6 @@
 """EQP 业务服务层
 
-设备主数据 CRUD（无状态机、无版本号、无电子签名 — 对标 mm 域）。
+设备主数据 CRUD（主数据状态与设备状态分离；设备状态由 MDM 设备专员维护）。
 """
 from datetime import UTC, datetime
 
@@ -61,6 +61,9 @@ class EquipmentService:
         if filter.status:
             statuses = [s.strip() for s in filter.status.split(",")]
             stmt = stmt.where(Equipment.status.in_(statuses))
+        if filter.equipment_status:
+            equipment_statuses = [s.strip() for s in filter.equipment_status.split(",")]
+            stmt = stmt.where(Equipment.equipment_status.in_(equipment_statuses))
         if filter.manufacturer:
             stmt = stmt.where(Equipment.manufacturer.ilike(f"%{filter.manufacturer}%"))
         if filter.department:
@@ -136,6 +139,7 @@ class EquipmentService:
             criticality_basis=payload.criticality_basis,
             commission_date=payload.commission_date,
             status="active",
+            equipment_status="enabled",
             has_workstation=payload.has_workstation,
             workstation_info=payload.workstation_info,
             description=payload.description,
@@ -162,6 +166,17 @@ class EquipmentService:
         equipment = await self._get_equipment_or_404(code)
 
         update_data = payload.model_dump(exclude_unset=True, exclude={"change_reason"})
+
+        # 两类状态变更都必须给出原因，供审计触发器记录。
+        master_status_changed = update_data.get("status", equipment.status) != equipment.status
+        equipment_status_changed = (
+            update_data.get("equipment_status", equipment.equipment_status)
+            != equipment.equipment_status
+        )
+        if (master_status_changed or equipment_status_changed) and len(
+            (payload.change_reason or "").strip()
+        ) < 5:
+            raise InvalidValueError("变更主数据状态或设备状态时必须填写变更原因（至少 5 个字符）")
 
         # 分级字典跟着分类走：本次改了分类就按新分类判，否则按现有分类判
         new_category = update_data.get("category", equipment.category)

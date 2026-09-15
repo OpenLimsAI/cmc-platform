@@ -27,7 +27,7 @@ import {
 } from '@/modules/materials/constants';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
-  EQUIPMENT_STATUS_OPTIONS,
+  EQUIPMENT_MASTER_STATUS_OPTIONS,
 } from '@/modules/equipments/constants';
 import { TARGET_STATUS_OPTIONS } from '@/modules/targets/constants';
 import { DistributionPieCard } from '../components/DistributionPieCard';
@@ -278,9 +278,9 @@ export function DashboardPage() {
               <Col xs={24} lg={12}>
                 <div style={{ marginBottom: 16 }}>
                   <DistributionPieCard
-                    title="设备状态分布"
+                    title="设备主数据状态分布"
                     data={summary.distributions.equipment_by_status ?? []}
-                    labelMap={optionsToLabelMap(EQUIPMENT_STATUS_OPTIONS)}
+                    labelMap={optionsToLabelMap(EQUIPMENT_MASTER_STATUS_OPTIONS)}
                   />
                 </div>
               </Col>

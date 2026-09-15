@@ -1,4 +1,8 @@
-import type { EquipmentCategory, EquipmentStatus } from '@/api/equipments';
+import type {
+  EquipmentCategory,
+  EquipmentMasterStatus,
+  EquipmentStatus,
+} from '@/api/equipments';
 
 export const EQUIPMENT_CATEGORY_OPTIONS: {
   value: EquipmentCategory;
@@ -61,13 +65,23 @@ export const WORKSTATION_FIELDS: {
   { key: 'monitor_serial', label: '显示器序列号', group: 'spec' },
 ];
 
-export const EQUIPMENT_STATUS_OPTIONS: {
-  value: EquipmentStatus;
+export const EQUIPMENT_MASTER_STATUS_OPTIONS: {
+  value: EquipmentMasterStatus;
   label: string;
   color: string;
 }[] = [
   { value: 'active', label: '在册', color: 'success' },
   { value: 'retired', label: '已退役', color: 'default' },
+];
+
+export const EQUIPMENT_STATUS_OPTIONS: {
+  value: EquipmentStatus;
+  label: string;
+  color: string;
+}[] = [
+  { value: 'enabled', label: '启用', color: 'success' },
+  { value: 'sealed', label: '封存', color: 'warning' },
+  { value: 'scrapped', label: '报废', color: 'error' },
 ];
 
 // ============== 设备分级（0056，负责人 2026-09-10）==============

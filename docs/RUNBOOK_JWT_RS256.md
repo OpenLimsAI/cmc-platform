@@ -35,35 +35,33 @@ make jwt-keys
 
 脚本会打印**公钥 SHA-256 指纹**，记录到部署变更单。
 
-### 2) 把密钥注入容器
+### 2) 将密钥安装到 Linux 主机
 
-**生产建议**：私钥用 secrets manager / k8s Secret / HSM 注入，不进 git、不进镜像。
-**简易方式**（VM + docker-compose）：
+当前生产是原生 systemd 部署，不使用容器挂载。私钥不得进入 Git 仓库；将密钥复制到仅
+`prometheus` 可读的受控目录，例如 `/etc/cmab-mdm/jwt/`：
 
-在 `deploy/docker-compose.prod.yml` 的 backend 服务下加：
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./jwt:/app/secrets:ro   # 只读挂载（路径相对 compose 文件所在的 deploy/ 目录）
+```bash
+sudo install -d -o prometheus -g prometheus -m 700 /etc/cmab-mdm/jwt
+sudo install -o prometheus -g prometheus -m 600 deploy/jwt/jwt_private.pem /etc/cmab-mdm/jwt/
+sudo install -o prometheus -g prometheus -m 644 deploy/jwt/jwt_public.pem /etc/cmab-mdm/jwt/
 ```
 
 ### 3) 配置环境变量
 
-`.env.prod`：
+编辑 `/opt/cmab-mdm-platform/backend/.env`（Pydantic Settings 在后端工作目录读取该文件）：
 
 ```env
 JWT_ALGORITHM=RS256
-JWT_PRIVATE_KEY_PATH=/app/secrets/jwt_private.pem
-JWT_PUBLIC_KEY_PATH=/app/secrets/jwt_public.pem
+JWT_PRIVATE_KEY_PATH=/etc/cmab-mdm/jwt/jwt_private.pem
+JWT_PUBLIC_KEY_PATH=/etc/cmab-mdm/jwt/jwt_public.pem
 JWT_KEY_ID=2026-05-16   # 可选；密钥轮换时改新日期
 ```
 
 ### 4) 重启后端服务
 
 ```bash
-docker compose -f deploy/docker-compose.prod.yml up -d --force-recreate backend
+sudo systemctl restart cmab-backend
+sudo systemctl status cmab-backend --no-pager
 ```
 
 启动时 `jwt_keys.py` 会 fail-fast 校验：

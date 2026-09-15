@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { equipmentsApi, type EquipmentUpdatePayload } from '@/api/equipments';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
+  EQUIPMENT_MASTER_STATUS_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
   IT_CATEGORY,
 } from '../constants';
@@ -78,6 +79,7 @@ export function EquipmentEditPage() {
       criticality_basis: v.criticality_basis,
       commission_date: v.commission_date?.format('YYYY-MM-DD') ?? null,
       status: v.status,
+      equipment_status: v.equipment_status,
       has_workstation: !!v.has_workstation,
       workstation_info:
         v.category === IT_CATEGORY || !!v.has_workstation
@@ -179,7 +181,22 @@ export function EquipmentEditPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="status" label="主数据状态">
+              <Form.Item
+                name="status"
+                label="主数据状态"
+                tooltip="表示这条主数据记录是否仍在册，不等同于设备当前是否启用。"
+              >
+                <Select options={EQUIPMENT_MASTER_STATUS_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="equipment_status"
+                label="设备状态"
+                tooltip="由 MDM 设备专员统一维护：启用、封存或报废。校准、维护和维修记录仍在对应业务系统管理。"
+              >
                 <Select options={EQUIPMENT_STATUS_OPTIONS} />
               </Form.Item>
             </Col>
@@ -239,8 +256,30 @@ export function EquipmentEditPage() {
           <Form.Item name="notes" label="备注">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item name="change_reason" label="变更原因">
-            <Input placeholder="本次修改的原因（写入审计）" maxLength={2000} />
+          <Form.Item
+            name="change_reason"
+            label="变更原因"
+            dependencies={['status', 'equipment_status']}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const statusUnchanged = getFieldValue('status') === eq.status;
+                  const equipmentStatusUnchanged =
+                    getFieldValue('equipment_status') === eq.equipment_status;
+                  if (
+                    (statusUnchanged && equipmentStatusUnchanged) ||
+                    (value ?? '').trim().length >= 5
+                  ) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(
+                    new Error('变更主数据状态或设备状态时请填写至少 5 个字符的原因'),
+                  );
+                },
+              }),
+            ]}
+          >
+            <Input placeholder="状态变更时必填（至少 5 个字符，写入审计）" maxLength={2000} />
           </Form.Item>
 
           <Space>

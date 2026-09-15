@@ -15,7 +15,8 @@ EquipmentCategory = Literal[
     "公用工程/环境与支持系统",
     "IT/自动化与数据系统",
 ]
-EquipmentStatus = Literal["active", "retired"]
+EquipmentMasterStatus = Literal["active", "retired"]
+EquipmentStatus = Literal["enabled", "sealed", "scrapped"]
 
 # 设备分级（0056）：字典按分类走 —— 分析仪器(检验设备)用 USP 口径 A/B/C，
 # 其他分类(生产/公用/通用/IT)用 关键/一般。DB 有同名 CHECK 约束兜底。
@@ -72,7 +73,7 @@ class EquipmentBase(BaseModel):
 
 
 class EquipmentCreate(EquipmentBase):
-    """POST 请求体（status 默认 active）
+    """POST 请求体（status 默认 active，equipment_status 默认 enabled）
 
     设备ID(equipment_code)一律由系统生成 EQP-yyyy-NNNNNN，不接受手填——
     与物质编码一致。业务/历史号请填 equipment_no（设备编号）。
@@ -105,7 +106,8 @@ class EquipmentUpdate(BaseModel):
     purchase_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
-    status: EquipmentStatus | None = None
+    status: EquipmentMasterStatus | None = None
+    equipment_status: EquipmentStatus | None = None
     department: str | None = Field(None, max_length=64, description="使用部门")
     site: str | None = Field(None, max_length=64, description="厂区")
     room: str | None = Field(None, max_length=100, description="房间/存放位置")
@@ -142,7 +144,8 @@ class EquipmentBrief(BaseModel):
     site: str | None = None
     room: str | None = None
     criticality: EquipmentCriticality | None = None
-    status: EquipmentStatus
+    status: EquipmentMasterStatus
+    equipment_status: EquipmentStatus
     created_at: datetime
     updated_at: datetime
 
@@ -152,7 +155,8 @@ class EquipmentDetail(EquipmentBase):
 
     equipment_id: int
     equipment_code: str
-    status: EquipmentStatus
+    status: EquipmentMasterStatus
+    equipment_status: EquipmentStatus
 
     created_at: datetime
     created_by: int
@@ -168,6 +172,7 @@ class EquipmentFilter(BaseModel):
     q: str | None = None
     category: str | None = None
     status: str | None = None
+    equipment_status: str | None = None
     manufacturer: str | None = None
     department: str | None = None
     site: str | None = None

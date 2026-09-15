@@ -34,10 +34,10 @@
 | # | 检查项 | 期望值 | 执行命令 | 结果 |
 |---|---|---|---|---|
 | 1.1 | 主机 OS | Linux x86_64（Ubuntu 22.04 LTS 或 RHEL 8+） | `uname -a` | ☐ |
-| 1.2 | 主机 OS 时区 | UTC | `timedatectl status` | ☐ |
+| 1.2 | 主机 OS 时区 | `Asia/Shanghai`（备份 timer 的 02:00 按本地时区解释） | `timedatectl status` | ☐ |
 | 1.3 | systemd 可用 | 托管 cmab-backend / nginx / postgresql / redis | `systemctl --version` | ☐ |
 | 1.4 | 部署目录与属主 | `/opt/cmab-mdm-platform` 存在，属主 `prometheus` | `stat -c '%U %n' /opt/cmab-mdm-platform` | ☐ |
-| 1.5 | 磁盘空间 | 数据盘 ≥ 100 GB 可用（PG 数据目录 + 备份目录所在盘）| `df -h /var/lib/postgresql ${BACKUP_DIR:-/var/lib/cmab-mdm/backups}` | ☐ |
+| 1.5 | 磁盘空间 | 数据盘 ≥ 100 GB 可用（PG 数据目录 + 备份目录所在盘）| `df -h /var/lib/postgresql ${BACKUP_DIR:-/home/prometheus/cmc_backups/mdm}` | ☐ |
 | 1.6 | 主机防火墙 | 仅放行对外访问端口（HTTPS 前置或 :15173），内部 :18000/:5433/:6379 不对公网 | `iptables -L -n` 或 `firewall-cmd --list-all` | ☐ |
 
 ## 2. 中间件版本（宿主机原生）
@@ -49,8 +49,8 @@
 | 2.3 | Redis | 7.x，原生 `redis-server` 运行中 | `redis-cli -p 6379 INFO server \| grep redis_version` | ☐ |
 | 2.4 | nginx | 已安装并由 systemd 托管 | `nginx -v && systemctl is-active nginx` | ☐ |
 | 2.5 | PG 时区 | UTC | `psql -p 5433 -U cmab_app -d cmab_mdm -c "SHOW timezone"` 返回 `UTC` | ☐ |
-| 2.6 | PG 字符集 | UTF8 / en_US.utf8 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "SHOW server_encoding, lc_collate, lc_ctype"` | ☐ |
-| 2.7 | PG 扩展 | pgcrypto / pg_trgm / btree_gin / unaccent 已启用 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "\dx"` 4 行齐 | ☐ |
+| 2.6 | PG 字符集 | UTF8；collation / ctype 与获批环境基线一致 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT current_setting('server_encoding'), current_setting('lc_collate'), current_setting('lc_ctype')"` | ☐ |
+| 2.7 | PG 扩展 | pgcrypto / pg_trgm / btree_gin / unaccent 已启用 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "\dx"` 核对四个扩展均存在 | ☐ |
 | 2.8 | Redis 持久化 | appendonly yes | `redis-cli -p 6379 CONFIG GET appendonly` | ☐ |
 
 ## 3. 应用基线（构建产物与运行时）
@@ -67,13 +67,14 @@
 
 ## 4. 配置文件完整性
 
-> 后端环境变量由 systemd 单元的 `EnvironmentFile` 注入；下方路径以本机单元文件实际为准（`systemctl cat cmab-backend | grep EnvironmentFile`）。
+> 后端以 `/opt/cmab-mdm-platform/backend` 为工作目录；`app.core.config.Settings` 从该目录的
+> `.env` 读取配置。当前受管 systemd 单元没有 `EnvironmentFile=`。
 
 | # | 检查项 | 期望值 | 执行命令 | 结果 |
 |---|---|---|---|---|
-| 4.1 | EnvironmentFile 存在 | 文件存在且非空 | `systemctl cat cmab-backend \| grep EnvironmentFile`，对该路径 `test -s` | ⚠️ ☐ |
-| 4.2 | 必填项齐全 | `DATABASE_URL / DATABASE_URL_SYNC / SECRET_KEY / REDIS_URL / CORS_ORIGINS` 全部非 `_CHANGE_ME_` | 对 EnvironmentFile `grep -E "_CHANGE_ME_"` 应**无输出** | ⚠️ ☐ |
-| 4.3 | DB 连接指向本机 :5433 | `DATABASE_URL` 主机:端口 = `127.0.0.1:5433`、库 `cmab_mdm`、用户 `cmab_app` | 人工核对 EnvironmentFile | ⚠️ ☐ |
+| 4.1 | 后端配置存在 | `/opt/cmab-mdm-platform/backend/.env` 存在、非空、仅服务账号可读 | `sudo -u prometheus test -r /opt/cmab-mdm-platform/backend/.env` | ⚠️ ☐ |
+| 4.2 | 必填项齐全 | `DATABASE_URL / DATABASE_URL_SYNC / SECRET_KEY / REDIS_URL / CORS_ORIGINS` 全部非 `_CHANGE_ME_` | 对 `backend/.env` 执行 `grep -E "_CHANGE_ME_"` 应**无输出** | ⚠️ ☐ |
+| 4.3 | DB 连接指向本机 :5433 | `DATABASE_URL` 主机:端口 = `127.0.0.1:5433`、库 `cmab_mdm`、用户 `cmab_app` | 人工核对 `backend/.env` | ⚠️ ☐ |
 | 4.4 | SECRET_KEY 强度 | ≥ 32 字符且非默认值 | `awk -F= '/^SECRET_KEY/{print length($2)}'` ≥ 32 | ⚠️ ☐ |
 | 4.5 | **JWT RS256 启用** | `JWT_ALGORITHM=RS256` + 私/公钥路径文件存在且可读（见 RUNBOOK_JWT_RS256）| `grep JWT_ALGORITHM`（=RS256）；对 `JWT_PRIVATE_KEY_PATH`/`JWT_PUBLIC_KEY_PATH` `test -r` | ⚠️ ☐ |
 | 4.6 | CORS_ORIGINS | 仅含实际访问的前端域名，不允许 `*` | 人工核对 | ☐ |
@@ -86,11 +87,11 @@
 | 5.1 | 数据库已建 | `cmab_mdm` 存在 | `psql -p 5433 -U postgres -c "\l" \| grep cmab_mdm` | ☐ |
 | 5.2 | 应用账号已建 | `cmab_app` 存在 + 可登录 | `psql -p 5433 -U postgres -c "\du cmab_app"` | ☐ |
 | 5.3 | 审计审查账号 | `cmab_audit_reader` 存在 + 仅 audit schema 只读 | `psql -p 5433 -U postgres -c "\du cmab_audit_reader"` | ☐ |
-| 5.4 | 全部 schema 已建 | auth / meta / audit / srs / prs / ars / mm / ref（init.sql）+ eqp（migration 0040）共 9 个 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "\dn"` = 9（另含 public）| ☐ |
-| 5.5 | alembic head | `0044_eqp_identifiers` | `cd backend && .venv/bin/alembic current` | ⚠️ ☐ |
-| 5.6 | 关键表行数 | auth.permission ≥ 23 / auth.role ≥ 8 / auth.user ≥ 5（含 admin）/ meta.lookup_value ≥ 30 / meta.system_config ≥ 5 | 见 §9 执行命令 5.6 | ☐ |
-| 5.7 | code_sequence | 5 域年度序列就绪（substance / project / asset / material / equipment）| `psql -p 5433 -c "SELECT sequence_name FROM meta.code_sequence"` | ☐ |
-| 5.8 | 全部 audit trigger 在位 | 业务表均挂 `trg_*_audit` | `psql -p 5433 -c "SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'trg_%_audit'"` ≥ 12 | ⚠️ ☐ |
+| 5.4 | 全部 schema 已建 | auth / meta / audit / srs / prs / ars / mm / ref / eqp / tgt 共 10 个 | `psql -p 5433 -U cmab_app -d cmab_mdm -c "\dn"` 核对（另含 public）| ☐ |
+| 5.5 | alembic head | `0060_eqp_device_status` | `cd backend && .venv/bin/alembic current` | ⚠️ ☐ |
+| 5.6 | 基线权限与角色 | 基线 seed + 定向迁移产生的权限、系统角色和配置均存在；不要以历史固定行数代替名称核对 | 见 §9 执行命令 5.6 | ☐ |
+| 5.7 | code_sequence | substance / project / asset / material / equipment / target 取号配置就绪 | `psql -p 5433 -c "SELECT sequence_name FROM meta.code_sequence ORDER BY 1"` | ☐ |
+| 5.8 | 全部 audit trigger 在位 | 迁移定义的业务审计触发器逐项存在，不以历史固定数量判断 | 用 §9 的 5.8 查询导出 schema / table / trigger 清单，与当前 migration 核对 | ⚠️ ☐ |
 
 ## 6. 服务启动与健康检查
 
@@ -99,8 +100,8 @@
 | 6.1 | 后端服务 active | `cmab-backend.service` running + enabled | `systemctl status cmab-backend` / `systemctl is-enabled cmab-backend` | ⚠️ ☐ |
 | 6.2 | 后端健康检查 | 200 + `{"status":"healthy","version":"V1.3-draft"}` | `curl -s --noproxy '*' http://127.0.0.1:18000/health` | ⚠️ ☐ |
 | 6.3 | 前端 nginx 伺服 | 200，返回 SPA index | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:15173/` | ⚠️ ☐ |
-| 6.4 | 前端 → 后端反代 | `/api` 经 nginx 通到 :18000 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:15173/api/v1/health` = 200 | ⚠️ ☐ |
-| 6.5 | API docs 关闭 | 生产 `APP_DEBUG=false` → 404 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18000/api/v1/docs` = 404 | ⚠️ ☐ |
+| 6.4 | 门户 → 后端反代 | `/mdm/api` 经 cmab-hub nginx 通到 :18000 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5100/mdm/api/v1/health` = 200 | ⚠️ ☐ |
+| 6.5 | API docs 关闭 | 生产 `ENABLE_API_DOCS=false`（或 production 默认值）→ 404 | `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18000/api/v1/docs` = 404 | ⚠️ ☐ |
 | 6.6 | Redis 连接 | backend 启动日志含 Redis 就绪 | `journalctl -u cmab-backend \| grep -i redis` | ⚠️ ☐ |
 | 6.7 | 日志格式 | 生产应 JSON 单行 | `journalctl -u cmab-backend -n 5 -o cat` 每行 JSON 解析成功 | ⚠️ ☐ |
 
@@ -118,15 +119,15 @@
 | 7.6 | 默认账号密码已改 | admin 等默认口令已改 | 走 IT 安全部门 SOP | ⚠️ ☐ |
 | 7.7 | /metrics 不对公网 | 公网拒绝（nginx 限内网 / 防火墙）| 从外网 `curl <前端入口>/metrics` 返回 403/404/超时 | ⚠️ ☐ |
 | 7.8 | rate_limit 生效 | 11 次 login 出现 429 + Retry-After | 见 §9 执行命令 7.8 | ⚠️ ☐ |
-| 7.9 | 审计触发器写入 | 任意 POST 后 audit.audit_log 多一行 | 见 §9 执行命令 7.9 | ⚠️ ☐ |
+| 7.9 | 审计触发器 | 生产只读核对触发器在位；写入功能在 UAT 用测试记录验证 | 见 §9 执行命令 7.9 | ⚠️ ☐ |
 
 ## 8. 备份与恢复
 
 | # | 检查项 | 期望值 | 执行命令 | 结果 |
 |---|---|---|---|---|
-| 8.1 | BACKUP_DIR 存在且可写 | 目录存在 + 运行身份可写 | `sudo -u prometheus touch ${BACKUP_DIR}/_iq_probe && rm ${BACKUP_DIR}/_iq_probe` | ☐ |
+| 8.1 | BACKUP_DIR 存在且可写 | 目录存在 + 运行身份可写 | `BACKUP_DIR=${BACKUP_DIR:-/home/prometheus/cmc_backups/mdm}; sudo -u prometheus touch "$BACKUP_DIR/_iq_probe" && sudo -u prometheus rm "$BACKUP_DIR/_iq_probe"` | ☐ |
 | 8.2 | 备份 cron / systemd timer | 已注册且 next-trigger 显示 | `systemctl list-timers cmab-mdm-backup.timer` 或 `crontab -l \| grep backup_db` | ⚠️ ☐ |
-| 8.3 | 手工备份冒烟 | `scripts/backup_db.sh` 产出 .dump > 0 字节 | `bash scripts/backup_db.sh && ls -lh ${BACKUP_DIR}` | ⚠️ ☐ |
+| 8.3 | 手工备份冒烟 | `scripts/backup_db.sh` 产出 .dump > 0 字节 | `sudo -u prometheus env BACKUP_MODE=native bash scripts/backup_db.sh`，再检查实际 `BACKUP_DIR` | ⚠️ ☐ |
 | 8.4 | 备份保留窗口 | 30 天 | 确认 `RETENTION_DAYS` 已固化（见 RUNBOOK_BACKUP_RESTORE）| ☐ |
 | 8.5 | 离线归档 | 备份已上传到对象存储 / 磁带 | 走运维 SOP | ☐ |
 | 8.6 | 恢复演练 | 在隔离库 restore 成功 + alembic head 一致 | 见 RUNBOOK_BACKUP_RESTORE 恢复流程 | ☐ |
@@ -135,16 +136,34 @@
 
 ## 9. 关键执行命令（附录）
 
-### 5.6 关键表行数
+### 5.6 基线对象核对
 
 ```bash
 psql -p 5433 -U cmab_app -d cmab_mdm -c "
-  SELECT 'auth.permission' AS tbl, count(*) FROM auth.permission
-  UNION ALL SELECT 'auth.role',         count(*) FROM auth.role
-  UNION ALL SELECT 'auth.user',         count(*) FROM auth.user
-  UNION ALL SELECT 'meta.lookup_value', count(*) FROM meta.lookup_value
-  UNION ALL SELECT 'meta.system_config',count(*) FROM meta.system_config
-  ;"
+  SELECT permission_code FROM auth.permission ORDER BY permission_code;
+  SELECT role_code, is_system, deleted_at FROM auth.role
+   WHERE deleted_at IS NULL
+   ORDER BY role_code;
+  SELECT config_key FROM meta.system_config
+   WHERE config_key LIKE 'session.%' OR config_key='dept_admin.delegable_role_prefixes'
+   ORDER BY config_key;"
+```
+
+角色清单应至少包含当前 baseline 的 14 个角色码：`SYS_ADMIN`、`SUBSTANCE_STEWARD`、
+`PROJECT_MANAGER`、`CMC_RESEARCHER`、`QA_REVIEWER`、`READ_ONLY_USER`、
+`CMC_WAREHOUSE_ADMIN`、`CMC_EQUIPMENT_ADMIN`、`DISPLAY_MODE`、`DEPT_ADMIN`、
+`QV_ADMIN`、`QV_ENGINEER`、`QV_REVIEWER`、`QV_VIEWER`。
+
+### 5.8 审计触发器清单
+
+```bash
+psql -p 5433 -U cmab_app -d cmab_mdm -c "
+  SELECT n.nspname AS schema_name, c.relname AS table_name, t.tgname AS trigger_name
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE NOT t.tgisinternal AND t.tgname LIKE 'trg_%_audit'
+   ORDER BY n.nspname, c.relname, t.tgname;"
 ```
 
 ### 7.8 限流冒烟
@@ -162,26 +181,20 @@ echo
 # 期望输出最后一个为 429
 ```
 
-### 7.9 审计触发器写入
+### 7.9 审计触发器核对
 
 ```bash
-# 先记审计行数（直连 :5433）
-BEFORE=$(psql -p 5433 -U cmab_app -d cmab_mdm -At -c \
-  "SELECT count(*) FROM audit.audit_log")
+# 生产环境：只读核对业务表上的审计触发器，不制造临时主数据
+psql -p 5433 -U cmab_app -d cmab_mdm -c "
+  SELECT n.nspname AS schema_name, c.relname AS table_name, t.tgname
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid=t.tgrelid
+    JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE NOT t.tgisinternal AND t.tgname LIKE 'trg_%_audit'
+   ORDER BY 1,2,3;"
 
-# 用 admin POST 一个临时物质（<入口> 同上）
-TOK=$(curl -s --noproxy '*' -X POST <入口>/api/v1/auth/login -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"<改后密码>"}' \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["access_token"])')
-curl -s --noproxy '*' -X POST <入口>/api/v1/substances \
-  -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" \
-  -d '{"substance_type":"mab","internal_code":"IQ-PROBE","preferred_name":"IQ probe"}' \
-  > /dev/null
-
-# 再记审计行数
-AFTER=$(psql -p 5433 -U cmab_app -d cmab_mdm -At -c \
-  "SELECT count(*) FROM audit.audit_log")
-echo "before=$BEFORE after=$AFTER（期望 after > before）"
+# UAT：通过界面创建并随后软删除一条明确标识为 OQ/IQ 测试的记录，
+# 对比 audit.audit_log 与 audit.change_history；保存执行人、时间和记录编码。
 ```
 
 ---

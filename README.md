@@ -33,7 +33,7 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 - [V1.0 docx × 4](./docs/) — 文件命名 `*_V1.0.docx`
 
 **设计基准偏离说明**（DEV-MDM-001 系列）：
-- [V1.3_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md) — **当前活跃**：覆盖 migration 0037-0044 + Phase 5 + MM v2 + EQP 设备域 + 测试基线桥 + V1.3 批次工作清单
+- [V1.3_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md) — 历史偏离批次，明确封顶于 migration 0044；0045—0060 的现状以迁移文件、项目 `CLAUDE.md`、`SMP_NUM_alignment_status.md` 和靶点域决策记录为准
 - [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 已封版归档（cap 0036，见其 §1B）：覆盖 Phase 1-4 + V1.2 评审 13 项决议 + §1A 勘误索引 E1-E12
 
 **V1.0 → V1.1 修订清单**（评审决议过程档，决议已全部落地至 V1.1 docx）：
@@ -83,7 +83,7 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 | 后端 | FastAPI + SQLAlchemy 2.0 (async) + Pydantic v2 |
 | 数据库 | PostgreSQL 16 |
 | 缓存/队列 | Redis 7 |
-| 部署 | Docker + Docker Compose |
+| 部署 | 本地 Docker Compose；Linux 原生 venv + systemd + nginx |
 
 ## 快速开始
 
@@ -110,9 +110,10 @@ docker compose -f deploy/docker-compose.dev.yml up -d --build
 # 4. 等待服务启动（约 30-60 秒），查看状态
 docker compose -f deploy/docker-compose.dev.yml ps
 
-# 5. 初始化数据库（首次运行必须）
+# 5. 初始化数据库（仅全新空库）
 docker compose -f deploy/docker-compose.dev.yml exec backend \
     alembic upgrade head
+# 已有开发库含真实物料/设备数据；执行 seed 前必须确认目标确为空库
 docker compose -f deploy/docker-compose.dev.yml exec backend \
     python -m app.scripts.seed_data
 
@@ -189,9 +190,9 @@ make logs        # 查看日志
 make logs-be     # 仅看后端日志
 make logs-fe     # 仅看前端日志
 make migrate     # 应用数据库迁移
-make seed        # 加载种子数据
-make reset-db    # 重置数据库（⚠️ 删除全部数据）
-make test-be     # 运行后端测试
+make seed        # 仅全新空库加载基线种子；已有库先确认
+make reset-db    # ⚠️ 删除开发库全部数据；默认禁止
+make test-be     # 在独立 cmab_test 库运行后端测试
 make lint-be     # 后端代码检查
 make lint-fe     # 前端代码检查
 make gen-types   # 从后端 OpenAPI 生成前端 TS 类型
@@ -216,6 +217,7 @@ docker compose -f deploy/docker-compose.dev.yml up -d postgres redis
 alembic upgrade head
 
 # 加载种子数据
+# 仅限全新空库；已有开发库不要执行
 python -m app.scripts.seed_data
 
 # 启动 API

@@ -13,6 +13,7 @@ from app.scripts.import_equipment_excel import (
     _norm,
     detect_header,
     normalize_category,
+    normalize_equipment_status,
     normalize_name,
     normalize_status,
     parse_date,
@@ -180,12 +181,26 @@ def test_normalize_name_keeps_whole(raw, expected):
 @pytest.mark.parametrize("raw,expected", [
     ("启用", "active"),
     (None, "active"),
-    ("停用", "active"),  # 只有明确报废/退役才置 retired
+    ("封存", "active"),
+    ("停用", "active"),
     ("已报废", "retired"),
     ("退役", "retired"),
 ])
 def test_normalize_status(raw, expected):
     assert normalize_status(raw) == expected
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("启用", "enabled"),
+    (None, "enabled"),
+    ("封存", "sealed"),
+    ("停用", "sealed"),
+    ("报停", "sealed"),
+    ("已报废", "scrapped"),
+    ("退役", "scrapped"),
+])
+def test_normalize_equipment_status(raw, expected):
+    assert normalize_equipment_status(raw) == expected
 
 
 def test_category_process_beats_it_workstation():
@@ -261,6 +276,7 @@ def test_ledger_row_roundtrip(tmp_path):
     assert pr.category == "工艺/制备设备"
     assert pr.category_source == "name_guess"
     assert pr.status == "active"
+    assert pr.equipment_status == "enabled"
     # Excel 无部门/厂区列 → 用命令行统一指定的值兜底
     assert pr.department == "生产一部"
     assert pr.site == "南楼"

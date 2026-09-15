@@ -290,6 +290,7 @@ class ParsedRow:
     category_defaulted: bool = False
     category_source: str = "column"  # column / name_guess / default
     status: str = "active"
+    equipment_status: str = "enabled"
     skip_reason: str | None = None
 
     def build_extra(self) -> dict | None:
@@ -368,16 +369,29 @@ def normalize_name(raw: str | None) -> str | None:
 
 
 def normalize_status(raw: str | None) -> str:
-    """台账「设备状态」→ 主数据 status（只有 active/retired 两态）。
+    """台账「设备状态」→ 主数据状态（active/retired）。
 
-    原值一并留在 extra，不丢信息。
+    仅明确报废、退役或已处置的记录不再视为在册。
     """
     if not raw:
         return "active"
-    for kw in ("报废", "退役", "淘汰", "报停", "已处置"):
+    for kw in ("报废", "退役", "淘汰", "已处置"):
         if kw in raw:
             return "retired"
     return "active"
+
+
+def normalize_equipment_status(raw: str | None) -> str:
+    """台账「设备状态」→ 独立设备状态（enabled/sealed/scrapped）。"""
+    if not raw:
+        return "enabled"
+    for kw in ("报废", "退役", "淘汰", "已处置"):
+        if kw in raw:
+            return "scrapped"
+    for kw in ("封存", "停用", "暂停使用", "报停"):
+        if kw in raw:
+            return "sealed"
+    return "enabled"
 
 
 def parse_decimal(val) -> Decimal | None:
@@ -484,6 +498,7 @@ def parse_row(
     pr.department = pr.department or default_department
     pr.site = pr.site or default_site
     pr.status = normalize_status(pr.status_raw)
+    pr.equipment_status = normalize_equipment_status(pr.status_raw)
     return pr
 
 
@@ -634,6 +649,7 @@ async def import_rows(
                             criticality_basis=pr.criticality_basis,
                             commission_date=pr.commission_date,
                             status=pr.status,
+                            equipment_status=pr.equipment_status,
                             description=pr.description,
                             notes=pr.notes,
                             extra=pr.build_extra(),
@@ -665,7 +681,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
             "category", "category_source", "需人工核对分类",
             "model", "manufacturer", "serial_no",
             "department", "site", "room", "criticality", "commission_date",
-            "status", "purchase_date", "asset_value", "supplier", "notes", "extra",
+            "master_status", "equipment_status", "purchase_date", "asset_value", "supplier", "notes", "extra",
         ])
         for pr in rows:
             decision = "SKIP" if pr.skip_reason else "IMPORT"
@@ -682,6 +698,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
                 pr.criticality or "",
                 pr.commission_date.isoformat() if pr.commission_date else "",
                 pr.status,
+                pr.equipment_status,
                 pr.purchase_date.isoformat() if pr.purchase_date else "",
                 str(pr.asset_value) if pr.asset_value is not None else "",
                 pr.supplier or "", pr.notes or "",

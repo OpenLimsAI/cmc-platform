@@ -6,16 +6,16 @@
 | 版本 | V1.0 |
 | 适用 | 首次生产部署 + 后续 alembic 升级 + 跨环境数据迁移（dev → UAT / UAT → 生产）|
 | 合规 | GAMP 5 / 21 CFR Part 11 §11.10(a) 数据完整性 / EU Annex 11 §4.5 数据迁移 |
-| 当前 head | `0044_eqp_identifiers`（共 44 个 migration，2026-06-05） |
+| 当前 head | `0060_eqp_device_status`（共 60 个 migration，2026-09-15；已从空库实测迁移通过） |
 
 ---
 
 ## 0. 用途与范围
 
 本 SOP 用于：
-1. **首次生产部署**：从空 PG 实例完整执行 0001→0044 全部 migration + baseline seed
-2. **alembic 升级部署**：现有 head 升级到新 head（举例 0044 → 0045）
-3. **跨环境迁移**：dev / UAT / 生产之间用 pg_dump + pg_restore 整体迁移（结构 + 数据）
+1. **首次生产部署**：从空 PG 实例完整执行 0001→0060 全部 migration；仅空库经批准加载 baseline seed
+2. **alembic 升级部署**：现有 head 升级到仓库 head
+3. **受控整库迁移**：仅用于获批的 UAT 克隆、服务器迁移或灾难恢复，不用开发库覆盖生产
 4. **基线快照演练**：UAT/Staging 环境上跑一次完整 reset → migrate → seed → 抽检，确保灾难恢复路径可走
 
 **不在范围**：业务级数据导入（substance / project 批量从 Excel 灌入）— 走独立 ETL SOP（Phase 5 staging.substance_import_* 表）。
@@ -62,9 +62,25 @@
 | 34 | 0041_eqp_add_fields | 2026_06_04_0200 | EQP：新增 rated_power（额定功率）/ origin（产地）+ 列注释语义校准 |
 | 35 | 0042_eqp_category_5class | 2026_06_04_0300 | EQP：设备分类 4 类 → 5 类体系（分析仪器/工艺制备/通用实验室/公用工程/IT自动化）+ 旧值重映射 |
 | 36 | 0043_eqp_workstation | 2026_06_05_0100 | EQP：has_workstation 布尔 + workstation_info JSONB（附带专用工作站配置）|
-| 37 | **0044_eqp_identifiers** | 2026_06_05_0200 | EQP：三标识体系 — equipment_code 定位为系统设备ID（不可改）+ 新增 equipment_no（业务）/ fixed_asset_no（财务）— **当前 head** |
+| 37 | **0044_eqp_identifiers** | 2026_06_05_0200 | EQP：三标识体系 — equipment_code 定位为系统设备ID（不可改）+ 新增 equipment_no（业务）/ fixed_asset_no（财务）— 2026-06 历史基线 |
 
-> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 44 个文件用 `alembic history` 查看。
+### 1.1 0045—0060 增量迁移
+
+| revision | 内容（简） |
+|---|---|
+| 0045—0046 | 修复业务编码与角色编码在软删除后的唯一约束 |
+| 0047—0049 | PRS 对齐 SMP-RD-NUM-001 V2.1：编号、分类、资产关联、上市后变更与项目关系 |
+| 0050—0052 | 新增 `tgt` 靶点域、分子—靶点关系、UniProt 标准字段与序列 |
+| 0053 | Substance 编码调整为 `SUB-0001` 四位流水号 |
+| 0054 | 会话策略落库：空闲超时、滑动续期与单次登录硬上限 |
+| 0055 | 部门管理员、验证部角色与可下放角色白名单 |
+| 0056 | 审计日志、变更历史和登录历史索引优化 |
+| 0057 | 设备清单治理字段：部门、厂区、房间、分级、分级依据与启用日期 |
+| 0058 | 撤销滑动会话上线前遗留的长效 refresh token |
+| 0059_eqp_alias | 设备别名/曾用名正式字段及历史 `extra` 数据搬迁 |
+| **0060_eqp_device_status** | 新增独立 `equipment_status`（启用/封存/报废）并收口 MDM；保留原 `status` 主数据状态，历史设备默认启用、上线后由设备专员复核——**当前 head** |
+
+> 注：序号 14（0014-0021）是 M3.0 多次小修迁移，本表为节省篇幅合并。完整 60 个 migration 用 `alembic history` 查看。
 
 ---
 
@@ -73,58 +89,47 @@
 ### 2.1 前置条件
 
 - IQ 清单（`deploy/checklist_iq.md`）全部 PASS
-- PG 实例已建（`cmab_mdm` 数据库 + `cmab_app` 应用账号 + 4 个 schema + pgcrypto/pg_trgm/btree_gin/unaccent 扩展）
-- backend 容器构建好（production stage，含 alembic）
+- Linux 原生 PG16 `mdm` 集群 :5433、Redis、nginx 与 `cmab-backend.service` 已按 IQ 清单安装
+- `/opt/cmab-mdm-platform/backend/.venv` 已建立，`backend/.env` 指向 `127.0.0.1:5433/cmab_mdm`
 
 ### 2.2 执行步骤
 
 ```bash
-# 1. 启动基础服务（不启 backend，先做迁移）
-docker compose -f deploy/docker-compose.prod.yml --env-file /etc/cmab-mdm/.env.prod up -d postgres redis
+# 1. 确认原生服务和连接目标
+systemctl is-active postgresql@16-mdm redis-server nginx
+grep '^DATABASE_URL_SYNC=' backend/.env   # 人工确认端口 5433、库 cmab_mdm
 
-# 2. 等 PG ready
-until docker exec cmab-mdm-postgres pg_isready -U postgres -d cmab_mdm; do sleep 2; done
+# 2. 安装/更新后端依赖并迁移到仓库 head
+backend/.venv/bin/pip install -q -e backend
+( cd backend && .venv/bin/alembic upgrade head )
 
-# 3. 跑全部 migration（一次性 0001 → 0044）
-docker run --rm \
-  --network cmab-mdm-prod_internal \
-  --env-file /etc/cmab-mdm/.env.prod \
-  --env DATABASE_URL_SYNC=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
-  cmab-mdm-backend:latest \
-  alembic upgrade head
+# 3. 验证 head
+psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT version_num FROM alembic_version"
+# 应输出：0060_eqp_device_status
 
-# 4. 验证 head
-docker exec cmab-mdm-postgres psql -U cmab_app -d cmab_mdm -c \
-  "SELECT version_num FROM alembic_version"
-# 应输出：0044_eqp_identifiers
+# 4. 仅首次创建的空库、经负责人确认后加载 baseline seed；日常升级不得执行
+( cd backend && .venv/bin/python -m app.scripts.seed_data )
+# 严禁带 --demo
 
-# 5. baseline seed（权限/角色/默认用户/必备字典）
-docker run --rm \
-  --network cmab-mdm-prod_internal \
-  --env-file /etc/cmab-mdm/.env.prod \
-  --env DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
-  cmab-mdm-backend:latest \
-  python -m app.scripts.seed_data
-# **生产部署不带 --demo**
+# 5. 构建前端并安装/更新 systemd 受管单元
+( cd frontend && pnpm install --prefer-offline && pnpm build )
+bash deploy/linux/install_systemd.sh
 
-# 6. 启 backend + frontend + gateway
-docker compose -f deploy/docker-compose.prod.yml --env-file /etc/cmab-mdm/.env.prod up -d
-
-# 7. 健康检查
-curl -k https://<域名>/health
+# 6. 从统一门户路径健康检查
+curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 ```
 
 ### 2.3 完成后强制验证
 
 | 验证项 | 命令 | 期望 |
 |---|---|---|
-| alembic head | `docker exec cmab-mdm-postgres psql -U cmab_app -d cmab_mdm -c "SELECT * FROM alembic_version"` | `0044_eqp_identifiers` |
-| schema 对齐 | `make check-schema`（dev 端做，生产用相同脚本） | exit 0 |
-| 权限表行数 | `psql -c "SELECT count(*) FROM auth.permission"` | ≥ 20 |
-| 角色表 | `psql -c "SELECT role_code FROM auth.role"` | 8 行（SYS_ADMIN/SUBSTANCE_STEWARD/PROJECT_MANAGER/CMC_RESEARCHER/QA_REVIEWER/READ_ONLY_USER/CMC_WAREHOUSE_ADMIN/CMC_EQUIPMENT_ADMIN） |
-| code_sequence | 5 域（substance/project/asset/material/equipment）年度序列动态创建 | `psql -c "SELECT sequence_name FROM meta.code_sequence"` |
-| audit trigger 在位 | `psql -c "SELECT count(*) FROM pg_trigger WHERE tgname LIKE 'trg_%_audit'"` | ≥ 12 |
-| OQ 测试通过 | UAT 上跑 `make test-be` | 277 passed（2026-06-05 基线）|
+| alembic head | `psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT * FROM alembic_version"` | `0060_eqp_device_status` |
+| schema 对齐 | `make check-schema`（仅本地 Docker 开发环境） | exit 0 |
+| 权限表 | `psql -c "SELECT permission_code FROM auth.permission ORDER BY 1"` | 与当前 `seed_data.py` 和定向权限脚本逐项一致 |
+| 角色表 | `psql -c "SELECT role_code FROM auth.role WHERE deleted_at IS NULL ORDER BY 1"` | 当前 baseline 14 个角色码逐项存在（含 DISPLAY_MODE、DEPT_ADMIN、QV_*） |
+| code_sequence | `psql -c "SELECT sequence_name FROM meta.code_sequence ORDER BY 1"` | substance/project/asset/material/equipment/target 六域就绪 |
+| audit trigger 在位 | 查询 `pg_trigger` 中 `trg_%_audit` 并导出 schema/table/trigger | 与当前 migration 定义逐项一致，不以历史固定数量判断 |
+| 自动化回归 | 本地隔离环境跑 `make test-be` | 共 409 项；设备状态相关项通过。最近两次全量运行各有 1 项既有账户管理用例偶发失败（失败点不同，2026-09-15 待治理）；不等于 OQ 映射已完整 |
 
 ---
 
@@ -132,41 +137,36 @@ curl -k https://<域名>/health
 
 ### 3.1 升级时机
 
-任何新增 migration（如 0045+）合并到 main 后，先在 UAT 跑通，再走生产升级。
+任何新增 migration（当前 head 之后即 `0061+`）合并到 main 后，先在 UAT 跑通，再走生产升级。
 
 ### 3.2 升级步骤
 
 ```bash
 # 1. 备份当前生产数据（强制；不可跳过）
-sudo bash scripts/backup_db.sh
+sudo -u prometheus env BACKUP_MODE=native bash scripts/backup_db.sh
 # 记录备份文件名 + 大小 + 时间戳 → 升级单
 
-# 2. 停业务流量（nginx 切维护页 或 backend 停容器）
-docker compose -f deploy/docker-compose.prod.yml stop backend
+# 2. 停后端；如需完全停流量，先由 nginx 切维护页
+sudo systemctl stop cmab-backend
 
-# 3. 拉新镜像
-docker compose -f deploy/docker-compose.prod.yml --env-file /etc/cmab-mdm/.env.prod pull backend
+# 3. 拉取代码并更新依赖
+git pull --ff-only origin main
+backend/.venv/bin/pip install -q -e backend
 
 # 4. 跑增量 migration
-docker run --rm \
-  --network cmab-mdm-prod_internal \
-  --env-file /etc/cmab-mdm/.env.prod \
-  --env DATABASE_URL_SYNC=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
-  cmab-mdm-backend:latest \
-  alembic upgrade head
+( cd backend && .venv/bin/alembic upgrade head )
 
-# 5. 验证新 head + schema 对齐
-docker exec cmab-mdm-postgres psql -U cmab_app -d cmab_mdm -c \
-  "SELECT version_num FROM alembic_version"
+# 5. 验证新 head
+psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT version_num FROM alembic_version"
 
-# 6. 启 backend
-docker compose -f deploy/docker-compose.prod.yml --env-file /etc/cmab-mdm/.env.prod start backend
+# 6. 构建前端并重启后端
+( cd frontend && pnpm install --prefer-offline && pnpm build )
+sudo systemctl restart cmab-backend
 
 # 7. smoke 测试
-curl -k https://<域名>/health
-curl -k https://<域名>/api/v1/system/info
+curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 
-# 8. 恢复流量
+# 8. 如使用维护页，恢复 nginx 正常路由
 ```
 
 ### 3.3 升级失败回滚
@@ -177,7 +177,11 @@ curl -k https://<域名>/api/v1/system/info
 
 ---
 
-## 4. 跨环境数据迁移（dev / UAT / 生产）
+## 4. 受控的整库迁移（UAT / 灾难恢复）
+
+日常发布只通过 Git + Alembic 同步结构，**不把开发库整库覆盖到生产**。开发库含真实物料、
+设备数据及开发账号，整库迁移只能用于已批准的 UAT 克隆、服务器迁移或灾难恢复，并须先停写、
+记录源/目标 migration head 和备份校验值。
 
 ### 4.1 整体迁移模板
 
@@ -186,26 +190,21 @@ curl -k https://<域名>/api/v1/system/info
 bash scripts/backup_db.sh
 # 产出 backups/cmab_mdm_<host>_<ts>.dump
 
-# === 目标环境（UAT）===
-# 1. 准备目标 PG（空库或先清空）
-docker exec cmab-mdm-postgres psql -U postgres -c "
-  DROP DATABASE IF EXISTS cmab_mdm;
-  CREATE DATABASE cmab_mdm WITH ENCODING='UTF8';
-"
+# === 目标环境（UAT/新主机）===
+# 1. 将明确的一份 dump 传到受控备份目录，并记录 sha256
+scp backups/<明确文件名>.dump uat-host:<受控备份目录>/
+shasum -a 256 backups/<明确文件名>.dump
 
-# 2. 拷贝 dump 文件到目标 host
-scp backups/cmab_mdm_dev_*.dump uat-host:/var/lib/cmab-mdm/backups/
+# 2. 在目标主机按 RUNBOOK_BACKUP_RESTORE §4 执行对应部署形态的恢复
+#    Linux 原生环境不得运行 scripts/restore_db.sh；该脚本当前只支持 Mac Docker
 
-# 3. 在目标 host 上 restore
-ssh uat-host
-sudo bash scripts/restore_db.sh cmab_mdm_dev_<ts>.dump
-
-# 4. 验证（见 §5 抽检模板）
+# 3. 验证 migration head、计数、审计和抽样字段（见 §5）
 ```
 
-### 4.2 dev → 生产首次同步特别注意
+### 4.2 禁止直接 dev → 生产整库覆盖
 
-- **绝对不要把 dev 的演示数据（DEMO_SUBSTANCES / DEMO_PROJECTS / DEMO_ASSETS / DEMO_MATERIALS）带到生产**。生产从空库 + baseline seed 起。
+- 当前 dev 已包含真实物料/设备数据，但这不构成整库覆盖生产的授权；需要迁移某一业务域时应使用经审核的专项导入脚本和对账报告。
+- **绝对不要把 dev 的演示/测试数据带到生产**。全新生产空库仅执行迁移和经批准的 baseline seed。
 - dev 的测试用户（admin / qingcheng / researcher / qa_reviewer / readonly）密码**必须重设**或重新创建。
 - `auth.refresh_token` 表所有行清空（dev 残留的 token 不能带到生产）：`DELETE FROM auth.refresh_token;`
 - 审计日志（audit.audit_log）按合规决定是否携带：通常**不携带** dev 审计到生产（dev 的 user_id 在生产无意义）。
@@ -224,6 +223,7 @@ UNION ALL SELECT 'auth.permission', count(*) FROM auth.permission
 UNION ALL SELECT 'auth.role',       count(*) FROM auth.role
 UNION ALL SELECT 'auth.user_role',  count(*) FROM auth.user_role
 UNION ALL SELECT 'auth.role_permission', count(*) FROM auth.role_permission
+UNION ALL SELECT 'auth.refresh_token', count(*) FROM auth.refresh_token
 UNION ALL SELECT 'meta.code_sequence',   count(*) FROM meta.code_sequence
 UNION ALL SELECT 'meta.lookup_value',    count(*) FROM meta.lookup_value
 UNION ALL SELECT 'meta.system_config',   count(*) FROM meta.system_config
@@ -241,9 +241,13 @@ UNION ALL SELECT 'ars.asset_market_id',  count(*) FROM ars.asset_market_id
 UNION ALL SELECT 'ars.asset_status_history', count(*) FROM ars.asset_status_history
 UNION ALL SELECT 'mm.material',          count(*) FROM mm.material
 UNION ALL SELECT 'mm.material_batch',    count(*) FROM mm.material_batch
+UNION ALL SELECT 'eqp.equipment',        count(*) FROM eqp.equipment
+UNION ALL SELECT 'tgt.target',           count(*) FROM tgt.target
+UNION ALL SELECT 'tgt.target_source_snapshot', count(*) FROM tgt.target_source_snapshot
 UNION ALL SELECT 'ref.project_substance',count(*) FROM ref.project_substance
 UNION ALL SELECT 'ref.asset_substance',  count(*) FROM ref.asset_substance
 UNION ALL SELECT 'ref.project_asset',    count(*) FROM ref.project_asset
+UNION ALL SELECT 'ref.molecule_target',  count(*) FROM ref.molecule_target
 UNION ALL SELECT 'audit.audit_log',      count(*) FROM audit.audit_log
 UNION ALL SELECT 'audit.change_history', count(*) FROM audit.change_history
 UNION ALL SELECT 'audit.e_signature',    count(*) FROM audit.e_signature

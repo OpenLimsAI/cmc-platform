@@ -7,7 +7,8 @@ export type EquipmentCategory =
   | '通用实验室设备'
   | '公用工程/环境与支持系统'
   | 'IT/自动化与数据系统';
-export type EquipmentStatus = 'active' | 'retired';
+export type EquipmentMasterStatus = 'active' | 'retired';
+export type EquipmentStatus = 'enabled' | 'sealed' | 'scrapped';
 // 设备分级：分析仪器 A/B/C（USP 口径）；其他分类 关键/一般
 export type EquipmentCriticality = 'A' | 'B' | 'C' | '关键' | '一般';
 
@@ -27,7 +28,8 @@ export interface EquipmentBrief {
   site: string | null; // 厂区
   room: string | null; // 房间/存放位置
   criticality: EquipmentCriticality | null; // 设备分级
-  status: EquipmentStatus;
+  status: EquipmentMasterStatus;
+  equipment_status: EquipmentStatus;
   created_at: string;
   updated_at: string;
 }
@@ -96,13 +98,15 @@ export interface EquipmentCreatePayload {
 
 export interface EquipmentUpdatePayload extends Partial<Omit<EquipmentCreatePayload, 'equipment_code'>> {
   change_reason?: string;
-  status?: EquipmentStatus;
+  status?: EquipmentMasterStatus;
+  equipment_status?: EquipmentStatus;
 }
 
 export interface EquipmentListQuery {
   q?: string;
   category?: string;
   status?: string;
+  equipment_status?: string;
   manufacturer?: string;
   department?: string;
   site?: string;

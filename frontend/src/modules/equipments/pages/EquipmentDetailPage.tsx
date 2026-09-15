@@ -20,6 +20,7 @@ import { TimeDisplay } from '@/shared/components/TimeDisplay';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
+  EQUIPMENT_MASTER_STATUS_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
   IT_CATEGORY,
   WORKSTATION_FIELDS,
@@ -55,7 +56,8 @@ export function EquipmentDetailPage() {
   }
 
   const categoryDef = EQUIPMENT_CATEGORY_OPTIONS.find((o) => o.value === eq.category);
-  const statusDef = EQUIPMENT_STATUS_OPTIONS.find((o) => o.value === eq.status);
+  const masterStatusDef = EQUIPMENT_MASTER_STATUS_OPTIONS.find((o) => o.value === eq.status);
+  const statusDef = EQUIPMENT_STATUS_OPTIONS.find((o) => o.value === eq.equipment_status);
   const critDef = criticalityDef(eq.criticality);
 
   return (
@@ -74,13 +76,13 @@ export function EquipmentDetailPage() {
             <Title level={3} style={{ margin: 0 }}>
               {eq.equipment_code} — {eq.equipment_name}{' '}
               <Tag color={categoryDef?.color}>{eq.category}</Tag>
-              <Tag color={statusDef?.color}>{statusDef?.label ?? eq.status}</Tag>
+              <Tag color={statusDef?.color}>{statusDef?.label ?? eq.equipment_status}</Tag>
               {eq.criticality && (
                 <Tag color={critDef?.color}>{critDef?.label ?? eq.criticality}</Tag>
               )}
             </Title>
             <Text type="secondary">
-              全公司设备清单（设备部维护）；校准由计量专员、验证由验证部平台管理
+              全公司设备清单及设备状态由设备部维护；校准由计量专员、验证由验证部平台管理
             </Text>
           </div>
           <Space>
@@ -103,6 +105,12 @@ export function EquipmentDetailPage() {
         <Descriptions bordered size="small" column={2}>
           <Descriptions.Item label="设备ID">{eq.equipment_code}</Descriptions.Item>
           <Descriptions.Item label="设备分类">{eq.category}</Descriptions.Item>
+          <Descriptions.Item label="主数据状态">
+            <Tag color={masterStatusDef?.color}>{masterStatusDef?.label ?? eq.status}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="设备状态">
+            <Tag color={statusDef?.color}>{statusDef?.label ?? eq.equipment_status}</Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="设备编号">{eq.equipment_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="固资编号">{eq.fixed_asset_no ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="设备名称（中文）">{eq.equipment_name}</Descriptions.Item>
@@ -183,7 +191,7 @@ export function EquipmentDetailPage() {
         okButtonProps={{ danger: true }}
         okText="确认删除"
       >
-        <p>软删除：记录保留并可审计追溯。下游 LabOps 的运营数据不受影响。</p>
+        <p>软删除：记录保留并可审计追溯。下游 LabOps 的领用、维护和维修记录不受影响。</p>
         <Input.TextArea
           rows={2}
           placeholder="删除原因（必填，≥5 字符）"

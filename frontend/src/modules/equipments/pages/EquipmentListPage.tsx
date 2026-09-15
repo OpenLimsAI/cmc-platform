@@ -9,6 +9,7 @@ import { useResizableColumns } from '@/shared/components/useResizableColumns';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import {
   EQUIPMENT_CATEGORY_OPTIONS,
+  EQUIPMENT_MASTER_STATUS_OPTIONS,
   EQUIPMENT_STATUS_OPTIONS,
   criticalityDef,
 } from '../constants';
@@ -23,6 +24,7 @@ export function EquipmentListPage() {
     q?: string;
     category?: string;
     status?: string;
+    equipment_status?: string;
     department?: string;
     criticality?: string;
   }>({});
@@ -129,10 +131,20 @@ export function EquipmentListPage() {
       },
     },
     {
-      title: '状态',
+      title: '主数据状态',
       dataIndex: 'status',
       key: 'status',
-      width: 90,
+      width: 110,
+      render: (s: string) => {
+        const def = EQUIPMENT_MASTER_STATUS_OPTIONS.find((o) => o.value === s);
+        return <Tag color={def?.color ?? 'default'}>{def?.label ?? s}</Tag>;
+      },
+    },
+    {
+      title: '设备状态',
+      dataIndex: 'equipment_status',
+      key: 'equipment_status',
+      width: 100,
       render: (s: string) => {
         const def = EQUIPMENT_STATUS_OPTIONS.find((o) => o.value === s);
         return <Tag color={def?.color ?? 'default'}>{def?.label ?? s}</Tag>;
@@ -164,7 +176,7 @@ export function EquipmentListPage() {
               设备（Equipments）
             </Title>
             <Text type="secondary">
-              全公司设备清单（设备部维护）；校准归计量专员、验证归验证部平台，共 {total} 条
+              全公司设备清单及设备状态由设备部维护；校准归计量专员、验证归验证部平台，共 {total} 条
             </Text>
           </div>
           <PermissionGuard permission="equipment:create">
@@ -209,13 +221,26 @@ export function EquipmentListPage() {
           </Col>
           <Col>
             <Select
-              placeholder="状态"
+              placeholder="主数据状态"
               allowClear
-              style={{ width: 100 }}
+              style={{ width: 120 }}
               value={filters.status}
               onChange={(v) => {
                 setPage(1);
                 setFilters((f) => ({ ...f, status: v }));
+              }}
+              options={EQUIPMENT_MASTER_STATUS_OPTIONS}
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="设备状态"
+              allowClear
+              style={{ width: 110 }}
+              value={filters.equipment_status}
+              onChange={(v) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, equipment_status: v }));
               }}
               options={EQUIPMENT_STATUS_OPTIONS}
             />

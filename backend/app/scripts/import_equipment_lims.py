@@ -13,7 +13,7 @@ LIMS(SampleManager Oracle) → EQP 设备主数据 迁移工具
   - Oracle 连接读 rd-lims-etl/.env（ORACLE_* + ORACLE_CLIENT_DIR，thick 模式连 11g）。
   - 目标 PG 默认 Mac docker（127.0.0.1:15432/cmab_mdm），可用 --pg-* 覆盖（将来指向 Linux）。
   - 字段映射：IDENTITY→code、NAME→name(中文)、CT_GGNO→model、MANUFACTURER、SERIAL_NO、
-    STATUS(R→retired 其余 active)、DESCRIPTION→主要性能参数描述；
+    STATUS(R→主数据 retired、设备状态 scrapped；其余 active/enabled)、DESCRIPTION→主要性能参数描述；
     category 按 NAME 关键词推断 5 类；HISTORICAL_SN/FIXED_ASSET_NO/CT_LEVEL/原始STATUS→extra。
     运营字段(校验/维护/位置/计量证书/IP 等)不迁移（归 LabOps）。
   - 占位符(N/A/未登记/0…)清洗为空；equipment_name 必填，空则跳过。
@@ -135,6 +135,7 @@ def map_row(r: dict) -> dict:
     cat, defaulted = infer_category(name)
     raw_status = (r["STATUS"] or "").strip().upper()
     status = "retired" if raw_status == "R" else "active"
+    equipment_status = "scrapped" if raw_status == "R" else "enabled"
 
     extra = {"source": "lims", "lims_status": raw_status or None}
     for src, key in [("HISTORICAL_SN", "historical_sn"), ("CT_LEVEL", "ct_level")]:
@@ -158,6 +159,7 @@ def map_row(r: dict) -> dict:
         "model": clean(r["CT_GGNO"], 200),
         "serial_no": clean(r["SERIAL_NO"], 100),
         "status": status,
+        "equipment_status": equipment_status,
         "description": clean(r["DESCRIPTION"]),
         "extra": {k: v for k, v in extra.items() if v is not None},
         "skip_reason": skip,
@@ -169,11 +171,11 @@ def map_row(r: dict) -> dict:
 INSERT_SQL = """
     INSERT INTO eqp.equipment
       (equipment_no, fixed_asset_no, equipment_name, category, manufacturer,
-       model, serial_no, status, has_workstation, description, extra,
+       model, serial_no, status, equipment_status, has_workstation, description, extra,
        created_by, updated_by)
     VALUES
       (%(equipment_no)s, %(fixed_asset_no)s, %(equipment_name)s, %(category)s,
-       %(manufacturer)s, %(model)s, %(serial_no)s, %(status)s, FALSE,
+       %(manufacturer)s, %(model)s, %(serial_no)s, %(status)s, %(equipment_status)s, FALSE,
        %(description)s, %(extra)s,
        %(uid)s, %(uid)s)
 """
@@ -230,7 +232,8 @@ def run(rows: list[dict], pg: dict, dry_run: bool) -> dict:
                 "equipment_name": pr["equipment_name"],
                 "category": pr["category"], "manufacturer": pr["manufacturer"],
                 "model": pr["model"], "serial_no": pr["serial_no"],
-                "status": pr["status"], "description": pr["description"],
+                "status": pr["status"], "equipment_status": pr["equipment_status"],
+                "description": pr["description"],
                 "extra": Json(pr["extra"]) if pr["extra"] else None, "uid": uid,
             })
         stats["to_insert"] += 1
@@ -249,7 +252,8 @@ def write_report(rows: list[dict], path: Path) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
         w.writerow(["decision", "skip_reason", "equipment_no", "fixed_asset_no",
-                    "equipment_name", "category", "category_defaulted", "status",
+                    "equipment_name", "category", "category_defaulted", "master_status",
+                    "equipment_status",
                     "manufacturer", "model", "serial_no", "extra"])
         for pr in rows:
             w.writerow([
@@ -257,6 +261,7 @@ def write_report(rows: list[dict], path: Path) -> None:
                 pr["equipment_no"] or "", pr["fixed_asset_no"] or "",
                 pr["equipment_name"] or "", pr["category"],
                 "Y" if pr["category_defaulted"] else "", pr["status"],
+                pr["equipment_status"],
                 pr["manufacturer"] or "", pr["model"] or "", pr["serial_no"] or "",
                 json.dumps(pr["extra"], ensure_ascii=False),
             ])

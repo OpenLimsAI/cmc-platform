@@ -1,7 +1,8 @@
 """Equipment Master ORM 模型
 
 全公司仪器设备身份注册表，作为下游 CMC LabOps Portal(cmc-inventory) 的数据上游。
-仅管主数据(身份/采购属性);运营数据(在用状态/位置/负责人/校验/维护/维修)在 LabOps。
+MDM 管设备身份、主数据状态、设备状态、公司级位置和采购属性；
+领用、负责人、校验、维护、维修在 LabOps。
 """
 from datetime import date, datetime
 from decimal import Decimal
@@ -38,6 +39,10 @@ class Equipment(Base):
         CheckConstraint(
             "status IN ('active','retired')",
             name="ck_equipment_status",
+        ),
+        CheckConstraint(
+            "equipment_status IN ('enabled','sealed','scrapped')",
+            name="ck_equipment_operational_status",
         ),
         # 分级字典按分类走：分析仪器(检验设备)=A/B/C(USP)；其他分类=关键/一般（0056）
         CheckConstraint(
@@ -84,8 +89,12 @@ class Equipment(Base):
     criticality_basis: Mapped[str | None] = mapped_column(Text)  # 分级依据
     commission_date: Mapped[date | None] = mapped_column(Date)  # 首次启用日期
 
-    # 主数据状态(无状态机,PUT 直接改;运营状态在 LabOps)
+    # 主数据记录自身的治理状态：active=在册 / retired=已退役
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    # 设备实物状态由 MDM 设备专员维护：enabled=启用 / sealed=封存 / scrapped=报废
+    equipment_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="enabled"
+    )
 
     # 附带专用工作站（如自带控制电脑的分析仪器；IT 类设备本身即电脑）
     has_workstation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

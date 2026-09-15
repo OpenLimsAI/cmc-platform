@@ -4,7 +4,8 @@ Equipment CRUD 关键路径测试（EQP 设备主数据域）
 eqp.equipment（0040_eqp_equipment）：
   - equipment_code: 留空自动生成 EQP-yyyyXXXXXX；也可手动传入沿用历史编号
   - category: 分析仪器 / 工艺制备设备 / 通用实验室设备 / 公用工程环境支持 / IT自动化数据系统（5 类）
-  - status: active/retired（无状态机，PUT 直接改）
+  - status: active/retired（主数据状态）
+  - equipment_status: enabled/sealed/scrapped（设备状态，由 MDM 管理）
   - 软删除需 change_reason ≥5 字符
 """
 import pytest
@@ -27,6 +28,7 @@ async def test_create_equipment_auto_code(admin_client, unique_suffix):
     data = resp.json()["data"]
     assert data["equipment_code"].startswith("EQP-")
     assert data["status"] == "active"
+    assert data["equipment_status"] == "enabled"
     assert data["category"] == "分析仪器"
     assert resp.headers.get("Location") == f"/api/v1/equipments/{data['equipment_code']}"
 
@@ -217,6 +219,55 @@ async def test_get_update_delete_equipment(admin_client, unique_suffix):
 
     gone = await admin_client.get(f"/api/v1/equipments/{code}")
     assert gone.status_code == 404, gone.text
+
+
+@pytest.mark.asyncio
+async def test_equipment_status_managed_in_mdm_with_audit_reason(admin_client, unique_suffix):
+    """设备状态三值均由 MDM 更新；实际变更状态时必须填写审计原因。"""
+    create = await admin_client.post(
+        "/api/v1/equipments",
+        json={
+            "equipment_name": f"pytest status {unique_suffix}",
+            "category": "通用实验室设备",
+        },
+    )
+    assert create.status_code == 201, create.text
+    code = create.json()["data"]["equipment_code"]
+    assert create.json()["data"]["status"] == "active"
+    assert create.json()["data"]["equipment_status"] == "enabled"
+
+    missing_reason = await admin_client.put(
+        f"/api/v1/equipments/{code}", json={"equipment_status": "sealed"}
+    )
+    assert missing_reason.status_code == 400, missing_reason.text
+    assert "变更原因" in missing_reason.text
+
+    sealed = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"equipment_status": "sealed", "change_reason": "设备暂停使用并封存"},
+    )
+    assert sealed.status_code == 200, sealed.text
+    assert sealed.json()["data"]["status"] == "active"
+    assert sealed.json()["data"]["equipment_status"] == "sealed"
+
+    listed = await admin_client.get(
+        "/api/v1/equipments", params={"equipment_status": "sealed"}
+    )
+    assert listed.status_code == 200, listed.text
+    assert any(row["equipment_code"] == code for row in listed.json()["data"])
+
+    scrapped = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"equipment_status": "scrapped", "change_reason": "设备完成审批并正式报废"},
+    )
+    assert scrapped.status_code == 200, scrapped.text
+    assert scrapped.json()["data"]["equipment_status"] == "scrapped"
+
+    legacy = await admin_client.put(
+        f"/api/v1/equipments/{code}",
+        json={"equipment_status": "retired", "change_reason": "验证非法设备状态"},
+    )
+    assert legacy.status_code == 400, legacy.text
 
 
 @pytest.mark.asyncio

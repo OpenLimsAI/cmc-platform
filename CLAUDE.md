@@ -99,7 +99,7 @@ make docs-check       # CI 文档一致性校验
 
 ## 设备域 EQP：全公司设备清单（2026-09-10 起，migration 0057）
 
-- **定位变了**：`eqp.equipment` 从「研发设备身份注册表」升级为**全公司设备清单**，由**设备部**维护（负责人 2026-09-10 拍板）。分工：设备部管清单、计量专员管校准、验证部平台（`cmab_qv`，门户 `/qv/`）管验证，LabOps 只留研发自己的领用/维修。LabOps 现有的校准表与位置字段属于历史遗留，后续迁出，本次未动。
+- **定位变了**：`eqp.equipment` 从「研发设备身份注册表」升级为**全公司设备清单**，由**设备部**维护（负责人 2026-09-10 拍板）。分工：设备部管清单和设备状态、计量专员管校准、验证部平台（`cmab_qv`，门户 `/qv/`）管验证，LabOps 只留研发自己的领用/维修。设备状态于 2026-09-15 正式收口 MDM（migration 0060）：保留 `status=active/retired` 表示主数据在册状态，新增 `equipment_status=enabled/sealed/scrapped` 表示启用/封存/报废；历史记录的设备状态默认启用，交由设备专员复核，不根据主数据状态自动猜测。LabOps 不再作为设备状态权威源。LabOps 现有的校准表与位置字段属于历史遗留，后续迁出，本次未动。
 - **0057 新增 6 个字段**：`department`(使用部门，与 `auth.user.department` 同口径)、`site`(厂区)、`room`(房间/存放位置)、`criticality`(分级)、`criticality_basis`(分级依据)、`commission_date`(首次启用日期，与 `purchase_date` 购入日期分开)。迁移把已有 463 台（全是研发设备）的 `department` 回填为「研发部」。
 - **分级字典跟着分类走**（别写死成一个列表）：`分析仪器`（检验设备）= **A/B/C**（USP 口径）；其他分类（工艺制备=生产设备、公用工程、通用实验室、IT）= **关键/一般**。三处同口径校验：DB `ck_equipment_criticality` CHECK、Pydantic `EquipmentCreate` 校验器、service 层 update（改分类时按**新**分类判，不合法回 400 提示一并调整）。前端 `criticalityOptions(category)` 出选项，换分类自动清空不合法的旧值。
 - **不加「用途类型」字段**（生产/检验设备）：与现有 5 分类重叠。冰箱等归通用/公用，分级规则按分类区分即可。
