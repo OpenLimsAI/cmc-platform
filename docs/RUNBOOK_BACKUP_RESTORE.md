@@ -108,7 +108,7 @@ sudo -u postgres createdb -p 5433 -O cmab_app -E UTF8 cmab_mdm
 pg_restore -h 127.0.0.1 -p 5433 -U cmab_app -d cmab_mdm \
   --no-owner --no-privileges --exit-on-error <dump绝对路径>
 
-# 4. 校验 migration（应等于备份时 head；当前仓库 head 是 0060_eqp_device_status）
+# 4. 校验 migration（应等于备份时 head；当前仓库 head 是 0061_eqp_manufacture_date）
 ( cd backend && .venv/bin/alembic current )
 
 # 5. 只读数据抽检

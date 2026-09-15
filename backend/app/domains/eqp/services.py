@@ -129,7 +129,7 @@ class EquipmentService:
             serial_no=payload.serial_no,
             rated_power=payload.rated_power,
             origin=payload.origin,
-            purchase_date=payload.purchase_date,
+            manufacture_date=payload.manufacture_date,
             asset_value=payload.asset_value,
             supplier=payload.supplier,
             department=payload.department,

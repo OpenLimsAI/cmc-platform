@@ -135,7 +135,7 @@ export function EquipmentDetailPage() {
           </Descriptions.Item>
           <Descriptions.Item label="分级依据">{eq.criticality_basis ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="首次启用日期">{eq.commission_date ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="购入日期">{eq.purchase_date ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="出厂日期">{eq.manufacture_date ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="资产价值(元)">{eq.asset_value ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="创建时间">
             <TimeDisplay value={eq.created_at} />

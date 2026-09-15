@@ -54,7 +54,7 @@ export interface EquipmentDetail extends EquipmentBrief {
   origin: string | null;
   criticality_basis: string | null; // 分级依据
   commission_date: string | null; // 首次启用日期
-  purchase_date: string | null;
+  manufacture_date: string | null;
   asset_value: string | null;
   supplier: string | null;
   has_workstation: boolean;
@@ -87,7 +87,7 @@ export interface EquipmentCreatePayload {
   criticality?: EquipmentCriticality | null;
   criticality_basis?: string | null;
   commission_date?: string | null;
-  purchase_date?: string | null;
+  manufacture_date?: string | null;
   asset_value?: string | number | null;
   supplier?: string | null;
   has_workstation?: boolean;

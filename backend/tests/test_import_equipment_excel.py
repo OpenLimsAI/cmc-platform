@@ -245,8 +245,8 @@ def test_ledger_header_detection_maps_department_columns():
         "equipment_name", "model", "equipment_no", "commission_date",
         "room", "manufacturer", "serial_no", "rated_power", "status_raw",
     } <= fields
-    # 主数据没有正式列的三项进 extra
-    assert {"alias", "x_manufacture_date", "x_weight"} <= fields  # 0059：别名已转正为正式列
+    # 别名、出厂日期均为正式列；总重仍进 extra。
+    assert {"alias", "manufacture_date", "x_weight"} <= fields
 
 
 def test_ledger_row_roundtrip(tmp_path):
@@ -271,7 +271,7 @@ def test_ledger_row_roundtrip(tmp_path):
     assert pr.rated_power == "16kW"
     assert pr.room == "3129培养间"
     assert pr.commission_date == date(2016, 5, 1)
-    assert pr.purchase_date is None  # 启用日期 ≠ 购入日期，不能混
+    assert pr.manufacture_date == date(2015, 5, 1)
     # 台账没有分类列 → 按名称预归类，并标记需人工核对
     assert pr.category == "工艺/制备设备"
     assert pr.category_source == "name_guess"
@@ -282,11 +282,11 @@ def test_ledger_row_roundtrip(tmp_path):
     assert pr.site == "南楼"
     # 别名/曾用名进正式列（0059），不再塞进 extra
     assert pr.alias is not None and "BR1-1" in pr.alias
-    # 主数据仍无正式列的信息进 extra，不丢
+    # 主数据仍无正式列的信息进 extra，不丢；出厂日期已转正，不再重复保存。
     extra = pr.build_extra()
     assert extra["source"] == "eqp_ledger_excel"
-    assert extra["出厂日期"] == "2015.05"
     assert extra["总重"] == "2150kg"
+    assert "出厂日期" not in extra
     assert "别名" not in extra
 
 

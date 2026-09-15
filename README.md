@@ -33,7 +33,7 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 - [V1.0 docx × 4](./docs/) — 文件命名 `*_V1.0.docx`
 
 **设计基准偏离说明**（DEV-MDM-001 系列）：
-- [V1.3_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md) — 历史偏离批次，明确封顶于 migration 0044；0045—0060 的现状以迁移文件、项目 `CLAUDE.md`、`SMP_NUM_alignment_status.md` 和靶点域决策记录为准
+- [V1.3_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.3_draft.md) — 历史偏离批次，明确封顶于 migration 0044；0045—0061 的现状以迁移文件、项目 `CLAUDE.md`、`SMP_NUM_alignment_status.md` 和靶点域决策记录为准
 - [V1.2_draft](./docs/CMAB_MDM_Portal_设计基准偏离说明_V1.2_draft.md) — 已封版归档（cap 0036，见其 §1B）：覆盖 Phase 1-4 + V1.2 评审 13 项决议 + §1A 勘误索引 E1-E12
 
 **V1.0 → V1.1 修订清单**（评审决议过程档，决议已全部落地至 V1.1 docx）：

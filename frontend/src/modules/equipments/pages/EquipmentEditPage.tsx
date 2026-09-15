@@ -69,7 +69,7 @@ export function EquipmentEditPage() {
       serial_no: v.serial_no,
       rated_power: v.rated_power,
       origin: v.origin,
-      purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
+      manufacture_date: v.manufacture_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
       department: v.department,
@@ -115,7 +115,7 @@ export function EquipmentEditPage() {
           style={{ maxWidth: 880 }}
           initialValues={{
             ...eq,
-            purchase_date: eq.purchase_date ? dayjs(eq.purchase_date) : null,
+            manufacture_date: eq.manufacture_date ? dayjs(eq.manufacture_date) : null,
             commission_date: eq.commission_date ? dayjs(eq.commission_date) : null,
             asset_value: eq.asset_value != null ? Number(eq.asset_value) : null,
             workstation_info: eq.workstation_info ?? {},
@@ -232,7 +232,7 @@ export function EquipmentEditPage() {
           </Row>
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="purchase_date" label="购入日期">
+              <Form.Item name="manufacture_date" label="出厂日期">
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>

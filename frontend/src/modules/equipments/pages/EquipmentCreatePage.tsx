@@ -56,7 +56,7 @@ export function EquipmentCreatePage() {
       serial_no: v.serial_no,
       rated_power: v.rated_power,
       origin: v.origin,
-      purchase_date: v.purchase_date?.format('YYYY-MM-DD') ?? null,
+      manufacture_date: v.manufacture_date?.format('YYYY-MM-DD') ?? null,
       asset_value: v.asset_value ?? null,
       supplier: v.supplier,
       department: v.department,
@@ -189,7 +189,7 @@ export function EquipmentCreatePage() {
           </Row>
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="purchase_date" label="购入日期">
+              <Form.Item name="manufacture_date" label="出厂日期">
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>

@@ -76,8 +76,8 @@ class Equipment(Base):
     rated_power: Mapped[str | None] = mapped_column(String(64))  # 额定功率(自由文本)
     origin: Mapped[str | None] = mapped_column(String(100))  # 产地
 
-    # 采购属性
-    purchase_date: Mapped[date | None] = mapped_column(Date)
+    # 资产属性
+    manufacture_date: Mapped[date | None] = mapped_column(Date)  # 出厂日期
     asset_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     supplier: Mapped[str | None] = mapped_column(String(200))
 

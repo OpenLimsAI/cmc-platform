@@ -35,7 +35,7 @@ async def test_create_equipment_auto_code(admin_client, unique_suffix):
 
 @pytest.mark.asyncio
 async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix):
-    """0041 新增字段 rated_power / origin 创建→详情→更新 往返"""
+    """设备扩展字段及出厂日期创建→详情→更新往返。"""
     resp = await admin_client.post(
         "/api/v1/equipments",
         json={
@@ -43,6 +43,7 @@ async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix
             "category": "通用实验室设备",
             "rated_power": "1500W",
             "origin": "德国",
+            "manufacture_date": "2024-06-15",
             "description": "温度范围 5-50℃，CO2 0-20%",
         },
     )
@@ -51,11 +52,13 @@ async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix
     d = resp.json()["data"]
     assert d["rated_power"] == "1500W"
     assert d["origin"] == "德国"
+    assert d["manufacture_date"] == "2024-06-15"
     assert d["description"] == "温度范围 5-50℃，CO2 0-20%"
 
     got = (await admin_client.get(f"/api/v1/equipments/{code}")).json()["data"]
     assert got["rated_power"] == "1500W"
     assert got["origin"] == "德国"
+    assert got["manufacture_date"] == "2024-06-15"
 
     upd = await admin_client.put(
         f"/api/v1/equipments/{code}",

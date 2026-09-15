@@ -51,7 +51,7 @@ class EquipmentBase(BaseModel):
     serial_no: str | None = Field(None, max_length=100)
     rated_power: str | None = Field(None, max_length=64, description="额定功率（自由文本，如 1500W）")
     origin: str | None = Field(None, max_length=100, description="产地")
-    purchase_date: date | None = None
+    manufacture_date: date | None = Field(None, description="出厂日期")
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
     department: str | None = Field(None, max_length=64, description="使用部门")
@@ -103,7 +103,7 @@ class EquipmentUpdate(BaseModel):
     serial_no: str | None = Field(None, max_length=100)
     rated_power: str | None = Field(None, max_length=64, description="额定功率")
     origin: str | None = Field(None, max_length=100, description="产地")
-    purchase_date: date | None = None
+    manufacture_date: date | None = Field(None, description="出厂日期")
     asset_value: Decimal | None = None
     supplier: str | None = Field(None, max_length=200)
     status: EquipmentMasterStatus | None = None

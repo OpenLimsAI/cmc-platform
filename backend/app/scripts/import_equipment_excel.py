@@ -37,7 +37,7 @@
     设备名称是一个整体；台账无独立英文名列，拆开等于改写主数据）
   - 日期只写到年月（2016.05）按当月 1 日入库
   - 台账没有分类列 → 按设备名称关键词预归类，报告列「需人工核对分类」=Y 供核对
-  - 别名/出厂日期/总重等主数据无正式列的信息进 extra，不丢
+  - 出厂日期进入正式字段；总重等主数据无正式列的信息进 extra，不丢
   - 使用部门/厂区用 --department / --site 统一指定（一个部门一份台账）
 """
 from __future__ import annotations
@@ -210,7 +210,7 @@ _reg("manufacturer", "生产商", "厂商", "制造商", "制造单位", "生产
 _reg("serial_no", "序列号", "出厂编号", "出厂序列号", "唯一编码", "sn", "serialno", "serialnumber")
 _reg("rated_power", "额定功率", "功率", "总功率", "ratedpower", "power")
 _reg("origin", "产地", "原产地", "生产国", "国别", "origin")
-_reg("purchase_date", "购置日期", "采购日期", "购入日期", "购置时间")
+_reg("manufacture_date", "出厂日期", "生产日期", "制造日期")
 # 设备部台账列（0056：使用部门/位置/分级/启用日期进主数据）
 _reg("commission_date", "首次启用日期", "启用日期", "投用日期", "首次使用日期")
 _reg("department", "使用部门", "所属部门", "部门", "使用单位")
@@ -221,7 +221,6 @@ _reg("criticality_basis", "分级依据", "分级理由")
 _reg("status_raw", "设备状态", "状态", "使用状态")
 # 台账有、主数据无正式列的 → 进 extra
 _reg("alias", "别名/曾用名", "别名", "曾用名", "原名称")
-_reg("x_manufacture_date", "出厂日期", "生产日期", "制造日期")
 _reg("x_weight", "总重", "重量", "净重")
 _reg("asset_value", "资产原值", "资产价值", "原值", "金额", "价值", "采购金额")
 _reg("supplier", "供应商", "供货商", "经销商", "代理商")
@@ -249,9 +248,8 @@ MAXLEN = {
 }
 
 # extra 里承载的台账列（主数据无正式列，但不能丢）：字段名 → JSON 键
-# 2026-09-11：别名/曾用名已转正为 eqp.equipment.alias 正式列（migration 0059），不再进 extra
+# 别名和出厂日期已分别在 migration 0059 / 0061 转为正式字段。
 EXTRA_FIELDS = {
-    "x_manufacture_date": "出厂日期",
     "x_weight": "总重",
 }
 
@@ -270,7 +268,7 @@ class ParsedRow:
     serial_no: str | None = None
     rated_power: str | None = None
     origin: str | None = None
-    purchase_date: date | None = None
+    manufacture_date: date | None = None
     asset_value: Decimal | None = None
     supplier: str | None = None
     description: str | None = None
@@ -284,7 +282,6 @@ class ParsedRow:
     commission_date: date | None = None
     status_raw: str | None = None
     # extra 承载列
-    x_manufacture_date: str | None = None
     x_weight: str | None = None
     # 计算字段
     category_defaulted: bool = False
@@ -468,7 +465,7 @@ def parse_row(
         if c_idx >= len(row):
             continue
         raw = row[c_idx]
-        if field in ("purchase_date", "commission_date"):
+        if field in ("manufacture_date", "commission_date"):
             setattr(pr, field, parse_date(raw))
         elif field == "asset_value":
             pr.asset_value = parse_decimal(raw)
@@ -639,7 +636,7 @@ async def import_rows(
                             serial_no=pr.serial_no,
                             rated_power=pr.rated_power,
                             origin=pr.origin,
-                            purchase_date=pr.purchase_date,
+                            manufacture_date=pr.manufacture_date,
                             asset_value=pr.asset_value,
                             supplier=pr.supplier,
                             department=pr.department,
@@ -681,7 +678,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
             "category", "category_source", "需人工核对分类",
             "model", "manufacturer", "serial_no",
             "department", "site", "room", "criticality", "commission_date",
-            "master_status", "equipment_status", "purchase_date", "asset_value", "supplier", "notes", "extra",
+            "master_status", "equipment_status", "manufacture_date", "asset_value", "supplier", "notes", "extra",
         ])
         for pr in rows:
             decision = "SKIP" if pr.skip_reason else "IMPORT"
@@ -699,7 +696,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
                 pr.commission_date.isoformat() if pr.commission_date else "",
                 pr.status,
                 pr.equipment_status,
-                pr.purchase_date.isoformat() if pr.purchase_date else "",
+                pr.manufacture_date.isoformat() if pr.manufacture_date else "",
                 str(pr.asset_value) if pr.asset_value is not None else "",
                 pr.supplier or "", pr.notes or "",
                 "; ".join(f"{k}={v}" for k, v in extra.items() if k != "source"),
