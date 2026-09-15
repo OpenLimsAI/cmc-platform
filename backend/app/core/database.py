@@ -1,10 +1,11 @@
 """
 数据库连接与会话管理（async SQLAlchemy 2.0）
 """
+import asyncio
 from collections.abc import AsyncGenerator
 
 from loguru import logger
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
+from app.core.db_release import database_target, inspect_database
 
 # ============== Base ==============
 # 所有 ORM 模型继承此 Base
@@ -75,14 +77,29 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # ============== 生命周期 ==============
 async def init_db():
-    """启动时检查连接"""
+    """Fail startup when the application and database release do not match."""
+    report = await database_readiness()
+    if report["status"] != "ready":
+        logger.error("数据库尚未就绪: {}", report)
+        raise RuntimeError("Database release mismatch; run the explicit migration workflow first")
+    logger.info("数据库连接、迁移版本与设备字段检查成功")
+
+
+async def database_readiness() -> dict:
+    """Bounded, read-only check; never exposes a DSN or performs a migration."""
+    if database_target(settings.DATABASE_URL) != database_target(settings.DATABASE_URL_SYNC):
+        return {"status": "target_mismatch"}
     try:
-        async with engine.begin() as conn:
-            await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
-        logger.info("数据库连接测试成功")
-    except Exception as e:
-        logger.error(f"数据库连接失败: {e}")
-        raise
+        async with asyncio.timeout(5):
+            async with engine.connect() as conn:
+                await conn.execute(text("SET TRANSACTION READ ONLY"))
+                report = await conn.run_sync(inspect_database)
+                # Public readiness must not disclose database host/user/credentials.
+                report.pop("database", None)
+                return report
+    except Exception as exc:
+        logger.warning("数据库就绪检查失败: {}", type(exc).__name__)
+        return {"status": "unavailable"}
 
 
 async def close_db():

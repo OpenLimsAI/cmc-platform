@@ -12,7 +12,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1 import api_router
 from app.core.config import settings
-from app.core.database import close_db, init_db
+from app.core.database import close_db, database_readiness, init_db
 from app.core.exceptions import AppError, RateLimitError
 from app.core.logging import setup_logging
 from app.core.redis_client import close_redis, init_redis
@@ -185,12 +185,15 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # ============== 健康检查 ==============
 async def _health_payload():
-    """供负载均衡和监控系统调用，无需认证"""
-    return {
-        "status": "healthy",
+    """Readiness, not just process liveness: incompatible DB returns HTTP 503."""
+    database = await database_readiness()
+    ready = database["status"] == "ready"
+    return JSONResponse(status_code=200 if ready else 503, content={
+        "status": "healthy" if ready else "not_ready",
         "version": settings.APP_VERSION,
         "app": settings.APP_NAME,
-    }
+        "database": database,
+    })
 
 
 @app.get("/health", tags=["system"], summary="健康检查（无前缀）")

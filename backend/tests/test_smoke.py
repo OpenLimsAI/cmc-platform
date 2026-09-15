@@ -16,6 +16,8 @@ async def test_health_check():
     body = resp.json()
     assert body["status"] == "healthy"
     assert "version" in body
+    assert body["database"]["status"] == "ready"
+    assert body["database"]["current_revisions"] == [body["database"]["expected_revision"]]
 
 
 @pytest.mark.asyncio

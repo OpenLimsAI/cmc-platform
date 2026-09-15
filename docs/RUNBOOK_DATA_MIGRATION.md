@@ -131,7 +131,7 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 | 角色表 | `psql -c "SELECT role_code FROM auth.role WHERE deleted_at IS NULL ORDER BY 1"` | 当前 baseline 14 个角色码逐项存在（含 DISPLAY_MODE、DEPT_ADMIN、QV_*） |
 | code_sequence | `psql -c "SELECT sequence_name FROM meta.code_sequence ORDER BY 1"` | substance/project/asset/material/equipment/target 六域就绪 |
 | audit trigger 在位 | 查询 `pg_trigger` 中 `trg_%_audit` 并导出 schema/table/trigger | 与当前 migration 定义逐项一致，不以历史固定数量判断 |
-| 自动化回归 | 本地隔离环境跑 `make test-be` | 2026-09-15 最近运行 413 项：412 通过、1 项既有账户用例 `test_reset_password_flow` 失败（旧密码预期 401，实际 200）；设备相关项及新增日期误填、异常报告用例通过。此前 410 项基线曾全过；不等于 OQ 映射已完整 |
+| 自动化回归 | 本地隔离环境跑 `make test-be` | 2026-09-15 最近运行 436 项：434 通过，`test_reset_password_flow` 与 `test_change_password_invalidates_old_tokens` 两个账户安全断言预期 401、实际 200，待独立排查；23 项新增数据库发布检查及设备相关项通过。本次未修改认证逻辑，不将部分通过当作全量通过 |
 
 ---
 
@@ -139,43 +139,49 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 
 ### 3.1 升级时机
 
-任何新增 migration（当前 head 之后即 `0063+`）合并到 main 后，先在 UAT 跑通，再走生产升级。
+任何新增 migration（当前 head 之后即 `0063+`）随代码提交。当前工作流为 Mac 开发/人工测试，
+`cmab_test` 隔离自动化测试，GitHub 传递代码和迁移，Linux 发布；不新增常驻测试环境。
+测试既覆盖空库建立，也要在隔离的备份恢复副本上演练旧版本带数据升级。
+同版本代码所连接的业务库必须分别迁移并验收，不能只升级 `cmab_test`。
 
 ### 3.2 升级步骤
 
 ```bash
-# 1. 备份当前生产数据（强制；不可跳过）
-sudo -u prometheus env BACKUP_MODE=native bash scripts/backup_db.sh
-# 记录备份文件名 + 大小 + 时间戳 → 升级单
+# Mac 业务库：只读检查；不要求后端已成功启动
+make db-status
+# Mac 业务库：预检、停后端、备份、migration、字段/计数验收、启动/就绪检查
+make migrate
 
-# 2. 停后端；如需完全停流量，先由 nginx 切维护页
-sudo systemctl stop cmab-backend
-
-# 3. 拉取代码并更新依赖
-git pull --ff-only origin main
+# Linux：检出已审核的提交，准备匹配依赖（不兼容变更先安排维护窗口）
+# 保持工作区干净；传入已审核的完整 SHA，不在发布过程中自动追随 main
 backend/.venv/bin/pip install -q -e backend
-
-# 4. 跑增量 migration
-( cd backend && .venv/bin/alembic upgrade head )
-
-# 5. 验证新 head
-psql -p 5433 -U cmab_app -d cmab_mdm -c "SELECT version_num FROM alembic_version"
-
-# 6. 构建前端并重启后端
-( cd frontend && pnpm install --prefer-offline && pnpm build )
-sudo systemctl restart cmab-backend
-
-# 7. smoke 测试
-curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
-
-# 8. 如使用维护页，恢复 nginx 正常路由
+bash deploy/deploy.sh <完整commit-SHA>
 ```
+
+两个入口都显式核对应用与 migration 的主机、端口、库名，锁定预检时的迁移 head，
+未知/缺失版本记录或多 head 时拒绝升级。MDM 的迁移链仍在本仓库 `backend/alembic`，
+不要手改表、手改 `alembic_version` 或用 `stamp` 掩盖遗漏。
+
+报告与备份在 `backups/releases/mac-*` / `linux-*`：包含代码提交、目标库、迁移前后版本与计数、
+备份目录清单与 SHA256、健康检查结果。Mac 另记录未提交改动；Linux 只接受干净的固定提交。
+自动核验设备和物料行数不变，其他数据转换按迁移专项抽检。确需改变行数时须预先设计专项验收，
+不可绕过失败继续发布。发布结束分别报告 Mac/Linux 状态，未操作的一端明确标注。
+
+应用启动与健康接口均检查实际迁移版本以及设备状态、出厂日期、总重等关键列的类型和可空性。
+字段缺失、版本不兼容、数据库不可达会阻止启动或返回 HTTP 503；检查本身只读，不自动迁移。
+此检查不等于全库结构比对，也不等于业务验收；发布仍需检查新增功能。
+
+备份的 `pg_restore --list` 只验证归档目录可读，**不等于恢复演练**。涉及删列或历史数据转换时，
+升级前应把备份恢复到独立临时库，演练迁移并对账；演练完成后清理临时库、保留备份。
+首次已确认的空库不走增量入口，按 §2 初始化；缺少版本表的已有库不得当空库处理。
 
 ### 3.3 升级失败回滚
 
-- 数据无变更（仅 schema 失败）：`alembic downgrade <prev_head>`
-- 数据已变更：必须从 step 1 备份 + `scripts/restore_db.sh` 完整回滚（参考 `RUNBOOK_BACKUP_RESTORE.md` §4.1）
-- 任何回滚必须 1 小时内启动；超过则启动 CAPA + 偏差报告
+- 发布步骤失败立即停止，不自动 downgrade、不自动拿备份覆盖当前库。脚本输出报告目录和停服务状态。
+- 先确认事务是否已经回滚、当前真实 migration head、是否发生部分数据转换，再决定修复后重试或恢复。
+- 只有已验证可逆的迁移才考虑 downgrade；删除字段或清理原始值可能不可逆，必须依靠备份与恢复方案。
+- 恢复时同时匹配代码版本，并处理升级后新增业务数据的保全，不能只恢复数据库就直接启动新代码。
+- Linux 按原生 PostgreSQL 恢复流程执行，不能运行只支持 Docker 的 `scripts/restore_db.sh`。
 
 ---
 

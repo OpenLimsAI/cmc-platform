@@ -111,8 +111,9 @@ docker compose -f deploy/docker-compose.dev.yml up -d --build
 docker compose -f deploy/docker-compose.dev.yml ps
 
 # 5. 初始化数据库（仅全新空库）
-docker compose -f deploy/docker-compose.dev.yml exec backend \
+docker compose -f deploy/docker-compose.dev.yml run --rm --no-deps -T backend \
     alembic upgrade head
+docker compose -f deploy/docker-compose.dev.yml restart backend
 # 已有开发库含真实物料/设备数据；执行 seed 前必须确认目标确为空库
 docker compose -f deploy/docker-compose.dev.yml exec backend \
     python -m app.scripts.seed_data
@@ -189,7 +190,8 @@ make down        # 停止所有服务
 make logs        # 查看日志
 make logs-be     # 仅看后端日志
 make logs-fe     # 仅看前端日志
-make migrate     # 应用数据库迁移
+make migrate     # Mac 业务库预检 → 备份 → 迁移 → 字段/计数/就绪验收；不操作 Linux
+make db-status   # 只读核对 Mac 业务库（后端停止时仍可使用）
 make seed        # 仅全新空库加载基线种子；已有库先确认
 make reset-db    # ⚠️ 删除开发库全部数据；默认禁止
 make test-be     # 在独立 cmab_test 库运行后端测试
@@ -240,17 +242,15 @@ pnpm dev    # 默认 5173
     ├─ 后端：修改代码 → uvicorn 自动 reload
     ├─ 前端：修改代码 → Vite HMR
     ├─ 数据库变更：alembic revision --autogenerate -m "..."
-    │             → alembic upgrade head
+    │             → 隔离自动化测试 → make migrate（业务库备份/迁移/验收）
     │
 git push
     │
 Linux 服务器（生产 = 原生 venv+systemd+nginx，非 Docker）
     │
-    ├─ git pull
-    ├─ backend/.venv/bin/pip install -e backend
-    ├─ backend/.venv/bin/alembic upgrade head
-    ├─ cd frontend && pnpm install && pnpm build   （nginx 伺服 dist）
-    └─ sudo systemctl restart cmab-backend
+    ├─ 检出已审核的提交，准备匹配依赖
+    └─ bash deploy/deploy.sh <完整commit-SHA>
+          → 明确目标 → 构建 → 停服务/备份 → migration → 字段/计数/就绪验收
 ```
 
 ## 部署
@@ -263,20 +263,19 @@ Linux 服务器（生产 = 原生 venv+systemd+nginx，非 Docker）
 ### 生产环境（Linux 服务器，原生）
 
 ```bash
-# 在生产服务器
+# 在生产服务器；先检出已审核的提交（不发布过程中隐式 git pull）
 cd /opt/cmab-mdm-platform
-git pull origin main
-
-# 1) 后端依赖 + 迁移（DBA 手动执行，不自动）
+# 准备该提交匹配的依赖；发生不兼容变更时先安排维护窗口
 backend/.venv/bin/pip install -q -e backend
-backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
-
-# 2) 前端重新构建（产物 frontend/dist 由 nginx 伺服，立即生效）
-cd frontend && pnpm install && pnpm build && cd ..
-
-# 3) 重启后端服务
-sudo systemctl restart cmab-backend
+# 参数填此次批准发布的完整 SHA；工作区不干净或 SHA 不匹配会拒绝
+bash deploy/deploy.sh <完整commit-SHA>
 ```
+
+发布报告与备份在 `backups/releases/linux-*`。Mac 的 `make migrate` 和 Linux 发布相互独立，
+不能用测试库迁移成功代替业务库验收；没有跨环境业务数据复制。
+启动时会核对实际连接库的迁移版本和关键设备列；版本/字段不匹配时拒绝启动。
+`/health` 与 `/api/v1/health` 会实时检查数据库就绪状态，不匹配或不可连接返回 503。
+检查不执行迁移，也不修改版本记录。
 
 **服务拓扑（本服务器实际）：**
 

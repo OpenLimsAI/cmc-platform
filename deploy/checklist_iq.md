@@ -18,7 +18,7 @@
   - 前端：宿主 nginx `listen 15173` → 伺服 `/opt/cmab-mdm-platform/frontend/dist`，`/api` 反代 `127.0.0.1:18000`
   - 数据库：宿主机**原生 PG16 集群 `mdm` :5433**，库 `cmab_mdm`、用户 `cmab_app`（同机另有 LabOps 用的 PG 集群 :5432，互不相干）
   - Redis：宿主机原生 `redis-server`
-  - 目录 `/opt/cmab-mdm-platform`，运行身份 `prometheus`；部署/升级用 `bash deploy/deploy.sh`
+  - 目录 `/opt/cmab-mdm-platform`，运行身份 `prometheus`；先检出审核过的提交、准备匹配依赖，再用 `bash deploy/deploy.sh <完整commit-SHA>`，禁止隐式拉取未锁定代码
   - 权威记述：README §部署 + `deploy/deploy.sh` 头部注释 + `docs/RUNBOOK_*`
 - ⚠️ **仓库内 `deploy/docker-compose.prod.yml` + `deploy/nginx/*` 是另一套 docker-compose 生产形态（可选/模板，含 TLS 网关），不代表本服务器实际。** 若改用该形态部署，使用本仓库历史版 V1.0 IQ（git 可取）。
 - 本清单每一行都必须填写 **执行结果**（PASS/FAIL/N/A）+ **执行人签名** + **日期**

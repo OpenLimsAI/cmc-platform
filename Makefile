@@ -1,4 +1,4 @@
-.PHONY: help up down logs logs-be logs-fe migrate seed reset-db test-be test-be-dev lint-be lint-fe gen-types docs-extract docs-check backup restore check-schema
+.PHONY: help up down logs logs-be logs-fe migrate db-status seed reset-db test-be test-be-dev lint-be lint-fe gen-types docs-extract docs-check backup restore check-schema
 
 COMPOSE := docker compose -f deploy/docker-compose.dev.yml
 
@@ -10,7 +10,8 @@ help:
 	@echo "  make logs        查看所有日志"
 	@echo "  make logs-be     仅看后端日志"
 	@echo "  make logs-fe     仅看前端日志"
-	@echo "  make migrate     应用数据库迁移"
+	@echo "  make migrate     Mac 业务库预检、备份、迁移、验收（不操作 Linux）"
+	@echo "  make db-status   只读检查 Mac 业务库版本和设备字段"
 	@echo "  make seed        加载种子数据（仅 baseline：权限/角色/用户/示例 substance）"
 	@echo "  make seed-demo   加载 baseline + 演示数据集（项目/里程碑/团队/跨域绑定，幂等）"
 	@echo "  make reset-db    重置数据库（⚠️ 删除全部数据）"
@@ -50,7 +51,10 @@ logs-fe:
 	$(COMPOSE) logs -f --tail=100 frontend
 
 migrate:
-	$(COMPOSE) exec backend alembic upgrade head
+	bash scripts/upgrade_local_db.sh
+
+db-status:
+	$(COMPOSE) run --rm --no-deps -T backend python -m app.scripts.db_release --environment mac --expected-host postgres --expected-port 5432 --expected-database cmab_mdm --counts
 
 seed:
 	$(COMPOSE) exec backend python -m app.scripts.seed_data

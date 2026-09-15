@@ -38,23 +38,29 @@ docker compose -f deploy/docker-compose.dev.yml up -d --build
 
 首次启动会构建镜像，约 3-5 分钟。
 
-### 3. 等待健康检查通过
+### 3. 确认 PostgreSQL / Redis 就绪
 
 ```bash
 docker compose -f deploy/docker-compose.dev.yml ps
 ```
 
-确认所有服务状态为 `running` 或 `healthy`。
+确认 PostgreSQL / Redis 为 `healthy`。首次空库尚无迁移版本，后端会被版本检查阻止启动，
+这是预期行为；下一步用一次性容器初始化，不依赖后端已启动。
 
 ### 4. 应用数据库迁移；仅全新空库加载基线种子
 
 ```bash
-make migrate
+# 仅首次创建、已确认的空库：
+docker compose -f deploy/docker-compose.dev.yml run --rm --no-deps -T backend alembic upgrade head
+docker compose -f deploy/docker-compose.dev.yml restart backend
 # 仅限第一次创建的空开发库；已有开发库执行前必须确认
 make seed
 ```
 
-日常更新只执行 `make migrate`。不要为了补权限或字典而重跑整套 seed，应使用对应的幂等定向脚本。
+已有业务库日常更新执行 `make migrate`：明确目标预检 → 停后端 → 备份 → 增量迁移 →
+字段/计数验收 → 启动并检查就绪；报告在 `backups/releases/mac-*`。只检查用 `make db-status`。
+没有迁移记录或记录未知时会拒绝升级；不要用 `stamp` 绕过，也不要把已有库当空库初始化。
+不要为了补权限或字典而重跑整套 seed，应使用对应的幂等定向脚本。
 
 ### 5. 访问
 
@@ -111,8 +117,7 @@ HOST_BACKEND_PORT=28000 HOST_FRONTEND_PORT=25173 make up
 
 ```bash
 make logs-be          # 查看后端日志
-make shell-be         # 进入容器排查
-alembic current       # 检查当前迁移状态
+make db-status        # 只读检查连接目标、版本、关键字段；后端停止时也可执行
 ```
 
 ### Q3：全新空库的种子数据失败
