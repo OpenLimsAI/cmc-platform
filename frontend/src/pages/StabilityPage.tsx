@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Alert, Button, Spin, Tag } from 'antd'
 import axios from 'axios'
 import { DataSourceNotice, sourceLabel } from '@/components/DataSourceSelect'
@@ -11,7 +11,8 @@ import type { ProjectMeta } from '@/types'
 import type { StabilityOptions, StabilityPanel, StabilityRequest } from '@/types/stability'
 
 const describe = (items: string[], all: string) => items.length ? items.join('、') : all
-const palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#9467bd', '#d62728', '#8c564b', '#17becf', '#e377c2']
+// Old config.yaml colors: same palette, without assigning a control identity.
+const palette = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 export default function StabilityPage() {
   const [draft, setDraft] = useState(() => emptyStability())
   const [projects, setProjects] = useState<ProjectMeta[]>([])
@@ -28,14 +29,9 @@ export default function StabilityPage() {
   const [preset, setPreset] = useState<string | null>(null)
   const analysis = useRef<AbortController | null>(null)
   const requestId = useRef(0)
-  const resultsHeading = useRef<HTMLDivElement | null>(null)
   const scopeKey = JSON.stringify({ ...draft, attribute_names: [] })
   const colors = useMemo(() => new Map([...new Set((panels || []).flatMap((panel) => panel.batches.map(stabilityGroupKey)))].sort()
     .map((key, index) => [key, palette[index % palette.length]])), [panels])
-
-  useEffect(() => {
-    if (panels !== null && window.innerWidth < 1000) resultsHeading.current?.scrollIntoView({ block: 'start' })
-  }, [panels])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -63,7 +59,7 @@ export default function StabilityPage() {
     if (JSON.stringify({ ...next, attribute_names: [] }) !== scopeKey) { setOptions(null); setOptionsLoading(Boolean(next.project_id)) }
     setDraft(next); setPanels(null); setApplied(null); setError(null); setLoading(false); setVisible(4); setPreset(null)
   }
-  const run = async () => {
+  const run = useCallback(async () => {
     if (!draft.project_id || !options || optionsLoading) return
     const id = ++requestId.current
     analysis.current?.abort()
@@ -76,12 +72,18 @@ export default function StabilityPage() {
     } catch (cause) {
       if (id === requestId.current && !axios.isCancel(cause)) setError(cause instanceof Error ? cause.message : '分析失败，请重试')
     } finally { if (id === requestId.current) setLoading(false) }
-  }
+  }, [draft, options, optionsLoading])
+  useEffect(() => {
+    if (!draft.project_id || !options || optionsLoading) return
+    setLoading(true)
+    const timer = window.setTimeout(() => { void run() }, 350)
+    return () => { window.clearTimeout(timer); requestId.current += 1; analysis.current?.abort() }
+  }, [run, draft.project_id, options, optionsLoading])
   const chosen = indicatorGroups.find((group) => group.label === preset)
   const matched = chosen && options ? selectPreset(chosen.fields, options.attributes) : null
   return <div className="qap-stability">
-    <SidebarSlot><StabilityFilterPanel value={draft} projects={projects} options={options} optionsLoading={optionsLoading} loading={loading}
-      error={projectError || optionsError} onChange={change} onRun={() => void run()} onRetry={() => setRetry((value) => value + 1)} /></SidebarSlot>
+    <SidebarSlot><StabilityFilterPanel value={draft} projects={projects} options={options} optionsLoading={optionsLoading}
+      error={projectError || optionsError} onChange={change} onRetry={() => setRetry((value) => value + 1)} /></SidebarSlot>
     <h1 className="qap-page-title">稳定性趋势分析</h1>
     <p className="qap-page-description">沿时间点查看逐批变化，对照各组均值和趋势。不同样品、检验类别、方法与单位分开展示。</p>
     <DataSourceNotice value={draft.data_source} />
@@ -99,8 +101,8 @@ export default function StabilityPage() {
       {matched && <div className="qap-preset-note">已选 {matched.selected.length} 项；未匹配 {matched.missing.length} 项。
         {matched.missing.length > 0 && <details><summary>查看未匹配项</summary>{matched.missing.map((name) => attributeLabel(name)).join('、')}</details>}</div>}
     </section>
-    <div className="qap-analysis-toolbar" ref={resultsHeading}><strong>稳定性分析结果</strong>
-      <Button type="primary" onClick={() => void run()} loading={loading} disabled={!draft.project_id || !options || optionsLoading}>生成图表</Button>
+    <div className="qap-analysis-toolbar"><strong>稳定性分析结果</strong>
+      <span className="qap-hint" role="status">{loading ? '正在自动更新…' : '按筛选条件自动更新'}</span>
       {panels && <Tag>{panels.length} 个条件组合 · {panels.reduce((sum, panel) => sum + panel.n, 0)} 条观察</Tag>}</div>
     {applied && <div className="qap-applied" aria-label="本次稳定性条件">
       <span>{sourceLabel(applied.data_source)}</span><span>项目 {applied.project_id}</span><span>{describe(applied.sample_types, '全部样品')}</span><span>{describe(applied.test_types, '全部稳定性类别')}</span>
@@ -108,8 +110,8 @@ export default function StabilityPage() {
     </div>}
     {error && <Alert type="error" message={error} showIcon action={<Button onClick={() => void run()}>重试分析</Button>} />}
     {loading ? <Spin tip="正在读取稳定性记录…"><div style={{ minHeight: 260 }} /></Spin> : panels === null ?
-      <div className="qap-empty"><h3>{optionsLoading ? '正在读取稳定性筛选项…' : optionsError ? '筛选项读取失败，请重试' : !draft.project_id ? '从一个稳定性项目开始' : !options?.project_row_count ? '当前项目没有稳定性数值记录' : '筛选已就绪，点击「分析」'}</h3>
-        <p>{draft.project_id ? '点击上方「生成图表」即可查看。可按样品、检验类别及批号缩小范围。' : `已读取 ${projects.length} 个有数值记录的项目。在页面上方或左侧的「稳定性筛选」中选择项目，再点击「生成图表」。`}</p></div>
+      <div className="qap-empty"><h3>{optionsLoading ? '正在读取稳定性筛选项…' : optionsError ? '筛选项读取失败，请重试' : !draft.project_id ? '从一个稳定性项目开始' : !options?.project_row_count ? '当前项目没有稳定性数值记录' : '准备自动生成图表…'}</h3>
+        <p>{draft.project_id ? '按样品、检验类别及批号缩小范围后自动更新。' : `已读取 ${projects.length} 个有数值记录的项目。选择项目即可自动生成图表。`}</p></div>
       : panels.length === 0 ? <div className="qap-empty"><h3>当前条件下没有稳定性记录</h3><p>可减少筛选条件或切换项目。</p><Button style={{ marginTop: 16 }} onClick={() => change(emptyStability(draft.project_id, draft.data_source))}>清除筛选条件</Button></div>
       : <>{panels.slice(0, visible).map((panel) => <section className="qap-attribute" key={panel.panel_id}>
         <div className="qap-attribute-heading"><h2>{attributeLabel(panel.attribute_name, options?.attributes)}</h2><span className="qap-attribute-code">{panel.attribute_raw || panel.attribute_name}</span></div>

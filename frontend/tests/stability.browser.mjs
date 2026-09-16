@@ -50,8 +50,7 @@ async function pick(label, text) {
   await page.getByLabel(label, { exact: true }).press('Escape')
 }
 async function ready() {
-  await page.getByRole('button', { name: '分析稳定性', exact: true }).waitFor()
-  await page.waitForFunction(() => !document.querySelector('[aria-label="分析稳定性"]').disabled)
+  await page.waitForFunction(() => !document.querySelector('#stability-attributes')?.disabled)
 }
 async function plotsReady() {
   await page.waitForFunction(() => { const nodes = [...document.querySelectorAll('.js-plotly-plot .svg-container')]; return nodes.length === 2 && nodes.every((node) => node.getBoundingClientRect().height >= 430) })
@@ -65,9 +64,8 @@ try {
   await pick('产线', 'P-A-LINE'); await ready()
   await pick('批号', ' SYNTHETIC-A '); await ready()
   await page.getByRole('button', { name: '分子大小变异体', exact: true }).click()
-  await page.getByRole('button', { name: '分析稳定性', exact: true }).click()
   await plotsReady()
-  assert.deepEqual(state.requests.at(-1), { project_id: 'P-A', sample_types: ['成品'], test_types: ['长期试验'], production_line_ids: ['P-A-LINE'], group_ids: [], batch_numbers: [' SYNTHETIC-A '], attribute_names: ['sec_monomer_pct'], data_source: 'RD' })
+  assert.deepEqual(state.requests.at(-1), { project_id: 'P-A', sample_types: ['成品'], test_types: ['长期试验'], production_line_ids: ['P-A-LINE'], group_ids: [], batch_numbers: [' SYNTHETIC-A '], placement_statuses: [], attribute_names: ['sec_monomer_pct'], data_source: 'RD' })
   const first = page.locator('.qap-attribute').first()
   const second = page.locator('.qap-attribute').nth(1)
   const raw = await first.locator('.js-plotly-plot').evaluate((plot) => ({ x: plot.data[0].x, y: plot.data[0].y, axis: plot.layout.xaxis.type }))
@@ -104,23 +102,23 @@ try {
   await page.setViewportSize({ width: 1500, height: 1050 })
   await page.locator('.qap-filter-section').evaluate((node) => { node.open = true })
   state.analysisDelay = 700
-  await page.getByRole('button', { name: '分析稳定性', exact: true }).click()
-  await page.getByRole('button', { name: '重置稳定性筛选', exact: true }).click(); await ready(); await pause(850)
-  assert.equal(await page.locator('.qap-attribute').count(), 0)
+  await page.getByRole('button', { name: '分子大小变异体', exact: true }).click()
+  await page.getByRole('button', { name: '重置稳定性筛选', exact: true }).click(); await ready(); await plotsReady()
+  assert.deepEqual(state.requests.at(-1).attribute_names, [])
   state.optionDelay = 700
   await pick('项目', 'P-B（24条来源记录）')
   await pick('项目', 'P-A（24条来源记录）')
   await pick('项目', 'P-B（24条来源记录）'); await ready(); await pause(850)
   await pick('产线', 'P-B-LINE'); await ready()
   state.analysisDelay = 0; state.empty = true
-  await page.getByRole('button', { name: '分析稳定性', exact: true }).click()
+  await page.getByRole('button', { name: '分子大小变异体', exact: true }).click()
   await page.getByRole('heading', { name: '当前条件下没有稳定性记录' }).waitFor()
   assert.deepEqual(state.requests.at(-1).sample_types, [])
   assert.deepEqual(state.requests.at(-1).batch_numbers, [])
   console.log('PASS: 重置拦截迟到结果；快速换项目不串条件；空结果有明确反馈')
 
   state.empty = false; state.fail = true
-  await page.getByRole('button', { name: '分析稳定性', exact: true }).click()
+  await page.getByRole('button', { name: '分子大小变异体', exact: true }).click()
   await page.getByText('合成服务暂不可用', { exact: true }).waitFor()
   assert.equal(await page.locator('.qap-attribute').count(), 0)
   state.fail = false

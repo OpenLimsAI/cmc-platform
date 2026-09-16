@@ -30,7 +30,7 @@ export interface StabilitySeries {
   series_id: string; production_line_id: string | null; group_id: string | null; fit: StabilityFit
 }
 export interface StabilityBatch extends StabilitySeries { batch_number: string | null; connect_points: boolean; points: StabilityObservation[] }
-export interface StabilityGroup extends StabilitySeries { points: { timepoint: number; n: number; mean: number | null; sd: number | null }[] }
+export interface StabilityGroup extends StabilitySeries { points: { timepoint: number; n: number; mean: number | null; sd: number | null; min?: number; max?: number }[] }
 export interface StabilityPanel {
   panel_id: string; attribute_name: string; attribute_raw: string | null; sample_type: string | null; test_type: string | null
   placement_status?: string | null; sub_lot?: string | null

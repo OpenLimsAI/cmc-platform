@@ -61,7 +61,9 @@ def test_placement_scopes_remain_separate_and_source_filters_match_excel():
     assert set(stability_options(df, req)['placement_statuses']) == {'正置', '倒置'}
     panels = analyze_stability(df, req)
     assert len(panels) == 2
-    assert all(not p['statistics_available'] and p['plotted_n'] == 1 for p in panels)
+    assert all(p['statistics_available'] and p['plotted_n'] == 1 for p in panels)
+    assert sorted(p['groups'][0]['points'][0]['mean'] for p in panels) == [.5, .985]
+    assert all(p['groups'][0]['points'][0]['sd'] is None for p in panels)
     assert panels[0]['observations'][0]['source_file'] == 'synthetic.xlsx'
     assert len(analyze_stability(df, req.model_copy(update={'placement_statuses': ['正置']}))) == 1
     assert analyze_stability(df, req.model_copy(update={'data_source': 'QC'})) == []

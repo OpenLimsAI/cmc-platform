@@ -113,6 +113,8 @@ def analyze_stability(df: pd.DataFrame, req: StabilityRequest) -> list[dict]:
     for key, points in panels.items():
         scope = dict(zip(PANEL_FIELDS, key))
         units_known = all(scope[field] is not None and scope[field].strip() for field in ("unit", "timepoint_unit"))
+        raw_excel = req.data_source == "EXCEL" and bool((scope["timepoint_unit"] or "").strip())
+        statistics_available = units_known or raw_excel
         valid = [point for point in points if point["plottable"]]
         batch_series: dict[tuple, list[dict]] = defaultdict(list)
         group_series: dict[tuple, list[dict]] = defaultdict(list)
@@ -129,9 +131,9 @@ def analyze_stability(df: pd.DataFrame, req: StabilityRequest) -> list[dict]:
             can_connect = len({point["timepoint"] for point in rows}) == len(rows) and bool((rows[0]["batch_number"] or "").strip())
             batches.append({"series_id": _id(batch_key), "batch_number": rows[0]["batch_number"], "production_line_id": rows[0]["production_line_id"], "group_id": rows[0]["group_id"],
                             "points": rows, "connect_points": can_connect,
-                            "fit": _fit(rows) if units_known else {"available": False, "reason": "时间或结果单位未提供"}})
+                            "fit": _fit(rows) if statistics_available else {"available": False, "reason": "时间或结果单位未提供"}})
         groups = []
-        if units_known:
+        if statistics_available:
             for group_key, rows in group_series.items():
                 times: dict[float, list[float]] = defaultdict(list)
                 for point in rows:
@@ -139,16 +141,19 @@ def analyze_stability(df: pd.DataFrame, req: StabilityRequest) -> list[dict]:
                 summaries = []
                 for timepoint, values in sorted(times.items()):
                     with np.errstate(over="ignore", invalid="ignore"):
-                        summaries.append({"timepoint": timepoint, "n": len(values), "mean": finite(np.mean(values)), "sd": finite(np.std(values, ddof=1)) if len(values) > 1 else None})
+                        summaries.append({"timepoint": timepoint, "n": len(values), "mean": finite(np.mean(values)), "sd": finite(np.std(values, ddof=1)) if len(values) > 1 else None,
+                                          "min": min(values), "max": max(values)})
                 groups.append({"series_id": _id(group_key), "production_line_id": group_key[1], "group_id": group_key[2], "points": summaries, "fit": _fit(rows)})
         warnings = []
-        if not units_known:
+        if not statistics_available:
             warnings.append("时间或结果单位未提供：仅显示原始观察，均值SD与拟合未开放")
+        elif not units_known:
+            warnings.append("Excel结果单位未提供：统计与拟合仅使用存储原值，不作百分比或单位换算，不用于规格或等效性判定")
         if len(valid) != len(points):
             warnings.append(f"{len(points) - len(valid)}条记录无法进入数值时间图，原记录保留在明细")
         if any(not series["connect_points"] for series in batches):
             warnings.append("部分批次同一时间点有多个观察或批号缺失，使用散点保留全部记录")
-        result.append({"panel_id": _id(key), **scope, "n": len(points), "plotted_n": len(valid), "statistics_available": bool(units_known),
+        result.append({"panel_id": _id(key), **scope, "n": len(points), "plotted_n": len(valid), "statistics_available": bool(statistics_available),
                        "timepoint_count": len({point["timepoint"] for point in valid}), "warnings": warnings,
                        "observations": points, "batches": batches, "groups": groups})
     return sorted(result, key=lambda panel: tuple(panel[field] or "" for field in PANEL_FIELDS))

@@ -9,10 +9,10 @@ export const emptyStability = (project_id = '', data_source: DataSource = 'RD'):
 
 interface Props {
   value: StabilityRequest; projects: ProjectMeta[]; options: StabilityOptions | null
-  optionsLoading: boolean; loading: boolean; error: string | null
-  onChange: (value: StabilityRequest) => void; onRun: () => void; onRetry: () => void
+  optionsLoading: boolean; error: string | null
+  onChange: (value: StabilityRequest) => void; onRetry: () => void
 }
-export default function StabilityFilterPanel({ value, projects, options, optionsLoading, loading, error, onChange, onRun, onRetry }: Props) {
+export default function StabilityFilterPanel({ value, projects, options, optionsLoading, error, onChange, onRetry }: Props) {
   const [expanded, setExpanded] = useState(true)
   const disabled = !options || optionsLoading
   const choose = (field: 'sample_types' | 'test_types' | 'production_line_ids' | 'group_ids' | 'batch_numbers' | 'placement_statuses', items: string[]) => {
@@ -50,10 +50,9 @@ export default function StabilityFilterPanel({ value, projects, options, options
             onChange={(items) => onChange({ ...value, attribute_names: items })} />
         </Form.Item>
         <div className="qap-filter-actions">
-          <Button type="primary" block aria-label="分析稳定性" loading={loading} disabled={!value.project_id || disabled} onClick={onRun}>分析</Button>
           <Button aria-label="重置稳定性筛选" onClick={() => onChange(emptyStability(value.project_id, value.data_source))}>重置</Button>
         </div>
-        <p className="qap-hint">清空某项表示不限该项。批号候选只来自所选稳定性类别，不混入仅做放行的批号。</p>
+        <p className="qap-hint">修改条件后自动更新。清空某项表示不限该项。批号候选只来自所选稳定性类别，不混入仅做放行的批号。</p>
       </Form>
     </div>
   </details>

@@ -38,6 +38,14 @@ export default function ReleaseChart({ attr, display, colors }: Props) {
   const pad = (high - low || Math.abs(high) || 1) * 0.08
   const units = attr.units || []
   const unitLabel = units.length === 1 && units[0] ? units[0] : '原始数值'
+  const groupBounds = attr.groups.flatMap(group => group.mean == null ? [] : [group.mean - (group.sd ?? 0), group.mean + (group.sd ?? 0)])
+  const groupLow = Math.min(0, ...groupBounds), groupHigh = Math.max(0, ...groupBounds)
+  const groupPad = (groupHigh - groupLow || 1) * 0.12
+  const groupAnnotations: Partial<Annotations>[] = attr.groups.filter(group => group.mean != null).map(group => ({
+    x: groupLabel(group.group_id), y: group.mean! + (group.sd ?? 0), xref: 'x', yref: 'y',
+    text: `N=${group.n}<br>Mean=${Number(group.mean!.toPrecision(6))}`,
+    showarrow: false, xanchor: 'center', yanchor: 'bottom', yshift: 6, font: { size: 11, color: '#000' },
+  }))
   // Plotly mutates layout objects, so each chart owns its nested axis settings.
   const base = (): Partial<Layout> => ({
     height: 380, autosize: true, font: { family: 'PingFang SC, Microsoft YaHei, Arial, sans-serif', size: 11, color: '#486073' },
@@ -60,9 +68,10 @@ export default function ReleaseChart({ attr, display, colors }: Props) {
           type: 'bar', x: attr.groups.map((group) => groupLabel(group.group_id)), y: attr.groups.map((group) => group.mean),
           marker: { color: attr.groups.map((group) => colors.get(group.group_id) || releaseColors.trend) },
           error_y: { type: 'data', array: attr.groups.map((group) => group.sd ?? 0), visible: true, color: releaseColors.error, thickness: 1.2, width: 2 },
-          text: attr.groups.map((group) => 'n=' + group.n), textposition: 'outside', cliponaxis: false,
-          hovertemplate: '%{x}<br>均值 %{y}<br>%{text}<extra></extra>',
-        }]} layout={{ ...base(), showlegend: false, margin: { l: 50, r: 16, t: 34, b: 105 },
+          customdata: attr.groups.map(group => [group.n, group.sd ?? '不可计算']),
+          hovertemplate: '%{x}<br>Mean=%{y}<br>N=%{customdata[0]}<br>样本SD=%{customdata[1]}<extra></extra>',
+        }]} layout={{ ...base(), annotations: groupAnnotations, showlegend: false, margin: { l: 50, r: 16, t: 34, b: 105 },
+          yaxis: { ...base().yaxis, range: [groupLow < 0 ? groupLow - groupPad : 0, groupHigh + groupPad * 2] },
           xaxis: { type: 'category', tickangle: -30, automargin: true }, bargap: 0.5 }}
           config={{ ...config, toImageButtonOptions: { format: 'png', filename: attr.attribute_name + '_groups' } }} style={{ width: '100%', height: 380 }} useResizeHandler /></>}
       </div>

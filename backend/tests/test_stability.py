@@ -104,6 +104,25 @@ def test_empty_stability_contract():
     assert options["row_count"] == options["project_row_count"] == 0
 
 
+def test_excel_raw_statistics_keep_scale_and_separate_timepoints():
+    rows = [row(source_system="legacy_excel_qc", unit=None, timepoint=x, value=y)
+            for x, y in [(0, .98), (0, 1.), (3, .96)]]
+    panel = analyze(rows, data_source="EXCEL")[0]
+    assert panel["statistics_available"] and panel["unit"] is None
+    points = panel["groups"][0]["points"]
+    assert [point["n"] for point in points] == [2, 1]
+    assert points[0]["mean"] == pytest.approx(.99)
+    assert points[0]["sd"] == pytest.approx(.02 / 2**.5)
+    assert points[0]["min"] == .98 and points[0]["max"] == 1.
+    assert points[1]["sd"] is None
+    assert panel["batches"][0]["fit"]["slope"] == pytest.approx(-.01)
+    assert not panel["batches"][0]["connect_points"]
+    assert any("存储原值" in warning for warning in panel["warnings"])
+    unknown = analyze([{**r, "timepoint_unit": None} for r in rows], data_source="EXCEL")[0]
+    assert not unknown["statistics_available"] and not unknown["groups"]
+    assert not unknown["batches"][0]["fit"]["available"]
+
+
 def api_client(monkeypatch):
     secret = "synthetic-stability-only-signing-key-with-sufficient-length"
     settings = Settings(_env_file=None, environment="development", auth_required=True, jwt_algorithm="HS256", jwt_secret_key=secret, jwt_public_key_path=None)
