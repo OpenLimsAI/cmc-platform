@@ -1,0 +1,308 @@
+﻿test_type,count,bucket
+常规检测,9675,Release
+稳定性试验,3090,Stability
+表达量,1073,Exclude
+下游工艺研究,679,Exclude
+中间产品,456,Release
+Non-Stability,453,Exclude
+全检,391,Release
+IEX,314,Exclude
+外部委托检测,236,Exclude
+稳定性,160,Stability
+质量肽图,149,Exclude
+特征峰收集后鉴定,146,Exclude
+期间核查,119,Exclude
+SEC,100,Exclude
+质量肽图谱,100,Exclude
+水质检测,86,Exclude
+第四次稳定性,84,Stability
+内部校准,80,Exclude
+IEX SEC NR-CE R-CE 糖型,75,Exclude
+稳定性检验（长期）,72,Stability
+核苷检测,69,Exclude
+807X包材筛选,62,Exclude
+亲和层析介质,60,Exclude
+R-CE,54,Exclude
+表达量 渗透压,46,Exclude
+第三次水针稳定性,45,Stability
+第二次水针稳定性,45,Stability
+质量比对研究,45,Exclude
+蛋白A脱落率,44,Exclude
+HIC,42,Exclude
+干燥失重,40,Exclude
+复验,37,Release
+蛋白、SEC,36,Exclude
+亚基分子量,34,Exclude
+第二次稳定性,30,Stability
+水针稳定性,30,Stability
+制剂密度曲线,29,Exclude
+稳定性趋势回顾,26,Stability
+反相,25,Exclude
+游离寡糖,24,Exclude
+IEX检测,22,Exclude
+N/A,21,Exclude
+第六次水针稳定性,21,Stability
+第三次稳定性,21,Stability
+高通量 质量肽图谱,20,Exclude
+糖基化修饰分析,20,Exclude
+微生物限度检测,19,Exclude
+SEC NR-CE R-CE 糖型,19,Exclude
+第五次水针稳定性,18,Stability
+Long-term Testing,18,Stability
+冻融稳定性试验,18,Stability
+807X包材筛选 NR-CE,17,Exclude
+长期稳定性试验,17,Stability
+质量肽图  Ides 亚基分子量,17,Exclude
+混合均匀度,16,Exclude
+Oxidation Stress,16,Stability
+pH Stress,15,Stability
+NR-CE R-CE 糖型,15,Exclude
+糖型,15,Exclude
+寿命测试（蛋白A脱落率）,15,Exclude
+蛋白含量测定,14,Exclude
+工艺研究批,14,Exclude
+IEX(CPB Untreate、CPB treate）,14,Exclude
+环境监测,13,Exclude
+第五次稳定性,12,Stability
+007疏水层析液相色谱法L-半胱氨酸与盐酸半胱氨酸一水合物比对试验,12,Exclude
+常规寿命测试（蛋白A脱落率）,12,Release
+干粉培养基长期试验,12,Stability
+P188中疏水性杂质残留检测,12,Exclude
+纯化蛋白,11,Exclude
+退货后抽样检测,10,Exclude
+IEX SEC NR-CE R-CE 糖型 HIC,10,Exclude
+第四次水针稳定性,10,Stability
+蛋白A残留量检测,10,Exclude
+NR-CE,10,Exclude
+微生物,10,Exclude
+包材检测,10,Exclude
+游离巯基,9,Exclude
+IEX(CPB-untreated、CPB-Treated、NO-CPB),9,Exclude
+长稳实验,9,Exclude
+IEX、蛋白质,9,Exclude
+近效期复验,9,Release
+反复冻融后2-8度保存不同时限对微生物的影响考察试验,9,Stability
+内毒素检测,8,Exclude
+干燥失重（真空干燥法）复测确认,8,Exclude
+MabCapture-R重组耐碱蛋白A场地变更对比试验,8,Exclude
+ProteinA残留量测定,8,Exclude
+全套检测,8,Exclude
+长期试验,8,Stability
+干燥失重（25℃减压干燥24h）,8,Exclude
+内部质量控制（设备比对/留样复测）,8,Exclude
+TEST,8,Exclude
+蛋白质含量测定,8,Exclude
+SEC、CE、RCE,7,Exclude
+质量比对研究-分段收集确认,7,Exclude
+木瓜蛋白酶酶切,7,Exclude
+HCP,7,Exclude
+表达量渗透压,7,Exclude
+CE,6,Exclude
+完整性蛋白,6,Exclude
+内控,6,Exclude
+SDS,6,Exclude
+常规检验,6,Release
+Rp-hplc,6,Exclude
+鉴定,6,Exclude
+n/a,6,Exclude
+CPB酶切前后IEX检测,6,Exclude
+成品全检,6,Release
+冻融,6,Stability
+孵育稳定性,6,Stability
+Ides亚基分子量,5,Exclude
+SEC、IEX,5,Exclude
+NR CE,5,Exclude
+糖型快速法,5,Exclude
+游离巯基检测,5,Exclude
+原液全检,5,Release
+成品内控,5,Release
+纯化产物,5,Exclude
+补请验SEC,5,Exclude
+CE(正跑）,5,Exclude
+SEC、CE、RCE、IEX,5,Exclude
+游离巯基 疏水,5,Exclude
+低pH试验（3.2）,4,Stability
+低pH试验（2.5）,4,Stability
+蛋白、SEC、IEX、活性,4,Exclude
+下游工艺,4,Exclude
+酶切,4,Exclude
+原液,4,Release
+内部质量控制（人员比对/留样复测）,4,Exclude
+低pH试验（2.9）,4,Stability
+细胞检测（年检）,4,Exclude
+中间体稳定性,4,Stability
+小试样品检测,4,Exclude
+氧化试验（0.01%）,4,Stability
+RP,4,Exclude
+氧化试验（0.02%）,4,Stability
+物料全检,4,Release
+SDS-PAGE,4,Exclude
+IEX SEC NR-CE R-CE,4,Exclude
+泳拓凝胶国产平替试用,4,Exclude
+长期稳定性,4,Stability
+IEX SEC R-CE NR-CE 糖型,4,Exclude
+聚山梨酯20含量测定,4,Exclude
+氧化试验（0.05%）,4,Stability
+质量比对研究-酶切效果确认,4,Exclude
+蛋白浓度,4,Exclude
+,4,Exclude
+干燥失重确认,4,Exclude
+确认不同干燥方法检测结果,4,Exclude
+石药集团圣雪葡萄糖小试,3,Exclude
+IEX CPB treated,3,Exclude
+亚单位 IEX SEC NR-CE R-CE,3,Exclude
+"质量肽图,亚基分子量",3,Exclude
+CE(反跑）,3,Exclude
+稳定性实验,3,Stability
+鲎试剂灵敏度复核,3,Exclude
+湖北葛店人福小试,3,Exclude
+IEX CPB Untreated,3,Exclude
+ides亚单位,3,Exclude
+SEC、IEX、糖型、亚基分子量,3,Exclude
+外观、pH、渗透压实操,3,Exclude
+潍坊盛泰药业小试,3,Exclude
+CE重复性实验,3,Exclude
+标准物质验收,3,Exclude
+南京化学试剂小试,3,Exclude
+组分分布及收集,3,Exclude
+第五次水针稳定性SEC,3,Stability
+微生物限度,3,Exclude
+密度,3,Exclude
+质量肽图谱 ides亚单位,3,Exclude
+亲和力检测,3,Exclude
+方法确认,3,Exclude
+泰州原液对比,2,Release
+SEC、IEX、R/NR-CE、反相,2,Exclude
+测试包中检测依据列的字段更新测试,2,Exclude
+游离巯基，完整蛋白，亚基分子量,2,Exclude
+高pH试验（10.0）,2,Stability
+反相检测,2,Exclude
+IEX、活性,2,Exclude
+C01介质使用009老工艺纯化产物,2,Exclude
+拉曼方法开发,2,Exclude
+IEX R-CE,2,Exclude
+细胞检测,2,Exclude
+D级环境监控（沉降菌）,2,Exclude
+研发,2,Exclude
+SEC IEX NR-CE R-CE 糖型,2,Exclude
+SEC  CE  RCE,2,Exclude
+C03介质使用007新工艺纯化产物,2,Exclude
+IEX SEC NR-CE R-CE HIC 糖型,2,Exclude
+参比品委托检验,2,Exclude
+纯度项,2,Exclude
+高pH（10.0）试验,2,Exclude
+PNGaesF酶切后活性检测,2,Exclude
+高pH试验（12.0）,2,Stability
+硝酸钠鉴别方法开发,2,Exclude
+渗透压,2,Exclude
+年检,2,Exclude
+长期稳定性试验（CE）,2,Stability
+泳拓凝胶国产平替试用（配方2）,2,Exclude
+C03介质使用009老工艺纯化产物,2,Exclude
+Test,2,Exclude
+酶试剂,2,Exclude
+IEX CE,2,Exclude
+切糖亚基分子量检测(备注：建议用EndoF2切),2,Exclude
+CPB酶切操作,2,Exclude
+测试文本型分子量组分,2,Exclude
+拉曼鉴别方法开发,2,Exclude
+细菌内毒素,2,Exclude
+C01介质使用007新工艺纯化产物,2,Exclude
+SDS-PAGE纯度方法开发,2,Exclude
+高pH（11.0）试验,2,Exclude
+质谱,2,Exclude
+IEX SEC NR-CE RCE 糖型,2,Exclude
+高pH试验（11.0）,2,Stability
+High Temperature Stress,2,Stability
+纯化中间产品,2,Release
+高pH（12.0）试验,2,Exclude
+IEX、NR-CE、糖型,2,Exclude
+IEX(CPB-untreated、CPB-Treated),2,Exclude
+其他检测,2,Exclude
+NR-CE 糖型,2,Exclude
+CPB酶切,2,Exclude
+亚单位,2,Exclude
+测试,2,Exclude
+载量测定,1,Exclude
+活性杀伤试验,1,Exclude
+SEC纯度测定,1,Exclude
+NR-CE R-CE,1,Exclude
+A08偶联前高微限样品,1,Exclude
+完整蛋白分子量、亚单位,1,Exclude
+SEC IEX NR-CE R-CE 糖基化修饰分析,1,Exclude
+SEC分段收集,1,Exclude
+反复冻融后2-8度保存不同时限对微生物的影响,1,Stability
+内部参比品标定,1,Exclude
+SEC NR-CE R-CE 糖型 RP,1,Exclude
+CE  RCE(按Maurice孵育参数，HR方法运行）,1,Exclude
+CE  RCE（按Maurice孵育参数，HR方法运行）,1,Exclude
+渗透压仪期间核查,1,Exclude
+光照试验,1,Stability
+SEC、Rp-Hplc、糖型、亚基分子量,1,Exclude
+A08低微限样品脱落率检测-对照,1,Exclude
+WCB细胞检测（全检）,1,Release
+试剂中间产品检测,1,Release
+IEX(CPB  Tread）,1,Exclude
+检测,1,Exclude
+原液检测,1,Release
+质量肽图谱CDR区鉴定,1,Exclude
+蛋白,1,Exclude
+氯化钾鉴别方法开发,1,Exclude
+糖型 亚基分子量,1,Exclude
+疏水,1,Exclude
+A08偶联后低微限样品（对照）,1,Exclude
+SEC NR-CE R-CE,1,Exclude
+长期稳定性试验（NR-CE余样调查）,1,Stability
+IEX(CPB Treated、CPB Untreated）,1,Exclude
+IEX、R/NR-CE、反相,1,Exclude
+IEX SEC NR-CE R-C 糖型,1,Exclude
+工艺确认批,1,Exclude
+sds,1,Exclude
+IEX(CPB Treated、CPB Untreated),1,Exclude
+RP-HPLC  SEC  糖型  亚单位,1,Exclude
+干燥失重（真空干燥法）,1,Exclude
+氯化钙二水合物鉴别方法开发,1,Exclude
+肽图（确认酶活性）,1,Exclude
+IEX R-CE SEC NR-CE 糖型,1,Exclude
+Export Test,1,Exclude
+活性 游离巯基,1,Exclude
+A08反复冻融高微限样品脱落率检测,1,Stability
+测试组分属性,1,Exclude
+鉴别,1,Exclude
+常规,1,Release
+LIMS导出测试,1,Exclude
+SEC IEX NR-CE R-CE HIC 糖型,1,Exclude
+C03蛋白脱落率内控,1,Exclude
+纯度,1,Exclude
+用于测试LIMS产生的字段对应,1,Exclude
+A08偶联后高微限样品,1,Exclude
+氯化镁六水合物鉴别方法开发,1,Exclude
+硫酸钠鉴别方法开发,1,Exclude
+复验-全检,1,Release
+稳定性对照,1,Stability
+干燥失重方法确认（普通干燥法）,1,Exclude
+脱落率（对照）,1,Exclude
+蛋白、SEC、IEX,1,Exclude
+寡糖导出测试（没有文件型组分）,1,Exclude
+IEX、SEC、CE、RCE、亚基、糖型,1,Exclude
+导出测试,1,Exclude
+泰州生产,1,Exclude
+内部质量控制（微生物限度检查）,1,Exclude
+字段：检验类型,1,Exclude
+复验-内控,1,Release
+"CE,糖基化修饰分析",1,Exclude
+MCB细胞检测（全检）,1,Release
+HIC检测,1,Exclude
+干燥失重方法确认（用于更新专项SOP）,1,Exclude
+N糖（液质分析）,1,Exclude
+无水磷酸氢二钠鉴别方法开发,1,Exclude
+CPB treated,1,Exclude
+A08偶联前低微限样品（对照）,1,Exclude
+14字符测试,1,Exclude
+IEX(CPB-Tread）,1,Exclude
+反复冻融后2-8度保存不同时限对微生物的影响考察试验方案,1,Stability
+完整蛋白,1,Exclude
+常规寿命测试200循环后载量测定,1,Release
+IEX(原研方法）,1,Exclude
+IEX方法优化,1,Exclude
+test,1,Exclude

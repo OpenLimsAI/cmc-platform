@@ -1,0 +1,43 @@
+# Claude Code — personal, not shared
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+*.local
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# 原始上传、业务导出、备份及验签材料不入库；测试文件在运行时合成
+uploads/
+backups/
+exports/
+*.xlsx
+*.xls
+*.xlsb
+*.dump
+*.bak
+*.pem
+*.key
+
+# Local permission/config backups may contain secrets
+.local-backups/

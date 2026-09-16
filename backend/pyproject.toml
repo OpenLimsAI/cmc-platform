@@ -1,0 +1,41 @@
+[project]
+name = "qap-backend"
+version = "0.1.0"
+description = "CMC Quality Analytics Platform — backend (read-only consumer of cmc_analytics)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    # 统计引擎依赖：版本锁定与旧 Streamlit 工具一致，保证回归对齐数值可重现
+    "numpy==2.2.6",
+    "pandas==2.3.3",
+    "scipy==1.15.3",
+    "statsmodels==0.14.5",
+    # Web 框架与数据访问
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "sqlalchemy==2.0.44",
+    "psycopg2-binary==2.9.11",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.1",
+    "pyyaml==6.0.3",
+    # Excel 内存预览；XML 实体防护，不执行宏或公式
+    "openpyxl==3.1.5",
+    "defusedxml==0.7.1",
+    # MDM 验签（不签发令牌）及受限 multipart 上传
+    "PyJWT[crypto]==2.14.0",
+    "python-multipart==0.0.32",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.4",
+    "httpx==0.28.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--doctest-modules"
+# doctest 只跑 stats 包（纯函数），避免对 FastAPI/DB 模块跑 doctest
+python_files = ["test_*.py"]
+
+[tool.uv]
+package = false
