@@ -2,7 +2,7 @@
 """Golden 回归对齐：新移植统计引擎 vs 旧 Streamlit 工具原始实现。
 
 策略：同一 Python 进程、同一库版本，对同一批（含随机种子）输入分别调用
-"旧函数"与"新函数"，逐一断言结果完全一致。任何抄写/移植偏差都会被抓出。
+"旧函数"与"新函数"，逐一断言结果完全一致。用于尚未修正的移植函数。TOST/Tier已改为独立验证，见 test_equivalence_corrected.py。
 
 若旧工具不可导入（路径缺失/环境差异），整文件 skip——但 CI/本地有旧工具时必须全绿。
 """
@@ -21,9 +21,7 @@ from app.services.stats import (
     compute_stats as new_compute_stats,
     levene_test as new_levene_test,
     linear_regression_summary as new_linear_regression_summary,
-    perform_tost as new_perform_tost,
     run_lme_for_pair as new_run_lme_for_pair,
-    tier_similarity_judge as new_tier_similarity_judge,
     within_group_slope_pool_test as new_within_group_slope_pool_test,
 )
 
@@ -33,13 +31,11 @@ try:
         compute_auto_margins as old_compute_auto_margins,
         compute_rsd as old_compute_rsd,
         linear_regression_summary as old_linear_regression_summary,
-        perform_tost as old_perform_tost,
         run_lme_for_pair as old_run_lme_for_pair,
         within_group_slope_pool_test as old_within_group_slope_pool_test,
     )
     from analytics.equivalence_test import (
         levene_test as old_levene_test,
-        tier_similarity_judge as old_tier_similarity_judge,
     )
     from components.utils import (
         clean_numeric as old_clean_numeric,
@@ -114,26 +110,6 @@ def assert_equal(old, new, ctx=""):
 
 
 # =====================================================================
-# perform_tost
-# =====================================================================
-@pytest.mark.parametrize("seed", range(6))
-@pytest.mark.parametrize("detail", [True, False])
-def test_perform_tost(seed, detail):
-    rng = np.random.default_rng(seed)
-    x1 = rng.normal(100, 2, size=rng.integers(3, 12)).tolist()
-    x2 = (rng.normal(100, 2, size=rng.integers(3, 12)) + rng.normal(0, 0.5)).tolist()
-    delta = 1.5
-    old = old_perform_tost(x1, x2, delta, alpha=0.05, return_detail=detail)
-    new = new_perform_tost(x1, x2, delta, alpha=0.05, return_detail=detail)
-    assert_equal(old, new, ctx=f"perform_tost(seed={seed},detail={detail})")
-
-
-def test_perform_tost_small_sample():
-    assert_equal(old_perform_tost([1.0], [2.0, 3.0], 0.5),
-                 new_perform_tost([1.0], [2.0, 3.0], 0.5), ctx="perform_tost_small")
-
-
-# =====================================================================
 # levene_test
 # =====================================================================
 @pytest.mark.parametrize("seed", range(6))
@@ -147,24 +123,6 @@ def test_levene_test(seed):
 def test_levene_test_small():
     assert_equal(old_levene_test([1.0], [2.0, 3.0]),
                  new_levene_test([1.0], [2.0, 3.0]), ctx="levene_small")
-
-
-# =====================================================================
-# tier_similarity_judge
-# =====================================================================
-@pytest.mark.parametrize("seed", range(8))
-def test_tier_similarity_judge(seed):
-    rng = np.random.default_rng(seed + 200)
-    ref = rng.normal(100, 3, size=rng.integers(4, 12))
-    n_test = int(rng.integers(1, 8))
-    tst = rng.normal(100 + rng.normal(0, 2), 3, size=n_test)
-    tier1_fields = ["SEC"] if seed % 2 == 0 else []
-    kwargs = dict(k_tier1=1.5, k_tier2=3.0, alpha=0.05, prop_thresh=0.90)
-    old = old_tier_similarity_judge("SEC", tier1_fields, float(np.mean(ref)),
-                                    float(np.std(ref, ddof=1)), ref, tst, **kwargs)
-    new = new_tier_similarity_judge("SEC", tier1_fields, float(np.mean(ref)),
-                                    float(np.std(ref, ddof=1)), ref, tst, **kwargs)
-    assert_equal(old, new, ctx=f"tier_judge(seed={seed})")
 
 
 # =====================================================================

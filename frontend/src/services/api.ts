@@ -3,6 +3,7 @@ import type { DataSource, AttributeMeta, Coverage, ProjectMeta, ReleaseAttribute
 import type { AuthStatus, QapIdentity } from '@/types/auth'
 import type { ImportCapabilities, PreviewResponse } from '@/types/imports'
 import type { StabilityRequest, StabilityOptions, StabilityPanel } from '@/types/stability'
+import type { SimilarityRequest, SimilarityPanel } from '@/types/similarity'
 import { clearSession, getStoredToken, mdmRefresh } from '@/shared/cmabSession'
 import { attachSessionInterceptors } from './sessionClient'
 
@@ -55,6 +56,7 @@ async function unwrap<T>(p: Promise<{ data: Envelope<T> }>): Promise<{ data: T; 
 }
 
 export const api = {
+  analyzeSimilarity: (req: SimilarityRequest, signal?: AbortSignal) => unwrap<SimilarityPanel[]>(client.post('/analysis/similarity', req, { signal })),
   authStatus: () => unwrap<AuthStatus>(client.get('/auth/status')),
   me: () => unwrap<QapIdentity>(client.get('/auth/me')),
   importCapabilities: () => unwrap<ImportCapabilities>(client.get('/imports/capabilities')),

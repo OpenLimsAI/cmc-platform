@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """相似性/等效边界（移植自旧工具 analytics/stat_core.py、equivalence_test.py、components/utils.py）。
 
-逐函数移植，函数名/参数/返回结构与 doctest 保持不变。
+相似性判定已修正；主表和 Tier1 共用一次 TOST，不沿用旧版独立重算。
 """
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
-from app.services.stats.equivalence import levene_test, perform_tost
+from app.services.stats.equivalence import compare_equivalence, finite_sample, resolve_tost_alpha
 
 
 def _per_batch_baseline_and_slope(
@@ -112,86 +112,79 @@ def get_delta(value_column, ref_std, tier1_fields, delta_multiplier):
         return delta_multiplier * ref_std
 
 
-def tier_similarity_judge(
-    value_column,
-    tier1_fields,
-    ref_mean,
-    ref_std,
-    ref_data,
-    test_data,
-    *,
-    k_tier1: float = 1.5,
-    k_tier2: float = 3.0,
-    alpha: float = 0.05,
-    prop_thresh: float = 0.90,
-):
+def evaluate_similarity_pair(reference, comparison, *, tier, delta, confidence_level,
+                             variance_method, prop_thresh=None, bf_threshold=0.05):
+    """显式规则下的统一结果，不推断已批准状态或独立样本资格。
+
+    Tier1 的 equivalent/CI/p 和 judgement 来自同一次 TOST。
+    Tier2 使用显式 delta 作为参考带半宽；不能暗中忽略手动界值。
+    调用方必须先核定独立样本、单位、参比资格和规则，本函数不去重/换算。
     """
-    基于 FDA / PQRI Tier 方法对质量属性(CQA)进行相似性判定。
+    if tier not in {"Tier1", "Tier2"}:
+        raise ValueError("tier 必须为 Tier1 或 Tier2")
+    if tier == "Tier1":
+        result = compare_equivalence(reference, comparison, delta=delta,
+                                     confidence_level=confidence_level,
+                                     variance_method=variance_method, bf_threshold=bf_threshold)
+        judgement = "Unknown" if result["equivalent"] is None else (
+            "Similar" if result["equivalent"] else "Not Similar")
+        return {**result, "tier": tier, "judgement": judgement}
+    resolve_tost_alpha(confidence_level=confidence_level)
+    if not np.isfinite(delta) or delta <= 0:
+        raise ValueError("delta 必须为有限正数")
+    if prop_thresh is None or not np.isfinite(prop_thresh) or not 0 < prop_thresh <= 1:
+        raise ValueError("Tier2 必须指定 0 到 1 之间的命中比例阈值")
+    ref, test = finite_sample(reference), finite_sample(comparison)
+    result = dict(tier=tier, judgement="Unknown", status="not_evaluable", reason=None,
+                  method="reference_band", delta=float(delta), prop_thresh=float(prop_thresh),
+                  lower=None, upper=None, band_hits=None, band_ratio=None,
+                  reference_n=len(ref), comparison_n=len(test))
+    if len(ref) < 2 or len(test) < 2:
+        return {**result, "reason": "insufficient_samples"}
+    with np.errstate(over="ignore", invalid="ignore"):
+        mean = float(ref.mean())
+        lower, upper = mean-delta, mean+delta
+    if not np.isfinite(lower) or not np.isfinite(upper):
+        return {**result, "reason": "non_finite_statistics"}
+    hits = int(((test >= lower) & (test <= upper)).sum())
+    proportion = hits / len(test)
+    return {**result, "status": "ok", "lower": lower, "upper": upper,
+            "band_hits": hits, "band_ratio": proportion,
+            "judgement": "Similar" if proportion >= prop_thresh else "Not Similar"}
 
-    - Tier1（高风险）：TOST，Δ = k_tier1 × SD_ref，p_TOST < alpha → 相似
-    - Tier2（中风险）：范围比例法，≥ prop_thresh 的点落入 ±k_tier2×SD_ref → 相似
-    - 单点：|x_test − mean_ref| ≤ k × SD_ref（k 按 Tier1/Tier2 切换）
 
-    返回: "Similar" / "Not Similar" / "Similar (Single Point)" /
-          "Not Similar (Single Point)" / "Unknown"
+def tier_similarity_judge(
+    value_column, tier1_fields, ref_mean, ref_std, ref_data, test_data, *,
+    k_tier1: float = 1.5, k_tier2: float = 3.0, alpha=None, prop_thresh: float = 0.90,
+    confidence_level=None, delta=None, variance_method="pooled", bf_threshold=0.05,
+):
+    """旧调用兼容入口；正式新调用应使用显式配置的 evaluate_similarity_pair。
 
-    Examples
-    --------
+    ref_mean/ref_std 仅保留位置兼容，统计量从有效原始参比重新计算。
+    显式 delta 优先；confidence_level 与 alpha 互斥。单点不再冒充相似判定。
+
     >>> ref = [100, 102, 98, 101]
     >>> tst = [99, 101, 100]
     >>> tier_similarity_judge("SEC", ["SEC"], np.mean(ref), np.std(ref, ddof=1), ref, tst)
     'Similar'
-
-    >>> ref = [50, 51, 52]
-    >>> tst = [60]  # 单点
-    >>> tier_similarity_judge("IEX", [], np.mean(ref), np.std(ref, ddof=1), ref, tst)
-    'Not Similar (Single Point)'
+    >>> tier_similarity_judge("IEX", [], 51, 1, [50, 51, 52], [60])
+    'Unknown'
     """
-    # 安全清洗
-    ref_data = np.asarray(ref_data, dtype=float)
-    test_data = np.asarray(test_data, dtype=float)
-    ref_data = ref_data[~np.isnan(ref_data)]
-    test_data = test_data[~np.isnan(test_data)]
-
-    # 基本健壮性
-    if len(test_data) == 0 or not np.isfinite(ref_mean) or not np.isfinite(ref_std):
-        return "Unknown"
-
-    # ===== 单点场景（统一用可调 k）=====
-    if len(test_data) == 1:
-        k = k_tier1 if value_column in tier1_fields else k_tier2
-        threshold = k * ref_std
-        if not np.isfinite(threshold):
+    alpha = resolve_tost_alpha(alpha=alpha, confidence_level=confidence_level)
+    tier = "Tier1" if value_column in tier1_fields else "Tier2"
+    if delta is None:
+        k = k_tier1 if tier == "Tier1" else k_tier2
+        if not np.isfinite(k) or k <= 0:
+            raise ValueError("参考 SD 倍数必须为有限正数")
+        ref = finite_sample(ref_data)
+        if len(ref) < 2:
             return "Unknown"
-        diff = abs(float(test_data[0]) - ref_mean)
-        return "Similar (Single Point)" if diff <= threshold else "Not Similar (Single Point)"
-
-    # ===== 多点场景 =====
-    if value_column in tier1_fields:
-        # Tier1：TOST
-        delta = k_tier1 * ref_std
-        if not np.isfinite(delta):
+        with np.errstate(over="ignore", invalid="ignore"):
+            delta = float(k * np.std(ref, ddof=1))
+        if not np.isfinite(delta) or delta <= 0:
             return "Unknown"
-
-        # 方差齐性判断（不影响 TOST 逻辑，只用于方法记录）
-        try:
-            bf_p, _, method = levene_test(ref_data, test_data)
-        except Exception:
-            method = "TOST1"
-
-        res = perform_tost(ref_data, test_data, delta=delta, alpha=alpha, return_detail=True)
-
-        if res is None or "equivalent" not in res:
-            return "Unknown"
-
-        return "Similar" if res["equivalent"] else "Not Similar"
-
-    else:
-        # Tier2：范围比例法（± k_tier2 × SD_ref）
-        if not np.isfinite(ref_std):
-            return "Unknown"
-        lower = ref_mean - k_tier2 * ref_std
-        upper = ref_mean + k_tier2 * ref_std
-        within = ((test_data >= lower) & (test_data <= upper)).sum()
-        proportion = within / len(test_data)
-        return "Similar" if proportion >= prop_thresh else "Not Similar"
+    result = evaluate_similarity_pair(
+        ref_data, test_data, tier=tier, delta=delta, confidence_level=1-2*alpha,
+        variance_method=variance_method, prop_thresh=prop_thresh, bf_threshold=bf_threshold,
+    )
+    return result["judgement"]

@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-"""等效性检验与方差齐性（移植自旧工具 analytics/stat_core.py、analytics/equivalence_test.py）。
-
-逐函数移植，函数名/参数/返回结构与 doctest 保持不变。
-"""
+"""等效性检验与方差齐性；保留通用 x1-x2 方向，修正旧版统计缺陷。"""
 import warnings
 from typing import Dict, Iterable, Optional
 
@@ -11,65 +8,102 @@ import pandas as pd
 from scipy import stats
 
 
-def perform_tost(x1, x2, delta, alpha=0.05, return_detail=False):
+def finite_sample(values):
+    """单组一维数值样本；排除 NaN/Inf，拒绝误传二维数据。"""
+    values = np.asarray(values, dtype=float)
+    if values.ndim != 1:
+        raise ValueError("样本必须是一维数值数组")
+    return values[np.isfinite(values)]
+
+
+def resolve_tost_alpha(*, alpha=None, confidence_level=None):
+    """TOST 单侧 alpha 与差值双侧置信度 C 的关系：alpha=(1-C)/2。"""
+    if alpha is not None and confidence_level is not None:
+        raise ValueError("alpha 与 confidence_level 只能指定一个")
+    if confidence_level is not None:
+        if not np.isfinite(confidence_level) or not 0 < confidence_level < 1:
+            raise ValueError("confidence_level 必须在 0 与 1 之间")
+        alpha = (1.0 - float(confidence_level)) / 2.0
+    if alpha is None:
+        alpha = 0.05  # 保留通用函数的历史默认；不表示批准参数。
+    if not np.isfinite(alpha) or not 0 < alpha < 0.5:
+        raise ValueError("TOST 单侧 alpha 必须在 0 与 0.5 之间")
+    return float(alpha)
+
+
+def perform_tost(x1, x2, delta, alpha=None, return_detail=False, *,
+                 confidence_level=None, variance_method="pooled", bf_threshold=0.05):
+    """双样本 TOST，通用差值始终为 mean(x1)-mean(x2)，不提前舍入。
+
+    variance_method: pooled（合并方差）、welch（不等方差），或
+    brown_forsythe（按显式 BF 阈值选择实际公式；不是批准的方法选择规则）。
+    样本不足/标准误为零/不可计算返回 not_evaluable，equivalent=None。
+    新相似性业务调用使用 compare_equivalence，明确参比与比较的角色。
     """
-    双样本 TOST 等效性检验（原始单位 Δ 版本）
+    alpha = resolve_tost_alpha(alpha=alpha, confidence_level=confidence_level)
+    if not np.isfinite(delta) or delta <= 0:
+        raise ValueError("delta 必须为有限正数")
+    if variance_method not in {"pooled", "welch", "brown_forsythe"}:
+        raise ValueError("未知方差方法")
+    if not np.isfinite(bf_threshold) or not 0 < bf_threshold < 1:
+        raise ValueError("BF 阈值必须在 0 与 1 之间")
+    first, second = finite_sample(x1), finite_sample(x2)
+    nx, ny = len(first), len(second)
+    actual_method = variance_method
+    bf_p = lev_p = None
+    if variance_method == "brown_forsythe":
+        bf, lev, advice = levene_test(first, second, bf_threshold=bf_threshold)
+        bf_p = float(bf) if np.isfinite(bf) else None
+        lev_p = float(lev) if np.isfinite(lev) else None
+        actual_method = "pooled" if advice == "TOST2" else "welch"
+    result = dict(mean_diff=None, p_tost=None, equivalent=None, ci_low=None, ci_high=None,
+                  t1=None, t2=None, df=None, sd_pooled=None, se=None,
+                  status="not_evaluable", reason=None, alpha=alpha,
+                  confidence_level=1-2*alpha, delta=float(delta), n1=nx, n2=ny,
+                  excluded_n1=len(x1)-nx, excluded_n2=len(x2)-ny,
+                  variance_method=actual_method, requested_variance_method=variance_method,
+                  bf_threshold=float(bf_threshold), bf_p_value=bf_p, levene_p_value=lev_p)
 
-    参数:
-        x1, x2 : array-like  两组样本数据（数值型）。
-        delta : float        等效性界限（原始单位），判定区间为 [-delta, +delta]。
-        alpha : float        显著性水平（默认 0.05 → 对应 90% CI）。
-        return_detail : bool 是否返回详细计算结构。
+    def output(reason=None):
+        result["reason"] = reason
+        return result if return_detail else {key: result[key] for key in
+                                            ("p_tost", "equivalent", "status", "reason")}
 
-    返回:
-        dict: mean_diff / p_tost / equivalent / ci_low / ci_high / t1 / t2 / df / sd_pooled
-    """
-    # 数据清洗
-    x1 = np.array(x1, dtype=float)
-    x2 = np.array(x2, dtype=float)
-    x1 = x1[~np.isnan(x1)]
-    x2 = x2[~np.isnan(x2)]
+    if nx < 2 or ny < 2:
+        return output("insufficient_samples")
+    with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        difference = float(first.mean() - second.mean())
+        v1, v2 = float(first.var(ddof=1)), float(second.var(ddof=1))
+        pooled = ((nx-1)*v1 + (ny-1)*v2) / (nx+ny-2)
+        se2 = pooled*(1/nx+1/ny) if actual_method == "pooled" else v1/nx+v2/ny
+    if not all(np.isfinite(v) for v in (difference, v1, v2, se2)):
+        return output("non_finite_statistics")
+    result["mean_diff"] = difference
+    if se2 <= 0:
+        return output("zero_standard_error")
+    se = float(np.sqrt(se2))
+    df = float(nx+ny-2) if actual_method == "pooled" else float(
+        1 / ((v1/nx/se2)**2/(nx-1) + (v2/ny/se2)**2/(ny-1)))
+    t1, t2 = (difference+delta)/se, (difference-delta)/se
+    p = float(max(stats.t.sf(t1, df), stats.t.cdf(t2, df)))
+    half_width = float(stats.t.ppf(1-alpha, df)*se)
+    low, high = difference-half_width, difference+half_width
+    if not all(np.isfinite(v) for v in (df, t1, t2, p, low, high)):
+        return output("non_finite_statistics")
+    result.update(mean_diff=difference, p_tost=p, equivalent=bool(p < alpha),
+                  ci_low=low, ci_high=high, t1=float(t1), t2=float(t2), df=df,
+                  se=se, sd_pooled=float(np.sqrt(pooled)) if actual_method == "pooled" else None,
+                  status="ok")
+    return output()
 
-    if len(x1) < 2 or len(x2) < 2:
-        return {"p_tost": np.nan, "equivalent": False}
 
-    # 统计量
-    nx, ny = len(x1), len(x2)
-    mean_diff = np.mean(x1) - np.mean(x2)
-    sd1, sd2 = np.var(x1, ddof=1), np.var(x2, ddof=1)
-    sd_pooled = np.sqrt(((nx - 1) * sd1 + (ny - 1) * sd2) / (nx + ny - 2))
-    se = sd_pooled * np.sqrt(1 / nx + 1 / ny)
-    df = nx + ny - 2
-
-    # TOST 两个单侧检验
-    t1 = (mean_diff + delta) / se
-    t2 = (mean_diff - delta) / se
-
-    # 单边 p 值
-    p1 = 1 - stats.t.cdf(t1, df)   # 对应 H1
-    p2 = stats.t.cdf(t2, df)       # 对应 H2
-
-    # TOST p 值 = 两个单侧检验中较大的那个
-    p_tost = max(p1, p2)
-
-    # 90% CI（由 alpha=0.05 推导）
-    ci_low, ci_high = stats.t.interval(1 - 2 * alpha, df, loc=mean_diff, scale=se)
-
-    equivalent = (p_tost < alpha)
-
-    res = {
-        "mean_diff": round(mean_diff, 4),
-        "p_tost": round(p_tost, 5),
-        "equivalent": bool(equivalent),
-        "ci_low": round(ci_low, 4),
-        "ci_high": round(ci_high, 4),
-        "t1": round(t1, 3),
-        "t2": round(t2, 3),
-        "df": int(df),
-        "sd_pooled": round(sd_pooled, 4),
-    }
-
-    return res if return_detail else {"p_tost": res["p_tost"], "equivalent": res["equivalent"]}
+def compare_equivalence(reference, comparison, *, delta, confidence_level,
+                        variance_method, bf_threshold=0.05):
+    """相似性统一入口：显式配置，方向固定为比较−参比；返回图/表共用结果。"""
+    result = perform_tost(comparison, reference, delta, confidence_level=confidence_level,
+                          variance_method=variance_method, bf_threshold=bf_threshold,
+                          return_detail=True)
+    return {**result, "difference_direction": "comparison_minus_reference"}
 
 
 def decide_equivalence(ci_low: Optional[float], ci_high: Optional[float], delta: Optional[float]) -> str:
@@ -88,16 +122,16 @@ def decide_equivalence(ci_low: Optional[float], ci_high: Optional[float], delta:
     '不确定(未设Δ)'
     """
     try:
-        if delta is None or not np.isfinite(delta):
+        if delta is None or not np.isfinite(delta) or delta <= 0:
             return "不确定(未设Δ)"
         if ci_low is None or ci_high is None:
             return "不确定"
         ci_low = float(ci_low)
         ci_high = float(ci_high)
         delta = float(delta)
-        if np.isnan(ci_low) or np.isnan(ci_high):
+        if not np.isfinite(ci_low) or not np.isfinite(ci_high) or ci_low > ci_high:
             return "不确定"
-        if (-delta <= ci_low) and (ci_high <= delta):
+        if (-delta < ci_low) and (ci_high < delta):
             return "等效"
         return "不等效"
     except Exception:
@@ -119,7 +153,7 @@ def levene_tests(groups: Iterable) -> Dict[str, float]:
     for g in groups:
         if g is None:
             g = []
-        g = pd.to_numeric(pd.Series(g), errors="coerce").dropna().values
+        g = finite_sample(pd.to_numeric(pd.Series(g, dtype=object), errors="coerce").values)
         data.append(g)
 
     try:
@@ -138,7 +172,7 @@ def levene_tests(groups: Iterable) -> Dict[str, float]:
     }
 
 
-def levene_test(ref_data, test_data):
+def levene_test(ref_data, test_data, *, bf_threshold=0.05):
     """
     执行方差齐性检验，输出 Brown-Forsythe 和 Levene 检验的 p 值。
 
@@ -154,10 +188,10 @@ def levene_test(ref_data, test_data):
     >>> round(float(bf_p), 3), round(float(lev_p), 3), advice
     (0.172, 0.172, 'TOST2')
     """
-    ref_data = np.asarray(ref_data, dtype=float)
-    test_data = np.asarray(test_data, dtype=float)
-    ref_data = ref_data[~np.isnan(ref_data)]
-    test_data = test_data[~np.isnan(test_data)]
+    if not np.isfinite(bf_threshold) or not 0 < bf_threshold < 1:
+        raise ValueError("BF 阈值必须在 0 与 1 之间")
+    ref_data = finite_sample(ref_data)
+    test_data = finite_sample(test_data)
 
     # 早退：任一组样本量 < 2 时，不跑 Levene，按不齐方差建议 TOST1
     if ref_data.size < 2 or test_data.size < 2:
@@ -179,5 +213,5 @@ def levene_test(ref_data, test_data):
         # 传统 Levene（mean）
         _, levene_p = stats.levene(ref_data, test_data, center="mean")
 
-    advice = "TOST2" if (np.isfinite(bf_p) and bf_p > 0.05) else "TOST1"
+    advice = "TOST2" if (np.isfinite(bf_p) and bf_p > bf_threshold) else "TOST1"
     return bf_p, levene_p, advice

@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Alert, Button, Layout, Menu, Typography, Tag, Space, Spin } from 'antd'
+import { Alert, Button, Layout, Menu, Tag, Space, Spin } from 'antd'
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import ReleaseTrendPage from './pages/ReleaseTrendPage'
 import StabilityPage from './pages/StabilityPage'
+import SimilarityPage from './pages/SimilarityPage'
 import LoginPage from './pages/LoginPage'
 import ImportPreviewPage from './pages/ImportPreviewPage'
 import { useAuth } from './auth/AuthProvider'
@@ -10,16 +11,6 @@ import { SidebarHost } from './components/SidebarSlot'
 import './app.css'
 
 const { Header } = Layout
-const { Title, Paragraph } = Typography
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <Typography>
-      <Title level={3}>{name}</Title>
-      <Paragraph type="secondary">正在按旧看板补齐分析流程，暂未开放。可先查看放行趋势。</Paragraph>
-    </Typography>
-  )
-}
 
 function HealthBadge() {
   const [ok, setOk] = useState<boolean | null>(null)
@@ -83,7 +74,7 @@ export default function App() {
             <Route path="/imports" element={<ImportPreviewPage />} />
             <Route path="/release" element={<ReadAccess><ReleaseTrendPage /></ReadAccess>} />
             <Route path="/stability" element={<ReadAccess><StabilityPage /></ReadAccess>} />
-            <Route path="/similarity" element={<ReadAccess><Placeholder name="相似性分析" /></ReadAccess>} />
+            <Route path="/similarity" element={<ReadAccess><SimilarityPage /></ReadAccess>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
