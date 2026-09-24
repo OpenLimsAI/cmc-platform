@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """等效性检验与方差齐性；保留通用 x1-x2 方向，修正旧版统计缺陷。"""
 import warnings
+import statistics
 from typing import Dict, Iterable, Optional
 
 import numpy as np
@@ -72,7 +73,7 @@ def perform_tost(x1, x2, delta, alpha=None, return_detail=False, *,
     if nx < 2 or ny < 2:
         return output("insufficient_samples")
     with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
-        difference = float(first.mean() - second.mean())
+        difference = float(statistics.mean(first) - statistics.mean(second))
         v1, v2 = float(first.var(ddof=1)), float(second.var(ddof=1))
         pooled = ((nx-1)*v1 + (ny-1)*v2) / (nx+ny-2)
         se2 = pooled*(1/nx+1/ny) if actual_method == "pooled" else v1/nx+v2/ny

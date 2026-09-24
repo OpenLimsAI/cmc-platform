@@ -57,6 +57,7 @@ async function unwrap<T>(p: Promise<{ data: Envelope<T> }>): Promise<{ data: T; 
 
 export const api = {
   analyzeSimilarity: (req: SimilarityRequest, signal?: AbortSignal) => unwrap<SimilarityPanel[]>(client.post('/analysis/similarity', req, { signal })),
+  downloadSimilarityReport: (req: SimilarityRequest) => client.post<Blob>('/analysis/similarity/report.xlsx', req, { responseType: 'blob' }),
   authStatus: () => unwrap<AuthStatus>(client.get('/auth/status')),
   me: () => unwrap<QapIdentity>(client.get('/auth/me')),
   importCapabilities: () => unwrap<ImportCapabilities>(client.get('/imports/capabilities')),

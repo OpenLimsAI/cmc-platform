@@ -4,6 +4,7 @@
 相似性判定已修正；主表和 Tier1 共用一次 TOST，不沿用旧版独立重算。
 """
 from typing import Dict, Optional, Tuple
+import statistics
 
 import numpy as np
 import pandas as pd
@@ -142,7 +143,9 @@ def evaluate_similarity_pair(reference, comparison, *, tier, delta, confidence_l
     if len(ref) < 2 or len(test) < 2:
         return {**result, "reason": "insufficient_samples"}
     with np.errstate(over="ignore", invalid="ignore"):
-        mean = float(ref.mean())
+        # Match the dashboard's reference mean exactly; a one-ulp difference can
+        # change whether an observation on an inclusive band boundary is counted.
+        mean = float(statistics.mean(ref))
         lower, upper = mean-delta, mean+delta
     if not np.isfinite(lower) or not np.isfinite(upper):
         return {**result, "reason": "non_finite_statistics"}
