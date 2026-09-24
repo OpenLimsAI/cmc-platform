@@ -69,4 +69,4 @@ cd /opt/cmab-hub && git pull && cd frontend && pnpm build     # 静态包立即�
 ```
 
 各子系统的 Linux 改造（拉码、重建、子系统 nginx 加 `/xxx/`、前后端只听 127.0.0.1）在 `deploy/linux/10~40_*.sh`，可重复跑；
-`50_firewall.sh` 是 ufw 规则（13568/5100/3001），需负责人亲自执行。所有被改的 conf / unit / `.env.local` 都有 `.bak-20260817-*`。
+`50_firewall.sh` 是 ufw 规则（只开放 13568/5100，并清理已退役旧看板的 3001），需负责人亲自执行。所有被改的 conf / unit / `.env.local` 都有 `.bak-20260817-*`。

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 把还留在 /home/prometheus 下的 7 个项目统一搬到 /opt（总纲 CLAUDE.md §7：正式项目一律 /opt），2026-09-04 负责人决定「不管在不在用都迁」。
+# 把还留在 /home/prometheus 下的项目统一搬到 /opt（总纲 CLAUDE.md §7：正式项目一律 /opt），2026-09-04 负责人决定「不管在不在用都迁」。
 # 可重复跑：已在 /opt 的跳过。同一文件系统，mv 瞬间完成；Python .venv 里写死了绝对路径，搬完必须重建。
-#   在用 4 个：cmc-schema-migrations（工具）、rd-lims-etl（cron）、cmc-rd-lims-dashboard（2 个 systemd）、quality-analysis-platform（nohup → 改 systemd）
+#   早期 quality-analysis-platform 已于 2026-09-24 退役，不得由本脚本重新创建。
 #   未用 3 个：tt-lims-platform、qc_lims_etl、cmc-deploy（只搬目录，过期 .venv 删掉，要用时 uv sync 重建）
 source "$(dirname "$0")/00_common.sh"
 UV="$HOME/.local/bin/uv"
@@ -47,35 +47,12 @@ sudo systemctl daemon-reload
 restart_unit cmc-lims-backend; restart_unit cmc-lims-frontend
 check http://127.0.0.1:5100/lims; check http://127.0.0.1:5100/lims/api/v1/lims/stats/data-freshness
 
-# ── 4. quality-analysis-platform（原来 nohup pnpm dev 3001，改成 systemd 托管，行为不变）
-log "4/7 quality-analysis-platform"
-pkill -f "quality-analysis-platform/frontend" || true; sleep 1
-move quality-analysis-platform
-(cd /opt/quality-analysis-platform/frontend && pnpm install --frozen-lockfile >/dev/null) && ok "前端依赖已重装"
-sudo tee /etc/systemd/system/qa-frontend.service >/dev/null <<'UNIT'
-[Unit]
-Description=Quality Analysis Platform Frontend (Next.js dev, 测试用, 3001)
-After=network.target
-[Service]
-Type=simple
-User=prometheus
-WorkingDirectory=/opt/quality-analysis-platform/frontend
-Environment=PATH=/usr/bin:/bin:/home/prometheus/.local/bin
-ExecStart=/opt/quality-analysis-platform/frontend/node_modules/.bin/next dev --port 3001 --hostname 0.0.0.0
-Restart=on-failure
-RestartSec=5
-[Install]
-WantedBy=multi-user.target
-UNIT
-sudo systemctl daemon-reload && sudo systemctl enable -q qa-frontend && restart_unit qa-frontend
-sleep 5; check http://127.0.0.1:3001/
-
-# ── 5~7. 未用三个：只搬目录，过期 .venv 删掉
-log "5/7 tt-lims-platform"; move tt-lims-platform; rm -rf /opt/tt-lims-platform/backend/.venv; ok "过期 .venv 已删（要用时 cd backend && uv sync）"
-log "6/7 qc_lims_etl";      move qc_lims_etl;      rm -rf /opt/qc_lims_etl/.venv;             ok "过期 .venv 已删（要用时 uv sync）；.env 的 CSV_DIR 仍指向 ~/qc_lims_csv_snapshot 数据目录，未动"
-log "7/7 cmc-deploy";       move cmc-deploy
+# ── 4~6. 未用三个：只搬目录，过期 .venv 删掉
+log "4/6 tt-lims-platform"; move tt-lims-platform; rm -rf /opt/tt-lims-platform/backend/.venv; ok "过期 .venv 已删（要用时 cd backend && uv sync）"
+log "5/6 qc_lims_etl";      move qc_lims_etl;      rm -rf /opt/qc_lims_etl/.venv;             ok "过期 .venv 已删（要用时 uv sync）；.env 的 CSV_DIR 仍指向 ~/qc_lims_csv_snapshot 数据目录，未动"
+log "6/6 cmc-deploy";       move cmc-deploy
 
 log "收尾检查：还有谁引用 /home/prometheus/<项目>"
-grep -l "/home/prometheus/\(cmc-rd-lims-dashboard\|rd-lims-etl\|quality-analysis-platform\|cmc-schema-migrations\|tt-lims-platform\|qc_lims_etl\|cmc-deploy\)" /etc/systemd/system/*.service /etc/nginx/conf.d/*.conf 2>/dev/null || ok "systemd / nginx 无残留引用"
+grep -l "/home/prometheus/\(cmc-rd-lims-dashboard\|rd-lims-etl\|cmc-schema-migrations\|tt-lims-platform\|qc_lims_etl\|cmc-deploy\)" /etc/systemd/system/*.service /etc/nginx/conf.d/*.conf 2>/dev/null || ok "systemd / nginx 无残留引用"
 crontab -l | grep -c "/home/prometheus/rd-lims-etl" | xargs -I{} sh -c '[ "{}" = "0" ] && echo "    ✓ crontab 无残留引用" || echo "    ✗ crontab 仍有 {} 处引用"'
-ls -d /opt/cmc-schema-migrations /opt/rd-lims-etl /opt/cmc-rd-lims-dashboard /opt/quality-analysis-platform /opt/tt-lims-platform /opt/qc_lims_etl /opt/cmc-deploy
+ls -d /opt/cmc-schema-migrations /opt/rd-lims-etl /opt/cmc-rd-lims-dashboard /opt/tt-lims-platform /opt/qc_lims_etl /opt/cmc-deploy
