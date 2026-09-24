@@ -40,16 +40,16 @@ async function setup({ configured = true, canPreview = true } = {}) {
     if (url.origin !== origin) { state.unexpected.push(url.origin); return route.abort() }
     const json = (data, status = 200) => route.fulfill({ status, json: env(data) })
     switch (url.pathname) {
-      case '/health': return json({ status: 'ok' })
-      case '/api/v1/auth/status': return json({ auth_required: configured, configured })
-      case '/api/v1/auth/me':
+      case '/qap/health': return json({ status: 'ok' })
+      case '/qap/api/v1/auth/status': return json({ auth_required: configured, configured })
+      case '/qap/api/v1/auth/me':
         if (state.meDelay) await new Promise((resolve) => setTimeout(resolve, state.meDelay))
         return json(state.identity)
-      case '/api/v1/imports/capabilities': return json({ can_commit: false, business_validation: 'pending', templates: [{
+      case '/qap/api/v1/imports/capabilities': return json({ can_commit: false, business_validation: 'pending', templates: [{
         template_code: 'qap_long_preview_v1', version: '1', label: '通用长表（结构预览）', sheet_name: '质量数据', headers,
         max_file_bytes: 10485760, approval_state: 'draft',
       }] })
-      case '/api/v1/imports/preview':
+      case '/qap/api/v1/imports/preview':
         state.previews += 1
         assert.match(route.request().headers()['content-type'], /multipart\/form-data; boundary=/)
         assert.ok(route.request().postDataBuffer().includes(Buffer.from('synthetic.xlsx')))
@@ -66,7 +66,7 @@ async function setup({ configured = true, canPreview = true } = {}) {
       case '/mdm/api/v1/auth/session-policy': return json({ access_token_minutes: 15, idle_timeout_minutes: 30, absolute_max_hours: 12, display_mode: false })
       case '/mdm/api/v1/auth/logout': return json(null)
       default:
-        if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/mdm/')) {
+        if (url.pathname.startsWith('/qap/api/') || url.pathname.startsWith('/mdm/')) {
           state.unexpected.push(url.pathname)
           return route.abort()
         }
@@ -76,7 +76,7 @@ async function setup({ configured = true, canPreview = true } = {}) {
   const page = await context.newPage()
   page.setDefaultTimeout(10000)
   page.on('pageerror', (error) => state.unexpected.push(error.message))
-  await page.goto(`${origin}/imports`)
+  await page.goto(`${origin}/qap/imports`)
   return { context, page, state }
 }
 

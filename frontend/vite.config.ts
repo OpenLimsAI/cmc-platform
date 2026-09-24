@@ -6,6 +6,7 @@ import { fileURLToPath, URL } from 'node:url'
 // 开发期把 /api 代理到后端 8040，避免 CORS 与硬编码地址。
 export default defineConfig({
   plugins: [react()],
+  base: '/qap/',
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -20,8 +21,14 @@ export default defineConfig({
         // MDM 实际 set_cookie / delete_cookie 的 Path，必须连同门户前缀改写。
         cookiePathRewrite: { '/api/v1/auth': '/mdm/api/v1/auth' },
       },
-      '/api': { target: 'http://127.0.0.1:8040', changeOrigin: true },
-      '/health': { target: 'http://127.0.0.1:8040', changeOrigin: true },
+      '/qap/api': {
+        target: 'http://127.0.0.1:8040', changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/qap/, ''),
+      },
+      '/qap/health': {
+        target: 'http://127.0.0.1:8040', changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/qap/, ''),
+      },
     },
   },
 })

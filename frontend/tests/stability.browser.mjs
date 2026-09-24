@@ -24,21 +24,21 @@ await context.route('**/*', async (route) => {
   const url = new URL(route.request().url())
   if (url.origin !== origin) { state.failures.push(url.origin); return route.abort() }
   const reply = (data, meta = {}) => route.fulfill({ json: { data, meta, errors: [] } })
-  if (url.pathname === '/health') return reply({ status: 'ok' })
-  if (url.pathname === '/api/v1/auth/status') return reply({ configured: false, auth_required: false })
-  if (url.pathname === '/api/v1/meta/projects') return reply([{ project_id: 'P-A', n: 24 }, { project_id: 'P-B', n: 24 }])
-  if (url.pathname === '/api/v1/analysis/stability/options') {
+  if (url.pathname === '/qap/health') return reply({ status: 'ok' })
+  if (url.pathname === '/qap/api/v1/auth/status') return reply({ configured: false, auth_required: false })
+  if (url.pathname === '/qap/api/v1/meta/projects') return reply([{ project_id: 'P-A', n: 24 }, { project_id: 'P-B', n: 24 }])
+  if (url.pathname === '/qap/api/v1/analysis/stability/options') {
     const request = route.request().postDataJSON(); state.optionRequests.push(request)
     if (request.project_id === 'P-A') await pause(state.optionDelay)
     return reply(options(request.project_id))
   }
-  if (url.pathname === '/api/v1/analysis/stability') {
+  if (url.pathname === '/qap/api/v1/analysis/stability') {
     const request = route.request().postDataJSON(); state.requests.push(request)
     await pause(state.analysisDelay)
     if (state.fail) return route.fulfill({ status: 503, json: { data: null, meta: {}, errors: [{ code: 'test_failure', message: '合成服务暂不可用' }] } })
     return reply(state.empty ? [] : [panel(), panel(true)], { row_count: state.empty ? 0 : 12, applied_filters: request })
   }
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/mdm/')) { state.failures.push(url.pathname); return route.abort() }
+  if (url.pathname.startsWith('/qap/api/') || url.pathname.startsWith('/mdm/')) { state.failures.push(url.pathname); return route.abort() }
   return route.continue()
 })
 const page = await context.newPage()
@@ -56,7 +56,7 @@ async function plotsReady() {
   await page.waitForFunction(() => { const nodes = [...document.querySelectorAll('.js-plotly-plot .svg-container')]; return nodes.length === 2 && nodes.every((node) => node.getBoundingClientRect().height >= 430) })
 }
 try {
-  await page.goto(origin + '/stability')
+  await page.goto(origin + '/qap/stability')
   await page.getByRole('heading', { name: '从一个稳定性项目开始' }).waitFor()
   await pick('项目', 'P-A（24条来源记录）'); await ready()
   await pick('样品类型', '成品'); await ready()

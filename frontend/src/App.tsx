@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import ImportPreviewPage from './pages/ImportPreviewPage'
 import { useAuth } from './auth/AuthProvider'
 import { SidebarHost } from './components/SidebarSlot'
+import { withBase } from './shared/base'
 import './app.css'
 
 const { Header } = Layout
@@ -15,7 +16,7 @@ const { Header } = Layout
 function HealthBadge() {
   const [ok, setOk] = useState<boolean | null>(null)
   useEffect(() => {
-    fetch('/health')
+    fetch(withBase('/health'))
       .then((r) => r.json())
       .then((j) => setOk(j?.data?.status === 'ok'))
       .catch(() => setOk(false))

@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '@/services/api'
 import type { AuthStatus, QapIdentity } from '@/types/auth'
 import {
-  clearSession, getStoredToken, mdmLogout, startSessionGuard,
+  getStoredToken, logoutToLogin, mdmLogout, startSessionGuard,
   TOKEN_CHANGED_EVENT, TOKEN_KEY, type LogoutReason,
 } from '@/shared/cmabSession'
+import { hubLoginUrl } from '@/shared/base'
 
 interface AuthContextValue {
   status: AuthStatus | null
@@ -84,14 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionEnded = useCallback((reason: LogoutReason) => {
     setUser(null)
     setLoading(true)
-    const go = () => navigate(`/login?reason=${reason}`, { replace: true })
-    if (reason === 'other-tab') {
-      clearSession()
-      go()
-    } else {
-      void mdmLogout().finally(go)
-    }
-  }, [navigate])
+    logoutToLogin(hubLoginUrl())(reason)
+  }, [])
 
   useEffect(() => {
     if (!token || !status?.configured) return
@@ -104,8 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setLoading(true)
     await mdmLogout()
-    navigate('/login', { replace: true })
-  }, [navigate])
+    window.location.assign(hubLoginUrl())
+  }, [])
 
   const canRead = !loading && !error && Boolean(
     user ? user.can_read : status && !status.auth_required,

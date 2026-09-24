@@ -29,22 +29,22 @@ await context.route('**/*', async (route) => {
   const url = new URL(route.request().url())
   if (url.origin !== origin) { state.failures.push(url.origin); return route.abort() }
   const reply = (data, meta = {}) => route.fulfill({ json: { data, meta, errors: [] } })
-  if (url.pathname === '/health') return reply({ status: 'ok' })
-  if (url.pathname === '/api/v1/auth/status') return reply({ configured: false, auth_required: false })
-  if (url.pathname === '/api/v1/meta/projects') return reply([{ project_id: 'P-A', n: 36 }, { project_id: 'P-B', n: 36 }])
-  if (url.pathname === '/api/v1/analysis/release/options') {
+  if (url.pathname === '/qap/health') return reply({ status: 'ok' })
+  if (url.pathname === '/qap/api/v1/auth/status') return reply({ configured: false, auth_required: false })
+  if (url.pathname === '/qap/api/v1/meta/projects') return reply([{ project_id: 'P-A', n: 36 }, { project_id: 'P-B', n: 36 }])
+  if (url.pathname === '/qap/api/v1/analysis/release/options') {
     const project = url.searchParams.get('project_id')
     if (project === 'P-A') await pause(state.optionDelay)
     return reply(options(project))
   }
-  if (url.pathname === '/api/v1/analysis/release') {
+  if (url.pathname === '/qap/api/v1/analysis/release') {
     const request = route.request().postDataJSON()
     state.requests.push(request)
     if (state.analysisDelay) await pause(state.analysisDelay)
     const selected = request.attribute_names?.length ? request.attribute_names : names
     return reply(state.empty ? [] : selected.map((name) => attribute(name, names.indexOf(name))), { project_id: request.project_id, row_count: state.empty ? 0 : 36, applied_filters: request })
   }
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/mdm/')) { state.failures.push(url.pathname); return route.abort() }
+  if (url.pathname.startsWith('/qap/api/') || url.pathname.startsWith('/mdm/')) { state.failures.push(url.pathname); return route.abort() }
   return route.continue()
 })
 const page = await context.newPage()
@@ -56,7 +56,7 @@ async function pick(label, text) {
   await page.getByLabel(label, { exact: true }).press('Escape')
 }
 try {
-  await page.goto(origin + '/release')
+  await page.goto(origin + '/qap/release')
   await page.getByRole('heading', { name: '从一个项目开始' }).waitFor()
   await pick('项目', 'P-A（36条来源记录）')
   await page.getByRole('button', { name: '分子大小变异体', exact: true }).click()

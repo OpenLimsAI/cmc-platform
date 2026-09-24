@@ -6,6 +6,7 @@ import type { StabilityRequest, StabilityOptions, StabilityPanel } from '@/types
 import type { SimilarityRequest, SimilarityPanel } from '@/types/similarity'
 import { clearSession, getStoredToken, mdmRefresh } from '@/shared/cmabSession'
 import { attachSessionInterceptors } from './sessionClient'
+import { withBase } from '@/shared/base'
 
 // 统一信封类型：后端所有响应为 { data, meta, errors }
 export interface Envelope<T = unknown> {
@@ -20,7 +21,7 @@ export interface ErrorItem {
   detail?: unknown
 }
 
-const client = axios.create({ baseURL: '/api/v1', timeout: 120000 })
+const client = axios.create({ baseURL: withBase('/api/v1'), timeout: 120000 })
 attachSessionInterceptors(client, { getToken: getStoredToken, refresh: mdmRefresh, clear: clearSession })
 
 export class ApiError extends Error {
