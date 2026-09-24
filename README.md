@@ -31,7 +31,7 @@ pnpm dev          # http://localhost:5101 只在单独调门户界面时用（�
 
 1. `frontend/src/config/apps.ts` 的 `HUB_APPS` 加一条：`id / name / icon / path / requires / status`
    （`requires` 填 `'authenticated'` 或 MDM 角色码数组；`status` 填 `live` / `planned`（标灰）/ `hidden`）。
-2. `nginx/hub-locations.conf` 加两条 location（`/xxx/api/` 剥前缀转后端、`/xxx/` 原样转前端）。
+2. `nginx/hub-locations.conf` 加两条 location（`/xxx/api/` 剥前缀转后端、`/xxx/` 原样转前端；独立健康地址按需加精确 location）。
 3. 子系统前端自己认前缀 + 改读统一 key（Vite 抄 `cmc-labops/frontend-react/src/shared/base.ts`；Next 抄 `cmc-rd-lims-dashboard/frontend/lib/auth.ts` + `next.config.ts`）。
 4. Linux 照 `deploy/linux/NN_xxx.sh` 写部署脚本跑一遍（子系统 nginx 加 `/xxx/` 伺服、前后端只听 127.0.0.1）。不开新的 ufw 端口。
 
@@ -42,3 +42,5 @@ pnpm dev          # http://localhost:5101 只在单独调门户界面时用（�
 正式环境 `172.19.0.105:/opt/cmab-hub`，nginx 听 5100（配置软链自 `nginx/cmab-hub.linux.conf`）。
 门户前端改动上线：`ssh -p 13568 prometheus@172.19.0.105 'cd /opt/cmab-hub && git pull && cd frontend && pnpm build'`（静态包立即生效，不用重启 nginx）。
 子系统上门户 / 只听本机 / 防火墙：`deploy/linux/*.sh`（按编号顺序，可重复跑；`50_firewall.sh` 需负责人亲自执行）。
+
+CMC 质量分析看板使用 `/qap/`，磁贴仅对 `QAP_QC_GENERAL`、`QAP_QA_RELEASE` 显示；后端在 8040 独立验签，部署入口为 `deploy/linux/45_qap.sh`。QAP 的 5140/8040 不对内网开放。

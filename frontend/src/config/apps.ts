@@ -104,6 +104,16 @@ export const HUB_APPS: HubApp[] = [
     color: '#fa8c16',
   },
   {
+    id: 'qap',
+    name: 'CMC 质量分析看板',
+    description: '放行、稳定性及批次 / 场地相似性趋势分析',
+    icon: 'dashboard',
+    path: '/qap/',
+    requires: ['QAP_QC_GENERAL', 'QAP_QA_RELEASE'],
+    status: 'live',
+    color: '#1a5276',
+  },
+  {
     id: 'lcms',
     name: 'LC-MS/MS 定量看板',
     description: 'AB SCIEX 靶向定量数据解析与质控诊断',

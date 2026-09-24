@@ -28,7 +28,7 @@
 - 直连时前端调的是 `/xxx/api/...`，所以子系统自己也得会转：Vite 项目在子系统 nginx 加 `location /xxx/api/ { proxy_pass 后端/api/; }`（MDM/LabOps 片段已含）；Next 项目用 `next.config rewrites`（已加）。
 - Mac 上 Vite dev 直连根路径会显示 Vite 的"请访问 /xxx/"提示页而非自动跳转，属开发态正常。
 
-## 子系统改造进度（2026-08-17 全部完成并上线 Linux）
+## 子系统改造进度
 
 | 子系统 | 前端改造 | 统一 key | Linux 子系统 nginx / 监听 | 部署脚本 |
 |---|---|---|---|---|
@@ -37,6 +37,7 @@
 | 批号管理 | ✅ `/batch/` | ✅（旧 `rbr_*` 自动迁移） | ✅ conf 由脚本写入；5180 只听本机 | `deploy/linux/25_batch.sh` |
 | 上游看板（Next） | ✅ `basePath:'/usp'` | ✅（旧 `usp_dashboard_token` 自动迁移） | ✅ next start `-H 127.0.0.1`；`.env.local` = `/usp`；5170/8070 只听本机 | `deploy/linux/30_usp.sh` |
 | LIMS 看板（Next） | ✅ `basePath:'/lims'` | ✅（旧 `lims_token` 自动迁移） | ✅ 同上；`.env.local` = `/lims`；5130/8030 只听本机 | `deploy/linux/40_lims.sh` |
+| CMC 质量分析看板 | ✅ `/qap/` | ✅ `cmab_access_token` | ⏳ 代码已就绪，待首次部署；5140/8040 只听本机 | `deploy/linux/45_qap.sh` |
 | 成本模型 | ⬜ 未纳入（注册表 planned） | ⬜ | ⬜ | — |
 
 上游一律写 `localhost` 不写 `127.0.0.1`（Mac 上 Vite dev 只听 IPv6）。
