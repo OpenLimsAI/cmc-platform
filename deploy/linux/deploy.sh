@@ -47,6 +47,10 @@ chmod 600 "$ENV_FILE"
 log "安装锁定依赖并构建前端"
 (cd backend && uv sync --locked --quiet)
 (cd frontend && pnpm install --frozen-lockfile >/dev/null && pnpm build)
+# nginx worker 需要逐级进入目录并读取构建产物；保留 backend/.env 的 600 权限。
+chmod 755 "$DIR" "$DIR/frontend"
+find "$DIR/frontend/dist" -type d -exec chmod 755 {} +
+find "$DIR/frontend/dist" -type f -exec chmod 644 {} +
 
 log "安装并重启后端服务"
 sudo cp deploy/linux/qap-backend.service /etc/systemd/system/qap-backend.service
@@ -58,9 +62,13 @@ log "安装本机静态前端"
 sudo cp deploy/linux/qap-platform.nginx.conf /etc/nginx/conf.d/qap-platform.conf
 sudo nginx -t
 sudo systemctl reload nginx
-sleep 3
 
-health=$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8040/health)
+health=000
+for _ in $(seq 1 30); do
+  health=$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8040/health || true)
+  [ "$health" = 200 ] && break
+  sleep 1
+done
 unauth=$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8040/api/v1/meta/projects)
 frontend=$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:5140/qap/)
 [ "$health" = 200 ] || fail "后端健康检查返回 $health"
