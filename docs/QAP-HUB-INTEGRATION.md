@@ -36,4 +36,4 @@ QAP 仓库负责 `/qap/` 前缀、统一会话、后端权限、systemd 和本�
 5. 无会话访问 QAP 自动进入 Hub 登录页；有对应角色的真实员工免重复登录进入；无角色员工看不到磁贴且直接请求 API 返回 403。
 6. 临时密码用户不能进入；退出或会话过期后回到 Hub 登录页。
 
-Linux 当前另有 `/opt/quality-analysis-platform` 的 Next.js 测试服务监听 3001，它不是本仓库。QAP 上线不会自动停止或覆盖该服务；是否退役须单独确认。
+早期 `/opt/quality-analysis-platform` Next.js 测试服务已于 2026-09-24 退役：`qa-frontend.service`、应用目录及 ufw 3001 规则均已删除，端口已确认无监听。此次仅删除旧应用与暴露入口，没有删除其曾连接的数据库数据。
