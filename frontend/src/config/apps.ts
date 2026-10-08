@@ -38,6 +38,7 @@ export interface HubApp {
 }
 
 export const HUB_APPS: HubApp[] = [
+  { id: 'water', name: '制药用水看板', description: '纯化水、注射用水与纯蒸汽检验结果、趋势和来源追溯', icon: 'line-chart', path: '/water/', requires: ['CMC_WATER_VIEWER', 'CMC_WATER_EXPORTER'], status: 'live', color: '#167d9a' },
   {
     id: 'mdm',
     name: '主数据 MDM',
