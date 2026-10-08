@@ -146,7 +146,7 @@ def api_client(monkeypatch):
     return TestClient(app), auth, captured
 
 
-@pytest.mark.parametrize("roles,expected", [(["QAP_QC_GENERAL"], 200), (["QAP_QA_RELEASE"], 200), (["SYS_ADMIN"], 403), ([], 403)])
+@pytest.mark.parametrize("roles,expected", [(["QAP_QC_GENERAL"], 200), (["QAP_QA_RELEASE"], 200), (["SYS_ADMIN"], 200), ([], 403)])
 def test_real_router_guards_and_read_contract(monkeypatch, roles, expected):
     client, auth, captured = api_client(monkeypatch)
     with client:

@@ -226,7 +226,7 @@ def test_request_rejects_ambiguous_or_unsupported_inputs(patch):
         SimilarityRequest.model_validate({**request().model_dump(),**patch})
 
 
-@pytest.mark.parametrize("roles,status",[(["QAP_QA_RELEASE"],200),(["QAP_QC_GENERAL"],200),([],403),(["SYS_ADMIN"],403)])
+@pytest.mark.parametrize("roles,status",[(["QAP_QA_RELEASE"],200),(["QAP_QC_GENERAL"],200),([],403),(["SYS_ADMIN"],200)])
 def test_read_guard_and_release_repository_scope(monkeypatch,roles,status):
     client,auth,captured=api_client(monkeypatch)
     with client:

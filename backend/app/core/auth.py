@@ -18,8 +18,8 @@ class CurrentUser:
     roles: tuple[str, ...]
 
     def has_any_role(self, allowed: list[str]) -> bool:
-        # 包括 SYS_ADMIN 在内的任何角色均须由负责人显式纳入本系统白名单。
-        return bool(set(self.roles).intersection(allowed))
+        # SYS_ADMIN 拥有所有看板功能；身份必须先经过 MDM 令牌校验。
+        return "SYS_ADMIN" in self.roles or bool(set(self.roles).intersection(allowed))
 
 
 def _require_user(authorization: str | None, auth_settings: Settings) -> CurrentUser:

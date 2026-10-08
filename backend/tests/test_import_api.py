@@ -166,7 +166,7 @@ def test_preview_busy_response_does_not_parse_another_workbook(client, auth_sett
     (["QAP_QC_GENERAL"], 200, 200),
     (["QAP_QA_RELEASE"], 200, 403),
     (["QAP_QC_GENERAL", "QAP_QA_RELEASE"], 200, 200),
-    (["SYS_ADMIN"], 403, 403),
+    (["SYS_ADMIN"], 200, 200),
     (["READ_ONLY"], 403, 403),
     (["QC综合"], 403, 403),
     ([], 403, 403),

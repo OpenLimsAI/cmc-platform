@@ -39,7 +39,7 @@ pnpm dev --host 127.0.0.1
 
 配置键见 `backend/.env.example`。`QAP_ENVIRONMENT=development`、`QAP_AUTH_REQUIRED=false` 且完全没有验签配置时，仅允许旧只读开发；结构预览仍拒绝。一旦提供验签配置，就要求有效身份及浏览白名单。`production`/`test` 或显式要求认证时，缺失/无效验签配置导致启动失败。最终部署必须显式设为 `production` 并启用认证。
 
-MDM 是唯一登录源，QAP 不签发令牌，也不保存密码。HS256 需与 MDM 一致的共享验签材料，RS256 使用 MDM RSA 公钥文件。角色通过 `QAP_READ_ROLES`、`QAP_IMPORT_PREVIEW_ROLES` 两个JSON数组配置。2026-09-16已按负责人确认设置默认值：浏览为 `["QAP_QC_GENERAL","QAP_QA_RELEASE"]`，预览为 `["QAP_QC_GENERAL"]`；显式空数组仍关闭授权。SYS_ADMIN等其他角色不自动获得本平台权限，中文显示名不能代替MDM角色码。
+MDM 是唯一登录源，QAP 不签发令牌，也不保存密码。HS256 需与 MDM 一致的共享验签材料，RS256 使用 MDM RSA 公钥文件。角色通过 `QAP_READ_ROLES`、`QAP_IMPORT_PREVIEW_ROLES` 两个JSON数组配置。2026-09-16已按负责人确认设置默认值：浏览为 `["QAP_QC_GENERAL","QAP_QA_RELEASE"]`，预览为 `["QAP_QC_GENERAL"]`；显式空数组关闭普通角色授权。2026-10-08负责人确认：SYS_ADMIN拥有所有看板的所有功能，统一获得浏览、分析及Excel结构预览权限，不受上述白名单限制；仍须有效验签及完成临时密码修改。其他角色不自动获得本平台权限，中文显示名不能代替MDM角色码。
 
 QC综合可查看并导入Excel（正式导入功能待完成，当前只做结构预览）；QA放行在本模块仅查看，不授予放行审批或任何导入/修改权限。两个角色已在Mac MDM创建，尚未分配员工；项目/部门范围仍待确认。具体登记及最终部署复现步骤见 [角色登记](QAP-ROLE-SETUP-20260916.md)。
 

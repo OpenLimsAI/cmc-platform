@@ -143,16 +143,16 @@ def test_temporary_password_returns_403_without_refresh_loop():
     assert response.json()["errors"][0]["code"] == "password_change_required"
 
 
-def test_default_empty_role_lists_deny_even_sys_admin():
+def test_sys_admin_has_all_implemented_capabilities_even_with_empty_role_lists():
     with client_for(config(read_roles=[], import_preview_roles=[])) as client:
         auth = headers(claims(roles=["SYS_ADMIN"]))
         me = client.get("/api/v1/auth/me", headers=auth)
         assert me.status_code == 200
-        assert me.json()["data"]["can_read"] is False
-        assert me.json()["data"]["can_preview"] is False
+        assert me.json()["data"]["can_read"] is True
+        assert me.json()["data"]["can_preview"] is True
         assert me.json()["data"]["can_commit"] is False
-        assert client.get("/read", headers=auth).status_code == 403
-        assert client.post("/preview", headers=auth).status_code == 403
+        assert client.get("/read", headers=auth).status_code == 200
+        assert client.post("/preview", headers=auth).status_code == 200
 
 
 def test_read_and_preview_are_separate_permissions():
@@ -213,3 +213,22 @@ def test_rs256_uses_public_key_and_rejects_shared_secret_token(tmp_path):
 def test_role_configuration_is_explicit_string_list(roles):
     with pytest.raises(ValidationError):
         config(read_roles=roles)
+
+
+@pytest.mark.parametrize("override,expected", [
+    ({"must_change_password": True}, 403),
+    ({"exp": int(time()) - 30}, 401),
+])
+def test_sys_admin_still_requires_valid_access_and_password_change(override, expected):
+    with client_for(config()) as client:
+        auth = headers(claims(roles=["SYS_ADMIN"], **override))
+        assert client.get("/api/v1/auth/me", headers=auth).status_code == expected
+        assert client.get("/read", headers=auth).status_code == expected
+        assert client.post("/preview", headers=auth).status_code == expected
+
+
+def test_admin_username_without_sys_admin_role_has_no_special_access():
+    with client_for(config()) as client:
+        auth = headers(claims(username="admin", roles=[]))
+        assert client.get("/read", headers=auth).status_code == 403
+        assert client.post("/preview", headers=auth).status_code == 403
