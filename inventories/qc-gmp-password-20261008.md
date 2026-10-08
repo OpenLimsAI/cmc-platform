@@ -28,6 +28,15 @@
 
 生成随机新密码，写入受限文件后通过上述 migration 执行；原子更新 QC `.env` 的 `PG_DSN`。分别核对 `dbmig current`、账号登录、权限及数据未变、其他项目配置和调度未变。通过只读 `python -m scripts.check_linux_readiness` 后才能启用 QC timer；不立即手动运行完整 ETL。
 
-如需回退本次密码变更，先停用 QC timer，核实备份对应本次执行并协调任何已经改用新密码的客户端。`GMP_ETL_ROLLBACK_VERIFIER_FILE` 指向受限的原 verifier 文件，再执行 `./dbmig cmc_gmp downgrade gmp_qc_point_raw_20261008`，并恢复对应 QC 原配置。此专项回退不适用于其他 revision，不需要整库恢复。
+以下密码 downgrade 只适用于当前 revision 正好是 `gmp_etl_password_20261008` 的情况；若已经执行后续权限迁移，先专项评审后续 revision，不直接跨越降级。如需回退本次密码变更，先停用 QC timer，核实备份对应本次执行并协调任何已经改用新密码的客户端。`GMP_ETL_ROLLBACK_VERIFIER_FILE` 指向受限的原 verifier 文件，再执行 `./dbmig cmc_gmp downgrade gmp_qc_point_raw_20261008`，并恢复对应 QC 原配置。此专项回退不适用于其他 revision，不需要整库恢复。
 
 实际 Linux 执行 SHA、备份目录、验收结果及定时首次触发时间记录于 [QC 运维文档](../../qc-lims-etl/docs/05-ops-deployment.md)。结构版本与凭据配置完成不代表首次生产数据同步已完成。
+
+
+## Linux 启动检查发现的序列授权缺口
+
+密码迁移后只读预检查确认 `gmp_etl` 在 `meta.etl_run_run_id_seq` 与 `meta.load_error_log_error_id_seq` 上均无 USAGE/SELECT/UPDATE。该缺口此前已存在：账号有对应表 INSERT，但创建运行记录或错误记录时不能调用序列取得 ID。
+
+追加 revision `gmp_qc_meta_seq_20261008`，仅授予以上两个既有序列的 USAGE，先核对其归属列分别为 `meta.etl_run.run_id` 和 `meta.load_error_log.error_id`。不授予序列 UPDATE，不修改其他序列、表权限或数据。执行入口 `./dbmig cmc_gmp upgrade gmp_qc_meta_seq_20261008`。不自动撤销供客户端运行所需的权限，降级须专项审查。
+
+Mac 隔离环境另已验证：两条 QC 序列的 nextval 成功；序列 UPDATE 及其他序列 USAGE 保持拒绝。测试夹具使用与 Linux 相同的既有 meta schema USAGE。
