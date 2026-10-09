@@ -1,5 +1,7 @@
 # 07 · 页面与API契约
 
+> **2026-10-09 已确认规则更新（v1.0，Mac 代码/测试/数据已验证）**：所有最终结果接口仅 Reviewed；兼容水系统 v1/v2 选择规则。微生物限度报告值 `<1` 单独派生绘图值 0，精确 1 为 1；原文、比较符、阈值和规则保留，0 不作实测统计。趋势及 PNG/表格导出统一使用 `plot_value`。第四表水系统仅保留最终结果键，过程数据保留在 raw。详见[变更记录](./changes/20261009-reviewed-water-results.md)。本轮 Linux 未发布，历史发布状态不代表 v2 已上线。
+
 > 版本：0.9｜日期：2026-10-09｜状态：两页与三卡片已实现，顶部黄色提示已移除；本轮Mac/Linux前端各9项及构建通过，后端未变（49项为此前两页证据）；Linux服务及资源已核验，真实登录交互待验收。
 
 ## 1. 两页与筛选职责
@@ -13,7 +15,7 @@
 
 旧results/summaries/quality页面转到overview并提示已移除，清除查询串；其专用API移除。页面用pathname/history管理，趋势URL保存FilterSpec，不保存比较组；刷新趋势需重新选组。总览URL不保存筛选，不继承趋势条件；本次会话从总览返回趋势可继续原筛选。
 
-FilterSpec字段：water_type、samplepoint_code、samplepoint_id、workitem_id、paramlist_id、paramlist_version_id、variant_id、param_id、unit、date_from、date_to、sample_status。water_type仅三类水；sample_status仅Reviewed/Completed且非空，默认Reviewed。字符串按Pydantic长度限制，samplepoint_code非空。日期默认上海今天向前12日历月至明日排他边界；最多3660天。UI两端包含，API为[date_from,date_to)，完整规则见docs/04。
+FilterSpec字段：water_type、samplepoint_code、samplepoint_id、workitem_id、paramlist_id、paramlist_version_id、variant_id、param_id、unit、date_from、date_to、sample_status。water_type仅三类水；sample_status仅Reviewed且非空，默认Reviewed。字符串按Pydantic长度限制，samplepoint_code非空。日期默认上海今天向前12日历月至明日排他边界；最多3660天。UI两端包含，API为[date_from,date_to)，完整规则见docs/04。
 
 GET状态重复query参数，POST为数组；未知筛选键拒绝，comparison_group只供趋势请求使用。位置和系统归属本轮暂停，等待用户对照表。完整决定见[两页整理记录](changes/20261009-two-page-dashboard.md)。
 
@@ -55,6 +57,7 @@ normalize保留反射得到的源列并增加下列字段，不是固定的全�
 | display_value / source_unit | displayvalue / unit别名，原值原单位 |
 | trend_at / trend_date_source | trend_dt / trend_dt_source别名，上海时区ISO时间 |
 | batch_number | u_batchno别名，源值不改 |
+| plot_value / plot_value_rule / result_role | 绘图值、转换版本及 reported_result/conclusion 用途；不覆盖原文或实测值 |
 | result_kind / numeric_value / operator / bound / parse_reason | 解析类别、Decimal文本、删失比较符/界值及原因 |
 | result_id / source_key / comparison_group | v1编码结果键、完整12列结果键、九字段组编码，见docs/03–04 |
 | plot_status / not_plotted_reason / mapping_status / limit_status | 是否绘图、未绘图原因、映射说明、未配置限度 |
@@ -67,11 +70,11 @@ context含environment/source_system/source_description/staging_data_origin、上
 
 ## 5. 总览聚合契约
 
-water_cards按WFI=注射用水、PW=纯化水、PS=纯蒸汽排列，各含code、water_type、point_count、annual_sample_count。year及date_from/date_to在本次响应按上海今天固定：当年1月1日至明日（排他）。sample_status固定[Reviewed,Completed]，point_scope=all_available_selected_results，overview_rule_version=water_overview_counts_v1。
+water_cards按WFI=注射用水、PW=纯化水、PS=纯蒸汽排列，各含code、water_type、point_count、annual_sample_count。year及date_from/date_to在本次响应按上海今天固定：当年1月1日至明日（排他）。sample_status固定[Reviewed]，point_scope=all_available_selected_results，overview_rule_version=water_overview_counts_v2。
 
 点位统计不限年度，在该水类型全部可用入选宽表范围中按非空内部ID去重；年度样品按有效trend_dt落入年内的source_system/s_sampleid去重。来源固定，SQL按水类型聚合COUNT DISTINCT，并将缺失水类型补零；缺日期不计年度，缺点位仍可计年度样品。原有数值/结论、多个replicate不增加重复计数。单响应内卡片/context由同一REPEATABLE READ只读事务返回；不依赖趋势选项/用户筛选，也不读取全集原文。
 
-此样品总数仅包括已有两条来源规则入选结果的Reviewed/Completed样品，不是全部待检样品总量；点位也不是主表完整台账。页面展示统计年度、截至日期和简要口径。查询失败返回503及重试提示，不补零伪装成功。详见docs/04和两页整理记录。
+此样品总数仅包括已有水系统/电导率数值补充 v1/v2 规则入选结果的Reviewed样品，不是全部待检样品总量；点位也不是主表完整台账。页面展示统计年度、截至日期和简要口径。查询失败返回503及重试提示，不补零伪装成功。详见docs/04和两页整理记录。
 
 ## 6. 导出请求与文件
 
@@ -87,7 +90,7 @@ ExportRequest禁止额外顶层键，字段为：filter必填FilterSpec、compar
 
 所有内容基于一次固定结果集，渲染前释放事务。Excel列由export.COLUMNS定义，包含原文/源单位/来源键/时间/规则/当前映射及派生字段；不是raw全列导出。Excel结果单元格为文本以保留原串并防公式。CSV对以=、+、-、@开头（忽略左侧空白）的文本加单引号；JSONL保留规范化行的原字符串及完整键。
 
-manifest含export_id/kind/generated_at/actor_id、filter/comparison_group、data_context/context_id、分析/图形/来源规则、metrics/未绘图计数/已知缺口。ZIP manifest附四个内容文件SHA256；Excel说明在ZIP哈希计算前写入，不含最终四文件哈希；独立PNG/Excel也不另附manifest或外部哈希文件。图形版本water_chart_v1不代表已实现共享ChartSpec。
+manifest含export_id/kind/generated_at/actor_id、filter/comparison_group、data_context/context_id、分析/图形/来源规则、metrics/未绘图计数/已知缺口。ZIP manifest附四个内容文件SHA256；Excel说明在ZIP哈希计算前写入，不含最终四文件哈希；独立PNG/Excel也不另附manifest或外部哈希文件。图形版本water_chart_v2不代表已实现共享ChartSpec。
 
 PNG当前无实际限度；没有可绘图值也可以导出有原文说明的图；无绘图点本身不触发拒绝，空结果按前述digest检查顺序处理。生成失败不返回部分文件。图表原文表范围按docs/03第9节定义，绘图状态/统计按docs/04。
 

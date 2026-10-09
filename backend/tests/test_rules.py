@@ -149,3 +149,38 @@ def test_date_warning_follows_verified_staging_origin():
  assert '分钟不准确' in source_notes('legacy_xlsx')[1]
  assert '分钟不准确' not in source_notes('oracle_etl')[1]
  assert '最新 raw' in source_notes('unverified')[1]
+
+
+@pytest.mark.parametrize('raw,expected',[('<1','0'),('＜1 ','0'),('<1.0','0'),('1','1'),('<=1','1'),('≤1','1'),('<10','10'),('符合规定',None),(None,None)])
+def test_microbiology_plotting_preserves_report_and_bound(raw,expected):
+    r=row(raw,unit='cfu/ml',param='报告值')
+    r.update(paramlistid='微生物限度',selection_rule='water_system_v2')
+    r=normalize(r)
+    assert r['display_value']==raw and r['plot_value']==expected
+    if expected=='0':
+        assert r['numeric_value'] is None and Decimal(r['bound'])==1
+        assert r['plot_value_rule']=='water_microbiology_lt1_zero_v1'
+    assert row('<1')['plot_value']=='1' # Conductivity is outside the zero rule.
+
+
+def test_png_uses_microbiology_plot_values_and_original_annotation(monkeypatch):
+    from matplotlib.axes import Axes
+    from app.export import png
+    rows=[]
+    for raw in ['＜1 ','1']:
+        r=row(raw,unit='cfu/100ml',param='报告值')
+        r.update(paramlistid='微生物限度')
+        rows.append(normalize(r))
+    calls=[];labels=[]
+    scatter=Axes.scatter;annotate=Axes.annotate
+    def capture(self,x,y,*args,**kwargs):
+        calls.extend(y);return scatter(self,x,y,*args,**kwargs)
+    def annotation(self,text,*args,**kwargs):
+        labels.append(text);return annotate(self,text,*args,**kwargs)
+    monkeypatch.setattr(Axes,'scatter',capture);monkeypatch.setattr(Axes,'annotate',annotation)
+    content=png(rows,{'filter':{'date_from':'2026-10-01','date_to':'2026-10-10'},'data_context':{},'export_id':'fixture'})
+    assert content.startswith(b'\x89PNG') and sorted(calls)==[0.0,1.0] and labels==['＜1 ']
+
+
+def test_completed_filter_is_rejected():
+    with pytest.raises(ValueError):FilterSpec(sample_status=['Completed'])

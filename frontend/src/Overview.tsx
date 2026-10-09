@@ -24,6 +24,6 @@ export function Overview({tokenVersion}:{tokenVersion:number}) {
         <p className="muted">{data.year} 年 · 截至 {dayjs(data.date_to).subtract(1,'day').format('YYYY-MM-DD')}</p>
       </Card>)}
     </div>
-    <p className="muted">点位数：全部已有入选数据中的不同内部点位；年度样品总数：今年 1 月 1 日至今天已有入选结果的样品，按样品去重。两项均含已复核和测完未复核状态。</p>
+    <p className="muted">点位数：全部已有入选数据中的不同内部点位；年度样品总数：今年 1 月 1 日至今天已有入选结果的样品，按样品去重。两项均仅纳入已复核状态。</p>
   </>
 }

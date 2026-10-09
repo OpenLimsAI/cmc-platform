@@ -1,5 +1,10 @@
 # 当前实现与验收状态
 
+> **2026-10-09 水系统 mart：Mac 创建与验收完成**。四个普通视图：84,497最终结果、39,339趋势结果、13,462样品、129核对事项。15项隔离SQL测试、70个源字段/键对账及reader权限核验通过；当前迁移analytics_water_mart_perf_1009。看板仍消费staging，尚未切换或发布Linux；见[本轮记录](changes/20261009-water-mart-views.md)。
+
+
+> **2026-10-09 水系统最终结果 v2：Mac 验证完成**。仅 Reviewed；微生物 `<1` 绘图为0、精确1为1；原文保留。后端60项、前端9项测试和构建通过。实际只读适配器核对13,167条微生物结果，9,697条使用小于1归零规则；概览和追溯已核对。本轮 Linux 尚未发布；此前Linux发布记录仍对应旧规则。详见[变更记录](changes/20261009-reviewed-water-results.md)。
+
 > 版本：0.9｜日期：2026-10-09｜状态：本轮静态核对和 Mac 隔离验证完成；两页GitHub→Linux发布、资源及只读统计已SSH核验；本轮位置调查已另行只读核对Mac分析库与正式Oracle主数据。
 
 ## 本轮核实范围
@@ -23,12 +28,12 @@
 
 ## 顶部提示与mart评估
 
-用户要求暂移除两页顶部黄色提示。FR-02及页面/架构文档已先更新，前端已移除，Mac/Linux各9项前端测试及构建、Hub资源核验通过，已提交GitHub并部署Linux；结果登记在[变更记录](changes/20261009-remove-context-notice.md)。API与导出上下文保留，统计与取数不变。Linux四个mart.v_qc_*_preview当前均0行，是版本化报告候选预览，不能替代当前水系统数据；专用水系统mart仅为后续建议。
+用户要求暂移除两页顶部黄色提示。FR-02及页面/架构文档已先更新，前端已移除，Mac/Linux各9项前端测试及构建、Hub资源核验通过，已提交GitHub并部署Linux；结果登记在[变更记录](changes/20261009-remove-context-notice.md)。API与导出上下文保留，统计与取数不变。Linux四个mart.v_qc_*_preview当前均0行，是版本化报告候选预览，不能替代当前水系统数据；专用水系统mart随后已获授权在Mac创建与验收，消费者切换仍待实施。
 
 ## 当前限制
 
-- 分析版本 `water_dashboard_analysis_v1`，导出图形版本 `water_chart_v1`；主看板只接受 `water_system_v1` 与 `water_conductivity_method1_numeric_v1`。
-- 总览按Asia/Shanghai当前自然年统计样品、全部可用入选数据统计点位；总览版本water_overview_counts_v1。趋势日期为 Asia/Shanghai 的滚动 3/6/12 日历月，默认12个月；不是最近有数据的一年。每次选择后冻结日期，空结果保留原范围。
+- Mac分析版本 `water_dashboard_analysis_v2`，导出图形版本 `water_chart_v2`；兼容两条水系统v1/v2选择规则，样品仅Reviewed。mart仅接受两条v2选择规则；Linux仍对应此前版本。
+- 总览按Asia/Shanghai当前自然年统计样品、全部可用入选数据统计点位；Mac总览版本water_overview_counts_v2。趋势日期为 Asia/Shanghai 的滚动 3/6/12 日历月，默认12个月；不是最近有数据的一年。每次选择后冻结日期，空结果保留原范围。
 - 取样点当前编号/名称映射与历史有效期不同；同号不同内部 ID 分组隔离。系统、回路和限度未确认，当前不输出超限或合格率判断。
 - 原始结果表为已入选结果原文，不是全部 Oracle/raw 或中间参数。导出文件使用一次固定取数；`dataset_digest` 检查所选组是否变化，不是不可变数据版本。
 - 后端比较组、趋势/导出先读取整个筛选集合；当前默认上限100000行、日期跨度最多3660天、单 SQL 30秒，均为实现防护值，容量验收见 OP-11。

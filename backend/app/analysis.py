@@ -11,12 +11,12 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, Field, model_validator
 
 TZ = ZoneInfo('Asia/Shanghai')
-RULE = 'water_dashboard_analysis_v1'
-OVERVIEW_RULE = 'water_overview_counts_v1'
+RULE = 'water_dashboard_analysis_v2'
+OVERVIEW_RULE = 'water_overview_counts_v2'
 WATER_CARDS = (('WFI','注射用水'),('PW','纯化水'),('PS','纯蒸汽'))
 SOURCE = 'gmp_labvantage'
 WATERS = ('纯化水','注射用水','纯蒸汽')
-RULES = ('water_system_v1','water_conductivity_method1_numeric_v1')
+RULES = ('water_system_v1','water_conductivity_method1_numeric_v1','water_system_v2','water_conductivity_method1_numeric_v2')
 KEY = ('source_system','sdcid','keyid1','keyid2','keyid3','paramlistid','paramlistversionid','variantid','dataset','paramid','paramtype','replicateid')
 GROUP = ('samplesubtypeid','samplepointid','workitemid','paramlistid','paramlistversionid','variantid','paramid','paramtype','unit')
 NUM = r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
@@ -40,7 +40,7 @@ class FilterSpec(BaseModel):
     unit: str | None = Field(None,max_length=100)
     date_from: date = Field(default_factory=lambda: months_before(today(),12))
     date_to: date = Field(default_factory=lambda: today()+timedelta(days=1))
-    sample_status: list[Literal['Reviewed','Completed']] = Field(default_factory=lambda:['Reviewed'])
+    sample_status: list[Literal['Reviewed']] = Field(default_factory=lambda:['Reviewed'])
     @model_validator(mode='before')
     @classmethod
     def freeze_default_date(cls,values):
@@ -85,6 +85,17 @@ def normalize(row):
     # Unknown units cannot be assumed to represent a comparable quantity.
     if not r.get('unit') or not r.get('samplepointid'): group.append(key)
     r.update(source_key=key,result_id=encode(key),comparison_group=encode(group),mapping_status=('已关联当前 LIMS 水点主表；历史有效期及系统未核实' if r.get('samplepoint_mapping_scope') == 'current_master' else '现场水点编号、名称及系统未映射'),samplepoint_name=r.get('samplepoint_name'),samplepoint_code=r.get('samplepoint_code'),limit_status='未配置限度',**parse(r.get('displayvalue')))
+    # Keep a plot coordinate separate from any exact measured value.
+    plot_value = r['numeric_value'] if r['result_kind']=='exact_numeric' else r['bound']
+    plot_rule = 'water_exact_numeric_v1' if r['result_kind']=='exact_numeric' else ('water_censored_bound_plot_v1' if r['result_kind']=='censored' else None)
+    operator = {'＜':'<','＞':'>','≤':'<=','≥':'>='}.get(r['operator'],r['operator'])
+    if (r.get('paramlistid')=='微生物限度' and r.get('paramid')=='报告值'
+            and operator=='<' and r['bound'] is not None and Decimal(r['bound'])==Decimal(1)):
+        plot_value='0'
+        plot_rule='water_microbiology_lt1_zero_v1'
+    r.update(plot_value=plot_value,plot_value_rule=plot_rule,
+             result_role='conclusion' if r.get('paramid') in ('结论','结果判定') else 'reported_result',
+             result_operator=operator,result_bound=r['bound'])
     r.update(display_value=r.get('displayvalue'),source_unit=r.get('unit'),sample_id=r.get('s_sampleid'),sample_status=r.get('samplestatus'),water_type=r.get('samplesubtypeid'),samplepoint_id=r.get('samplepointid'),trend_at=r.get('trend_dt'),trend_date_source=r.get('trend_dt_source'),batch_number=r.get('u_batchno'))
     reason = 'LIMS 点位内部 ID 缺失，不能归入点位趋势' if not r.get('samplepoint_id') else ('趋势日期缺失' if not r.get('trend_at') else ('单位缺失，量纲未确认' if not r.get('unit') else (None if r['result_kind'] in {'exact_numeric','censored'} else r['parse_reason'])))
     r['plot_status']='plotted' if reason is None else 'not_plotted'

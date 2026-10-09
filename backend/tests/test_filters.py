@@ -98,8 +98,8 @@ def test_method_version_phase_parameter_unit_cascade(cascade_api):
 
 
 def test_date_status_bounds_and_empty_population(cascade_api):
-    data=request(cascade_api,water_type='注射用水',sample_status='Completed').json()
-    assert data['options']['samplepoint_code']==['COMPLETED']
+    assert request(cascade_api,water_type='注射用水',sample_status='Completed').status_code==422
+    assert 'COMPLETED' not in request(cascade_api,water_type='注射用水').json()['options']['samplepoint_code']
     # Inclusive UI end date is already represented as exclusive next-day date_to.
     data=request(cascade_api,water_type='注射用水',date_from='2026-10-08',date_to='2026-10-09').json()
     assert data['options']['samplepoint_code']==['OLD']

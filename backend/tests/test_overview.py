@@ -23,7 +23,7 @@ def overview_api(monkeypatch):
           'selection_rule':'water_system_v1','samplestatus':'Reviewed','s_sampleid':'S1','samplepointid':'SP-A',
           'trend_dt':datetime(2026,1,1,tzinfo=TZ)}
     variants=[{}, # One sample has multiple parameters, including its numeric companion.
-              {'selection_rule':'water_conductivity_method1_numeric_v1'},
+              {'selection_rule':'water_conductivity_method1_numeric_v2'},
               {'s_sampleid':'S2','samplepointid':'SP-B','samplestatus':'Completed','trend_dt':datetime(2026,10,9,23,59,59,tzinfo=TZ)},
               {'s_sampleid':'LAST_YEAR','samplepointid':'SP-OLD','trend_dt':datetime(2025,12,31,23,59,59,tzinfo=TZ)},
               {'s_sampleid':'TOMORROW','trend_dt':datetime(2026,10,10,tzinfo=TZ)},
@@ -76,10 +76,10 @@ def test_overview_calendar_dedup_scope_and_one_transaction(overview_api):
     assert response.status_code==200
     data=response.json()
     assert data['year']==2026 and data['date_from']=='2026-01-01' and data['date_to']=='2026-10-10'
-    assert data['sample_status']==['Reviewed','Completed']
-    assert data['overview_rule_version']=='water_overview_counts_v1'
+    assert data['sample_status']==['Reviewed']
+    assert data['overview_rule_version']=='water_overview_counts_v2'
     assert data['water_cards']==[
-        {'code':'WFI','water_type':'注射用水','point_count':4,'annual_sample_count':4},
+        {'code':'WFI','water_type':'注射用水','point_count':3,'annual_sample_count':3},
         {'code':'PW','water_type':'纯化水','point_count':1,'annual_sample_count':1},
         {'code':'PS','water_type':'纯蒸汽','point_count':0,'annual_sample_count':0}]
     assert data['data_context']['current_date']=='2026-10-09'
@@ -93,7 +93,7 @@ def test_current_year_never_moves_to_last_data_year(overview_api,monkeypatch):
     data=client.get('/api/v1/overview',headers=headers()).json()
     assert data['date_from']=='2027-01-01' and data['date_to']=='2027-01-02'
     assert [c['annual_sample_count'] for c in data['water_cards']]==[0,0,0]
-    assert [c['point_count'] for c in data['water_cards']]==[4,1,0]
+    assert [c['point_count'] for c in data['water_cards']]==[3,1,0]
 
 
 def test_empty_overview_has_three_zero_cards(overview_api):

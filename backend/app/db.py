@@ -43,7 +43,7 @@ async def transaction():
 
 def scope():
     w=models['wide']
-    return [w.source_system==SOURCE,w.sdcid=='Sample',w.samplesubtypeid.in_(WATERS),w.selection_rule.in_(RULES)]
+    return [w.source_system==SOURCE,w.sdcid=='Sample',w.samplesubtypeid.in_(WATERS),w.selection_rule.in_(RULES),w.samplestatus=='Reviewed']
 def conditions(f):
     w=models['wide']; out=scope()+[w.samplestatus.in_(f.sample_status)]
     for api,col in FILTER_FIELDS:
@@ -65,10 +65,10 @@ async def read_overview(session, current: date):
             w.samplepointid.is_not(None),w.samplepointid!='').label('point_count'),
         func.count(func.distinct(w.s_sampleid)).filter(
             w.s_sampleid.is_not(None),w.s_sampleid!='',*annual).label('annual_sample_count'),
-    ).where(*scope(),w.samplestatus.in_(['Reviewed','Completed'])).group_by(w.samplesubtypeid)
+    ).where(*scope(),w.samplestatus.in_(['Reviewed'])).group_by(w.samplesubtypeid)
     counts={r['water_type']:r for r in (await session.execute(statement)).mappings()}
     return {'year':current.year,'date_from':start.isoformat(),'date_to':end.isoformat(),
-            'sample_status':['Reviewed','Completed'],'point_scope':'all_available_selected_results',
+            'sample_status':['Reviewed'],'point_scope':'all_available_selected_results',
             'water_cards':[{'code':code,'water_type':water,
                             'point_count':counts[water]['point_count'] if water in counts else 0,
                             'annual_sample_count':counts[water]['annual_sample_count'] if water in counts else 0}

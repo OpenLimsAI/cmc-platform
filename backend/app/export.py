@@ -19,7 +19,7 @@ from app.analysis import TZ,RULE,metrics
 from app.core import settings
 
 LOCK=threading.Lock()
-COLUMNS=['sample_id','water_type','samplepoint_id','samplepoint_code','samplepoint_name','samplepoint_mapping_source','samplepoint_mapping_scope','samplepoint_source_moddt','samplepoint_extracted_at','mapping_status','workitemid','paramlistid','paramlistversionid','variantid','paramid','paramtype','replicateid','dataset','display_value','source_unit','enteredvalue','transformvalue','valuestatus','trend_at','trend_date_source','collectiondt','sample_eventdt','receiveddt','sample_createdt','sample_status','selection_rule','selection_reason','numeric_value','operator','bound','result_kind','plot_status','not_plotted_reason','source_key','sdidataitemid','locationid','batch_number','releasedflag','dataitem_reportflag','spec_reportflag','u_statisticflag']
+COLUMNS=['sample_id','water_type','samplepoint_id','samplepoint_code','samplepoint_name','samplepoint_mapping_source','samplepoint_mapping_scope','samplepoint_source_moddt','samplepoint_extracted_at','mapping_status','workitemid','paramlistid','paramlistversionid','variantid','paramid','paramtype','replicateid','dataset','display_value','source_unit','enteredvalue','transformvalue','valuestatus','trend_at','trend_date_source','collectiondt','sample_eventdt','receiveddt','sample_createdt','sample_status','selection_rule','selection_reason','numeric_value','plot_value','plot_value_rule','result_role','result_operator','result_bound','operator','bound','result_kind','plot_status','not_plotted_reason','source_key','sdidataitemid','locationid','batch_number','releasedflag','dataitem_reportflag','spec_reportflag','u_statisticflag']
 def cell(value): return json.dumps(value,ensure_ascii=False,sort_keys=True) if isinstance(value,(dict,list)) else ('' if value is None else str(value))
 
 def png(rows,manifest):
@@ -30,12 +30,12 @@ def png(rows,manifest):
         fig,ax=plt.subplots(figsize=(14,7))
         fig.subplots_adjust(left=.07,right=.98,top=.82,bottom=.23)
         plotted=[r for r in rows if r['plot_status']=='plotted']
-        for kind,marker,label,color in [('exact_numeric','o','精确数值','#167d9a'),('censored','v','删失界值（非实测值）','#c27c21')]:
+        for kind,marker,label,color in [('exact_numeric','o','精确数值','#167d9a'),('censored','v','删失结果（非实测值）','#c27c21')]:
             items=[r for r in plotted if r['result_kind']==kind]
             if items:
-                ax.scatter([datetime.fromisoformat(r['trend_at']) for r in items],[float(r['numeric_value'] if kind=='exact_numeric' else r['bound']) for r in items],marker=marker,label=label,c=color,s=35)
+                ax.scatter([datetime.fromisoformat(r['trend_at']) for r in items],[float(r['plot_value']) for r in items],marker=marker,label=label,c=color,s=35)
                 if kind=='censored':
-                    for r in items: ax.annotate(r['operator'],(mdates.date2num(datetime.fromisoformat(r['trend_at'])),float(r['bound'])),xytext=(3,5),textcoords='offset points',fontproperties=font)
+                    for r in items: ax.annotate(r['display_value'],(mdates.date2num(datetime.fromisoformat(r['trend_at'])),float(r['plot_value'])),xytext=(3,5),textcoords='offset points',fontproperties=font)
         f=manifest['filter']; first=rows[0]
         ax.set_xlim(datetime.fromisoformat(f['date_from']).replace(tzinfo=TZ),datetime.fromisoformat(f['date_to']).replace(tzinfo=TZ))
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d',tz=TZ)); ax.tick_params(axis='x',rotation=25)
@@ -47,7 +47,7 @@ def png(rows,manifest):
         else: ax.text(.5,.5,'该组没有可绘图数值；原文见数据表',transform=ax.transAxes,ha='center',fontproperties=font)
         fig.text(.02,.035,f"未配置限度 · 原始结果 {len(rows)} 行 / 图点 {len(plotted)} 个 · {manifest['data_context'].get('timestamp_note','日期来源待核实')}\n导出 ID {manifest['export_id']} · 期间 [{f['date_from']}, {f['date_to']}) · 一致性上下文未核实",fontproperties=font,fontsize=9)
         out=io.BytesIO()
-        try: fig.savefig(out,format='png',dpi=140)
+        try: fig.savefig(out,format='png',dpi=140,bbox_inches='tight')
         finally: plt.close(fig)
         return out.getvalue()
 
@@ -73,7 +73,7 @@ def xlsx(rows,manifest):
 
 def generate(rows,ctx,payload,user):
     ctx=json.loads(json.dumps(ctx,default=str))
-    manifest={'export_id':str(uuid.uuid4()),'export_kind':payload.export_kind,'generated_at':datetime.now(TZ).isoformat(),'timezone':'Asia/Shanghai','actor_id':user['sub'],'filter':payload.filter.model_dump(mode='json'),'comparison_group':payload.comparison_group,'data_context':ctx,'context_id':None,'analysis_rule_version':RULE,'graphic_rule_version':'water_chart_v1','selection_rules':sorted({r['selection_rule'] for r in rows}),'metrics':metrics(rows),'not_plotted_counts':dict(__import__('collections').Counter(r['not_plotted_reason'] for r in rows if r['plot_status']!='plotted')),'known_gaps':['当前主表映射不能证明历史有效期；系统归属未核实','限度未配置',ctx.get('timestamp_note','日期来源待核实'),'来源截止与跨请求上下文未核实'],'csv_note':'以 = + - @ 开头的文本加单引号防公式；JSONL/Excel 保存原文'}
+    manifest={'export_id':str(uuid.uuid4()),'export_kind':payload.export_kind,'generated_at':datetime.now(TZ).isoformat(),'timezone':'Asia/Shanghai','actor_id':user['sub'],'filter':payload.filter.model_dump(mode='json'),'comparison_group':payload.comparison_group,'data_context':ctx,'context_id':None,'analysis_rule_version':RULE,'graphic_rule_version':'water_chart_v2','selection_rules':sorted({r['selection_rule'] for r in rows}),'metrics':metrics(rows),'not_plotted_counts':dict(__import__('collections').Counter(r['not_plotted_reason'] for r in rows if r['plot_status']!='plotted')),'known_gaps':['当前主表映射不能证明历史有效期；系统归属未核实','限度未配置',ctx.get('timestamp_note','日期来源待核实'),'来源截止与跨请求上下文未核实'],'plot_note':'微生物限度报告值 <1 按 0 绘图；原文和阈值保留，0 不是精确实测值','csv_note':'以 = + - @ 开头的文本加单引号防公式；JSONL/Excel 保存原文'}
     files={}
     if payload.export_kind in {'chart','bundle'}: files['trend.png']=png(rows,manifest)
     if payload.export_kind in {'table','bundle'}: files['results.xlsx']=xlsx(rows,manifest)

@@ -1,5 +1,7 @@
 # 03 · 数据来源与字段约定
 
+> **2026-10-09 已确认规则更新（v1.0，Mac 代码/测试/数据已验证）**：所有最终结果接口仅 Reviewed；兼容水系统 v1/v2 选择规则。微生物限度报告值 `<1` 单独派生绘图值 0，精确 1 为 1；原文、比较符、阈值和规则保留，0 不作实测统计。趋势及 PNG/表格导出统一使用 `plot_value`。第四表水系统仅保留最终结果键，过程数据保留在 raw。详见[变更记录](./changes/20261009-reviewed-water-results.md)。本轮 Linux 未发布，历史发布状态不代表 v2 已上线。
+
 > 版本：0.8｜日期：2026-10-09｜状态：现行消费契约；数量和源调查为标明日期的历史证据。
 
 ## 0. 本次范围和位置调查
@@ -27,9 +29,9 @@ Oracle LabVantage → qc-lims-etl
 | `stg_lv_sample` | 样品状态、取样点、时间与追溯 | 样品总量的状态/日期口径需独立标注 |
 | `stg_lv_workitem` | 检测项目与状态追溯 | 用完整检项键关联 |
 | `stg_lv_dataset` | 方法、阶段、数据集追溯 | 用完整数据集键关联 |
-| `stg_lv_dataitem` | 完整参数链核对 | 包含 LES 中间过程，不直接用于最终趋势 |
+| `stg_lv_dataitem` | 水系统最终参数核对 | 水系统与最终宽表完整键一致；非水仍含过程参数，水系统过程留在 raw |
 
-所有表强制 `source_system='gmp_labvantage'`。主看板还限制sdcid=Sample，再限制 `samplesubtypeid` 为注射用水、纯化水、纯蒸汽，`selection_rule` 为 `water_system_v1` 或 `water_conductivity_method1_numeric_v1`。未知新规则被当前主看板排除；没有通用未知规则诊断页（GAP-03），新增规则需先核对并兼容适配。
+所有表强制 `source_system='gmp_labvantage'`。主看板还限制sdcid=Sample，再限制 `samplesubtypeid` 为注射用水、纯化水、纯蒸汽，`selection_rule` 为 水系统 v1/v2 或电导率方法1数值补充 v1/v2，并强制 Reviewed。未知新规则被当前主看板排除；没有通用未知规则诊断页（GAP-03），新增规则需先核对并兼容适配。
 
 ## 3. 粒度与关联键
 

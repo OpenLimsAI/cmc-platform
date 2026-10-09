@@ -1,5 +1,7 @@
 # 05 · 架构与数据模型
 
+> **2026-10-09 已确认规则更新（v1.0，Mac 代码/测试/数据已验证）**：所有最终结果接口仅 Reviewed；兼容水系统 v1/v2 选择规则。微生物限度报告值 `<1` 单独派生绘图值 0，精确 1 为 1；原文、比较符、阈值和规则保留，0 不作实测统计。趋势及 PNG/表格导出统一使用 `plot_value`。第四表水系统仅保留最终结果键，过程数据保留在 raw。详见[变更记录](./changes/20261009-reviewed-water-results.md)。本轮 Linux 未发布，历史发布状态不代表 v2 已上线。
+
 > 版本：0.8｜日期：2026-10-09｜状态：现行代码结构与一致性边界；后续设计明确标注。
 
 ## 0. 本轮两页实现
@@ -53,17 +55,17 @@ flowchart LR
 | ChartSpec | ExportRequest.chart_spec字典 | 占位且不参与渲染；统一类型契约未实现（GAP-02） |
 | ExportManifest | generate中的导出字典 | 已实现，ZIP写manifest及四文件哈希；Excel内嵌说明 |
 | LimitDefinition | 无表、无模型 | 未实现；OP-02先确认 |
-| 快照/持久审计 | 无本项目对象 | OP-06/09待确定，结构归共享迁移链 |
+| 历史快照/持久审计 | 无本项目对象 | 用户已确认水系统mart不建历史快照；持久审计仍为OP-09独立事项 |
 
 ## 4. 当前一致性与后续目标
 
 连接使用REPEATABLE READ和default_transaction_read_only；事务再次SET TRANSACTION READ ONLY。collection在同一事务读取结果与context；筛选候选与追溯各在只读事务内查询；总览SQL聚合与context同一事务返回。
 
-当前context_id/source_cutoff始终为null。最小/最大趋势日期和最大_etl_loaded_at只是全授权水样范围的日期/装载线索；不能证明截止、手工修改/删除检测或跨接口一致性。前端分别请求各模块，没有可信数据版本比较。要求严格全页一致时，后续需聚合读取或不可变版本（OP-06/GAP-07）。
+当前context_id/source_cutoff始终为null。最小/最大趋势日期和最大_etl_loaded_at只是全授权水样范围的日期/装载线索；不能证明截止、手工修改/删除检测或跨接口一致性。前端分别请求各模块，没有可信数据版本比较。用户已确认水系统mart不建历史快照；若后续要求严格全页一致，优先设计同事务聚合读取，不将不可变历史版本作为本轮目标（OP-06/GAP-07）。
 
 导出重新只读取数后收窄比较组，检查当前组完整规范化行的SHA256是否等于页面dataset_digest；非null的context_id或digest不符均返回409。digest只验证该组结果内容，不包括全部context元数据，也不是可重定位的快照ID。
 
-取数完成释放事务再生成文件；PNG/Excel/CSV/JSONL来自同一固定结果集。前端ECharts和matplotlib分别渲染相同组/日期/类别，没有共享的类型化ChartSpec。PNG使用water_chart_v1；页面缩放不影响导出范围。不声明图像逐像素相同或长期可复现。
+取数完成释放事务再生成文件；PNG/Excel/CSV/JSONL来自同一固定结果集。前端ECharts和matplotlib分别渲染相同组/日期/类别，没有共享的类型化ChartSpec。PNG使用water_chart_v2；页面缩放不影响导出范围。不声明图像逐像素相同或长期可复现。
 
 ## 5. 读取、预检和限制
 
@@ -78,3 +80,5 @@ flowchart LR
 已实现请求ID、path、actor、status、seconds运行日志和成功导出的actor/rows/kind事件。SQL和导出错误仅记类型等诊断信息，不输出密钥或连接串。
 
 目标仍包括事件时间、筛选摘要、规则版本、结果数量、导出ID、完整成功/失败覆盖和留存责任。当前日志不完整，且未处理异常可能绕过请求结束日志；持久介质/防篡改不成立（OP-09/GAP-04）。不能把运行日志称为已完成受控审计。若后续需数据库审计，另设最小写权限，保持数据查询账号只读。
+
+水系统mart采用普通视图及电导率μS/cm、TOCppb、pH无量纲的已确认设计，见[契约v0.3](11-water-mart-design.md)；四视图已在Mac创建、单位字段和源值已对账。现行看板仍读staging，尚未消费这些mart单位字段，Linux未发布。
