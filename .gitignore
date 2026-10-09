@@ -1,0 +1,39 @@
+.env
+.env.*
+!.env.example
+!backend/.env.linux.example
+.venv/
+node_modules/
+dist/
+__pycache__/
+.pytest_cache/
+logs/
+artifacts/
+*.pyc
+.DS_Store
+*.tsbuildinfo
+backups/
+
+# Credentials, private keys and local credential stores (including non-.env names)
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+.pgpass
+.netrc
+# Database dumps and local business evidence
+*.dump
+*.sql.gz
+*.backup
+docs/acceptance/*.png
+docs/acceptance/*.jpg
+docs/acceptance/*.jpeg
+# Private validation evidence stays local; publish the implementation and generic docs.
+docs/acceptance/
+docs/water-point-field-investigation-*.md
+docs/water-point-upgrade-*.md
+scripts/verify_exports.py

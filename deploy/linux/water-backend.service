@@ -1,0 +1,13 @@
+[Unit]
+Description=CMC pharmaceutical water dashboard
+After=network.target postgresql.service
+[Service]
+User=prometheus
+WorkingDirectory=/opt/cmc-water-system-dashboard/backend
+Environment=MPLCONFIGDIR=/opt/cmc-water-system-dashboard/logs/matplotlib
+ExecStart=/opt/cmc-water-system-dashboard/backend/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8015 --no-access-log
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target
