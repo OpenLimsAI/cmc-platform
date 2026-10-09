@@ -1,6 +1,6 @@
 # 07 · 页面与接口设计
 
-> 版本：0.4｜日期：2026-10-02｜状态：Mac 已实现，验收部分完成；Linux 未发布。
+> 版本：0.5｜日期：2026-10-09｜状态：基础应用已在 Mac/Linux 部署；级联修正已实现，实际验收及本次发布记录见 docs/changes/20261009-cascading-filters.md。
 
 ## 1. 页面工作方案
 
@@ -14,19 +14,19 @@
 | 期间汇总 | 月/季/年，按点位和可比组汇总；精确数值子集统计及各类样本数量 |
 | 数据质量 | 映射缺失、日期回退、解析失败、未知方法/规则、单位冲突和已知覆盖缺口 |
 
-统一 FilterSpec：water_type、samplepoint_id、workitem_id（可选）、paramlist_id、paramlist_version_id、variant_id、param_id、unit、date_from/date_to、sample_status。版本与方法字段分别传递；sample_status 为 Reviewed/Completed 的枚举数组，默认值工作设计为 Reviewed。UI 终止日转换为下一日作为不含终点的 date_to，见 docs/04。用户选定筛选后图表、汇总、明细和导出使用同一类型化筛选；GET 用查询参数，POST 导出用相同模型的 JSON body。URL 可保存筛选但不携带令牌。筛选下拉仅返回当前用户可访问的数据。
+统一 FilterSpec：water_type、samplepoint_code、samplepoint_id、workitem_id（可选）、paramlist_id、paramlist_version_id、variant_id、param_id、unit、date_from/date_to、sample_status。版本与方法字段分别传递；sample_status 为 Reviewed/Completed 的枚举数组，默认值工作设计为 Reviewed。UI 终止日转换为下一日作为不含终点的 date_to，见 docs/04。用户选定筛选后图表、汇总、明细和导出使用同一类型化筛选；GET 用查询参数，POST 导出用相同模型的 JSON body。URL 可保存筛选但不携带令牌。筛选下拉仅返回当前用户可访问的数据。
 
 无结果显示“当前条件无结果”；查询失败显示失败原因/重试入口；未配置限度、未映射名称和未知数据截止分别显示，不能用空白图或“正常”代替。
 
 ## 2. API 工作契约
 
-Hub 外部前缀 `/water/api/v1`，后端实际前缀 `/api/v1`。下表是待实现契约，可在编码前评估简化；变更同步更新类型与测试。
+Hub 外部前缀 `/water/api/v1`，后端实际前缀 `/api/v1`。下表为当前接口契约；实际验证记录单独登记，变更同步更新类型与测试。
 
 | 方法/后端路径 | 内容 | 权限 |
 |---|---|---|
 | GET `/api/health` | 最小服务状态，不返回数据/凭据/详细配置；Hub `/water/api/health` | 可匿名 |
 | GET `/api/v1/context` | 环境、规则与数据上下文、可用能力/未确认限度状态；current_date/timezone 供默认和快捷日期解析 | 查看 |
-| GET `/api/v1/filters` | 水类型、点位、方法/版本/参数/单位选项及可用范围 | 查看 |
+| GET `/api/v1/filters` | 接受同一 FilterSpec；返回按上游条件级联的水类型、点位、检项、方法/版本/阶段/参数/单位候选 | 查看 |
 | GET `/api/v1/overview` | 样品、数据集、结果计数和质量分布 | 查看 |
 | GET `/api/v1/trends` | 一个比较组的原值/派生值、点位和日期来源 | 查看 |
 | GET `/api/v1/results` | 结果分页列表和当前范围总数 | 查看 |
@@ -40,6 +40,12 @@ Hub 外部前缀 `/water/api/v1`，后端实际前缀 `/api/v1`。下表是待�
 筛选参数用枚举/长度/日期范围校验；点位 ID 当字符串保存。列表默认 page_size=50，工作上限 200，稳定复合键排序。大趋势和导出超过上限时明确返回范围限制/要求缩小范围，不悄悄截断并伪装完整。性能和最大范围经 Mac 实测后确定 OP-11。
 
 追溯 query 参数 result_id 按下文版本化规则解码为完整源键，不只用 s_sampleid 或 sdidataitemid 代替主键；先验证该结果属于授权 QC 水样。非法编码/键类型返回 422，未找到结果返回 404，源关联缺失在返回体保留来源缺口。
+
+### 筛选候选接口
+
+GET `/api/v1/filters` 接受相同 FilterSpec（含 samplepoint_code、日期、状态），执行相同输入与角色校验。顺序为 water_type → samplepoint_code → samplepoint_id → workitem_id → paramlist_id → paramlist_version_id → variant_id → param_id → unit。每个候选列表只应用其前面的非空选择以及日期、状态、授权水样范围，不应用自身及后面的条件。返回 options（既有源字段键）、point_options（value=内部 ID、code=主表水点号、label=编号/名称/内部 ID）、filter（本次解析的筛选）和既有上下文信封；候选和上下文在同一只读事务内读取。编号重复不合并内部 ID。
+
+前端缓存键包含完整 FilterSpec 和身份，等待日期解析后请求候选；请求中禁用旧候选、显示加载状态，失败显示重试，空列表显示“当前范围无可选项”。更改上游清空后续选择，更改日期/状态保留水类型并清空点位及后续选择；至少选择一种状态。URL 恢复重新读取对应候选。
 
 ## 3. 返回字段约定
 

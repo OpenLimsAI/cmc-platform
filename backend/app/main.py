@@ -75,15 +75,10 @@ async def get_context(user=Depends(require_view)):
     ctx['capabilities']={'view':True,'export':bool(settings.export_roles.intersection(user['roles']))}
     return ctx
 @app.get('/api/v1/filters')
-async def filters(user=Depends(require_view)):
-    w=db.models['wide']
+async def filters(f:Filter,user=Depends(require_view)):
     async with db.transaction() as s:
-        fields=['samplepoint_code','samplesubtypeid','samplepointid','workitemid','paramlistid','paramlistversionid','variantid','paramid','unit']
-        options={k:list((await s.scalars(select(getattr(w,k)).where(*db.scope()).distinct().order_by(getattr(w,k)))).all()) for k in fields}
-        point_options=[]
-        if hasattr(w,'samplepoint_code'):
-            point_options=[{'value':point_id,'code':code,'label':' / '.join(str(v) for v in (code or '现场编号缺失',name,point_id) if v)} for point_id,code,name in (await s.execute(select(w.samplepointid,w.samplepoint_code,w.samplepoint_name).where(*db.scope()).distinct().order_by(w.samplepointid))).all() if point_id]
-        return envelope(await context(s),options=options,point_options=point_options)
+        options,point_options=await db.read_options(s,f)
+        return envelope(await context(s),options=options,point_options=point_options,filter=f.model_dump(mode='json'))
 
 async def collection(f):
     async with db.transaction() as s:

@@ -1,10 +1,10 @@
 # Linux 发布说明
 
-2026-10-09 已连接 Linux 做只读前置核查，应用尚未部署。目标主机/实例/端口已初核，启用前再次确认。当前模板使用 `/opt/cmc-water-system-dashboard`、prometheus、后端 127.0.0.1:8015、静态前端 127.0.0.1:5115、Hub `/water/`。
+2026-10-09 基础应用已首次部署；下文前置核查为历史记录，当前结果见“首次服务部署”和本次变更记录。每次发布重新核对主机/实例/端口与目标 SHA。当前模板使用 `/opt/cmc-water-system-dashboard`、prometheus、后端 127.0.0.1:8015、静态前端 127.0.0.1:5115、Hub `/water/`。
 
 ## 启用前置
 
-1. 获得 Git 提交/push 与 Linux 发布授权，创建仓库并记录应用、Hub、QC ETL、MDM、迁移仓库完整 SHA。当前项目没有 Git SHA，模板不能作为发布记录。
+1. 获得 Git 提交/push 与 Linux 发布授权，创建仓库并记录应用、Hub、QC ETL、MDM、迁移仓库完整 SHA。以实际完整提交 SHA 作为发布记录，不能把模板当成发布证据。
 2. 核实 Linux 上游水系统 staging 实际数据、规则版本、QC job、只读授权，以及 GMP 日常趋势所需的截止时间和受控快照方案。当前仓储仅支持 Mac staging 契约，**不能直接声称满足 Linux 受控快照要求**。
 3. 若需要共享结构，在 cmc-schema-migrations 对应链实现并验证；本次无结构迁移。
 4. Linux MDM 建立同名业务角色、审批人员授权，保留既有账号/权限；测试走 MDM 隔离流程。Mac 角色不自动同步 Linux。
@@ -30,7 +30,7 @@ bash deploy/linux/prepare.sh <完整40位SHA>
 
 ## 已准备的部署入口
 
-`bash deploy/linux/deploy.sh <完整40位SHA>` 在构建及环境/字体检查通过后备份并安装水看板systemd/nginx配置，启动服务并检查本机端口。MDM健康路径按现有MDM发布脚本核对为Hub同源 `/mdm/api/v1/health`。nginx检查失败自动恢复本脚本改动的配置；应用启动失败则保持错误退出，须按前述固定版本回滚。它不会覆盖Hub仓库文件或建立角色；须事先按Hub/MDM所属流程同步配置和授权。此脚本仅在Mac进行静态检查，未在Linux执行。
+`bash deploy/linux/deploy.sh <完整40位SHA>` 在构建及环境/字体检查通过后备份并安装水看板systemd/nginx配置，启动服务并检查本机端口。MDM健康路径按现有MDM发布脚本核对为Hub同源 `/mdm/api/v1/health`。nginx检查失败自动恢复本脚本改动的配置；应用启动失败则保持错误退出，须按前述固定版本回滚。它不会覆盖Hub仓库文件或建立角色；须事先按Hub/MDM所属流程同步配置和授权。该脚本已在首次 Linux 发布执行；每次执行仍须按实际结果登记。
 
 Linux环境模板为backend/.env.linux.example，须替换受保护凭据和实际已安装字体路径，不把示例字体路径当安装事实。首发仍须完成点位来源、真实身份、数据及受控快照用途前置检查，不能仅凭pull/build宣布业务上线。
 

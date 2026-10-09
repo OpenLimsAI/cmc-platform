@@ -12,6 +12,8 @@ metadata=MetaData(schema='staging')
 mapper=registry()
 models={}
 TABLES={'wide':'stg_lv_test_result_wide','sample':'stg_lv_sample','dataset':'stg_lv_dataset','dataitem':'stg_lv_dataitem','workitem':'stg_lv_workitem'}
+# The order is the UI cascade. A field's choices use only earlier selections.
+FILTER_FIELDS=(('water_type','samplesubtypeid'),('samplepoint_code','samplepoint_code'),('samplepoint_id','samplepointid'),('workitem_id','workitemid'),('paramlist_id','paramlistid'),('paramlist_version_id','paramlistversionid'),('variant_id','variantid'),('param_id','paramid'),('unit','unit'))
 REQUIRED={'wide':set(KEY)|{'s_sampleid','samplesubtypeid','samplestatus','samplepointid','locationid','samplepoint_code','samplepoint_name','samplepoint_mapping_source','samplepoint_mapping_scope','samplepoint_source_moddt','samplepoint_extracted_at','workitemid','displayvalue','unit','trend_dt','trend_dt_source','selection_rule','selection_reason','_etl_loaded_at'},'sample':{'source_system','s_sampleid','samplesubtypeid','samplestatus','samplepointid','samplepoint_code','samplepoint_name','eventdt','collectiondt','receiveddt','createdt'},'dataset':set(KEY[:9])|{'workitemid','workiteminstance'},'dataitem':set(KEY)|{'displayvalue','releasedflag','valuestatus','calcexcludeflag'},'workitem':set(KEY[:5])|{'workitemid','workiteminstance'}}
 async def preflight():
     async with engine.connect() as conn:
@@ -44,12 +46,27 @@ def scope():
     return [w.source_system==SOURCE,w.sdcid=='Sample',w.samplesubtypeid.in_(WATERS),w.selection_rule.in_(RULES)]
 def conditions(f,dates=True,point=True):
     w=models['wide']; out=scope()+[w.samplestatus.in_(f.sample_status)]
-    names={'water_type':'samplesubtypeid','samplepoint_id':'samplepointid','samplepoint_code':'samplepoint_code','workitem_id':'workitemid','paramlist_id':'paramlistid','paramlist_version_id':'paramlistversionid','variant_id':'variantid','param_id':'paramid','unit':'unit'}
-    for api,col in names.items():
+    for api,col in FILTER_FIELDS:
         value=getattr(f,api)
         if value is not None and (api not in ('samplepoint_id','samplepoint_code') or point): out.append(getattr(w,col)==value)
     if dates: out += [w.trend_dt>=datetime.combine(f.date_from,time.min,TZ),w.trend_dt<datetime.combine(f.date_to,time.min,TZ)]
     return out
+
+def option_filter(f, field):
+    names=[name for name,_ in FILTER_FIELDS]
+    # Preserve the resolved dates and statuses; never recalculate today here.
+    return f.model_copy(update={name:None for name in names[names.index(field):]})
+
+async def read_options(session,f):
+    w=models['wide']; options={}; point_options=[]
+    for field,col in FILTER_FIELDS:
+        predicates=conditions(option_filter(f,field))
+        column=getattr(w,col)
+        options[col]=list((await session.scalars(select(column).where(*predicates).distinct().order_by(column))).all())
+        if field=='samplepoint_id':
+            points=(await session.execute(select(w.samplepointid,w.samplepoint_code,w.samplepoint_name).where(*predicates).distinct().order_by(w.samplepoint_code,w.samplepointid,w.samplepoint_name))).all()
+            point_options=[{'value':point_id,'code':code,'label':' / '.join(str(v) for v in (code or '现场编号缺失',name,point_id) if v)} for point_id,code,name in points if point_id]
+    return options,point_options
 
 def record(obj):
     from decimal import Decimal
