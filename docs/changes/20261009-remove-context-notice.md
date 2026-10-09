@@ -1,6 +1,6 @@
 # 移除顶部黄色提示与mart消费评估
 
-> 版本：0.1｜日期：2026-10-09｜状态：用户已明确要求暂时删除黄色提示；本记录及专项文档先于代码调整；前端已移除并通过Mac验证，GitHub/Linux发布待执行；mart切换仅为讨论与建议。
+> 版本：0.2｜日期：2026-10-09｜状态：用户已明确要求暂时删除黄色提示；本记录及专项文档先于代码调整；前端已移除，Mac/Linux前端测试、构建及Hub资源核验通过；GitHub/Linux发布已完成；mart切换仅为讨论与建议。
 
 ## 需求与影响
 
@@ -21,3 +21,11 @@ Linux实际四个预览视图均0行，源码与迁移说明它们按明确snaps
 ### Mac实际结果
 
 已移除组件及两页调用；仅趋势context错误/加载状态仍显示。前端9项测试通过，TypeScript/Vite构建通过（约2.56秒）；新JS为index-ffzxuwZM.js，约2.14MB，既有大包警告仍在。静态检查组件/黄色文案无残留、趋势日期及导出能力消费保留、后端未修改；文档本地链接核对通过。后端测试未重跑，既有49项是前一业务版本的验证，不能登记为本轮重跑。GitHub/Linux结果在实际执行后追加。
+
+### GitHub与Linux实际结果
+
+业务提交f712b0ba42728b04d5ac784fd4fabe0a3ba81cc3已从Mac推送GitHub并由Linux以git pull --ff-only取得；通过现有deploy.sh完成构建与服务恢复。发布前基线bef3255a729d8d3569eacd2f0bdaf392904a1a6b，保护备份为logs/notice-predeploy-20261009-163732，服务配置备份为logs/deploy-20261009-163751（相对/opt/cmc-water-system-dashboard）。备份用0700/0600，构建用umask 022；静态index.html 0644、assets 0755、backend/.env 0600，环境配置与备份逐字一致。
+
+Linux前端9项通过（约170毫秒），TypeScript/Vite构建通过（约9.61秒）；JS index-ffzxuwZM.js为2,143,114字节，SHA256=31e2dab1730204c4183f6019dc424f0aae09fa21892690262bc161582e2446b6。Hub页面/深链、JS/CSS均200且字节与磁盘构建相同，实际JS无两条顶部黄色文案。index.html SHA256=5c83f16b209555a8bf5d5cb0d1194ccce2ba730adecd5d5ef764550158574bb2；CSS仍为此前index-u-HZcgS5.css。后端源码未变，未重跑49项后端测试；实际OpenAPI仍八条，业务匿名401、删除接口404、后端及Hub健康200，8015/5115回环监听、water-backend active。
+
+没有迁移、真实数据写入、角色或ETL变更；mart只读核查0行，不加载或切换。文档跟进提交随后同步GitHub及Linux，业务构建对应上述f712b0b提交；真正登录后的交互未新增验收，不能把资源验证登记成浏览器验收。

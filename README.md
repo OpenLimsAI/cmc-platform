@@ -25,7 +25,7 @@ cd ../frontend && pnpm test && pnpm build
 
 ## Linux 发布
 
-2026-10-09两页及三卡片已提交GitHub并部署Linux，业务提交3395586fd44d86baa08cdcb366bd5a88a1043a44，入口为 http://172.19.0.105:5100/water/；Linux后端49项、前端9项测试、Hub资源哈希和只读统计对账通过，见[本轮发布记录](docs/releases/20261009-two-page-linux.md)。真实登录后的页面交互、两档身份及下载落盘仍待验收。参见 [状态登记](docs/STATUS.md) 和 [Linux操作说明](deploy/linux/README.md)。流程为 Mac 提交推送→Linux拉取同一完整SHA→受保护环境配置→部署脚本→实际登录和导出验收。没有数据库结构变更；不从Mac拷贝业务数据或凭据到Linux。
+2026-10-09两页及三卡片已部署Linux，随后业务提交f712b0ba42728b04d5ac784fd4fabe0a3ba81cc3移除顶部黄色提示，入口为 http://172.19.0.105:5100/water/；本轮Mac/Linux前端各9项测试、构建和Hub资源核验通过，后端未变。见[本轮提示移除记录](docs/changes/20261009-remove-context-notice.md)和[此前两页发布记录](docs/releases/20261009-two-page-linux.md)。真实登录后的页面交互、两档身份及下载落盘仍待验收。流程和边界见[状态登记](docs/STATUS.md)及[Linux操作说明](deploy/linux/README.md)。没有数据库结构变更，不切换mart或加载预览数据。
 
 ## 文档与敏感材料
 
