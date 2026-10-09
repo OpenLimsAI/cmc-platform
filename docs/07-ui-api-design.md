@@ -1,6 +1,6 @@
 # 07 · 页面与API契约
 
-> 版本：0.7｜日期：2026-10-09｜状态：两页与三卡片已实现，已对照本轮源码及49/9测试；Linux尚未发布。
+> 版本：0.8｜日期：2026-10-09｜状态：两页与三卡片已实现，已对照本轮源码及Mac/Linux各49/9测试；Linux服务及资源已核验，真实登录交互待验收。
 
 ## 1. 两页与筛选职责
 
@@ -30,7 +30,7 @@ Hub外部业务前缀/water/api/v1，后端/api/v1；health为/water/api/health�
 | GET /api/v1/results/trace | result_id（必填≤10000字符） | 信封＋chain、gaps、association_note；保留趋势来源查询 |
 | POST /api/v1/exports | 第6节ExportRequest | PNG/Excel/ZIP及Content-Disposition，成功Cache-Control=no-store |
 
-信封为data_context、context_id（当前null）、analysis_rule_version；context不套信封。GET /results、/summaries、/data-quality返回404，不改作其他含义。本轮实现与测试已完成，尚未提交/发布到Linux。
+信封为data_context、context_id（当前null）、analysis_rule_version；context不套信封。GET /results、/summaries、/data-quality返回404，不改作其他含义。本轮已实现并提交GitHub、部署Linux；实际路由、匿名拒绝和资源核验见[两页Linux发布记录](releases/20261009-two-page-linux.md)。
 
 ## 3. 级联候选与缓存
 

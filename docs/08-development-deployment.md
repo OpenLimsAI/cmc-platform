@@ -1,10 +1,10 @@
 # 08 · 开发、部署与运维
 
-> 版本：0.6｜日期：2026-10-09｜状态：现行运行/发布约定；日期化执行结果见 STATUS/releases。
+> 版本：0.7｜日期：2026-10-09｜状态：现行运行/发布约定；日期化执行结果见 STATUS/releases。
 
 ## 1. 当前入口与工具链
 
-Mac目录/Users/qingcheng/code/cmc-water-system-dashboard，入口http://localhost:5100/water/；Linux目录/opt/cmc-water-system-dashboard，入口http://172.19.0.105:5100/water/。SSH按全局入口prometheus/13568核对，后端8015、前端5115均回环。服务发布已有记录，本轮未重连，不把旧“空表/无服务”的记录当现状。
+Mac目录/Users/qingcheng/code/cmc-water-system-dashboard，入口http://localhost:5100/water/；Linux目录/opt/cmc-water-system-dashboard，入口http://172.19.0.105:5100/water/。SSH按全局入口prometheus/13568核对，后端8015、前端5115均回环。本轮两页功能已按固定业务SHA部署，回环监听、Hub资源及Linux只读统计已核实，见[两页Linux发布记录](releases/20261009-two-page-linux.md)；不把旧“空表/无服务”的记录当现状。
 
 本地安装启动和验证命令见README。Python用uv锁文件，前端pnpm。Mac start.sh检查端口占用后启动uvicorn和Vite，日志写logs/；保持终端运行，Ctrl+C停止本次两个进程，任一个退出会停止同伴。仓库没有LaunchAgent安装步骤，不推断系统上实际托管状态。
 
@@ -43,7 +43,7 @@ prepare.sh验证HEAD等于完整40位SHA、工作区干净、backend/.env存在�
 
 deploy.sh调用prepare、检查非Mac环境和字体路径、检查Hub同源MDM健康；备份已有unit/nginx配置后安装本项目配置。nginx-t失败恢复本脚本改动并退出；通过后启用/重启后端、检查active和health、reload nginx并检查静态入口。脚本不创建业务角色、不改Hub源码、不验证两档身份或数据一致性。
 
-应用启动/后续检查失败不会自动恢复旧代码和dist；构建直接写当前dist，发布不是原子切换。发布前须另保存旧固定SHA/构建/环境保护配置及恢复方案。失败时按实际阶段停止依赖该步骤的业务启用，切回原仓库旧SHA重建/重启并核对Hub兼容；不自动downgrade或删除数据。无数据库变更的代码回滚不需要回写源结果。
+应用启动/后续检查失败不会自动恢复旧代码和dist；构建直接写当前dist，发布不是原子切换。发布前须另保存旧固定SHA/构建/环境保护配置及恢复方案。保护配置与备份使用0600/0700；完成备份后以umask 022执行构建，确保生成的静态文件可被nginx读取，不能把备份权限沿用到构建。失败时按实际阶段停止依赖该步骤的业务启用，切回原仓库旧SHA重建/重启并核对Hub兼容；不自动downgrade或删除数据。无数据库变更的代码回滚不需要回写源结果。
 
 ## 5. 运维、证据与跨仓库关系
 

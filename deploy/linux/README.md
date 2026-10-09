@@ -1,8 +1,8 @@
 # Linux运行与发布说明
 
-> 版本：0.6｜日期：2026-10-09｜状态：现行操作手册；首次/级联发布过程移至日期化记录。
+> 版本：0.7｜日期：2026-10-09｜状态：现行操作手册；首次/级联发布过程移至日期化记录。
 
-目标/opt/cmc-water-system-dashboard，prometheus；后端127.0.0.1:8015、nginx静态前端127.0.0.1:5115，用户经Hub /water/。2026-10-09已有服务发布记录；最近有证据的状态见 [STATUS](../../docs/STATUS.md)，具体结果见 [发布记录](../../docs/releases/20261009-linux.md)。本轮文档更新没有重新部署或远端核验。
+目标/opt/cmc-water-system-dashboard，prometheus；后端127.0.0.1:8015、nginx静态前端127.0.0.1:5115，用户经Hub /water/。2026-10-09已有服务发布记录；最近有证据的状态见 [STATUS](../../docs/STATUS.md)，本轮两页部署和远端核验结果见 [两页发布记录](../../docs/releases/20261009-two-page-linux.md)，首次/级联历史见 [历史发布记录](../../docs/releases/20261009-linux.md)。
 
 ## 发布前检查
 
@@ -31,7 +31,7 @@ bash deploy/linux/deploy.sh <完整40位SHA>
 
 deploy会再执行prepare，检查APP_ENV非mac_dev、字体文件及http://127.0.0.1:5100/mdm/api/v1/health，备份并安装unit/nginx配置，nginx-t后enable/restart后端、health、reload nginx和静态页检查。
 
-nginx-t失败会恢复本脚本改动的配置；应用启动/健康失败不会自动回退代码或构建。脚本不改Hub注册、不配置MDM角色、不查数据库完整业务对账，不能作为全部验收通过证明。静态构建不是原子切换；发布前单独保留旧构建/固定SHA以恢复。
+nginx-t失败会恢复本脚本改动的配置；应用启动/健康失败不会自动回退代码或构建。脚本不改Hub注册、不配置MDM角色、不查数据库完整业务对账，不能作为全部验收通过证明。静态构建不是原子切换；发布前单独保留旧构建/固定SHA以恢复。敏感备份保持0700/0600，执行构建前恢复umask 022；核对dist/index.html为0644、assets目录为0755，避免nginx无法读取。
 
 ## 运行、回滚与验收
 

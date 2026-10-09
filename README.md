@@ -25,7 +25,7 @@ cd ../frontend && pnpm test && pnpm build
 
 ## Linux 发布
 
-2026-10-09发布记录已登记Linux首次和级联服务部署，入口为 http://172.19.0.105:5100/water/；本轮未重新核验远端运行。最新级联浏览器交互、真实两档身份及下载落盘仍待验收。参见 [状态登记](docs/STATUS.md) 和 [Linux操作说明](deploy/linux/README.md)。流程为 Mac 提交推送→Linux拉取同一完整SHA→受保护环境配置→部署脚本→实际登录和导出验收。没有数据库结构变更；不从Mac拷贝业务数据或凭据到Linux。
+2026-10-09两页及三卡片已提交GitHub并部署Linux，业务提交3395586fd44d86baa08cdcb366bd5a88a1043a44，入口为 http://172.19.0.105:5100/water/；Linux后端49项、前端9项测试、Hub资源哈希和只读统计对账通过，见[本轮发布记录](docs/releases/20261009-two-page-linux.md)。真实登录后的页面交互、两档身份及下载落盘仍待验收。参见 [状态登记](docs/STATUS.md) 和 [Linux操作说明](deploy/linux/README.md)。流程为 Mac 提交推送→Linux拉取同一完整SHA→受保护环境配置→部署脚本→实际登录和导出验收。没有数据库结构变更；不从Mac拷贝业务数据或凭据到Linux。
 
 ## 文档与敏感材料
 

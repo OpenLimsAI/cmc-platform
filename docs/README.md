@@ -18,7 +18,8 @@
 | [09 测试与验收](09-test-acceptance.md) | 如何验证需求、哪些仍待验收？ | 02、07；AT 编号在此定义 |
 | [10 决策与待办](10-decisions-open-items.md) | 哪些已决定，哪些业务或代码差距仍未关闭？ | 各专项文档；OP/GAP 编号在此定义 |
 | [Linux 操作说明](../deploy/linux/README.md) | 部署脚本的实际步骤和停止条件是什么？ | 08 |
-| [Linux 发布记录](releases/20261009-linux.md) | 2026-10-09 实际发布过程和结果是什么？ | 历史执行证据 |
+| [Linux 历史发布记录](releases/20261009-linux.md) | 首次/级联发布过程和结果是什么？ | 历史执行证据 |
+| [两页 Linux 发布记录](releases/20261009-two-page-linux.md) | 本轮GitHub→Linux更新、测试、资源及只读统计结果是什么？ | 3395586业务提交的执行证据 |
 | [级联筛选变更](changes/20261009-cascading-filters.md) | 此次筛选修正的范围、验证和发布是什么？ | 02、07、09 |
 | [两页整理与位置设计](changes/20261009-two-page-dashboard.md) | 两页范围、三卡片口径、只读位置调查及暂缓位置处理是什么？ | 用户本轮已明确并授权实施 |
 | [本次一致性整理](changes/20261009-document-consistency.md) | 本轮修正了哪些文档差异、怎样检查？ | 本索引及全部当前文档 |
