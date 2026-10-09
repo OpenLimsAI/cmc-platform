@@ -1,6 +1,6 @@
 # 03 · 数据来源与字段约定
 
-> 版本：0.7｜日期：2026-10-09｜状态：现行消费契约；数量和源调查为标明日期的历史证据。
+> 版本：0.8｜日期：2026-10-09｜状态：现行消费契约；数量和源调查为标明日期的历史证据。
 
 ## 0. 本次范围和位置调查
 
@@ -107,3 +107,13 @@ current_master表示所观察到的当前主表映射，不是采样时点历史
 早期“原始快照没有点位主表/零命中”的调查已被后续取样点接入记录覆盖；这些记录仅按当时日期解读。结构升级依据见 [QC升级记录](../../qc-lims-etl/docs/water-point-upgrade-20261008.md)；看板后续发布与验收见本项目STATUS/docs/09，不用上游旧记录替代本项目现状。
 
 旧质量接口曾统一追加映射提示（历史GAP-01）；该接口已随功能收缩删除。当前趋势映射说明按current_master分别展示，不等于系统/历史映射已完成。
+
+## 11. 2026-10-09只读更新核查与mart边界
+
+Linux实际连接为localhost:5432/cmc_analytics、lims_reader，只读消费以上五表。15个raw同步和一个staging刷新作业今日全部成功，错误数0；staging于04:03:48完成，五表的_etl_loaded_at均为事务起始04:00:20.759041，不能把这个装载标记当作刷新结束时间。
+
+context.max_result_at实际为宽表授权水样MAX(trend_dt)=2026-09-18上海零点；主要来源为样品eventdt，不是数据库同步截止或检验完成时间。stg_lv_sample已有10月9日纯化水Initial样品；9月18日之后水样当前为Initial/InProgress/Received/Cancelled，未进入Completed/Reviewed及参数规则入选范围。代码日期不是写死，也未停止每日刷新。API当前source_cutoff/context_id仍为空，新鲜度未自动联动ETL台账；顶部提示按用户指令暂移除。
+
+本轮用lims_reader只读核对mart.v_qc_report_snapshot_preview、v_qc_report_result_preview、v_qc_numeric_result_preview、v_qc_investigation_preview，Linux均0行。它们读取snap_gmp.qc_report_snapshot和staging.qc_report_candidate，是按snapshot_id限定的报告候选预览，validation_status当前限定development_preview；不是每日五表刷新自动生成的全量水样mart。数值预览排除定性/删失和重复规格候选，不能用它代替全部水样计数或趋势原文。
+
+可展示这些视图用于明确版本的报告候选核对；当前水系统看板继续既有staging契约。后续可考虑在现有staging之上建专用水系统mart视图，集中水类型/状态/结果规则/日期/计数口径，并保留来源键、原文和方法1数值/结论去重；正式切换前另确认文档、兼容范围与真实对账，通过cmc-schema-migrations实现。普通视图不额外保存数据或自动加速；仅在性能实测需要时再设计物化视图及刷新顺序。以上为建议，未新建视图或更换数据源。

@@ -22,6 +22,7 @@
 | [两页 Linux 发布记录](releases/20261009-two-page-linux.md) | 本轮GitHub→Linux更新、测试、资源及只读统计结果是什么？ | 3395586业务提交的执行证据 |
 | [级联筛选变更](changes/20261009-cascading-filters.md) | 此次筛选修正的范围、验证和发布是什么？ | 02、07、09 |
 | [两页整理与位置设计](changes/20261009-two-page-dashboard.md) | 两页范围、三卡片口径、只读位置调查及暂缓位置处理是什么？ | 用户本轮已明确并授权实施 |
+| [提示移除与mart评估](changes/20261009-remove-context-notice.md) | 顶部提示移除、实际刷新与预览视图覆盖、后续mart建议是什么？ | 用户指令和本轮只读核查 |
 | [本次一致性整理](changes/20261009-document-consistency.md) | 本轮修正了哪些文档差异、怎样检查？ | 本索引及全部当前文档 |
 
 ## 状态与维护规则

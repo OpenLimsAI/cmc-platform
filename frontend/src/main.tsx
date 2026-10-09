@@ -10,7 +10,6 @@ import {filterFields,changeFilters,choices} from './filters'
 import {getStoredToken,isTokenReadable,mdmLogout,startSessionGuard,TOKEN_CHANGED_EVENT} from './shared/cmabSession'
 import {pageTitles,readPage,pageURL,type Section} from './navigation'
 import {Overview} from './Overview'
-import {DataContextNotice} from './DataContextNotice'
 import './style.css'
 const client=new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}})
 const titles=pageTitles
@@ -53,7 +52,7 @@ function App(){
  {removedNotice&&<Alert type="info" showIcon message="该功能已移除，已返回总览" closable onClose={()=>setRemovedNotice(false)}/>}
  {section==='overview'&&<Overview tokenVersion={tokenVersion}/>}
  {section==='trends'&&<>
- {context.error?<Alert type="error" message={(context.error as Error).message}/>:context.data?<DataContextNotice context={context.data}/>:<Spin/>}
+ {context.error?<Alert type="error" message={(context.error as Error).message}/>:context.isPending?<Spin/>:null}
  <Card className="filters" title="取样点趋势筛选"><Space wrap>{filterFields.map(([k,label,col])=><Select key={k} aria-label={label} placeholder={label} showSearch optionFilterProp="label" allowClear value={filter[k]} style={{minWidth:130,maxWidth:260}} loading={options.isFetching} disabled={!resolved||options.isFetching||!!options.error} notFoundContent={options.isFetching?<Spin size="small"/>:'当前范围无可选项'} options={choices(options.data,k,col)} onChange={v=>update(k,v)}/>)}<Select aria-label="样品状态" mode="multiple" value={filter.sample_status} options={['Reviewed','Completed'].map(value=>({value,label:value==='Reviewed'?'已复核':'测完未复核'}))} onChange={v=>update('sample_status',v)} style={{minWidth:200}}/><DatePicker.RangePicker aria-label="日期范围" value={resolved?[dayjs(filter.date_from),dayjs(filter.date_to).subtract(1,'day')]:null} allowClear={false} onChange={v=>{if(v?.[0]&&v[1])setFilter(f=>changeFilters(f,{date_from:v[0]!.format('YYYY-MM-DD'),date_to:v[1]!.add(1,'day').format('YYYY-MM-DD')}))}}/>{[[3,'季度'],[6,'半年'],[12,'年度']].map(([n,label])=><Button key={n} onClick={()=>shortcut(Number(n))}>{label}趋势</Button>)}</Space>{options.error&&<Alert type="error" message={'筛选选项加载失败：'+(options.error as Error).message} action={<Button onClick={()=>options.refetch()}>重试</Button>}/>}<p className="muted">选项按日期、状态及前面的已选条件联动；修改上游会清空后续选择。起止日均包含；日期按 Asia/Shanghai。快捷范围从今天回溯 3 / 6 / 12 个日历月。</p></Card>
  {comparison.error&&<Alert type="error" message={(comparison.error as Error).message} action={<Button onClick={()=>comparison.refetch()}>重试</Button>}/>}
  {comparison.data&&<div className="metrics">{[['入选样品数','sample_count'],['方法数据集数','dataset_count'],['结果行数','result_count']].map(([label,k])=><Card key={k}><Statistic title={label} value={comparison.data.metrics[k]}/></Card>)}<Card><Statistic title="删失结果行" value={comparison.data.metrics.kinds.censored||0}/></Card></div>}

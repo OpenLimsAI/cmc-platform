@@ -1,6 +1,6 @@
 # 05 · 架构与数据模型
 
-> 版本：0.7｜日期：2026-10-09｜状态：现行代码结构与一致性边界；后续设计明确标注。
+> 版本：0.8｜日期：2026-10-09｜状态：现行代码结构与一致性边界；后续设计明确标注。
 
 ## 0. 本轮两页实现
 
@@ -31,7 +31,7 @@ flowchart LR
 | backend/app/main.py | 路由、上下文、错误/运行日志、总览/比较组/趋势、追溯和导出编排 |
 | backend/app/export.py | matplotlib PNG、openpyxl Excel、CSV/JSONL/ZIP及manifest |
 | frontend/src/main.tsx | 两页导航、趋势筛选/查询、ECharts、追溯和下载 |
-| frontend/src/Overview.tsx、DataContextNotice.tsx、navigation.ts | 三卡片总览、数据上下文提示、两页URL与旧页面恢复 |
+| frontend/src/Overview.tsx、navigation.ts | 三卡片总览、两页URL与旧页面恢复；顶部黄色上下文提示按用户要求删除 |
 | frontend/src/filters.ts | 筛选顺序、下游重置、候选显示 |
 | frontend/src/transport.ts、api.ts | 401续期一次、错误处理、同源API与query序列化 |
 | frontend/src/shared/cmabSession.ts | Hub会话副本，MDM刷新/退出/守卫 |

@@ -2,7 +2,6 @@ import {useQuery} from '@tanstack/react-query'
 import {Alert,Button,Card,Spin,Statistic} from 'antd'
 import dayjs from 'dayjs'
 import {api} from './api'
-import {DataContextNotice} from './DataContextNotice'
 
 type WaterCard = {code:'WFI'|'PW'|'PS', water_type:string, point_count:number, annual_sample_count:number}
 type OverviewResponse = {
@@ -16,7 +15,6 @@ export function Overview({tokenVersion}:{tokenVersion:number}) {
     action={<Button onClick={()=>overview.refetch()}>重试</Button>}/>
   const data=overview.data
   return <>
-    <DataContextNotice context={data.data_context}/>
     <div className="water-overview" aria-label="水系统总览">
       {data.water_cards.map(card=><Card key={card.code} title={<><strong>{card.code}</strong><span className="water-name">{card.water_type}</span></>}>
         <div className="water-counts">
