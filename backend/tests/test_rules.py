@@ -46,7 +46,7 @@ def test_export_roles(monkeypatch,kind):
  payload['dataset_digest']='0'*64
  assert c.post('/api/v1/exports',headers={'Authorization':'Bearer '+signed(['CMC_WATER_EXPORTER'])},json=payload).status_code==409
 
-def test_export_preserves_strings():
+def test_export_preserves_strings(tmp_path):
  rows=[row('001.2300'),row('=1+1',rep='2'),row('<1',rep='3'),row('中文未知',rep='4')]
  payload=main.ExportRequest(filter=FilterSpec(),comparison_group=rows[0]['comparison_group'],export_kind='bundle',dataset_digest=main.digest(rows))
  content,_,_=generate(rows,{},payload,{'sub':'isolated-test'})
@@ -59,8 +59,7 @@ def test_export_preserves_strings():
   assert [ws.cell(i,idx).value for i in range(2,6)]==['001.2300','=1+1','<1','中文未知']
   assert all(ws.cell(i,idx).data_type=='s' for i in range(2,6))
   assert "'=1+1" in z.read('results.csv').decode('utf-8-sig')
-  from pathlib import Path
-  Path('../artifacts/test-trend.png').write_bytes(z.read('trend.png'))
+  (tmp_path/'test-trend.png').write_bytes(z.read('trend.png'))
 
 def test_query_contract(monkeypatch):
  async def fake(f):return [row()],{'context_id':None}

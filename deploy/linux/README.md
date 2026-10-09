@@ -1,4 +1,4 @@
-# Linux 发布说明（当前待首次部署）
+# Linux 发布说明
 
 2026-10-09 已连接 Linux 做只读前置核查，应用尚未部署。目标主机/实例/端口已初核，启用前再次确认。当前模板使用 `/opt/cmc-water-system-dashboard`、prometheus、后端 127.0.0.1:8015、静态前端 127.0.0.1:5115、Hub `/water/`。
 
@@ -42,3 +42,14 @@ Linux环境模板为backend/.env.linux.example，须替换受保护凭据和实�
 Linux Hub 827201d159da65479801cf119483e49b837ec606 已有 water 注册及代理；8015/5115 无监听，water-backend inactive。lims_reader 查询允许、业务写入禁止；staging 最新装载为 2026-10-09 04:00:20+08:00，抽样日期已纠正。MDM 当前未查到两档业务角色；没有调整任何人员授权。
 
 新增 configure.sh：已有有效只读配置与 MDM 保护配置复用，仅生成0600的应用.env；不覆盖既有配置。先核对字体安装，再执行 `bash deploy/linux/configure.sh` 和明确SHA的deploy.sh。Linux uv位于用户.local/bin，prepare已加入PATH。配置脚本目前仅静态验证，尚未在Linux执行。
+
+
+## 首次服务部署 · 2026-10-09
+
+已由GitHub私库克隆完整发布提交 534fe02ea5bd42654ada97203da355b118daea03，在 /opt/cmc-water-system-dashboard 运行。配置为只读 lims_reader、复用Linux MDM验签、本机8015/5115、Hub /water/，使用发行版Noto CJK字体。敏感.env、日志、备份、数据导出和真实截图不提交。首次历史清理已修正，发布main不包含私有验收材料；原本地分支仅留本机，不推送。
+
+实际完成：锁定依赖构建、systemd启用、nginx校验与重载、健康接口、Hub静态入口。浏览器从原502转为正式Hub登录页。真实staging独立SQL筛选对账和服务层PNG/Excel/组合包检查通过，原值文本保真与文件哈希一致，PNG中文经视觉检查通过；不替代真实用户下载。
+
+Linux首轮隔离测试37通过、1失败（测试输出依赖本地artifacts目录）；已改为pytest tmp_path，Mac针对性验证通过，配套提交后Linux重跑记录见后续补充。等待用户正常管理员登录以验证真实交互和建立两个业务角色；人员授权、两档真实身份检查不假定已通过。未迁移业务结构或修改源数据。
+
+启动由systemd管理：`sudo systemctl start water-backend`；查看状态使用 `systemctl status water-backend`、`journalctl -u water-backend`。正式访问 http://172.19.0.105:5100/water/。后续先Mac push，Linux `git pull --ff-only`，再按完整SHA运行 deploy/linux/deploy.sh；不要覆盖受保护.env。

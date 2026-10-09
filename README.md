@@ -23,7 +23,7 @@ cd ../frontend && pnpm test && pnpm build
 
 ## Linux 发布
 
-参见 deploy/linux/README.md。流程为 Mac 提交推送→Linux拉取同一完整SHA→受保护环境配置→部署脚本→实际登录和导出验收。没有数据库结构变更；不从Mac拷贝业务数据或凭据到Linux。
+Linux 服务已首次部署，正式入口为 http://172.19.0.105:5100/water/；真实登录及两档权限验收仍待完成。参见 deploy/linux/README.md。流程为 Mac 提交推送→Linux拉取同一完整SHA→受保护环境配置→部署脚本→实际登录和导出验收。没有数据库结构变更；不从Mac拷贝业务数据或凭据到Linux。
 
 ## 文档与敏感材料
 
