@@ -1,89 +1,56 @@
 # 08 · 开发、部署与运维
 
-> 版本：0.4｜日期：2026-10-02｜状态：Mac 已实现，验收部分完成；Linux 未发布。
+> 版本：0.6｜日期：2026-10-09｜状态：现行运行/发布约定；日期化执行结果见 STATUS/releases。
 
-## 1. 当前状态
+## 1. 当前入口与工具链
 
-仅建立文档。没有应用启动命令、GitHub 仓库、角色、固定端口、LaunchAgent、systemd 或 Hub 路由。本文为实施顺序，验收结果写 docs/09，决定写 docs/10。
+Mac目录/Users/qingcheng/code/cmc-water-system-dashboard，入口http://localhost:5100/water/；Linux目录/opt/cmc-water-system-dashboard，入口http://172.19.0.105:5100/water/。SSH按全局入口prometheus/13568核对，后端8015、前端5115均回环。服务发布已有记录，本轮未重连，不把旧“空表/无服务”的记录当现状。
 
-Mac 目录 `/Users/qingcheng/code/cmc-water-system-dashboard`；Linux 计划 `/opt/cmc-water-system-dashboard`。Linux 主机按总纲为 `172.19.0.105`，SSH `prometheus`/13568，发布前再次核对。
+本地安装启动和验证命令见README。Python用uv锁文件，前端pnpm。Mac start.sh检查端口占用后启动uvicorn和Vite，日志写logs/；保持终端运行，Ctrl+C停止本次两个进程，任一个退出会停止同伴。仓库没有LaunchAgent安装步骤，不推断系统上实际托管状态。
 
-## 2. Mac 开发顺序
+Linux用water-backend.service常驻uvicorn，nginx water.conf伺服前端dist；Hub由独立仓库维护。操作步骤以 [Linux说明](../deploy/linux/README.md) 为准。
 
-1. 阅读文档和依赖代码，核对真实数据库结构、只读角色与数据覆盖，记录时间和证据。
-2. 核对 PORTS、实际监听、配置与托管进程，再分配固定端口并登记；端口冲突报错，禁止自动漂移。
-3. 创建代码结构、pyproject/锁文件、前端依赖与环境模板；凭据存本机配置，文件权限受限，Git 忽略。
-4. 后端只读访问 `127.0.0.1:5432/cmc_analytics`（当前 Mac 约定，连接时核实），检查字段和权限后再提供业务接口。
-5. 配置实际 MDM 验签与确认角色；在 Mac Hub 注册 `/water/`，测试从 Hub 登录、刷新、退出、授权和深链。
-6. 实现基本页面与来源核对、默认近一年及 3/6/12 月快捷选择、PNG/Excel/组合包导出和两档后端权限，再加入经确认的解析/统计；限度功能依赖 OP-02。
-7. 执行 docs/09 验收，记录未关闭项和代码版本；验收后再决定 Linux 发布。
+## 2. 实际配置项
 
-开发进程前后端绑定本机。长期托管可采用 Mac LaunchAgent，具体 label/日志/命令在代码实现后补齐，避免和手动启动重复进程。MDM 的验证或测试遵循其隔离方式，不在真实本地 MDM 库灌测试数据。
-
-## 3. 环境配置工作设计
-
-| 配置 | 用途/约束 |
+| Settings字段/环境键 | 约束与默认 |
 |---|---|
-| `APP_ENV` | mac_dev/linux_prod 等明确环境，不靠路径猜环境 |
-| `DATABASE_URL` | 分析库只读连接，SQLAlchemy asyncpg 格式；不写实际值进文档 |
-| `JWT_ALGORITHM` 与验签密钥/公钥配置 | 对齐实际 MDM；缺失则启动失败，凭据配置名按实现定稿 |
-| `WATER_VIEW_ROLES`、`WATER_EXPORT_ROLES` | 已确认角色白名单；为空或非法则启动失败；导出集合须是查看集合子集；管理员身份亦先完成令牌检查 |
-| `APP_BASE_PATH` | `/water/`；后端前缀与 Hub 剥前缀约定对应 |
-| `APP_TIMEZONE` | Asia/Shanghai；context 的今天、日期边界和导出说明保持一致 |
-| PNG/Excel 渲染配置 | 锁定兼容依赖与中文字体；固定图片尺寸/清晰度范围，Mac/Linux 各自验证 |
-| 后端/前端固定端口 | OP-05 核实登记后填写；Vite strictPort |
-| 源快照/数据截止元数据 | 仅填有证据的来源标识/截止；未知明确为空/未核实 |
-| 查询超时、导出上限、日志路径 | 经性能与审计要求确定，不日志输出原始 token/密码 |
+| app_env / APP_ENV | 默认mac_dev；Linux部署脚本拒绝mac_dev，生成配置为linux |
+| database_url / DATABASE_URL | 必填分析库asyncpg连接；真实值仅backend/.env |
+| jwt_algorithm / JWT_ALGORITHM | HS256默认或RS256，与MDM一致 |
+| jwt_verify_key / JWT_VERIFY_KEY | 必填验签密钥或PEM公钥；无独立公钥路径配置 |
+| water_view_roles / WATER_VIEW_ROLES | 必填逗号角色码集合，非空合法 |
+| water_export_roles / WATER_EXPORT_ROLES | 必填且是查看角色子集 |
+| staging_data_origin / STAGING_DATA_ORIGIN | unverified默认、legacy_xlsx或oracle_etl；依据实际staging装载证据设置 |
+| png_font_path / PNG_FONT_PATH | 默认Mac STHeiti路径；Linux填已安装允许使用的中文字体，路径存在还需导出视觉核对 |
+| max_rows / MAX_ROWS | 默认100000，配置允许1–1000000；不是批准容量 |
 
-配置模板只有占位值。前端不得包含验签秘密或数据库密码；前端 API 使用 Hub 相对路径，不硬编码 Mac/Linux 后端 IP。
+Settings读取backend/.env、忽略未知环境键。APP_BASE_PATH/APP_TIMEZONE没有配置项；路径/water/和时区Asia/Shanghai在代码固定。后端端口写于启动命令/systemd，前端Vite strictPort。日期跨度3660天、SQL超时30000ms和application_name=water_dashboard在代码固定。环境模板仅占位，不复制真实凭据到仓库。
 
-## 4. Linux 发布前的数据条件
+configure.sh仅首次生成0600配置；存在.env时拒绝覆盖。它读取Linux已有QC只读DSN和MDM保护配置，仅支持自动复用HS256；RS256需按现行设置核对并安全配置，不能把该脚本当通用算法自动迁移器。模板字体路径与安装环境可能不同，以实际文件核对。
 
-Mac 的测试通过只证明该环境。Linux 必须有相容迁移版本、五张 QC staging 和真实业务数据/授权；发布时核实当前 QC ETL SHA、Oracle 首次抽取/对账、具体 job 的最近成功和计划任务。
+## 3. 发布边界与前置
 
-2026-09-30 上游部署记录为 Linux 空表、正式 Oracle 未验证；2026-10-01 的数值规则尚未在该记录中发布。这个状态可能变化，实际发布前只读复核。上游仓库 timer 的工作时点为每天北京时间 08:00、12:00、16:00，但仓库配置不证明服务器已启用或采用此版本。
+1. 核对授权、各仓库完整SHA、工作区及备份/恢复路径。按Mac→GitHub→Linux获取同一业务提交，不手工复制源码绕开版本。
+2. 核对分析库结构、五表只读授权、数据/规则和QC作业；实际数据到位与代码发布分开。看板不启动ETL、不读取Oracle、不复制Mac业务数据。
+3. 本项目当前发布没有结构迁移。若后续有共享结构，另走cmc-schema-migrations明确revision；MDM自身结构归MDM迁移链，不重复迁移。
+4. 身份白名单、MDM角色配置、人员授权与真实身份验证分别登记。既有服务可用于受限验证；正式业务用途不能跳过未完成的验收与OP-06/08。
+5. 上游调度按QC ETL当前配置和运行台账核对，本项目不复制历史08/12/16时点或新建调度。context当前未查job，始终提示新鲜度未核实。
+6. Hub注册、同源MDM、回环监听、中文字体和实际静态资源均需验证；健康200不代表角色/数据/下载验收通过。
 
-Mac 快照不会随代码发布自动带到 Linux。若 Linux 数据未准备好，可验收代码/路由部分并记录“数据待到位”，不能宣称业务上线成功。数据复制或回填需要单独的范围、来源、权限、备份、对账与授权方案。
+## 4. 脚本与回滚的实际行为
 
-常规 GMP 趋势的截止和受控快照方案 OP-06 在生产业务启用前确定；正式受控报告额外按用途确认验证要求。
+prepare.sh验证HEAD等于完整40位SHA、工作区干净、backend/.env存在，再uv/pnpm锁定依赖构建；不拉代码、不切提交、不执行迁移。
 
-## 5. 发布顺序与停止条件
+deploy.sh调用prepare、检查非Mac环境和字体路径、检查Hub同源MDM健康；备份已有unit/nginx配置后安装本项目配置。nginx-t失败恢复本脚本改动并退出；通过后启用/重启后端、检查active和health、reload nginx并检查静态入口。脚本不创建业务角色、不改Hub源码、不验证两档身份或数据一致性。
 
-| 步骤 | 工作 | 通过条件 |
-|---|---|---|
-| 预检/备份 | 检查 Mac/GitHub/Linux 工作区和完整 SHA；记录应用/Hub/迁移仓库版本；备份受影响配置/构建/必要数据库 | 无未解释改动，目标和恢复路径明确 |
-| Git 发布 | 用户授权后 commit/push；Linux 拉取并使用目标完整 SHA | 不手工复制代码形成独立版本 |
-| 结构/授权 | 仅在需要时，按 cmc-schema-migrations 发布明确 revision；核实 SELECT 最小权限 | 结构、授权和消费者兼容 |
-| 服务 | 安装锁定依赖、构建、配置 systemd/nginx，本机监听 | 启动预检、进程和日志正常 |
-| Hub | 发布 apps.ts/路由/脚本，nginx 配置校验、门户构建 | 磁贴、资源、API、深链正常 |
-| 浏览器/业务 | 身份矩阵实测、数据与源对账、图表/导出核对 | Mac 定义的关键验收在 Linux 通过 |
+应用启动/后续检查失败不会自动恢复旧代码和dist；构建直接写当前dist，发布不是原子切换。发布前须另保存旧固定SHA/构建/环境保护配置及恢复方案。失败时按实际阶段停止依赖该步骤的业务启用，切回原仓库旧SHA重建/重启并核对Hub兼容；不自动downgrade或删除数据。无数据库变更的代码回滚不需要回写源结果。
 
-任一步失败记录原因和实际状态；停止依赖该步骤的后续业务启用，按已验证回滚方案恢复。代码与数据迁移回滚分别评估，不能自动降级或删除数据。发布脚本应在仓库内实现，记录动作和返回码。
+## 5. 运维、证据与跨仓库关系
 
-## 6. 运维与发布记录
+Linux服务为water-backend，日志为journalctl -u water-backend；MPLCONFIGDIR为项目logs/matplotlib，配置备份在logs/deploy-日期时间。Mac日志为logs/backend.log及frontend.log。检查身份拒绝、业务查询、Hub资源、只读授权和QC job状态，不能仅检查health。
 
-服务/日志名称在实现后确定。检查包括应用健康、认证、业务 API、Hub 资源、数据库只读授权、QC job 新鲜度及查询/导出错误。看板不自建第二条 QC ETL 调度。
+日期化发布记录采用docs/releases/，功能变更采用docs/changes/，已公开摘要与本地敏感证据分开；本次既有发布叙述移至 [2026-10-09记录](releases/20261009-linux.md)，级联细节保留原changes记录。后续记录主机/时间/执行人、完整SHA、配置变化、迁移/data版本、实际查询/权限/文件/浏览器结果、备份/回滚和未关闭项，并更新STATUS。
 
-每次发布在 `docs/releases/日期-版本.md` 记录：操作者/时间、各仓库完整 SHA、目标主机、配置变更（不含秘密）、迁移 revision、数据版本/截止、实际计数、权限验收、服务/浏览器结果、备份及回滚路径和未关闭事项。发布记录在实际执行时创建。
+同级跨项目链接用于开发检出；Linux使用/opt实际仓库和固定版本，不执行Mac路径。依赖版本/文档缺失时从对应仓库受控版本取得，不把静态链接当部署证据。
 
-参考：[PORTS](../../PORTS.md)、[Hub 路由](../../cmab-hub/nginx/README.md)、[迁移入口](../../cmc-schema-migrations/README.md)、[迁移 SOP](../../cmc-schema-migrations/SOP.md)、[QC 运维](../../qc-lims-etl/docs/05-ops-deployment.md)。
-
-## 7. 依赖资料和迁移的发布边界
-
-Mac 的跨项目相对链接基于同级 `/Users/qingcheng/code` 目录；Linux 运维使用 `/opt` 的实际检出、部署脚本与所需源版本资料，不执行文档中的 Mac 绝对路径。发布前保存对应版本的关键契约/规则依据，缺少可访问的依赖仓库时从其受控版本取得资料。
-
-MDM 如果只是界面建立/分配角色，记录配置动作；若改变 MDM 结构或认证代码，其迁移位于 MDM 自身 backend/alembic/versions 并按 MDM 发布脚本执行。共享分析库迁移仍位于 cmc-schema-migrations；看板发布不得重复执行 MDM 迁移。
-
-应用回滚保留旧构建/依赖锁定版本、systemd/nginx 配置和环境模板版本；数据库回滚依据具体迁移评估，不自动 downgrade。Hub 与应用可分别回滚，但需核对路径/API 契约兼容；出现数据质量缺口时保留证据并修复上游，不通过删除历史数据消除异常。
-
-
-## Mac 实施状态（2026-10-02）
-
-V0.3 的工作设计和历史复核记录保留用于追踪；当前事实以 [Mac 验收记录](acceptance/mac-20261002.md) 和 docs/10 新决定为准。基础应用已运行，不能据此将所有验收项或 Linux 发布登记为通过。
-
-
-## 当前可执行入口
-
-Mac安装及启动见README。`bash deploy/mac/start.sh`检查8015/5115冲突，日志在忽略目录logs/，保持终端运行；Ctrl+C停止本次进程。当前运行使用开发Vite，无LaunchAgent安装。
-
-Linux准备文件在deploy/linux/；[Linux前置、构建与回滚说明](../deploy/linux/README.md)未执行。必须另获Git与Linux发布授权、核实真实数据和受控快照、权限、中文字体后启用。无需为本次只读代码额外创建迁移。
+参考：[PORTS](../../PORTS.md)、[Hub说明](../../cmab-hub/nginx/README.md)、[迁移README](../../cmc-schema-migrations/README.md)、[迁移SOP](../../cmc-schema-migrations/SOP.md)、[QC运维](../../qc-lims-etl/docs/05-ops-deployment.md)。

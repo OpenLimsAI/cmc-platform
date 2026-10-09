@@ -1,11 +1,11 @@
 """Read-only reflected ORM; no schema creation or writes."""
 from contextlib import asynccontextmanager
-from datetime import datetime, time
-from sqlalchemy import MetaData, select, and_, or_, func, text
+from datetime import date, datetime, time, timedelta
+from sqlalchemy import MetaData, select, func, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import registry
 from app.core import settings
-from app.analysis import SOURCE, WATERS, RULES, KEY, TZ, normalize
+from app.analysis import SOURCE, WATERS, RULES, KEY, TZ, WATER_CARDS, normalize
 
 engine=create_async_engine(settings.database_url, isolation_level='REPEATABLE READ', connect_args={'server_settings':{'default_transaction_read_only':'on','statement_timeout':'30000','application_name':'water_dashboard'}})
 metadata=MetaData(schema='staging')
@@ -44,13 +44,35 @@ async def transaction():
 def scope():
     w=models['wide']
     return [w.source_system==SOURCE,w.sdcid=='Sample',w.samplesubtypeid.in_(WATERS),w.selection_rule.in_(RULES)]
-def conditions(f,dates=True,point=True):
+def conditions(f):
     w=models['wide']; out=scope()+[w.samplestatus.in_(f.sample_status)]
     for api,col in FILTER_FIELDS:
         value=getattr(f,api)
-        if value is not None and (api not in ('samplepoint_id','samplepoint_code') or point): out.append(getattr(w,col)==value)
-    if dates: out += [w.trend_dt>=datetime.combine(f.date_from,time.min,TZ),w.trend_dt<datetime.combine(f.date_to,time.min,TZ)]
+        if value is not None: out.append(getattr(w,col)==value)
+    out += [w.trend_dt>=datetime.combine(f.date_from,time.min,TZ),w.trend_dt<datetime.combine(f.date_to,time.min,TZ)]
     return out
+
+async def read_overview(session, current: date):
+    """Count identities in SQL; companion parameters must never add samples."""
+    w=models['wide']
+    start=date(current.year,1,1)
+    end=current+timedelta(days=1)
+    annual=(w.trend_dt>=datetime.combine(start,time.min,TZ),
+            w.trend_dt<datetime.combine(end,time.min,TZ))
+    statement=select(
+        w.samplesubtypeid.label('water_type'),
+        func.count(func.distinct(w.samplepointid)).filter(
+            w.samplepointid.is_not(None),w.samplepointid!='').label('point_count'),
+        func.count(func.distinct(w.s_sampleid)).filter(
+            w.s_sampleid.is_not(None),w.s_sampleid!='',*annual).label('annual_sample_count'),
+    ).where(*scope(),w.samplestatus.in_(['Reviewed','Completed'])).group_by(w.samplesubtypeid)
+    counts={r['water_type']:r for r in (await session.execute(statement)).mappings()}
+    return {'year':current.year,'date_from':start.isoformat(),'date_to':end.isoformat(),
+            'sample_status':['Reviewed','Completed'],'point_scope':'all_available_selected_results',
+            'water_cards':[{'code':code,'water_type':water,
+                            'point_count':counts[water]['point_count'] if water in counts else 0,
+                            'annual_sample_count':counts[water]['annual_sample_count'] if water in counts else 0}
+                           for code,water in WATER_CARDS]}
 
 def option_filter(f, field):
     names=[name for name,_ in FILTER_FIELDS]
@@ -77,10 +99,9 @@ def record(obj):
         elif isinstance(value,datetime): value=value.astimezone(TZ).isoformat()
         result[c.name]=value
     return result
-async def read_rows(session,f,dates=True,point=True,unassigned=False):
+async def read_rows(session,f):
     w=models['wide']
-    predicates=conditions(f,dates,point)
-    if unassigned: predicates.append(or_(w.trend_dt.is_(None),w.samplepointid.is_(None),w.samplepointid==''))
+    predicates=conditions(f)
     rows=(await session.scalars(select(w).where(*predicates).order_by(*(getattr(w,k) for k in KEY)).limit(settings.max_rows+1))).all()
     if len(rows)>settings.max_rows:
         from fastapi import HTTPException

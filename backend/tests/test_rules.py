@@ -24,7 +24,6 @@ def test_counts_groups():
  assert len({r['comparison_group'] for r in rows})==2
  assert row(unit=None)['plot_status']=='not_plotted'
  assert row(unit='mS/cm')['comparison_group']!=rows[0]['comparison_group']
- summary=summaries(rows,'quarter');r=next(r for r in summary if r['parameter']=='结果');assert r['mean']=='1.20' and r['n_exact']==1
  assert decode(rows[0]['result_id'])==rows[0]['source_key']
 def test_closed_config():
  for changes in [{'water_view_roles':''},{'water_export_roles':'UNKNOWN'},{'jwt_verify_key':'CHANGE_ME'},{'jwt_algorithm':'none'}]:
@@ -34,7 +33,7 @@ def signed(roles,**claims):return jwt.encode({'sub':'123','type':'access','exp':
 def test_identity_matrix(monkeypatch,token,expected):
  async def fake(f):return [row()],{'context_id':None}
  monkeypatch.setattr(main,'collection',fake)
- r=TestClient(main.app).get('/api/v1/overview',headers={'Authorization':'Bearer '+token} if token else {})
+ r=TestClient(main.app).get('/api/v1/comparison-groups',headers={'Authorization':'Bearer '+token} if token else {})
  assert r.status_code==expected
 @pytest.mark.parametrize('kind',['chart','table','bundle'])
 def test_export_roles(monkeypatch,kind):
@@ -65,7 +64,7 @@ def test_query_contract(monkeypatch):
  async def fake(f):return [row()],{'context_id':None}
  monkeypatch.setattr(main,'collection',fake)
  c=TestClient(main.app);h={'Authorization':'Bearer '+signed(['CMC_WATER_VIEWER'])}
- for path in ['results?page=1&page_size=2','summaries?period=quarter','trends?comparison_group='+__import__('urllib.parse',fromlist=['quote']).quote(row()['comparison_group'])]:
+ for path in ['comparison-groups','trends?comparison_group='+__import__('urllib.parse',fromlist=['quote']).quote(row()['comparison_group'])]:
   assert c.get('/api/v1/'+path,headers=h).status_code==200
 
 
@@ -74,17 +73,17 @@ def test_failures_and_empty(monkeypatch):
  c=TestClient(main.app);h={'Authorization':'Bearer '+signed(['CMC_WATER_EXPORTER'])}
  async def broken(f):raise OperationalError('isolated',{},Exception('no credentials'))
  monkeypatch.setattr(main,'collection',broken)
- r=c.get('/api/v1/overview',headers=h);assert r.status_code==503 and r.json()['code']=='DATA_UNAVAILABLE'
+ r=c.get('/api/v1/comparison-groups',headers=h);assert r.status_code==503 and r.json()['code']=='DATA_UNAVAILABLE'
  async def large(f):raise __import__('fastapi').HTTPException(413,'范围超过允许行数，请缩小筛选')
  monkeypatch.setattr(main,'collection',large)
- assert c.get('/api/v1/results',headers=h).status_code==413
+ assert c.get('/api/v1/comparison-groups',headers=h).status_code==413
  async def empty(f):return [],{}
  monkeypatch.setattr(main,'collection',empty)
- assert c.get('/api/v1/overview',headers=h).json()['metrics']['result_count']==0
+ assert c.get('/api/v1/comparison-groups',headers=h).json()['metrics']['result_count']==0
  payload={'filter':FilterSpec().model_dump(mode='json'),'comparison_group':row()['comparison_group'],'export_kind':'bundle','dataset_digest':main.digest([])}
  r=c.post('/api/v1/exports',headers=h,json=payload);assert r.status_code==422 and r.json()['code']=='EXPORT_NO_RESULTS'
  for suffix in ['?date_from=2026-10-03&date_to=2026-10-02','?date_from=1900-01-01&date_to=2026-10-03','?sample_status=INVALID','?bad=value']:
-  assert c.get('/api/v1/overview'+suffix,headers=h).status_code==422
+  assert c.get('/api/v1/comparison-groups'+suffix,headers=h).status_code==422
 
 def test_shanghai_and_date_boundary(monkeypatch):
  import app.analysis as a
@@ -142,9 +141,6 @@ def test_point_code_filter_uses_exact_code_without_merging_ids(monkeypatch):
  from sqlalchemy import and_
  compiled=and_(*db.conditions(f)).compile(compile_kwargs={'literal_binds':True})
  assert "samplepoint_code = 'WFI002'" in str(compiled) and "samplepointid = 'SP-A'" in str(compiled)
- # The unassigned partition explicitly ignores both point filters.
- unassigned=str(and_(*db.conditions(f,point=False)).compile(compile_kwargs={'literal_binds':True}))
- assert 'WFI002' not in unassigned and 'SP-A' not in unassigned
  with pytest.raises(ValueError):FilterSpec(samplepoint_code='')
 
 

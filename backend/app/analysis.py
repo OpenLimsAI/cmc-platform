@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field, model_validator
 
 TZ = ZoneInfo('Asia/Shanghai')
 RULE = 'water_dashboard_analysis_v1'
+OVERVIEW_RULE = 'water_overview_counts_v1'
+WATER_CARDS = (('WFI','注射用水'),('PW','纯化水'),('PS','纯蒸汽'))
 SOURCE = 'gmp_labvantage'
 WATERS = ('纯化水','注射用水','纯蒸汽')
 RULES = ('water_system_v1','water_conductivity_method1_numeric_v1')
@@ -91,15 +93,3 @@ def normalize(row):
 
 def metrics(rows):
     return {'sample_count':len({(r['source_system'],r['s_sampleid']) for r in rows}), 'dataset_count':len({tuple(r[k] for k in KEY[:9]) for r in rows}), 'result_count':len(rows), 'kinds':dict(Counter(r['result_kind'] for r in rows)), 'plot_count':sum(r['plot_status']=='plotted' for r in rows)}
-
-def summaries(rows,period):
-    buckets={}
-    for r in rows:
-        d=date.fromisoformat(r['trend_at'][:10])
-        label=f'{d.year}-{d.month:02}' if period=='month' else (f'{d.year}-Q{(d.month-1)//3+1}' if period=='quarter' else str(d.year))
-        buckets.setdefault((label,r['comparison_group']),[]).append(r)
-    output=[]
-    for (label,group),items in buckets.items():
-        vals=[Decimal(r['numeric_value']) for r in items if r['result_kind']=='exact_numeric']
-        output.append({'period':label,'comparison_group':group,'water_type':items[0]['water_type'],'samplepoint_id':items[0]['samplepoint_id'],'samplepoint_code':items[0].get('samplepoint_code'),'samplepoint_name':items[0].get('samplepoint_name'),'method':items[0]['paramlistid'],'version':items[0]['paramlistversionid'],'parameter':items[0]['paramid'],'unit':items[0]['unit'],**metrics(items),'mean':str(sum(vals)/len(vals)) if vals else None,'min':str(min(vals)) if vals else None,'max':str(max(vals)) if vals else None,'n_exact':len(vals)})
-    return sorted(output,key=lambda r:(r['period'],r['comparison_group']))

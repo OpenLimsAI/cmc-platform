@@ -1,86 +1,80 @@
 # 05 · 架构与数据模型
 
-> 版本：0.4｜日期：2026-10-02｜状态：Mac 已实现，验收部分完成；Linux 未发布。
+> 版本：0.7｜日期：2026-10-09｜状态：现行代码结构与一致性边界；后续设计明确标注。
 
-## 1. 工作架构
+## 0. 本轮两页实现
+
+[两页整理设计](changes/20261009-two-page-dashboard.md)已按用户新指令实施：无筛选三卡片总览、独立comparison-groups趋势接口、删除三个专用功能/API，总览在一个只读事务中SQL聚合。位置/系统归属暂停，当前五表不增字段。以下按本轮最终代码描述，Linux服务仍为旧版。
+
+## 1. 当前架构
 
 ```mermaid
 flowchart LR
-  U[浏览器] --> H[cmab-hub nginx /water/]
-  H --> F[React 前端]
-  H --> B[FastAPI /api/v1]
-  H -->|/mdm/api/v1/auth 登录和刷新| M[MDM auth]
-  B -->|本地校验 MDM 令牌| A[角色守卫]
-  A --> S[分析服务]
-  S -->|只读 ORM 查询| D[cmc_analytics.staging]
+  U[浏览器] --> H[Hub /water/]
+  H --> F[React前端]
+  H --> B[FastAPI]
+  F -->|Hub同源MDM路径| M[MDM身份中心]
+  B --> A[本地验签和角色守卫]
+  A --> D[cmc_analytics.staging只读ORM]
   E[qc-lims-etl] --> D
 ```
 
-前端 React/TypeScript/Vite/Ant Design/React Query，图表 ECharts；后端 FastAPI/Pydantic/SQLAlchemy 2 async/asyncpg，uv 管理。确切依赖版本在编码时锁定。应用连接 PostgreSQL 分析库，浏览器不接触数据库凭据。
+技术栈与依赖见 backend/pyproject.toml、backend/uv.lock及frontend/package.json、frontend/pnpm-lock.yaml。没有业务写接口、独立数据库或本项目迁移链；不连接Oracle，不创建共享表。
 
-## 2. 代码组织工作设计
+## 2. 实际目录与责任
 
-```text
-backend/
-  app/core/         配置、数据库、MDM 验签与角色守卫
-  app/models/       既有 staging ORM 映射
-  app/schemas/      类型化接口契约
-  app/services/     结果规范化、比较组、汇总、追溯、导出
-  app/api/v1/       业务路由
-  tests/            隔离或 Mock 的必要验证
-frontend/
-  src/api/          API 客户端与响应类型
-  src/shared/       Hub 会话母本、路径工具
-  src/features/     总览、趋势、结果、质量明细
-deploy/             Mac 启动/托管与 Linux 发布脚本
-docs/               当前文档及未来验收/发布证据
-```
+| 文件 | 职责 |
+|---|---|
+| backend/app/core.py | Settings、JWT身份和查看/导出守卫 |
+| backend/app/db.py | 五表反射ORM、启动预检、只读事务、级联候选、结果读取 |
+| backend/app/analysis.py | FilterSpec、日期、解析、来源键、比较组、计数和总览规则标识 |
+| backend/app/main.py | 路由、上下文、错误/运行日志、总览/比较组/趋势、追溯和导出编排 |
+| backend/app/export.py | matplotlib PNG、openpyxl Excel、CSV/JSONL/ZIP及manifest |
+| frontend/src/main.tsx | 两页导航、趋势筛选/查询、ECharts、追溯和下载 |
+| frontend/src/Overview.tsx、DataContextNotice.tsx、navigation.ts | 三卡片总览、数据上下文提示、两页URL与旧页面恢复 |
+| frontend/src/filters.ts | 筛选顺序、下游重置、候选显示 |
+| frontend/src/transport.ts、api.ts | 401续期一次、错误处理、同源API与query序列化 |
+| frontend/src/shared/cmabSession.ts | Hub会话副本，MDM刷新/退出/守卫 |
+| backend/tests、frontend/tests | 隔离规则/API与传输/级联验证 |
+| deploy/mac、deploy/linux | 开发启动与固定提交部署脚本 |
 
-目录尚未创建，结构可按实际实现简化。服务层复用筛选、规则与统计逻辑，页面与导出不各写一套口径。
+原规划的core/services/features分目录尚未采用；是否拆分由后续维护范围决定，不将目录规划描述为已实现。
 
-## 3. 逻辑模型
+## 3. 实际逻辑对象与规划对象
 
-| 对象 | 字段摘要 | 存储/来源 |
+| 对象 | 当前承载 | 状态 |
 |---|---|---|
-| WaterResult | 完整源键、样品/点位/方法、原值单位、状态日期与规则 | staging ORM 只读对象 |
-| NormalizedResult | result_kind、numeric_value、operator、bound、解析说明、分析版本 | 从 WaterResult 派生，不覆盖 staging |
-| ComparisonGroup | 水类型、取样点、方法版本/阶段、参数族、规范单位 | 查询与分析分组 |
-| SamplingPointMapping | 源编号、名称、系统/回路/位置、生效期、来源、版本 | 权威源/分析映射归属 OP-01 |
-| LimitDefinition | 限度类型、适用对象、比较符/值/单位、生效期和依据 | 先确认 OP-02，再确定是否需要存储 |
-| DataContext | 环境、来源、查询时间、截止依据、规则版本、装载标记 | 预检和响应元数据；未知项明确为未知 |
-| ChartSpec | 已解析日期、比较组、单位、点/标记、图例、已确认限度和展示版本 | 页面与服务端图像共用语义契约 |
-| ExportManifest | 导出 ID/类型、操作者、筛选、分析版本、上下文、行数/图点数、生成时间及哈希 | 导出附带说明与审计事件 |
+| FilterSpec | Pydantic模型 | 已实现，请求契约见docs/07 |
+| WaterResult | 五张staging反射ORM；完整列读取 | 已实现，只读 |
+| NormalizedResult | normalize返回字典，保留源列并增加展示/解析字段 | 已实现；没有独立响应模型 |
+| ComparisonGroup | 源字段数组编码，缺单位/内部ID追加来源键 | 已实现；定义见docs/04 |
+| SamplingPointMapping | 样品/宽表六个当前主表映射字段 | 已消费；系统/回路/历史生效期未提供 |
+| DataContext | context字典 | 已实现，截止/context_id未知，新鲜度未核实 |
+| ChartSpec | ExportRequest.chart_spec字典 | 占位且不参与渲染；统一类型契约未实现（GAP-02） |
+| ExportManifest | generate中的导出字典 | 已实现，ZIP写manifest及四文件哈希；Excel内嵌说明 |
+| LimitDefinition | 无表、无模型 | 未实现；OP-02先确认 |
+| 快照/持久审计 | 无本项目对象 | OP-06/09待确定，结构归共享迁移链 |
 
-一期基础页面可只读查询既有 staging，无需新增业务表。若新增映射、限度配置、访问审计或版本快照表，归 `cmc_analytics` 相应 schema，先设计归属和消费者影响，再在 cmc-schema-migrations 创建迁移。本项目启动过程不能 `create_all` 创建共享结构。
+## 4. 当前一致性与后续目标
 
-## 4. 数据一致性与快照
+连接使用REPEATABLE READ和default_transaction_read_only；事务再次SET TRANSACTION READ ONLY。collection在同一事务读取结果与context；筛选候选与追溯各在只读事务内查询；总览SQL聚合与context同一事务返回。
 
-Mac 先消费既有快照派生 staging。每个多查询响应使用只读一致性事务，工作设计为 REPEATABLE READ，确保计数与页面行来自同一数据库视图；连接释放和长查询超时要受控。
+当前context_id/source_cutoff始终为null。最小/最大趋势日期和最大_etl_loaded_at只是全授权水样范围的日期/装载线索；不能证明截止、手工修改/删除检测或跨接口一致性。前端分别请求各模块，没有可信数据版本比较。要求严格全页一致时，后续需聚合读取或不可变版本（OP-06/GAP-07）。
 
-跨请求/跨页期间 staging 可能刷新，一次事务一致不等于整个页面或长期可复现。每个响应都返回 data_context 和 context_id；只有已核实可区分数据变更的标记才生成可比较的 context_id。单个 `_etl_loaded_at` 最大值只能作装载线索，不能保证检测到手工修正、删除或映射变化。标记须覆盖源结果、映射和分析规则，具体依据见 OP-06。
+导出重新只读取数后收窄比较组，检查当前组完整规范化行的SHA256是否等于页面dataset_digest；非null的context_id或digest不符均返回409。digest只验证该组结果内容，不包括全部context元数据，也不是可重定位的快照ID。
 
-上下文可信时，前端比较各图表/列表响应的 context_id，变化则放弃混合结果并整体刷新。上下文未知时显示“一致性上下文未核实”，不声称跨接口同一快照。若需要页面各指标严格同时一致，使用聚合接口在同一只读事务内返回，或查询不可变数据版本；不能仅靠前端同时发请求保证。
+取数完成释放事务再生成文件；PNG/Excel/CSV/JSONL来自同一固定结果集。前端ECharts和matplotlib分别渲染相同组/日期/类别，没有共享的类型化ChartSpec。PNG使用water_chart_v1；页面缩放不影响导出范围。不声明图像逐像素相同或长期可复现。
 
-PNG、Excel、CSV、保真 JSONL 与 manifest 使用同一次只读一致性读取所得的固定结果集和 ChartSpec。取数完成释放数据库事务，再渲染图像和写文件，不能分别为图和表重新查询。服务端 PNG 渲染器与前端 ECharts 共享日期、组别、单位、点/标记及限度语义；依赖和字体在 Mac/Linux 评估锁定，不要求实现库相同。只有不可变、可重新定位的数据版本才声明可复现；文件哈希本身不能证明来源数据库未变化。
+## 5. 读取、预检和限制
 
-Linux 常规趋势和正式报告的受控快照策略 OP-06 尚待决定，需符合白皮书 GMP 日常分析边界。不能把刷新型 staging 或 MAX(result_date) 命名为不可变快照/数据截止证明。
+启动反射五张指定表，校验REQUIRED字段、SELECT可用、无INSERT/UPDATE/DELETE/TRUNCATE表权限及只读连接。宽表trend_dt/_etl_loaded_at要求带时区，dataset/replicateid要求Decimal。其余列不是全部都有类型校验（GAP-05）；已移除质量候选查询，不再使用其displayunits/enteredunits路径。
 
-## 5. 查询与审计
+用户筛选以绑定参数ORM表达式查询，排序为完整结果键。趋势/比较组/导出读MAX_ROWS+1以检测超限，再规范化；趋势/导出仍先读FilterSpec全集再选组。总览COUNT DISTINCT在数据库执行，仅返回三类聚合，不受原文读取上限影响。当前没有数据库分页、通用未知规则诊断或新增可选列差异事件。
 
-- 只读查询账号和只读事务双重控制；授权范围优先限于五张 QC staging，追加其他表需说明用途并核实权限。
-- 用户筛选转为类型化、绑定参数的 ORM 表达式；字段与排序白名单。追溯先由受限宽表定位目标再访问完整参数链，不能暴露跨域任意样品查询。
-- 索引与分页依据实际计划和数据规模；分页采用稳定复合排序。缺失必需字段或类型不兼容时明确报错；新增可选列作为结构差异记录，不因无关新增列阻断已兼容查询。全字段 raw 抽取的严格新列校验仍由上游 ETL 负责。
-- 工作设计记录 request_id、用户标识、事件类型、筛选摘要、结果数量、耗时、成功/失败、时间、规则版本。查询/拒绝/导出事件可先写结构化运行日志，最终留存级别与持久审计介质见 OP-09。
-- 文件日志不等于不可篡改受控审计；若需数据库审计写入，采用独立最小写权限，不能扩大数据查询账号权限。
-- 上游新鲜度按 QC 的具体 job_name 和成功范围核对。查询账号不能读 meta 时显示“新鲜度未核实”，不能回退取其他 job 的成功时间。
+最小数据范围、总览统计与追溯边界见docs/03/07。新增共享结构须先盘点消费者，经cmc-schema-migrations发布，不因本轮文档改动新增迁移。
 
-## 6. 功能前置条件
+## 6. 日志现状与审计目标
 
-基础展示优先使用既有只读 staging；数据质量的候选核对同样查询这五表。完整检项追溯先利用 dataset 已有实例号，按 docs/03 验证选定关联。Linux 的受控快照读取应通过数据仓储层替换数据来源，并保留相同业务契约；具体快照结构和适配在 OP-06 定稿，不能仅增加环境变量就宣称已满足要求。
+已实现请求ID、path、actor、status、seconds运行日志和成功导出的actor/rows/kind事件。SQL和导出错误仅记类型等诊断信息，不输出密钥或连接串。
 
-必需预检包括结构/类型、只读查询与权限、身份验签和角色配置；来源覆盖、数据质量和性能画像可作为受限诊断分批执行，避免每次服务重启重复做大范围扫描。就绪条件区分“可提供服务”和“指定数据范围已验收”。
-
-
-## Mac 实施状态（2026-10-02）
-
-V0.3 的工作设计和历史复核记录保留用于追踪；当前事实以 [Mac 验收记录](acceptance/mac-20261002.md) 和 docs/10 新决定为准。基础应用已运行，不能据此将所有验收项或 Linux 发布登记为通过。
+目标仍包括事件时间、筛选摘要、规则版本、结果数量、导出ID、完整成功/失败覆盖和留存责任。当前日志不完整，且未处理异常可能绕过请求结束日志；持久介质/防篡改不成立（OP-09/GAP-04）。不能把运行日志称为已完成受控审计。若后续需数据库审计，另设最小写权限，保持数据查询账号只读。

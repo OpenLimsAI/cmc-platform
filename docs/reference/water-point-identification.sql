@@ -1,5 +1,7 @@
--- 只读源字段核对示例，未在 Oracle 执行。
--- 来源 owner MBTK 须在实际目标环境确认；不使用本脚本建立或修改任何数据。
+-- 2026-10-02调查时的只读字段核对示例；本文件未作为已执行SQL证据。
+-- 后续已确认编号来自S_SAMPLEPOINT.LOCATIONLABEL、描述来自SAMPLEPOINTDESC。
+-- S_LOCATION关联及本脚本所选字段须另外核实；看板当前仅消费staging，不执行此SQL。
+-- 后续源调查已核实MBTK；执行前仍核对实际目标环境/字段，不使用本脚本修改任何数据。
 SELECT sp.s_samplepointid AS lims_samplepoint_id,
        sp.samplepointdesc AS source_point_description,
        sp.locationlabel AS source_point_location_label,

@@ -4,13 +4,12 @@ import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
 from typing import Annotated, Literal
 from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.core import require_view, require_export, settings
@@ -44,7 +43,8 @@ async def unavailable(request,exc):
     return JSONResponse(status_code=503,content={'code':'DATA_UNAVAILABLE','message':'数据暂不可用，请重试或联系维护人员','request_id':request.state.request_id})
 
 def get_filter(request: Request) -> FilterSpec:
-    allowed=set(FilterSpec.model_fields)|{'page','page_size','period','scope','comparison_group'}
+    allowed=set(FilterSpec.model_fields)
+    if request.url.path=='/api/v1/trends': allowed.add('comparison_group')
     if set(request.query_params)-allowed: raise HTTPException(422,'未知筛选参数')
     values={k:request.query_params[k] for k in FilterSpec.model_fields if k in request.query_params and k!='sample_status'}
     if 'sample_status' in request.query_params: values['sample_status']=request.query_params.getlist('sample_status')
@@ -85,7 +85,17 @@ async def collection(f):
         rows=await db.read_rows(s,f); ctx=await context(s)
     return rows,ctx
 @app.get('/api/v1/overview')
-async def overview(f:Filter,user=Depends(require_view)):
+async def overview(request: Request,user=Depends(require_view)):
+    if request.query_params: raise HTTPException(422,'总览不接受筛选参数')
+    current=today()
+    async with db.transaction() as session:
+        counts=await db.read_overview(session,current)
+        ctx=await context(session)
+        ctx['current_date']=current.isoformat()
+    return envelope(ctx,overview_rule_version=OVERVIEW_RULE,**counts)
+
+@app.get('/api/v1/comparison-groups')
+async def comparison_groups(f:Filter,user=Depends(require_view)):
     rows,ctx=await collection(f)
     groups={}
     for r in rows:
@@ -93,18 +103,10 @@ async def overview(f:Filter,user=Depends(require_view)):
         if g not in groups: groups[g]={'id':g,'label':' / '.join(str(v) for v in [r.get('samplepoint_code'),r.get('samplepoint_name')] if v) + (' / ' if r.get('samplepoint_code') or r.get('samplepoint_name') else '') + ' / '.join(str(r.get(k) or '未配置') for k in GROUP),'count':0}
         groups[g]['count']+=1
     return envelope(ctx,metrics=metrics(rows),groups=list(groups.values()),filter=f.model_dump(mode='json'),dataset_digest=digest(rows),count_note='方法数据集数不等同于检测次数；N 为精确数值结果行')
-@app.get('/api/v1/results')
-async def results(f:Filter,page:int=Query(1,ge=1),page_size:int=Query(50,ge=1,le=200),user=Depends(require_view)):
-    rows,ctx=await collection(f)
-    return envelope(ctx,items=rows[(page-1)*page_size:page*page_size],total=len(rows),page=page,page_size=page_size,dataset_digest=digest(rows))
 @app.get('/api/v1/trends')
 async def trends(f:Filter,comparison_group:str=Query(...,max_length=10000),user=Depends(require_view)):
     rows,ctx=await collection(f); rows=[r for r in rows if r['comparison_group']==comparison_group]
     return envelope(ctx,items=rows,total=len(rows),metrics=metrics(rows),filter=f.model_dump(mode='json'),comparison_group=comparison_group,dataset_digest=digest(rows),limit_status='未配置限度')
-@app.get('/api/v1/summaries')
-async def summary(f:Filter,period:Literal['month','quarter','year']='month',user=Depends(require_view)):
-    rows,ctx=await collection(f)
-    return envelope(ctx,items=summaries(rows,period),population='精确数值结果行子集；删失与定性分别计数')
 @app.get('/api/v1/results/trace')
 async def trace(result_id:str=Query(...,max_length=10000),user=Depends(require_view)):
     try:
@@ -132,53 +134,6 @@ async def trace(result_id:str=Query(...,max_length=10000),user=Depends(require_v
             chain['workitem']=db.record(obj) if obj else None
             if not obj: gaps.append('检项实例关联缺失')
         return envelope(await context(s),chain=chain,gaps=gaps,association_note='staging 保留上游选定关联，不代表所有原始桥接历史')
-
-@app.get('/api/v1/data-quality')
-async def quality(f:Filter,scope:Literal['selected_results','coverage_candidates','unassigned']='selected_results',page:int=Query(1,ge=1),page_size:int=Query(50,ge=1,le=200),user=Depends(require_view)):
-    async with db.transaction() as s:
-        if scope in {'selected_results','unassigned'}:
-            rows=await db.read_rows(s,f,dates=scope!='unassigned',point=scope!='unassigned',unassigned=scope=='unassigned')
-            if scope=='unassigned': rows=[r for r in rows if not r['trend_at'] or not r['samplepoint_id']]
-            items=[]
-            for r in rows:
-                issues=[]
-                if not r['samplepoint_id']: issues.append('取样点缺失')
-                if not r['trend_at']: issues.append('趋势日期缺失')
-                if r['trend_date_source'] in {'receiveddt','createdt'}: issues.append('趋势日期回退')
-                if not r['source_unit']: issues.append('单位缺失')
-                if r['result_kind'] in {'missing','unparsed'}: issues.append(r['parse_reason'])
-                issues.append('名称及系统映射未确认')
-                items.append({**r,'issues':issues})
-            counts=Counter(i for r in items for i in r['issues'])
-            note='入选结果集合；映射未确认适用于所有记录' if scope=='selected_results' else '未归属分区；未应用日期及点位筛选，其他条件仍生效'
-            denominator=len(rows)
-        else:
-            sample=db.models['sample']; di=db.models['dataitem']; w=db.models['wide']; dataset=db.models['dataset']
-            dt=func.coalesce(sample.collectiondt,sample.eventdt,sample.receiveddt,sample.createdt)
-            predicates=[sample.source_system==SOURCE,sample.samplesubtypeid.in_(WATERS),sample.samplestatus.in_(f.sample_status),di.sdcid=='Sample',di.paramlistid=='电导率-<通则0681>纯化水测定法',di.paramlistversionid.in_(['1','3']),di.variantid=='【纯化水】',di.paramid=='结果',dt>=datetime.combine(f.date_from,datetime.min.time(),TZ),dt<datetime.combine(f.date_to,datetime.min.time(),TZ)]
-            if f.water_type: predicates.append(sample.samplesubtypeid==f.water_type)
-            if f.samplepoint_id is not None: predicates.append(sample.samplepointid==f.samplepoint_id)
-            if f.samplepoint_code is not None: predicates.append(sample.samplepoint_code==f.samplepoint_code)
-            for api,col in [('paramlist_id','paramlistid'),('paramlist_version_id','paramlistversionid'),('variant_id','variantid'),('param_id','paramid')]:
-                if getattr(f,api) is not None: predicates.append(getattr(di,col)==getattr(f,api))
-            if f.unit is not None: predicates.append(func.coalesce(di.displayunits,di.enteredunits)==f.unit)
-            if f.workitem_id is not None: predicates.append(dataset.workitemid==f.workitem_id)
-            query=select(di,sample,w,dataset).join(sample,and_(sample.source_system==di.source_system,sample.s_sampleid==di.keyid1)).outerjoin(w,and_(*(getattr(w,k)==getattr(di,k) for k in KEY))).outerjoin(dataset,and_(*(getattr(dataset,k)==getattr(di,k) for k in KEY[:9]))).where(*predicates).order_by(*(getattr(di,k) for k in KEY)).limit(settings.max_rows+1)
-            candidates=(await s.execute(query)).all()
-            if len(candidates)>settings.max_rows: raise HTTPException(413,'候选核对范围过大')
-            items=[]
-            for d,sm,selected,ds in candidates:
-                reasons=[]
-                if d.releasedflag!='Y': reasons.append('参数未发布')
-                if d.dataset!=1: reasons.append('非 dataset=1')
-                if d.paramtype!='Standard': reasons.append('非 Standard')
-                if d.valuestatus in {'CALC_ERROR','TRANSFORM_FAILURE'}: reasons.append('计算/转换错误')
-                if d.calcexcludeflag=='Y': reasons.append('计算排除')
-                if ds is None: reasons.append('缺数据集关联')
-                items.append({'paramlistid':d.paramlistid,'paramlistversionid':d.paramlistversionid,'variantid':d.variantid,'paramid':d.paramid,'paramtype':d.paramtype,'workitemid':ds.workitemid if ds else None,'sample_status':sm.samplestatus,'trend_at':next((v.astimezone(TZ).isoformat() for v in [sm.collectiondt,sm.eventdt,sm.receiveddt,sm.createdt] if v),None),'trend_date_source':next((k for k in ['collectiondt','eventdt','receiveddt','createdt'] if getattr(sm,k)),None),'sample_id':sm.s_sampleid,'samplepoint_id':sm.samplepointid,'samplepoint_code':getattr(sm,'samplepoint_code',None),'samplepoint_name':getattr(sm,'samplepoint_name',None),'water_type':sm.samplesubtypeid,'source_key':source_key(db.record(d)),'display_value':d.displayvalue,'source_unit':d.displayunits or d.enteredunits,'selected':selected is not None,'candidate_status':'excluded' if reasons else ('selected' if selected else '待 CoA 核对的规则缺口'),'exclusion_reasons':reasons})
-            counts=Counter(r['candidate_status'] for r in items); denominator=len(items)
-            note='仅核对已知 0681 纯化水方法 v1/v3、【纯化水】、结果参数；候选不是最终报告值，不是全部方法覆盖率'
-        return envelope(await context(s),scope=scope,items=items[(page-1)*page_size:page*page_size],total=len(items),page=page,page_size=page_size,denominator=denominator,issues=dict(counts),scope_note=note)
 
 class ExportRequest(BaseModel):
     model_config={'extra':'forbid'}

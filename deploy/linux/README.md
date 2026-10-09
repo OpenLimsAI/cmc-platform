@@ -1,63 +1,45 @@
-# Linux 发布说明
+# Linux运行与发布说明
 
-2026-10-09 基础应用已首次部署；下文前置核查为历史记录，当前结果见“首次服务部署”和本次变更记录。每次发布重新核对主机/实例/端口与目标 SHA。当前模板使用 `/opt/cmc-water-system-dashboard`、prometheus、后端 127.0.0.1:8015、静态前端 127.0.0.1:5115、Hub `/water/`。
+> 版本：0.6｜日期：2026-10-09｜状态：现行操作手册；首次/级联发布过程移至日期化记录。
 
-## 启用前置
+目标/opt/cmc-water-system-dashboard，prometheus；后端127.0.0.1:8015、nginx静态前端127.0.0.1:5115，用户经Hub /water/。2026-10-09已有服务发布记录；最近有证据的状态见 [STATUS](../../docs/STATUS.md)，具体结果见 [发布记录](../../docs/releases/20261009-linux.md)。本轮文档更新没有重新部署或远端核验。
 
-1. 获得 Git 提交/push 与 Linux 发布授权，创建仓库并记录应用、Hub、QC ETL、MDM、迁移仓库完整 SHA。以实际完整提交 SHA 作为发布记录，不能把模板当成发布证据。
-2. 核实 Linux 上游水系统 staging 实际数据、规则版本、QC job、只读授权，以及 GMP 日常趋势所需的截止时间和受控快照方案。当前仓储仅支持 Mac staging 契约，**不能直接声称满足 Linux 受控快照要求**。
-3. 若需要共享结构，在 cmc-schema-migrations 对应链实现并验证；本次无结构迁移。
-4. Linux MDM 建立同名业务角色、审批人员授权，保留既有账号/权限；测试走 MDM 隔离流程。Mac 角色不自动同步 Linux。
-5. 在受保护 `backend/.env` 配置 Linux 只读 DSN、MDM 验签算法/密钥、角色白名单、`APP_ENV`、`PNG_FONT_PATH`。密钥不放服务文件，不输出。RS256 使用 PEM 公钥，多行值按 dotenv 引号处理。字体必须指向已安装、允许使用的中文字体，并实际导出检查。
-6. 核实 8015/5115 未占用、Hub `/water/` 无冲突、回环绑定和文件权限。创建可写的 logs/matplotlib 目录。安装 systemd/nginx 需明确发布授权。
+## 发布前检查
 
-## 固定提交构建
+核对有效授权、主机/实例、完整SHA、工作区、五表只读结构/授权/数据及角色配置；备份旧固定SHA、构建、保护配置与恢复步骤。源码通过同一GitHub仓库获取，不复制Mac业务数据/凭据。按 [docs/08](../../docs/08-development-deployment.md) 处理跨仓库/迁移边界。
 
-遵循 Mac → GitHub → Linux。Linux 拉取已授权的目标提交后：
+应用只支持当前五表staging消费；虽然Mac/Linux均已有使用记录，受控快照/来源截止尚未实现（OP-06）。受限验证与正式用途分开，后者需完成真实身份、浏览器及用途所需治理条件。
+
+## 首次配置与固定版本构建
+
+仅第一次且backend/.env不存在时使用configure.sh。它复用本机已有QC lims_reader分析DSN和MDM HS256配置、要求实际Noto字体，并生成0600文件；不会输出秘密或覆盖现有.env。缺依赖、字体或算法条件时退出。RS256需安全配置JWT_VERIFY_KEY中的PEM，自动配置脚本不支持该转换。
+
+Linux通过git pull --ff-only等所属流程取得目标完整SHA并核对后，在/opt/cmc-water-system-dashboard执行：
 
 ```bash
+bash deploy/linux/configure.sh          # 仅首次，已有.env时不运行
 bash deploy/linux/prepare.sh <完整40位SHA>
 ```
 
-只做锁定依赖构建，不安装服务。先验证中文字体、实际业务抽样、API 两档权限、三类导出和失败场景，再安装 `water-backend.service` 与 `water.conf`；Hub 同步已审核的 apps.ts / hub-locations.conf，执行 nginx 检查及按所属项目流程重载。
+prepare只校验HEAD/干净工作区/.env并锁依赖构建，不拉代码或安装服务。正在升级时8015/5115属于既有服务；首次安装时须空闲，不能以“必须无监听”阻止正常升级。
 
-## 回滚与验收
+## 安装/更新服务
 
-记录并保留前一个应用/Hub 固定 SHA、构建和服务配置。出现问题先停止业务入口，再切回同一仓库旧提交并重建/重启；本次无数据迁移，不需要删除或回写源数据。保留已有角色，人员撤权按 MDM 审批流程操作，旧 access token 的有效期不因本地按钮隐藏消失。
+```bash
+bash deploy/linux/deploy.sh <完整40位SHA>
+```
 
-验收必须重新执行 docs/09，核对实际前端资源、深链、身份刷新/退出、只读数据对账、受控数据上下文、PNG 中文、Excel 原值和组合包，不能沿用 Mac 数字或健康接口作为 Linux 通过证据。
+deploy会再执行prepare，检查APP_ENV非mac_dev、字体文件及http://127.0.0.1:5100/mdm/api/v1/health，备份并安装unit/nginx配置，nginx-t后enable/restart后端、health、reload nginx和静态页检查。
 
+nginx-t失败会恢复本脚本改动的配置；应用启动/健康失败不会自动回退代码或构建。脚本不改Hub注册、不配置MDM角色、不查数据库完整业务对账，不能作为全部验收通过证明。静态构建不是原子切换；发布前单独保留旧构建/固定SHA以恢复。
 
-## 已准备的部署入口
+## 运行、回滚与验收
 
-`bash deploy/linux/deploy.sh <完整40位SHA>` 在构建及环境/字体检查通过后备份并安装水看板systemd/nginx配置，启动服务并检查本机端口。MDM健康路径按现有MDM发布脚本核对为Hub同源 `/mdm/api/v1/health`。nginx检查失败自动恢复本脚本改动的配置；应用启动失败则保持错误退出，须按前述固定版本回滚。它不会覆盖Hub仓库文件或建立角色；须事先按Hub/MDM所属流程同步配置和授权。该脚本已在首次 Linux 发布执行；每次执行仍须按实际结果登记。
+```bash
+systemctl status water-backend
+journalctl -u water-backend
+```
 
-Linux环境模板为backend/.env.linux.example，须替换受保护凭据和实际已安装字体路径，不把示例字体路径当安装事实。首发仍须完成点位来源、真实身份、数据及受控快照用途前置检查，不能仅凭pull/build宣布业务上线。
+发布配置备份位于logs/deploy-日期时间，matplotlib缓存为logs/matplotlib。出现问题按预先核实方案回到同仓库旧固定SHA、重建并恢复服务配置，再验Hub资源/身份/数据；本次没有业务结构变更，不删/回写源结果。人员撤权走MDM流程，旧access到期窗口见docs/06。
 
-
-## 2026-10-09 前置核查
-
-本地 Git 已初始化并完成首次提交，尚未推送。用户指定 GitHub 仓库已通过 SSH 成功访问；HTTPS/gh 未登录。首次提交＋推送被自动审查拒绝，因包含真实验收截图及业务数据痕迹，仓库隐私及外发范围未明确；本地提交单独成功，推送等候用户选择脱敏或允许完整材料。
-
-Linux Hub 827201d159da65479801cf119483e49b837ec606 已有 water 注册及代理；8015/5115 无监听，water-backend inactive。lims_reader 查询允许、业务写入禁止；staging 最新装载为 2026-10-09 04:00:20+08:00，抽样日期已纠正。MDM 当前未查到两档业务角色；没有调整任何人员授权。
-
-新增 configure.sh：已有有效只读配置与 MDM 保护配置复用，仅生成0600的应用.env；不覆盖既有配置。先核对字体安装，再执行 `bash deploy/linux/configure.sh` 和明确SHA的deploy.sh。Linux uv位于用户.local/bin，prepare已加入PATH。配置脚本目前仅静态验证，尚未在Linux执行。
-
-
-## 首次服务部署 · 2026-10-09
-
-已由GitHub私库克隆完整发布提交 534fe02ea5bd42654ada97203da355b118daea03，在 /opt/cmc-water-system-dashboard 运行。配置为只读 lims_reader、复用Linux MDM验签、本机8015/5115、Hub /water/，使用发行版Noto CJK字体。敏感.env、日志、备份、数据导出和真实截图不提交。首次历史清理已修正，发布main不包含私有验收材料；原本地分支仅留本机，不推送。
-
-实际完成：锁定依赖构建、systemd启用、nginx校验与重载、健康接口、Hub静态入口。浏览器从原502转为正式Hub登录页。真实staging独立SQL筛选对账和服务层PNG/Excel/组合包检查通过，原值文本保真与文件哈希一致，PNG中文经视觉检查通过；不替代真实用户下载。
-
-Linux首轮隔离测试37通过、1失败（测试输出依赖本地artifacts目录）；已改为pytest tmp_path，Mac针对性验证通过，配套提交后Linux重跑记录见后续补充。等待用户正常管理员登录以验证真实交互和建立两个业务角色；人员授权、两档真实身份检查不假定已通过。未迁移业务结构或修改源数据。
-
-启动由systemd管理：`sudo systemctl start water-backend`；查看状态使用 `systemctl status water-backend`、`journalctl -u water-backend`。正式访问 http://172.19.0.105:5100/water/。后续先Mac push，Linux `git pull --ff-only`，再按完整SHA运行 deploy/linux/deploy.sh；不要覆盖受保护.env。
-
-### 配套修复后的实际复核
-
-Linux已从GitHub快进到196ea27370137df8a3eef7eb705c886851dd7338。后端实际38 passed（2.15秒）、前端鉴权3 passed；无真实MDM密钥伪造身份。仅测试输出改为隔离临时目录，业务代码及构建资源未变化。服务active，8015/5115仅回环监听；Hub匿名业务API为401、实际JS资源为200。当前正式浏览器在Hub登录页，真实登录、角色建立及两档业务身份验收待负责人正常登录后继续。PORTS登记已更新，未新增端口、防火墙规则或人员授权。
-
-### 级联筛选发布 · 2026-10-09
-
-已 push 并部署 `3c100eb810d927f12f242784f84828c043afa3a6`。Linux 后端 43 项、前端 7 项隔离测试及构建通过；三类水的各级候选与独立只读查询一致，实际点位/方法/版本/参数/单位全链通过核对。服务 active，Hub 深链与新 JS 内容验证通过，匿名业务接口仍为 401。沿用既有端口与保护配置，未修改源数据或人员授权。真实登录后的下拉交互仍待验收；完整记录见 docs/changes/20261009-cascading-filters.md。
+每次发布执行 [docs/09](../../docs/09-test-acceptance.md) 的适用验收：资源/深链、真实身份/会话、独立只读对账、PNG中文、Excel原文、ZIP内容与实际下载。服务部署、数据到位、角色建立/人员授权、真实两档身份和浏览器分别登记；当前未完成项不能由Mac结果或匿名health替代。
