@@ -53,3 +53,7 @@ Linux Hub 827201d159da65479801cf119483e49b837ec606 已有 water 注册及代理�
 Linux首轮隔离测试37通过、1失败（测试输出依赖本地artifacts目录）；已改为pytest tmp_path，Mac针对性验证通过，配套提交后Linux重跑记录见后续补充。等待用户正常管理员登录以验证真实交互和建立两个业务角色；人员授权、两档真实身份检查不假定已通过。未迁移业务结构或修改源数据。
 
 启动由systemd管理：`sudo systemctl start water-backend`；查看状态使用 `systemctl status water-backend`、`journalctl -u water-backend`。正式访问 http://172.19.0.105:5100/water/。后续先Mac push，Linux `git pull --ff-only`，再按完整SHA运行 deploy/linux/deploy.sh；不要覆盖受保护.env。
+
+### 配套修复后的实际复核
+
+Linux已从GitHub快进到196ea27370137df8a3eef7eb705c886851dd7338。后端实际38 passed（2.15秒）、前端鉴权3 passed；无真实MDM密钥伪造身份。仅测试输出改为隔离临时目录，业务代码及构建资源未变化。服务active，8015/5115仅回环监听；Hub匿名业务API为401、实际JS资源为200。当前正式浏览器在Hub登录页，真实登录、角色建立及两档业务身份验收待负责人正常登录后继续。PORTS登记已更新，未新增端口、防火墙规则或人员授权。
