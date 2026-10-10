@@ -1,0 +1,25 @@
+[Unit]
+Description=CMC platform monitor bounded evidence collector
+After=network.target cmc-platform-monitor-evidence.service
+Requires=cmc-platform-monitor-evidence.service
+[Service]
+Type=simple
+User=opsmonitor
+Group=opsmonitor-events
+SupplementaryGroups=opsmonitor-evidence
+WorkingDirectory=/opt/cmc-platform-monitor/backend
+EnvironmentFile=/etc/cmc-platform-monitor/collector.env
+ExecStart=/opt/cmc-platform-monitor/backend/.venv/bin/python -m app.collector
+Restart=on-failure
+RestartSec=10
+RuntimeDirectory=cmc-platform-monitor
+RuntimeDirectoryMode=0750
+NoNewPrivileges=true
+ProtectSystem=strict
+# Source log paths require traverse/read ACL; no credentials directory should be granted.
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/run/cmc-platform-monitor /var/log/cmc-platform-monitor
+UMask=0027
+[Install]
+WantedBy=multi-user.target

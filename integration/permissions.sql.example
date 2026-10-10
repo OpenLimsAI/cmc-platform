@@ -1,0 +1,21 @@
+-- Review artifact only. Existing dedicated login roles must be verified/provisioned by the owner.
+-- No credentials or role creation here; run separately per exact database only after approval.
+-- cmc_analytics: API reads monitor history and appends access/update requests.
+GRANT USAGE ON SCHEMA ops_monitor TO ops_monitor_api;
+GRANT SELECT ON ops_monitor.collection_batch,ops_monitor.run_reference,ops_monitor.update_event TO ops_monitor_api;
+GRANT INSERT ON ops_monitor.access_audit_log,ops_monitor.update_event TO ops_monitor_api;
+-- Collector writes/retains only its own monitor schema.
+GRANT USAGE ON SCHEMA ops_monitor TO ops_monitor_collector;
+GRANT SELECT,INSERT,DELETE ON ALL TABLES IN SCHEMA ops_monitor TO ops_monitor_collector;
+GRANT UPDATE ON ops_monitor.update_event TO ops_monitor_collector;
+-- cmc_rd/cmc_gmp separately: operations metadata only, no pg_read_all_data or ETL writer role.
+GRANT USAGE ON SCHEMA meta TO ops_monitor_reader;
+GRANT SELECT (run_id,job_name,source_instance,run_started_at,run_finished_at,status,rows_written,rows_errored) ON meta.etl_run TO ops_monitor_reader;
+GRANT SELECT (run_id,error_type) ON meta.load_error_log TO ops_monitor_reader;
+GRANT SELECT (job_name,source_instance,target_table,last_success_ts,last_run_id,updated_at) ON meta.etl_watermark TO ops_monitor_reader;
+-- cmc_rd only: instrument operations ledger, no business raw table access.
+GRANT USAGE ON SCHEMA raw_rd_usp_vicell,raw_rd_usp_nova TO ops_monitor_reader;
+GRANT SELECT (id,run_started_at,run_finished_at,status,files_loaded,files_errored,watermark_before,watermark_after) ON raw_rd_usp_vicell.etl_log TO ops_monitor_reader;
+GRANT SELECT (id,run_started_at,run_finished_at,status,files_loaded,files_errored,watermark_before,watermark_after,rows_conflict,rows_unresolved) ON raw_rd_usp_nova.etl_log TO ops_monitor_reader;
+-- Database CONNECT, inherited role memberships, schema owner and existing PUBLIC grants require separate inspection.
+-- Audit actual effective privileges, not this proposal alone.

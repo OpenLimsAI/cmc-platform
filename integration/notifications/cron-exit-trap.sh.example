@@ -1,0 +1,6 @@
+# Snippet only: add to the ORIGINAL pipeline entry after reviewing its existing traps.
+# Set --task to lucullus / rd-lims / training-sync in that project's own script.
+# This file is deliberately not a runnable ETL wrapper.
+trap 'original_rc=$?; trap - EXIT; /usr/bin/python3 /opt/cmc-platform-monitor/scripts/notify_completion.py --task lucullus || true; exit "$original_rc"' EXIT
+# The original pipeline body and scheduling stay in the original project.
+# SIGKILL/host outage cannot run an EXIT trap: daily safety check is still required.

@@ -1,0 +1,13 @@
+[Unit]
+Description=Completion hint for cmab-mdm-backup.service
+[Service]
+Type=oneshot
+User=prometheus
+# Sender may only connect to the socket; no source database permissions.
+SupplementaryGroups=opsmonitor-events
+ExecStart=/usr/bin/python3 /opt/cmc-platform-monitor/scripts/notify_completion.py --task mdm-backup
+TimeoutStartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

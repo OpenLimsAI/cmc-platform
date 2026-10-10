@@ -1,0 +1,296 @@
+[
+  {
+    "key": "lucullus",
+    "name": "Lucullus 工艺数据",
+    "kind": "etl",
+    "project": "rd-lucullus-etl",
+    "times": [
+      "01:00"
+    ],
+    "adapter": "lucullus",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 60,
+    "db_source": "rd",
+    "ledger": "meta",
+    "jobs": [
+      "lucullus_sync_reference",
+      "lucullus_daily_sync",
+      "lucullus_build_batch_dim"
+    ],
+    "log_dir": "/home/prometheus/lucullus-logs",
+    "log_pattern": "pipeline_*.log",
+    "notes": [
+      "六步骤完整管道；校验警告与执行失败分开"
+    ]
+  },
+  {
+    "key": "rd-lims",
+    "name": "研发 LIMS 数据",
+    "kind": "etl",
+    "project": "rd-lims-etl",
+    "times": [
+      "08:00",
+      "12:00",
+      "16:00"
+    ],
+    "adapter": "rd_lims",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 15,
+    "db_source": "rd",
+    "ledger": "meta",
+    "jobs": [
+      "rd_lims_etl_samplemanager"
+    ]
+  },
+  {
+    "key": "qc-lims",
+    "name": "QC LIMS 数据",
+    "kind": "etl",
+    "project": "qc-lims-etl",
+    "times": [
+      "04:00"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 60,
+    "unit": "qc-lims-etl.service",
+    "timer": "qc-lims-etl.timer",
+    "db_source": "gmp",
+    "ledger": "meta",
+    "jobs": [
+      "qc_lims.s_batch",
+      "qc_lims.s_sample",
+      "qc_lims.sdiworkitem",
+      "qc_lims.sdiworkitemitem",
+      "qc_lims.sdidata",
+      "qc_lims.sdidataitem",
+      "qc_lims.s_samplepoint",
+      "qc_lims.workitem",
+      "qc_lims.paramlist",
+      "qc_lims.paramlistitem",
+      "qc_lims.param",
+      "qc_lims.sdispec",
+      "qc_lims.sdidataitemspec",
+      "qc_lims.spec",
+      "qc_lims.specparamitems",
+      "qc_lims.staging"
+    ],
+    "instance": "lims-prod"
+  },
+  {
+    "key": "vicell",
+    "name": "Vi-CELL 检测数据",
+    "kind": "etl",
+    "project": "rd-vicell-etl",
+    "times": [
+      "12:05",
+      "16:20"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 15,
+    "unit": "vicell-etl.service",
+    "timer": "vicell-etl.timer",
+    "db_source": "rd",
+    "ledger": "vicell",
+    "watermark_path": "/var/lib/vicell-etl/watermark"
+  },
+  {
+    "key": "nova",
+    "name": "Nova 检测数据",
+    "kind": "etl",
+    "project": "rd-nova-etl",
+    "times": [
+      "12:05",
+      "16:20"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 30,
+    "unit": "nova-etl.service",
+    "timer": "nova-etl.timer",
+    "db_source": "rd",
+    "ledger": "nova",
+    "watermark_path": "/var/lib/nova-etl/watermark"
+  },
+  {
+    "key": "ingest-day",
+    "name": "仪器文件归档 · 日班",
+    "kind": "backup",
+    "project": "cmc-instrument-ingest",
+    "times": [
+      "11:45",
+      "16:00"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "flex2ingest"
+    ],
+    "timeout_minutes": 15,
+    "unit": "instrument-ingest-day.service",
+    "timer": "instrument-ingest-day.timer",
+    "notes": [
+      "FLEX2和Vi-CELL完整批次",
+      "日班不抓图片；最长等锁30分钟与15分钟硬超时存在冲突"
+    ]
+  },
+  {
+    "key": "ingest-night",
+    "name": "仪器文件归档 · 夜班",
+    "kind": "backup",
+    "project": "cmc-instrument-ingest",
+    "times": [
+      "02:00"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "flex2ingest"
+    ],
+    "timeout_minutes": 240,
+    "unit": "instrument-ingest-night.service",
+    "timer": "instrument-ingest-night.timer",
+    "notes": [
+      "两设备；校验只证明已有清单范围"
+    ]
+  },
+  {
+    "key": "mdm-backup",
+    "name": "MDM 数据库备份",
+    "kind": "backup",
+    "project": "cmab-mdm-platform",
+    "times": [
+      "02:00"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 30,
+    "grace_minutes": 10,
+    "unit": "cmab-mdm-backup.service",
+    "timer": "cmab-mdm-backup.timer",
+    "backup_dir": "/home/prometheus/cmc_backups/mdm",
+    "backup_pattern": "*.dump"
+  },
+  {
+    "key": "heartbeat-check",
+    "name": "仪器心跳巡检",
+    "kind": "monitor",
+    "project": "cmc-instrument-ingest",
+    "times": [
+      "09:00"
+    ],
+    "adapter": "systemd",
+    "producer_users": [
+      "flex2ingest"
+    ],
+    "timeout_minutes": 5,
+    "unit": "heartbeat-check.service",
+    "timer": "heartbeat-check.timer",
+    "notes": [
+      "只检查两设备最新心跳，不代表全部任务成功"
+    ]
+  },
+  {
+    "key": "training-sync",
+    "name": "批号培训库同步",
+    "kind": "sync",
+    "project": "rd-batch-registry",
+    "times": [
+      "00:00"
+    ],
+    "adapter": "training",
+    "producer_users": [
+      "prometheus"
+    ],
+    "timeout_minutes": 30,
+    "log_dir": "/opt/rd-batch-registry-training/logs",
+    "log_pattern": "db_reset.log",
+    "notes": [
+      "不是灾备；每日复制需排除ops_monitor正式数据"
+    ]
+  },
+  {
+    "key": "biacore",
+    "name": "Biacore 外部备份",
+    "kind": "backup",
+    "project": "external",
+    "times": [],
+    "adapter": "unconnected",
+    "enabled": null,
+    "notes": [
+      "用户说明：各设备工作站自动备份到NAS；后续拟纳入cmc-instrument-ingest统一管理",
+      "具体工作站计划、备份范围及恢复记录尚未核实，集中接管未实施"
+    ]
+  },
+  {
+    "key": "xevo",
+    "name": "XEVO 外部备份",
+    "kind": "backup",
+    "project": "external",
+    "times": [],
+    "adapter": "unconnected",
+    "enabled": null,
+    "notes": [
+      "源主机调度及恢复范围尚未核实"
+    ]
+  },
+  {
+    "key": "empower",
+    "name": "Empower 外部备份",
+    "kind": "backup",
+    "project": "external",
+    "times": [],
+    "adapter": "unconnected",
+    "enabled": null,
+    "notes": [
+      "源主机调度及恢复范围尚未核实"
+    ]
+  },
+  {
+    "key": "avant",
+    "name": "AVANT 历史备份",
+    "kind": "backup",
+    "project": "external",
+    "times": [],
+    "adapter": "unconnected",
+    "enabled": null,
+    "notes": [
+      "源主机调度及恢复范围尚未核实"
+    ]
+  },
+  {
+    "key": "biacore-history",
+    "name": "Biacore 历史目录",
+    "kind": "backup",
+    "project": "external",
+    "times": [],
+    "adapter": "unconnected",
+    "enabled": null,
+    "notes": [
+      "源主机调度及恢复范围尚未核实"
+    ]
+  },
+  {
+    "key": "retired-qc-lims",
+    "name": "旧 QC ETL（已归档）",
+    "kind": "etl",
+    "project": "qc_lims_etl",
+    "times": [],
+    "adapter": "unconnected",
+    "enabled": false,
+    "notes": [
+      "10-09调查已归档，无有效入口"
+    ]
+  }
+]
