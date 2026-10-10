@@ -55,10 +55,10 @@ async def permissions():
             assert not await conn.fetchval("SELECT rolsuper OR rolcreatedb OR rolcreaterole FROM pg_roles WHERE rolname=current_user")
             assert await conn.fetchval('SELECT count(*) FROM meta.etl_run')>=0
             assert not await conn.fetchval("SELECT has_column_privilege(current_user,'meta.etl_run','message','SELECT')")
-            raw_tables=await conn.fetch("SELECT n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname LIKE 'raw%' AND c.relname!='etl_log'")
+            raw_tables=await conn.fetch("SELECT c.oid,n.nspname,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind='r' AND n.nspname LIKE 'raw%' AND c.relname!='etl_log'")
             for t in raw_tables:
-                assert not await conn.fetchval('SELECT has_table_privilege(current_user,$1,\'SELECT\')',f'"{t[0]}"."{t[1]}"')
-                assert not await conn.fetchval('SELECT has_any_column_privilege(current_user,$1,\'SELECT\')',f'"{t[0]}"."{t[1]}"')
+                assert not await conn.fetchval('SELECT has_table_privilege(current_user,$1::oid,\'SELECT\')',t[0])
+                assert not await conn.fetchval('SELECT has_any_column_privilege(current_user,$1::oid,\'SELECT\')',t[0])
             assert not await conn.fetchval("SELECT EXISTS(SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.member WHERE r.rolname=current_user)")
             print('SOURCE readonly exact columns; no raw business reads or inherited role:',await conn.fetchval('SELECT current_database()'),'raw tables denied',len(raw_tables))
         finally:await conn.close()
