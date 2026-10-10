@@ -150,3 +150,29 @@ async def test_source_subprocess_does_not_receive_api_or_writer_credentials(monk
  monkeypatch.setattr(asyncio,'create_subprocess_exec',spawn)
  await WorkerReader(config()).read(task(),NOW-timedelta(days=1),NOW)
  assert 'OPS_JWT_VERIFY_KEY' not in captured and 'OPS_DATABASE_URL' not in captured and captured['OPS_COMPONENT']=='reader'
+
+async def test_worker_concurrency_is_bounded_without_queue_timeout():
+ active=0;peak=0
+ class Reader:
+  async def read(self,t,*args):
+   nonlocal active,peak
+   active+=1;peak=max(peak,active)
+   await asyncio.sleep(.02)
+   active-=1
+   return [],[]
+ store=MemoryStore()
+ await Engine(config(),[task(key=str(i),times=[]) for i in range(6)],store,Reader()).collect()
+ assert peak==2
+
+async def test_no_inferred_missed_history_before_monitor_start():
+ class Reader:
+  async def read(self,*args):return [],[]
+ store=MemoryStore()
+ await Engine(config(),[task()],store,Reader()).collect()
+ assert not store.runs
+ first=await store.monitoring_started_at()
+ old=Run(id='legacy-inference',task_key='example',start=first-timedelta(days=1),status='failed',source_kind='schedule')
+ actual=old.model_copy(update={'id':'actual-source','source_kind':'etl_run'})
+ store.versions.extend([(first,old),(first,actual)])
+ rows,total=await store.history('example',first-timedelta(days=2),first+timedelta(seconds=1))
+ assert total==1 and rows[0].id=='actual-source'

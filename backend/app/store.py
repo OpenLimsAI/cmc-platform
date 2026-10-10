@@ -50,6 +50,8 @@ class MemoryStore:
     async def latest(self, sid=None):
         if sid: return self.snapshots.get(sid)
         return max(self.snapshots.values(), key=lambda x: x.collected_at, default=None)
+    async def monitoring_started_at(self):
+        return min((x.collected_at for x in self.snapshots.values()),default=None)
     async def publish(self, snap, runs, ids):
         async with self.lock:
             self.snapshots[snap.id] = snap
@@ -62,7 +64,9 @@ class MemoryStore:
         versions = {}
         for observed, run in sorted(self.versions, key=lambda x:x[0]):
             if observed < end: versions[run.id] = run
-        rows = sorted((r for r in versions.values() if r.task_key == key and start <= r.start < end), key=lambda r: (r.start,r.id), reverse=True)
+        floor=await self.monitoring_started_at()
+        rows = sorted((r for r in versions.values() if r.task_key == key and start <= r.start < end and
+                       (r.source_kind!='schedule' or (floor is not None and r.start>=floor))), key=lambda r: (r.start,r.id), reverse=True)
         return rows[offset:offset+limit], len(rows)
     async def audit(self, entry): self.audits.append(deepcopy(entry))
     async def enqueue(self, payload, event_id=None):
@@ -100,6 +104,9 @@ class PostgresStore:
             q=select(SnapshotRow).where(SnapshotRow.id==sid) if sid else select(SnapshotRow).order_by(SnapshotRow.at.desc()).limit(1)
             row=(await s.execute(q)).scalar_one_or_none()
             return Snapshot.model_validate(row.payload) if row else None
+    async def monitoring_started_at(self):
+        async with self.sessions() as s:
+            return (await s.execute(select(func.min(SnapshotRow.at)))).scalar_one()
     async def publish(self, snap, runs, ids):
         from sqlalchemy.dialects.postgresql import insert
         async with self.sessions.begin() as s:
@@ -111,7 +118,9 @@ class PostgresStore:
             if ids: await s.execute(update(UpdateRow).where(UpdateRow.id.in_(ids)).values(status='done', snapshot_id=snap.id))
     async def history(self, key, start, end, offset=0, limit=100):
         async with self.sessions() as s:
-            versions=select(RunRow.id,RunRow.at,RunRow.payload).where(RunRow.task_key==key,RunRow.at>=start,RunRow.at<end,RunRow.observed_at<end).distinct(RunRow.id).order_by(RunRow.id,RunRow.observed_at.desc()).subquery()
+            floor=select(func.min(SnapshotRow.at)).scalar_subquery()
+            valid_schedule=(RunRow.payload['source_kind'].astext!='schedule') | (RunRow.at>=floor)
+            versions=select(RunRow.id,RunRow.at,RunRow.payload).where(RunRow.task_key==key,RunRow.at>=start,RunRow.at<end,RunRow.observed_at<end,valid_schedule).distinct(RunRow.id).order_by(RunRow.id,RunRow.observed_at.desc()).subquery()
             rows=(await s.execute(select(versions.c.payload).order_by(versions.c.at.desc(),versions.c.id.desc()).offset(offset).limit(limit))).scalars().all()
             total=(await s.execute(select(func.count()).select_from(versions))).scalar_one()
             return [Run.model_validate(r) for r in rows],total

@@ -1,10 +1,10 @@
-from datetime import timedelta
+from datetime import datetime,timedelta
 from types import SimpleNamespace
 import json
 import os
 import pytest
 from app.sources import Reader,checksum_summary,journal_summary,evidence
-from app.domain import Run,Snapshot,assess
+from app.domain import Run,Snapshot,assess,UTC
 from app.store import MemoryStore
 from test_monitor import NOW,run,task,config,token
 from app.api import create_app
@@ -77,6 +77,9 @@ async def test_missed_windows_remain_in_history_after_later_success():
   async def read(self,t,*args):return [run(start=NOW-timedelta(hours=1))],[]
  store=MemoryStore()
  # Reader is isolated synthetic evidence. A scheduled slot must be preserved as a separate reference.
+ from app.domain import Snapshot
+ started=datetime.now(UTC)-timedelta(days=2)
+ store.snapshots['baseline']=Snapshot(id='baseline',collected_at=started,trigger='startup',tasks=[])
  t=task(times=['00:00'])
  await Engine(config(),[t],store,Reader()).collect()
  assert any(r.source_kind=='schedule' and r.status=='failed' for r in store.runs.values())

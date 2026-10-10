@@ -46,9 +46,13 @@ class Engine:
                 since=max(prev.collected_at-timedelta(minutes=5),now-timedelta(days=31))
                 backfill_gap=prev.collected_at<since
             observations=[];all_runs=[]
+            # Bound worker startup CPU; queueing does not consume a source's deadline.
+            readers=asyncio.Semaphore(2)
+            schedule_floor=max(since,await self.store.monitoring_started_at() or now)
             async def read(task):
                 try:
-                    runs,gaps=await asyncio.wait_for(self.reader.read(task,since,now),self.settings.source_timeout)
+                    async with readers:
+                        runs,gaps=await asyncio.wait_for(self.reader.read(task,since,now),self.settings.source_timeout)
                 except Exception:
                     runs=[];gaps=['采集失败、超时或证据不足；当前未核实']
                 await self.store.audit({'action':'source_read','task_key':task.key,'from':since.isoformat(),'until':now.isoformat(),
@@ -56,7 +60,7 @@ class Engine:
                 if not gaps and task.enabled is True:
                     for planned in task.occurrences(now,(now-since).days):
                         grace=timedelta(minutes=task.grace_minutes)
-                        if since<=planned and planned+grace<now and not any(planned<=r.start<=planned+grace for r in runs):
+                        if schedule_floor<=planned and planned+grace<now and not any(planned<=r.start<=planned+grace for r in runs):
                             runs.append(Run(id=f'{task.key}:schedule:{planned.isoformat()}',task_key=task.key,start=planned,
                                             status='failed',message='该计划窗口无启动证据（来源有界读取完成）；不是实际启动时间',source_kind='schedule'))
                 # Retain last known result, explicitly unknown, after any source failure.
