@@ -1,6 +1,6 @@
 # Linux 任务与证据盘点
 
-> 版本：V0.6｜日期：2026-10-10｜状态：第一版及跨项目配套代码已在本地实现并验证；Mac Hub模拟预览已发布，真实Linux接入与验收未完成；未提交/push，Linux未部署。
+> 版本：V0.7｜日期：2026-10-10｜状态：已提交/push并部署Linux真实监控及Hub入口；服务、采集、权限和培训空表核验通过。真实MDM角色浏览器及下一次自然任务端到端通知待验收；详见 RELEASE_20261010。Mac保留模拟预览。
 
 2026-10-10补充只读复核：Mac/Linux未见8025/5125监听，相关LaunchAgent/systemd/nginx配置未发现冲突，父PORTS已按用户授权登记编号25；该登记不代表已启动服务。Linux cron再次确认每天00:00调用training_db_reset.sh；脚本SRC=cmc_analytics、DST=cmc_analytics_training，仍整库复制，不含ops_monitor排除策略。下列其余运行事实保留2026-10-09调查时间，不作全量重新盘点。
 
@@ -115,7 +115,7 @@ Nova最近Database/Backup_2026-10-08_233022含DatabaseBackup.dbb=17140509字节�
 | E11 | Hub access/apps/session母本；MDM security/auth/session代码；各ETL说明/实际脚本/配置 | SYS_ADMIN按角色、统一会话可复用；文档旧时刻/旧水位与实际有差异 |
 | E12 | Git rev-parse/status --porcelain --untracked-files=no | 下表相关Mac/Linux HEAD一致；Linux跟踪文件无改动，不证明ignored配置或部署构建一致 |
 
-Linux/Mac核实HEAD：
+2026-10-09调查时Linux/Mac核实HEAD（当前发布SHA见RELEASE_20261010）：
 
 | 项目 | 完整SHA |
 |---|---|
@@ -128,7 +128,7 @@ Linux/Mac核实HEAD：
 | cmab-mdm-platform | 47e1405ffc0387885ad1ebeae5e40a72b17628f8 |
 | cmab-hub | 39342a88c58bc2f7d27e2a96096fd0096bd2a722 |
 
-另核实Linux cmc-schema-migrations=9e78966b9e22bec632eb7d9c0a31a6eb72b0df39、training=d9463fb2188a5db8bd28af652af6f55db31bd985（未在此声称两者Mac一致）。本项目尚无.git，不提交/push。
+另核实Linux cmc-schema-migrations=9e78966b9e22bec632eb7d9c0a31a6eb72b0df39、training=d9463fb2188a5db8bd28af652af6f55db31bd985（未在此声称两者Mac一致）。该调查时本项目尚无.git；后续10-10已发布，版本见RELEASE_20261010。
 
 ## E13 — 2026-10-10开发期间的有限只读复核
 
@@ -148,3 +148,9 @@ Linux/Mac核实HEAD：
 ## 2026-10-10 用户补充的Biacore备份现状
 
 用户确认Biacore备份目前由各设备工作站上的自动任务执行，目标为NAS；后续拟统一纳入cmc-instrument-ingest管理。本条来源为用户说明，不是本轮实际访问工作站核查的结果；不能据此认定历史Biacore目录仍对应在用工作站、校验完整或恢复可用。各工作站具体计划、任务身份、在用设备与NAS目录对应仍待核实。首页将外部来源和已停用任务分别默认收起，保留登记和缺口；当前10个Linux在用组保持主区。集中接管未执行，不新增重复的在用顶层任务。
+
+## E15 — 2026-10-10 Linux上线真实读取
+
+最终服务身份已读到10个在用顶层组：Lucullus7条、RD LIMS21、QC3、Vi-CELL14、Nova14、日班归档14、夜班7、MDM备份7、巡检7、培训同步7（7天有界窗口）。2026-10-10 17:28北京时间快照6项执行成功，Lucullus执行完成有校验提醒，3项备份/归档执行完成但完整性或恢复验证不足；夜班部分最新心跳已被其他批次覆盖，保留范围缺口。5个外部源仍未知，旧QC保留停用。此为现有证据读取，不是本轮主动执行任务。
+
+实际cron与7个timer时刻保持，3个cron顶层脚本及7个systemd成功/失败观察通知已发布，原User/ExecStart及旧OnFailure告警保留。最终只读角色/沙箱、10个真实producer ACK及拒绝测试通过；下一次自然源任务通知端到端仍待验收。两库迁移、培训空表与各仓完整SHA权威见RELEASE_20261010，不用上面的旧调查版本认定当前上线状态。

@@ -1,6 +1,6 @@
 # 架构与系统边界
 
-> 版本：V0.6｜日期：2026-10-10｜状态：第一版及跨项目配套代码已在本地实现并验证；Mac Hub模拟预览已发布，真实Linux接入与验收未完成；未提交/push，Linux未部署。
+> 版本：V0.7｜日期：2026-10-10｜状态：已提交/push并部署Linux真实监控及Hub入口；服务、采集、权限和培训空表核验通过。真实MDM角色浏览器及下一次自然任务端到端通知待验收；详见 RELEASE_20261010。Mac保留模拟预览。
 
 本文件维护系统边界、依赖、采集与存储方案；实际字段、接口、页面、验收和发布分别以README列出的专题为权威，避免重复维护。设计批准状态仅在DECISIONS维护。
 
@@ -11,9 +11,9 @@
 | 依赖 | 已读说明或代码入口 | 可支持的结论与限制 |
 |---|---|---|
 | 全局与父目录 | [全局 AGENTS](/Users/qingcheng/.codex/AGENTS.md)、[父 AGENTS](/Users/qingcheng/code/AGENTS.md)、[CLAUDE](/Users/qingcheng/code/CLAUDE.md)、[白皮书](/Users/qingcheng/code/CMAB_Data_Architecture_Whitepaper_V0_4.md)、[PORTS](/Users/qingcheng/code/PORTS.md) | 按主题合并；白皮书为 Draft。父 AGENTS/CLAUDE 仅工具加载说明不同，业务约定一致；历史差异见准入检查 |
-| Hub | [AGENTS](../../cmab-hub/AGENTS.md)、[README](../../cmab-hub/README.md)、[nginx 说明](../../cmab-hub/nginx/README.md)、`frontend/src/config/apps.ts`、`auth/access.ts`、`shared/cmabSession.ts`、`nginx/hub-locations.conf` | 本地代码有角色磁贴及 SYS_ADMIN 显隐短路、MDM 会话母本；未见本项目磁贴或 `/ops/` 代理。Mac/Linux HEAD已核对一致，实际前端构建/真实角色浏览器未验收 |
+| Hub | [AGENTS](../../cmab-hub/AGENTS.md)、[README](../../cmab-hub/README.md)、[nginx 说明](../../cmab-hub/nginx/README.md)、`frontend/src/config/apps.ts`、`auth/access.ts`、`shared/cmabSession.ts`、`nginx/hub-locations.conf` | 本地代码有角色磁贴及 SYS_ADMIN 显隐短路、MDM 会话母本；该项为10-09调查快照；10-10已发布SYS_ADMIN磁贴与 `/ops/` 代理，当前SHA/产物验收见RELEASE_20261010，真实角色浏览器仍待验收 |
 | MDM | [AGENTS](../../cmab-mdm-platform/AGENTS.md)、[README](../../cmab-mdm-platform/README.md)、[备份恢复说明](../../cmab-mdm-platform/docs/RUNBOOK_BACKUP_RESTORE.md)、`backend/app/core/security.py`、`domains/auth/services.py` | 本地支持 HS256/RS256 签发，access 类型和 exp；签发带 roles/临时密码标记。本项目SYS_ADMIN已获用户确认；实际服务验签配置待实施，备份证据见盘点 |
-| 共享迁移 | [AGENTS](../../cmc-schema-migrations/AGENTS.md)、[README](../../cmc-schema-migrations/README.md)、[SOP](../../cmc-schema-migrations/SOP.md) | 自有分析库对象迁移归该仓库；MDM 自身迁移归 MDM。历史首次建集群脚本不用于日常发布；未运行迁移 |
+| 共享迁移 | [AGENTS](../../cmc-schema-migrations/AGENTS.md)、[README](../../cmc-schema-migrations/README.md)、[SOP](../../cmc-schema-migrations/SOP.md) | 自有分析库对象迁移归该仓库；MDM 自身迁移归 MDM。历史首次建集群脚本不用于日常发布；10-10已在此链迁移正式/培训监控四表 |
 | QC LIMS | [README](../../qc-lims-etl/README.md)、[文档入口](../../qc-lims-etl/docs/README.md)、[运维说明](../../qc-lims-etl/docs/05-ops-deployment.md)；未找到项目 AGENTS | 实查15个raw+staging；配置17表不等于每日17表，独立stage不能代表父管道 |
 | RD LIMS | [AGENTS](../../rd-lims-etl/AGENTS.md)、[README](../../rd-lims-etl/README.md) | cron/运维台账与实际水位字段已查，源时间与成功时间分开 |
 | Lucullus | [AGENTS](../../rd-lucullus-etl/AGENTS.md) 中的编排与部署说明 | 六步骤实查；SUCCESS同时有VALIDATION，执行与质量分开 |
@@ -25,7 +25,7 @@
 
 现状依据以[TASK_INVENTORY](TASK_INVENTORY.md)为准。已有systemd/journal、异构ETL台账、文件水位、NAS心跳/JSONL告警/校验清单可复用；现有heartbeat-check只覆盖两仪器最新心跳，不覆盖全部班次、ETL、数据库备份及恢复能力。告警出口ingest-alert.sh存在，FLEX2/Vi-CELL配置已引用；独立webhook文件未找到，没有消息送达证据。本项目不自动开通知。
 
-Hub磁贴角色机制、统一会话母本、MDM JWT及session-policy可以复用；Hub无业务后端。本项目已有本地前后端与采集代码，无.git、无数据库对象；Hub本地注册已整合并发布Mac模拟预览，Linux服务及真实角色接入未部署。
+Hub磁贴角色机制、统一会话母本、MDM JWT及session-policy可以复用；Hub无业务后端。本项目已有本地前后端与采集代码，已有独立GitHub及Linux服务，自有数据库四表已迁移；Hub已发布Linux真实入口，Mac保留模拟预览，真实角色浏览器验收未完成。
 
 ## 实施架构（本地代码基线，生产配套未完成）
 
@@ -48,13 +48,13 @@ Hub磁贴角色机制、统一会话母本、MDM JWT及session-policy可以复�
 | 巡检/培训同步 | 如纳入全清单更新，按各自完整执行入口接通知；培训不是灾备 |
 | 外部/历史来源 | 未核实外部主机通知能力，先靠兜底/按需采集，不假称已经事件接入 |
 
-本轮检查的是本地部署单元及顶层脚本，未改变Linux单元或读取新运行事实；实际生效接法须按目标systemd版本、权限与服务沙箱验证后确定。cron进程被强制杀死可能无法执行收尾，必须依靠兜底；不宣称任何路径均保证送达。
+开发阶段检查本地部署单元及顶层脚本；后续10-10发布已用目标systemd255安装受管通知drop-in，7个观察服务沙箱实测成功，原任务启动时间/PID未变，详情见发布记录。cron进程被强制杀死可能无法执行收尾，必须依靠兜底；不宣称任何路径均保证送达。
 
 通知推荐本机Unix socket并校验发送进程身份/固定任务白名单，或等效的受限本地消息入口；不新增公开匿名HTTP/源SQL凭据。消息仅含注册task_key、来源实例/班次、源运行ID（如有）、开始/结束时间及结束原因，不传日志/口令/连接串。发送来源及权限须绑定登记，通知中自称成功仍必须重新读源证据。
 
 发送助手短时、尽力且不影响原任务结果；接收成功后记录事件并异步采集，源任务不等待看板完成、不依赖看板可用。发送失败只留本机运维提示，日兜底/启动补采补查；接收后事件按身份去重、并发合并并保留全部运行。事件接收故障与采集失败分别可见，恢复后补查未覆盖的源时间窗。
 
-结束通知涉及多仓单元或顶层脚本及本机IPC权限；用户已授权并完成其他项目本地配套整合，Linux接入未执行。不要以监控名义改原任务时刻、重跑任务或让monitor控制源程序。不存在为此修改源数据库结构的要求。
+结束通知涉及多仓单元或顶层脚本及本机IPC权限；用户已授权并完成其他项目本地配套整合，Linux接入已执行，自然任务结束链路待验收。不要以监控名义改原任务时刻、重跑任务或让monitor控制源程序。不存在为此修改源数据库结构的要求。
 
 ## 数据归属与培训复制影响
 
@@ -62,7 +62,7 @@ Hub磁贴角色机制、统一会话母本、MDM JWT及session-policy可以复�
 
 **2026-10-10再次只读核对Linux cron及同步脚本：L10每天00:00将正式cmc_analytics整库复制为cmc_analytics_training，供批号注册培训系统使用。** 这就是门户“批号管理【培训】”对应的库。将来新建ops_monitor后，现有整库复制也会带入真实任务状态、历史、事件及访问记录。
 
-“不进入培训库”仅指排除ops_monitor的正式数据，不停止每天同步、不排除原有batch等业务数据，也不删除正式监控历史。培训库仍保留相同表结构和迁移版本；若未来需要练习监控，另用明确标注的模拟数据。目的是避免把真实生产运维记录当作培训记录，并避免新schema默认扩散到培训环境；不是新增GMP合规要求。数据排除已在原培训同步脚本本地实现并以隔离桩测试失败保护；未执行真实同步或改库。真实培训对账及发布未完成前不得部署持久化方案。
+“不进入培训库”仅指排除ops_monitor的正式数据，不停止每天同步、不排除原有batch等业务数据，也不删除正式监控历史。培训库仍保留相同表结构和迁移版本；若未来需要练习监控，另用明确标注的模拟数据。目的是避免把真实生产运维记录当作培训记录，并避免新schema默认扩散到培训环境；不是新增GMP合规要求。数据排除已在原培训同步脚本本地实现并以隔离桩测试失败保护；未主动执行真实同步，监控结构迁移已单独完成。实际cron调用的training副本已先发布专项隔离脚本，再应用正式/培训结构迁移；培训四表为空已核实。未主动运行培训复制，下一次00:00自然复制后须对账。
 
 原仅内存+源历史备选未采用；用户已确认保存自身监控历史。更新触发与兜底方式按MONITORING_RULES事件方案草案，不默认SQLite或另建库。
 
@@ -77,7 +77,7 @@ Hub磁贴角色机制、统一会话母本、MDM JWT及session-policy可以复�
 | 自有存储 | collector追加自身观测/事件并按留存清理；API读取观测/运行/事件并追加访问/更新请求 | 不给DDL/源库写；保留策略由受控运维而非网页执行 |
 | NAS/MDM dump | 固定心跳、Alerts、Logs、Checksums和产物stat | 备份内容及600权限dump不需要浏览器/collector读；产物元信息可由固定导出器提供 |
 
-本轮postgres只读目录调查不代表未来生产应使用superuser。实际账号、ACL及导出器权限尚未创建，验收须用最终服务身份验证允许和拒绝；任意一源不足权利要显示unknown。
+本轮postgres只读目录调查不代表未来生产应使用superuser。实际专用账号、列授权及受限导出器已配置，并用最终身份验证允许/拒绝；任意一源不足权利要显示unknown。
 
 ## 鉴权与Hub接入
 
@@ -87,9 +87,9 @@ Hub磁贴角色机制、统一会话母本、MDM JWT及session-policy可以复�
 
 ## 固定端口与部署
 
-2026-10-10按用户授权，已在父目录PORTS.md登记编号25：后端8025、前端5125。本次复查Mac/Linux监听、LaunchAgent及systemd/nginx相关配置，未发现冲突；仅完成文档分配，无服务或配置落地。未来严格固定且只听本机，外部仍走Hub5100；不新增ufw直连端口，发布前再次复查。
+2026-10-10按用户授权，已在父目录PORTS.md登记编号25：后端8025、前端5125。本次复查Mac/Linux监听、LaunchAgent及systemd/nginx相关配置，未发现冲突；Linux已配置真实API/静态前端并验证127.0.0.1监听；Mac前端仍为模拟。严格固定且只听本机，外部仍走Hub5100；不新增ufw直连端口，发布前再次复查。
 
-Linux建议/opt/cmc-platform-monitor，独立API/collector服务，监控故障不影响ETL。Mac开发验证→GitHub独立仓库→Linux固定SHA；Hub/迁移/training相关改动分别记录SHA。发布与回滚方案见[DEPLOYMENT](DEPLOYMENT.md)，尚无可执行部署脚本。
+Linux实际部署/opt/cmc-platform-monitor，独立API/collector服务，监控故障不影响ETL。Mac开发验证→GitHub独立仓库→Linux固定SHA；Hub/迁移/training相关改动分别记录SHA。发布与回滚方案见[DEPLOYMENT](DEPLOYMENT.md)，分阶段固定SHA发布脚本为scripts/deploy_linux.py；实际执行事实见RELEASE_20261010。
 
 ## 访问记录、使用边界及验收
 
@@ -104,7 +104,7 @@ Linux建议/opt/cmc-platform-monitor，独立API/collector服务，监控故障�
 
 ## 测试与验收
 
-以[TEST_ACCEPTANCE](TEST_ACCEPTANCE.md)为权威；逐项覆盖UR01–UR08及本次真实边界案例，源权限用最终服务身份验证允许与拒绝。业务测试、Linux适配、同SHA发布与真实角色浏览器分别报告；本轮已完成本地代码与隔离验证；真实接入及生产验收尚未执行。
+以[TEST_ACCEPTANCE](TEST_ACCEPTANCE.md)为权威；逐项覆盖UR01–UR08及本次真实边界案例，源权限用最终服务身份验证允许与拒绝。业务测试、Linux适配、同SHA发布与真实角色浏览器分别报告；已完成本地隔离验证及Linux真实读取/持久化/权限/Hub服务验收；真实MDM角色浏览器和下一次自然业务通知待验收。
 
 ## 白皮书 Part V 准入
 
@@ -118,13 +118,17 @@ C01–C15逐项结论权威在[ADMISSION_CHECKLIST](ADMISSION_CHECKLIST.md)；D0
 
 systemd读取实时开关/日历并与登记对照，journal用固定生命周期标记、有界游标分页和invocation关联；先过滤后读取，避免读取整段业务日志。cron不能让collector读取全部用户配置：新增本项目只读摘要导出器，以原prometheus身份读取自己的crontab，仅导出三个固定任务的时刻/开关，06:59模板准备07:00兜底所需摘要。源调度未被修改；导出模板未安装，缺失/过期/计划变化显示未知。
 
-systemd结束通知选用OnSuccess/OnFailure独立观察单元，保留原失败告警。目标Linux只读确认systemd255；该能力及语义已查[systemd v255原文](https://github.com/systemd/systemd/blob/v255/man/systemd.unit.xml)，journal游标/正向限行见[原文](https://github.com/systemd/systemd/blob/v255/man/journalctl.xml)。模板尚未经过生产沙箱实测。cron EXIT通知保留原退出码，SIGKILL/主机失联由每日兜底补查。
+systemd结束通知选用OnSuccess/OnFailure独立观察单元，保留原失败告警。目标Linux只读确认systemd255；该能力及语义已查[systemd v255原文](https://github.com/systemd/systemd/blob/v255/man/systemd.unit.xml)，journal游标/正向限行见[原文](https://github.com/systemd/systemd/blob/v255/man/journalctl.xml)。受限journal导出及collector沙箱已用最终Linux身份实测；通知真实peer通过，源自然结束链路待观察。cron EXIT通知保留原退出码，SIGKILL/主机失联由每日兜底补查。
 
 持久化实际采用4张表及JSONB观测，逻辑对象与物理表区分见DATA_MODEL。没有Alembic自动建表，没有生产内存降级或SQLite。API和collector部署时分别使用不同OS身份/数据库角色与环境文件；API无需任何源凭据。
 
-尚未验证：PostgreSQL真实持久化/并发恢复、专用只读权限、日志/NAS读取ACL、源通知成功/失败送达、Hub/MDM真实角色会话、培训隔离、多仓同SHA发布。共享迁移已在所属链追加，Hub与源项目已整合本地配套；deploy是待安装的受管配置，权限材料仍待核实，上线前须逐项落实。当前无法宣称Linux全部来源已接入。
+Linux实际发布/权限/持久化/沙箱读取/队列通知/Hub构建及培训空表已验证，详见RELEASE_20261010。尚未验证真实MDM角色浏览器、源自然结束成功/失败双路径、下一次培训复制、长期老化与进程中断恢复。10个在用组有真实读取；5个外部源仍未接入，不能宣称全平台全部来源覆盖。
 
 凭据按进程进一步隔离：API环境为backend/.env.example，collector为backend/.env.collector.example；读取子进程不接收MDM密钥或监控写库连接，只接收源只读连接和白名单。collector/reader不读取API dotenv。API明确拒绝以无鉴权的采集配置启动，相关隔离已纳入测试。生产读取角色的有效权限仍未验证。
 
 
 本地配套权威入口见[integration导航](../integration/README.md)。7个源service直接新增结束观察指令，原OnFailure告警仍保留；3个cron在原顶层脚本EXIT出口发送提示，不包装或另起源任务。发送助手的全部连接/收发共享2秒期限、ACK最多128字节且完整换行，部分ACK不会误当拒绝。培训复制以pipefail+ON_ERROR_STOP拦截导出和灌库失败，且仅排除ops_monitor数据；先核对新库空运维表/业务计数，再沿用原换库步骤，失败保护按桩测试验证。
+
+## Linux最小读取落地（2026-10-10）
+
+API与collector分别为opsmonitor-api/opsmonitor，环境文件root600且分离角色。读取子进程不继承API密钥或自有写库连接。源ops_monitor_reader仅获meta三表及两仪器etl_log必要列；cmc_rd的26张和cmc_gmp的17张raw业务表读取被拒绝，无继承角色、superuser或通用sudo。journald通过单独受限socket桥接，固定7个unit、真实peer、32天时间上限、有界游标分页及固定生命周期/设备标记；collector不加入adm/systemd-journal。桥接复用prometheus已有日志读取身份，隔离/opt其他项目及本项目root配置，具体配置与生产核验见RELEASE_20261010。

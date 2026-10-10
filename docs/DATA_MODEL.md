@@ -1,6 +1,6 @@
 # 数据模型与权威来源
 
-> 版本：V0.6｜日期：2026-10-10｜状态：第一版及跨项目配套代码已在本地实现并验证；Mac Hub模拟预览已发布，真实Linux接入与验收未完成；未提交/push，Linux未部署。
+> 版本：V0.7｜日期：2026-10-10｜状态：已提交/push并部署Linux真实监控及Hub入口；服务、采集、权限和培训空表核验通过。真实MDM角色浏览器及下一次自然任务端到端通知待验收；详见 RELEASE_20261010。Mac保留模拟预览。
 
 ## 已核实源结构（E05/E06）
 
@@ -20,7 +20,7 @@
 
 RD与instrument时间列为timestamptz；GMP meta列为timestamp without time zone。实查GMP会话TimeZone=Asia/Shanghai，state.py用CURRENT_TIMESTAMP写入、pg_connect未另设时区，凌晨台账与journal时间一致。适配器按本次已核实Asia/Shanghai解释旧naive值，同时保存source_timezone/timezone_basis；未来配置变化或历史范围不能确认时为unknown，不统一当UTC，也不修改源列。
 
-## 逻辑对象与物理实现（本地模型已实现，数据库未建表）
+## 逻辑对象与物理实现（Linux四表已建；逻辑对象不等同独立表）
 
 归属cmc_analytics.ops_monitor，持久化已由D06确认；培训复制影响见ARCHITECTURE。源权威继续在源系统，统一模型只保存最小观测、证据引用及判断，不复制完整ETL台账。
 
@@ -41,7 +41,7 @@ collector源查询用服务身份单独记录来源/时间窗/结果/行数，�
 
 内部时间UTC、API带时区ISO8601、UI Asia/Shanghai；unknown数值用null，不用0替代。NULL source_instance保留其全局语义，不能猜成某工作站。键含主机/环境/源任务，hostname不代替host标识。
 
-建议查询索引(task_key,collected_at DESC)、occurrence唯一键、snapshot_id、source引用范围；历史分页按ID/时间游标且限窗口。源已有RD etl_run(job_name,run_started_at)、load_error_log(run_id,error_time)索引已查到；本轮没有更改索引。观测90天、访问记录180天已确认，本地ORM已实现，数据库迁移尚未应用；不自动删除源日志或备份。
+建议查询索引(task_key,collected_at DESC)、occurrence唯一键、snapshot_id、source引用范围；历史分页按ID/时间游标且限窗口。源已有RD etl_run(job_name,run_started_at)、load_error_log(run_id,error_time)索引已查到；本轮没有更改索引。观测90天、访问记录180天已确认，本地ORM已实现，正式/培训均已应用20261010_ops_monitor_v1；不自动删除源日志或备份。
 
 采集source只读；自身追加由专用writer，API读取本schema并写自己的访问审计/更新请求；schema迁移及最小列权限另行通过共享迁移链。无SQLite/新库/新身份表/新设备权威源。实施前核验源字段变化，不为迎合统一模型改源台账。
 
@@ -54,6 +54,6 @@ collector源查询用服务身份单独记录来源/时间窗/结果/行数，�
 | ops_monitor.update_event | id、at、status、lease_at、payload、snapshot_id；UID+来源event_id去重，状态pending/processing/done |
 | ops_monitor.access_audit_log | id、at、payload；管理员/API拒绝和服务采集分别记录 |
 
-任务/主机/环境/来源绑定在config/tasks.json，不建第二套主数据。子步骤、水位、备份检查和最小证据嵌入JSONB；上述逻辑对象不代表已经分别建表。V1使用人可读的状态/原因文本，没有独立reason_codes字典、task_occurrence表或迁移文件的已发布revision。确认漏跑按计划窗口追加source_kind=schedule的历史引用，start为计划时刻，界面标“计划”，不假称实际启动。
+任务/主机/环境/来源绑定在config/tasks.json，不建第二套主数据。子步骤、水位、备份检查和最小证据嵌入JSONB；上述逻辑对象不代表已经分别建表。V1使用人可读的状态/原因文本，没有独立reason_codes字典、task_occurrence表；迁移revision已发布为20261010_ops_monitor_v1。确认漏跑只在监控首次采集后的计划窗口追加source_kind=schedule的历史引用，start为计划时刻，界面标“计划”，不假称实际启动。
 
-ORM在backend/app/store.py；共享迁移权威在cmc-schema-migrations/alembic/versions/cmc_analytics/20261010_ops_monitor_v1.py，已接本地唯一head analytics_water_mart_perf_1009并离线核对ORM；未应用到数据库。源字段、生产实例、有效角色和真实ACL仍须部署前核实。运行数据90天/审计180天的自有清理代码在成功日兜底之后执行，不清理源台账或备份。尚未执行数据库集成测试或任何迁移。
+ORM在backend/app/store.py；共享迁移权威在cmc-schema-migrations/alembic/versions/cmc_analytics/20261010_ops_monitor_v1.py，接analytics_water_mart_perf_1009并离线/隔离数据库核对ORM；Linux正式及培训库已应用目标revision。实际源字段、角色列授权和原始业务表拒绝访问均已核验，见RELEASE_20261010。运行数据90天/审计180天的自有清理代码在成功日兜底之后执行，不清理源台账或备份。已完成隔离数据库迁移测试和两库正式迁移、真实持久化与历史API读取。培训四表为空，下一次自然培训复制后仍需复核。

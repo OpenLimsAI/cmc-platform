@@ -1,6 +1,6 @@
 # 数据中台运维看板 — cmc-platform-monitor
 
-> 版本：V0.6｜日期：2026-10-10｜状态：第一版及跨项目配套代码已在本地实现并验证；Mac Hub模拟预览已发布，真实Linux接入与验收未完成；未提交/push，Linux未部署。
+> 版本：V0.7｜日期：2026-10-10｜状态：已提交/push并部署Linux真实监控及Hub入口；服务、采集、权限和培训空表核验通过。真实MDM角色浏览器及下一次自然任务端到端通知待验收；详见 RELEASE_20261010。Mac保留模拟预览。
 
 目标：独立监控Linux数据中台ETL与自动备份，Hub入口和后端业务访问仅MDM SYS_ADMIN，第一屏异常优先，V1只读。已确认目标不重复询问；全部覆盖仍是目标。
 
@@ -10,9 +10,9 @@
 
 已完成本项目前后端代码：四列圆角浅色卡片、异常优先、任务详情与历史/脱敏证据、MDM SYS_ADMIN 后端守卫、固定清单只读采集、持久化事件队列、结束通知接收、每日07:00兜底与按需更新。绿色/红色/黄色/灰色四种状态，不设置浅蓝或独立运行卡片。
 
-生产存储为 cmc_analytics.ops_monitor，代码不会在启动时建表；缺MDM验签/存储配置拒绝启动。任务观测90天、访问记录180天。模拟预览明确标注，不读取生产数据。Hub注册/路由、共享迁移、培训复制排除及源通知已在各项目本地代码整合；完整运行仍需执行迁移、配置专用只读账号/受限日志权限并安装托管与观察服务。代码完成不能等同已上线。外部5个来源显示未接入，停用任务保留。
+生产存储为 cmc_analytics.ops_monitor，代码不会在启动时建表；缺MDM验签/存储配置拒绝启动。任务观测90天、访问记录180天。模拟预览明确标注，不读取生产数据。Hub注册/路由、共享迁移、培训复制排除及源通知已在各项目本地代码整合；Linux已完成正式/培训共享迁移、专用列读取角色、受限journal导出、托管和通知安装；已读取10个在用任务真实证据。真实角色浏览器及自然结束通知另行验收。外部5个来源显示未接入，停用任务保留。
 
-固定端口8025/5125；Mac Hub [5100/ops](http://localhost:5100/ops/) 已发布模拟预览，5125由LaunchAgent自动托管，8025后端未启动；Linux未部署，无真实角色浏览器验收；未创建数据库对象或权限，未改原调度，未运行ETL/备份/恢复/迁移，未提交/push。用户已授权其他项目本地配套代码修改，整合归属见[integration导航](integration/README.md)；父PORTS登记保持8025/5125。
+固定端口8025/5125，Linux均仅监听127.0.0.1，经 [Linux Hub /ops](http://172.19.0.105:5100/ops/) 访问真实监控；未登录跳到MDM统一登录，仅SYS_ADMIN可读业务API。Mac Hub [5100/ops](http://localhost:5100/ops/) 继续是明确标注的模拟预览，5125由LaunchAgent托管、Mac 8025未启动。各仓已提交/push、Linux拉取同一指定SHA。未改源调度、未主动执行源ETL、业务备份、恢复或培训复制；本次迁移前执行了保护性分析库备份。用户已授权其他项目本地配套代码修改，整合归属见[integration导航](integration/README.md)；父PORTS登记保持8025/5125。
 
 ## 本地启动与验证
 
@@ -38,7 +38,7 @@ uv run pytest -q
 
 前端验证：`npm --prefix frontend test`、`npm --prefix frontend run build`。已通过的项目、浏览器检查及未验证部分见 TEST_ACCEPTANCE。
 
-真实API的启动命令为 `uv run uvicorn app.api:create_app --factory --host 127.0.0.1 --port 8025`；配置入口 backend/.env.example。它要求已完成迁移的监控库与MDM验签配置，不能直接用示例占位值运行。Linux采集进程为 `python -m app.collector`，需配套权限及源接入；本轮未启动真实采集。生产部署模板和配套材料见 DEPLOYMENT；当前仅Mac模拟预览发布完成。
+真实API的启动命令为 `uv run uvicorn app.api:create_app --factory --host 127.0.0.1 --port 8025`；配置入口 backend/.env.example。它要求已完成迁移的监控库与MDM验签配置，不能直接用示例占位值运行。Linux采集进程为 `python -m app.collector`，现已由systemd托管；任务结束提示、启动补采及每日07:00兜底均已配置。生产执行事实、版本及剩余验收见 [协调发布记录](docs/RELEASE_20261010.md) 与 DEPLOYMENT。
 
 ## 在用文档与权威分工
 
@@ -54,8 +54,9 @@ uv run pytest -q
 | [INFORMATION_ARCHITECTURE](docs/INFORMATION_ARCHITECTURE.md) | 页面与交互 |
 | [TEST_ACCEPTANCE](docs/TEST_ACCEPTANCE.md) | 验证场景、证据与分阶段验收 |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | 发布前提、多仓版本和回滚 |
+| [RELEASE_20261010](docs/RELEASE_20261010.md) | 本次实际多仓SHA、迁移、备份、权限与上线验收 |
 | [ADMISSION_CHECKLIST](docs/ADMISSION_CHECKLIST.md) | 白皮书Part V C01–C15逐项结论 |
-| [DECISIONS](docs/DECISIONS.md) | 已确认目标、D01–D14已确认基线与生产待接入项 |
+| [DECISIONS](docs/DECISIONS.md) | 已确认目标、D01–D15已确认基线、发布授权与待验收项 |
 | [CHANGELOG](docs/CHANGELOG.md) | 改动、原因、影响、实际验证及提交/部署状态 |
 | [HANDOFF](docs/HANDOFF.md) | 状态导航，仅引用权威文件，不产生后续授权 |
 

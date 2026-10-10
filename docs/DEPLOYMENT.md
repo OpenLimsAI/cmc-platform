@@ -1,64 +1,41 @@
 # 部署与接入
 
-> 版本：V0.6｜日期：2026-10-10｜状态：第一版及跨项目配套代码已在本地实现并验证；Mac Hub模拟预览已发布，真实Linux接入与验收未完成；未提交/push，Linux未部署。
+> 版本：V0.7｜日期：2026-10-10｜状态：已提交/push并部署Linux真实监控及Hub入口；服务、采集、权限和培训空表核验通过。真实MDM角色浏览器及下一次自然任务端到端通知待验收；详见 RELEASE_20261010。Mac保留模拟预览。
 
-本项目已有本地代码及模拟预览；Hub入口/代理、共享迁移、培训排除及源通知已按用户授权在各仓本地整合；生产数据库、服务账号及Linux服务尚未创建，生产Hub尚未发布这些改动。下列受管代码不是已执行或已获生产部署授权。第一版只读源系统；没有重跑/恢复/改源调度功能。
+第一版只读源运维证据，无重跑、恢复、修改调度或任意文件读取功能。2026-10-10用户D15授权发布已执行；当前部署事实、完整多仓SHA及备份证据只在 [RELEASE_20261010](RELEASE_20261010.md) 维护。下方Mac记录为当时历史，不覆盖Linux最新状态。
 
-## 本地验证
+## 当前Linux配置
 
-README给出安装、模拟预览、测试和构建命令。API配置在backend/.env.example、collector在backend/.env.collector.example；真实模式必须配置MDM验签和已迁移的监控库，不能用占位值或内存降级。API绑定127.0.0.1:8025，前端固定5125，端口冲突报错。
+- 项目 `/opt/cmc-platform-monitor`，GitHub独立仓库；后端API127.0.0.1:8025、nginx正式静态前端127.0.0.1:5125，经Hub5100的 `/ops/` 同源访问，未增加ufw直连端口。
+- API/collector/evidence及schedule-export.timer已active+enabled；配置在root600的 `/etc/cmc-platform-monitor/{api,collector}.env`，密钥与连接串不进Git。API仅自有监控角色，collector写自有四表、源reader精确运维列只读；来源工作进程不继承API密钥或自有writer连接。
+- journal证据服务固定7个单元、真实peer、32天上限及有界游标页；collector只获socket连接，不加adm/systemd-journal，不获通用sudo。固定7个源service元信息可读。
+- 原prometheus身份06:59只读导出3组cron计划摘要，collector每日07:00兜底、启动补采、任务结束事件及管理员按需更新。内部等待队列不持续扫描任务或刷新网页。
+- 10组任务通知已发布：7个systemd受管drop-in追加OnSuccess/OnFailure，3个原cron顶层EXIT trap。原User/ExecStart、既有告警及timer时刻保持；观察服务仅被结束触发，不enable/start源任务。成功/失败配置与真实producer peer已核验，下一次自然源任务完整链路仍待观察。
+- 正式/培训分析库均为20261010_ops_monitor_v1；实际training调用副本使用专项发布分支，仅带入本次脚本，避免升级其他应用。当前培训四表空；下一次00:00自然同步后复核结构、迁移版本、原业务和四表空，不能为验收主动执行培训复制。
+- Linux前端构建不含VITE_DEMO_MODE；Mac始终保留标注模拟的构建，不能把Mac dist复制到Linux。
 
-模拟预览使用前端VITE_DEMO_MODE=true，不接后端或生产凭据，整页标模拟。生产构建必须未设置该变量；在真正发布时核对构建标识、提供文件和真实角色，不能把开发预览发布成真实运维状态。
+## 固定版本发布步骤
 
-## 本地配套代码与生产剩余工作
+执行前复查目标主机、dirty工作区、端口、依赖版本及迁移revision；不覆盖未提交文件。所有代码按Mac验证→对应GitHub提交/push→Linux相同完整SHA，禁止手工复制或直接改服务器业务代码。培训专用分支与正式批号仓分别记录，不擅自改为pull main。
 
-完整文件归属及链接见[integration导航](../integration/README.md)。旧审阅副本已移除，不重复安装drop-in或维护第二份迁移。
+本项目 `scripts/deploy_linux.py <phase> <完整SHA>` 在服务器通过已授权sudo按阶段执行，校验本项目HEAD；版本锁见deploy/linux/release-20261010.json。现有阶段不是每次更新都重复运行，后续按变化选择必要阶段：
 
-| 接入项 | 已完成的本地代码与验证 | 生产尚未完成 |
-|---|---|---|
-| Hub | cmab-hub/apps.ts仅SYS_ADMIN磁贴、hub-locations.conf的/ops/代理；角色规则、类型/构建、nginx -t通过 | 真实服务准备后协调发布磁贴；真实角色及直达验证 |
-| 共享迁移 | cmc-schema-migrations追加20261010_ops_monitor_v1，接analytics_water_mart_perf_1009；唯一head、增量离线SQL、四表ORM对照通过 | 核对正式/培训当前revision，发布固定版本并在明确目标执行迁移 |
-| 培训隔离 | rd-batch-registry/training_db_reset.sh排除ops_monitor数据，严格检查复制失败、换名/服务失败保护；隔离桩通过 | 原业务继续同步、schema及版本一致、运维四表为空的实际库对账 |
-| 专用角色/ACL | integration/permissions.sql.example最低授权审阅材料 | 精确库/列与CONNECT/PUBLIC/继承核实，账号/凭据/ACL建立及允许/拒绝验证 |
-| 原任务通知 | 7个源service和3个原cron顶层入口已接成功/失败；本项目deploy/linux/ops-notify-*及发送助手统一维护；桩验证保留退出码/原告警 | 观察服务安装、socket组/源身份连接、Linux成功/失败双路径送达及沙箱验证 |
-| 运行托管 | deploy/linux/API、collector、静态前端受管配置；8025/5125仅本机 | 正式环境文件、OS身份/目录、Linux安装及同SHA验收 |
-| cron计划摘要 | 原prometheus身份只读自己的crontab，仅导出三条固定任务计划；06:59准备摘要 | 安装schedule-export.service/timer，验证有效25小时及读取身份 |
+1. prepare：环境/身份目录、锁定依赖及正式前端构建，先发布实际training副本及迁移仓版本。
+2. migrate：核对两库revision，保护性备份、目录清单检查与SHA后，在所属共享链执行 `./dbmig <库> upgrade 20261010_ops_monitor_v1`，核对current。没有升级时不重复迁移。
+3. configure：精确列授权与分离环境；只配置本次专用角色，不扩大既有业务权限。
+4. start：安装/启动监控及只读计划摘要服务，不启动源任务。实际来源读取并核验队列、沙箱与权限。
+5. sources：拉取已确认的各仓SHA，安装观察服务与受管通知drop-in；仅daemon-reload，比较原User/ExecStart保持一致。
+6. hub：构建Hub，保留旧dist，nginx -t并平滑reload；最后核对实际提供的JS与磁盘产物逐字节一致、真实API转发及角色拒绝。
 
+迁移只改自有ops_monitor四表与索引，不自动建库，不改源raw/meta结构。监控进程不在启动时建表。权限示例仅审阅，当前实际脚本/授权与拒绝证据见发布记录。
 
-API和collector分别使用opsmonitor-api/opsmonitor OS身份、不同数据库角色及环境文件；API无源数据库凭据或源文件权限。数据库最低授权参考材料还需核对CONNECT/PUBLIC/角色继承，不能把GRANT脚本代替实际权限证据。无pg_read_all_data、pg_read_server_files或通用sudo。
+## 验证与回退
 
-collector只需白名单单元元信息、生命周期journal记录、限定父日志、心跳/校验摘要、MDM产物stat以及运维表指定列。现有journald整组权限可能扩大读取范围：生产需受限导出或受控日志权限，不直接给API加入adm。若原日志含敏感业务数据，改用仅固定标记的受限输出；本轮实际生产ACL方案尚未验证。
+本地测试见README及TEST_ACCEPTANCE；服务器 `verify_linux_release.py permissions/api/notifications` 以实际角色/peer检查。api探针使用本机MDM验签配置构造短期合成角色令牌，sub=0、username=release-verification，只证明接口守卫，不能代替真实MDM登录。通知探针只请求重新读证据，不伪造成功、失败或启动源单元。
 
-cron摘要目录由prometheus拥有写权限，collector只有读取权限；文件不含命令/环境/秘密，最多64KiB、有效25小时，读不到或过期为未知。stock crontab读取可能需要其既有setgid，导出服务未启用NoNewPrivileges；ProtectSystem只读且代码只调用crontab -l，不给新源写权限。该沙箱仍需Linux实测。
+保留目录 `/var/backups/cmc-platform-monitor/20261010`，包含迁移前两库dump/SHA、旧Hub dist及已有受管文件。回退先停本项目API/collector/证据/摘要托管、撤回本项目源通知drop-in（保留旧告警及原timer），Hub恢复旧构建/路由后nginx -t/reload；源码退到明确已发布版本。源通知不可用不会改变原程序退出码。禁止默认DROP自有四表：保留运维/审计历史，迁移downgrade拒绝破坏性删除。任何整库恢复须另行评估并授权，本次未执行回退或恢复。
 
-Unix socket目录属于opsmonitor:opsmonitor-events，socket660；仅登记生产UID可发自己的任务。观察单元复用相应原User并只获socket连接权限；原ETL/备份不读取监控数据库。目录/组/环境文件的实际授权未执行。
-
-## 通知与兜底
-
-OnSuccess/OnFailure观察单元在源单元已经结束后发送提示，不使用ExecStopPost把还未完整终止的单元当完成。源仓service中新增指令不重置已有OnFailure告警。目标Linux只读确认systemd255支持该机制，观察服务尚未生产验收。cron已在原顶层入口整合EXIT trap并保留原退出码；SIGKILL/主机失联不能保证发送。
-
-监控先具备队列和白名单，再接源通知。通知失败只留下本机提示，发送助手最终exit0；源程序失败仍保留自己的退出码。每日07:00、启动补采、管理员更新均只读运维证据，不重跑源任务。内部等待事件不持续扫描任务或刷新网页。
-
-## 发布与回滚
-
-仍按Mac验证→各仓提交/push→Linux固定完整SHA→所属部署流程→验收；本轮未提交/push。共享对象只经cmc-schema-migrations；培训排除代码已完成，持久化发布必须协调更新实际执行的training仓版本，并验证隔离。发布前复核8025/5125、已有dirty状态、迁移revision、权限和服务读取范围，不能手工拷代码形成独立版本。
-
-保留旧构建/配置和各仓版本；源通知可撤去而保留原任务行为。监控停机不影响源任务，恢复后队列补查并标历史缺口。数据库回滚保留监控/审计历史，不默认DROP；共享迁移的downgrade明确拒绝破坏性删除。健康200、构建成功或合成JWT测试都不能代替真实任务/角色验收。
-
-
-## 协调发布顺序（2026-10-10已授权，执行事实见发布记录）
-
-1. 固定各仓完整SHA及新revision；核对两库版本、端口和dirty状态，安排源/监控独立回退。
-2. 将已验证的培训排除脚本发布到实际cron调用的 `/opt/rd-batch-registry-training`，保持原00:00计划；验证新库失败不切换。不能只更新正式批号仓而漏掉培训执行副本。
-3. 按共享迁移流程备份并应用明确revision、配置监控自有角色及源只读身份/受限日志读取；无自动建表或宽泛日志权限降级。
-4. 安装API/collector、正式非模拟前端以及06:59计划摘要托管，验证07:00和启动补查；先具备队列/socket，后接通知。
-5. 观察服务由monitor仓统一提供：将7个 `deploy/linux/ops-notify-*.service` 安装到systemd目录但不enable/start（只被原单元触发）；配置opsmonitor-events连接范围。再按各源仓原部署入口更新service/脚本，仅daemon-reload不启动ETL/备份。源原Unit中的OnFailure通知与旧告警并列，不复制已删除的审阅drop-in。
-6. 验证消息提示与重新核对源结果、原告警/退出码和最小读取范围后，协调发布Hub入口/路由；真实管理员/非管理员浏览器及直接API验收另行记录。
-
-2026-10-10用户已建立GitHub仓库并授权顺序发布，执行以 [协调发布记录](RELEASE_20261010.md) 为准，覆盖已确认迁移、读取身份和服务托管；原任务仍不主动执行。`scripts/deploy_linux.py` 按prepare/migrate/configure/start/sources/hub分阶段执行，每阶段要求明确本项目完整SHA。source阶段从所属仓service提取通知指令生成受管drop-in，保留原已安装的业务配置和告警；不启动源单元、不改变原timer。新增受限journal socket导出服务的生产配置必须设置OPS_JOURNAL_SOCKET_PATH，collector不得加入宽泛journal组。
-
-本地验证不替代真实迁移、培训数据对账、Linux UID/ACL/沙箱和认证浏览器验收。任何通知失败只能让监控补查/未知，不得改变源任务状态或自动重跑。
-
+健康200和构建成功不足以验收。现已验证真实读取、持久化历史、最小权限、Hub API代理及服务；尚待真实管理员/非管理员浏览器、下一次自然成功/失败通知、07:00兜底、00:00培训隔离、长期保留及中断恢复。外部5源与恢复证据缺口继续明确显示。
 
 ## Mac本地预览发布
 
@@ -74,7 +51,7 @@ OnSuccess/OnFailure观察单元在源单元已经结束后发送提示，不使�
 
 发布备份位于 `.local/mac-preview-20261010-130644`（Git忽略），包含原Hub/monitor构建及发布前磁盘路由文件；当时磁盘路由已含ops，不是旧nginx已加载配置的完整快照。需要撤回时先bootout本项目Agent，可用备份恢复原Hub构建；路由撤回须单独审查ops段并nginx -t后reload，保留其他应用。未运行撤回。
 
-未提交/push、未部署Linux、未安装源通知单元，未运行源任务/迁移或创建数据库/权限；07:00及结束触发真实采集仍待生产接入。
+该次Mac预览发布当时未提交/push或部署Linux；后续D15发布状态见本文首节及RELEASE_20261010。
 
 ### 2026-10-10 D14显示调整已更新Mac预览
 
