@@ -1,6 +1,9 @@
 # 每日数据库备份（由 cmab-mdm-backup.timer 触发）
 # 安装：bash deploy/linux/install_systemd.sh
 [Unit]
+# 整个单元结束后提示监控只读复核；原失败告警不重置。
+OnSuccess=ops-notify-mdm-backup.service
+OnFailure=ops-notify-mdm-backup.service
 Description=CMAB MDM Portal 数据库每日备份
 After=postgresql.service
 
