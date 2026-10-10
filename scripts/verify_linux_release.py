@@ -18,7 +18,7 @@ def request(path,claims=None,base='http://127.0.0.1:8025'):
     headers={}
     if claims is not None:
         env=read_env(Path('/etc/cmc-platform-monitor/api.env'))
-        body={'sub':'release-verification','exp':datetime.now(timezone.utc)+timedelta(minutes=2),
+        body={'sub':'0','username':'release-verification','exp':datetime.now(timezone.utc)+timedelta(minutes=2),
               'type':'access','roles':['SYS_ADMIN'],'must_change_password':False}|claims
         headers['Authorization']='Bearer '+jwt.encode(body,env['OPS_JWT_VERIFY_KEY'],algorithm='HS256')
     try:
