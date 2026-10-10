@@ -70,3 +70,7 @@ cd /opt/cmab-hub && git pull && cd frontend && pnpm build     # 静态包立即�
 
 各子系统的 Linux 改造（拉码、重建、子系统 nginx 加 `/xxx/`、前后端只听 127.0.0.1）在 `deploy/linux/10~40_*.sh`，可重复跑；
 `50_firewall.sh` 是 ufw 规则（只开放 13568/5100，并清理已退役旧看板的 3001），需负责人亲自执行。所有被改的 conf / unit / `.env.local` 都有 `.bak-20260817-*`。
+
+## 2026-10-10 Mac运维看板模拟预览
+
+`/ops/` → 本机5125静态模拟预览；`/ops/api/` → 8025（真实API尚未启动），公开health路径返回404。当前Mac在用frontend/dist已更新，真实nginx -t通过并平滑reload，监听地址保持；没有执行Linux发布。SYS_ADMIN入口规则已检查，真实账号磁贴点击尚未验收。监控前端由 `com.qingcheng.cmc-platform-monitor.frontend` LaunchAgent托管；配置、备份和真实数据未接入范围以monitor/docs/DEPLOYMENT.md为准。

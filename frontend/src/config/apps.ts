@@ -145,4 +145,14 @@ export const HUB_APPS: HubApp[] = [
     status: 'planned',
     color: '#eb2f96',
   },
+  {
+    id: 'ops',
+    name: '数据中台运维',
+    description: 'ETL 与自动备份的执行结果、异常和历史证据',
+    icon: 'dashboard',
+    path: '/ops/',
+    requires: ['SYS_ADMIN'],
+    status: 'live', // 与真实监控服务协调发布；本地注册不表示已上线。
+    color: '#26375d',
+  },
 ]
