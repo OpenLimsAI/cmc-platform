@@ -1,4 +1,7 @@
 [Unit]
+# 整个单元结束后提示监控只读复核；原失败告警不重置。
+OnSuccess=ops-notify-ingest-day.service
+OnFailure=ops-notify-ingest-day.service
 Description=仪器数据归档 · 白天班（FLEX2 + Vi-CELL，不含图片）
 Documentation=file:///opt/cmc-instrument-ingest/docs/INGEST-STANDARD.md
 After=network-online.target remote-fs.target

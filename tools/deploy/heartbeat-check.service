@@ -1,4 +1,7 @@
 [Unit]
+# 整个单元结束后提示监控只读复核；原失败告警不重置。
+OnSuccess=ops-notify-heartbeat-check.service
+OnFailure=ops-notify-heartbeat-check.service
 Description=Instrument backup heartbeat check (cmc-instrument-ingest)
 Documentation=file:///opt/cmc-instrument-ingest/docs/BACKUP_MONITORING_DESIGN.md
 After=network-online.target remote-fs.target
