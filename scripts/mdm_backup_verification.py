@@ -31,6 +31,13 @@ EXCLUSIONS = ['server_roles_passwords', 'object_owners_acl', 'application_end_to
               'external_files', 'concurrent_sequence_value_comparison', 'business_field_semantics']
 
 
+def code_sha():
+    try:
+        return subprocess.check_output(['git','-c','safe.directory='+str(REPO),'rev-parse','HEAD'],cwd=REPO,stderr=subprocess.DEVNULL,text=True,timeout=3).strip()
+    except Exception:
+        return None
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -165,7 +172,7 @@ def make_request(artifact, start, finish, invocation=None, baseline=None):
     with artifact.open('rb') as handle:
         sha = digest(handle)
     return {'schema_version':1,'task_key':'mdm-backup','host':'172.19.0.105',
-            'environment':'production','verification_id':uuid.uuid4().hex,
+            'environment':'production','verification_id':uuid.uuid4().hex,'producer_code_sha':code_sha(),
             'source_invocation_id':invocation,'artifact':{'basename':artifact.name,
             'size_bytes':artifact.stat().st_size,'mtime':artifact.stat().st_mtime,
             'sha256':sha,'backup_started_at':start,'backup_finished_at':finish},
@@ -190,7 +197,7 @@ def enqueue(artifact, start=None, finish=None, invocation=None):
 
 def publish(request, verification, cleanup):
     summary = {k:request.get(k) for k in ('schema_version','task_key','host','environment',
-               'verification_id','source_invocation_id','artifact','baseline_basis')}
+               'verification_id','source_invocation_id','artifact','baseline_basis','producer_code_sha')}
     summary['verification'] = verification
     summary['cleanup_status'] = cleanup
     summary['exclusions'] = EXCLUSIONS
@@ -199,9 +206,10 @@ def publish(request, verification, cleanup):
 
 
 class StepFailure(Exception):
-    def __init__(self, step, failed=False):
+    def __init__(self, step, failed=False, details=None):
         self.step = step
         self.failed = failed
+        self.details = details
 
 
 def interrupted(signum, frame):
@@ -221,7 +229,7 @@ class Docker:
         except subprocess.TimeoutExpired:
             raise StepFailure('deadline') from None
         if result.returncode or len(result.stdout) > 4_000_000:
-            raise StepFailure(step, failed)
+            raise StepFailure(step, failed, result.stderr[-32768:].decode('utf-8',errors='replace'))
         return result.stdout
 
 
@@ -250,13 +258,15 @@ def verify(request, c):
     name = 'cmab-mdm-verify-' + request['verification_id']
     verification = {'status':'running','started_at':now(),'finished_at':None,
                     'restore_status':'not_verified','integrity_status':'not_verified',
-                    'failure_step':None,'image_digest':c['image'],'checks':{}}
+                    'failure_step':None,'image_digest':c['image'],'checks':{},
+                    'verifier_code_sha':code_sha(),'actor':'controlled_root_service'}
     began=time.monotonic()
     publish(request, verification, 'not_started')
     d = Docker(time.monotonic()+600)
     created = False
     cleanup = 'not_needed'
     restored = None
+    private_diagnostic = None
     try:
         # Fail before starting if stale project containers remain. Never delete
         # arbitrary Docker resources to manufacture space.
@@ -334,6 +344,7 @@ def verify(request, c):
                 verification['integrity_status']='verified'
                 verification['status']='passed'
     except StepFailure as exc:
+        private_diagnostic = exc.details
         verification['status']='failed' if exc.failed else 'incomplete'
         verification['failure_step']=exc.step
         if exc.step=='restore':verification['restore_status']='failed'
@@ -362,7 +373,7 @@ def verify(request, c):
         verification['finished_at']=now()
         verification['duration_seconds']=round(time.monotonic()-began,3)
         full={'request':request,'verification':verification,'cleanup_status':cleanup,
-              'restored_catalog':restored,'exclusions':EXCLUSIONS}
+              'restored_catalog':restored,'exclusions':EXCLUSIONS,'private_diagnostic':private_diagnostic}
         atomic(STATE/'reports'/(request['verification_id']+'.json'),full)
         publish(request,verification,cleanup)
     return verification
