@@ -181,9 +181,11 @@ def enqueue(artifact, start=None, finish=None, invocation=None):
     key = request['artifact']['basename'] + '.json'
     # The producer writes only its registered spool and safe summary. Verifier
     # owns full reports; Docker access never goes to the monitor.
-    atomic(STATE/'requests'/key, request)
     publish(request, {'status':'pending','restore_status':'not_verified',
                      'integrity_status':'not_verified','started_at':None,'finished_at':None}, 'not_started')
+    # Publish pending before exposing the request to systemd; otherwise a fast
+    # worker could finish and have its terminal report overwritten by pending.
+    atomic(STATE/'requests'/key, request)
 
 
 def publish(request, verification, cleanup):
