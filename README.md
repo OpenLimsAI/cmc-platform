@@ -314,3 +314,13 @@ bash deploy/deploy.sh <完整commit-SHA>
 ## License
 
 Internal use only · CMAB Confidential
+
+## 数据中台运维看板接入
+
+按负责人已确认的本地配套开发范围，整条任务成功或失败结束后，向独立 `cmc-platform-monitor` 发送一次更新提示。通知不报告“成功”，看板重新只读核对台账、日志和产物；通知失败不改变原任务结果。每天北京时间07:00由看板兜底检查。原定时、业务步骤和既有失败告警保持原语义。
+
+systemd任务通过受管service中的 `OnSuccess` / `OnFailure` 调用观察单元；观察单元和发送助手的唯一维护位置是 `cmc-platform-monitor/deploy/linux/ops-notify-*.service` 与 `scripts/notify_completion.py`。协调发布时先安装对应观察单元及socket权限，再安装本仓service；不运行ETL做安装验证，不同时安装旧审阅drop-in。cron在原顶层入口使用EXIT处理，保存原退出码；不在子步骤重复通知。
+
+接入代码已纳入仓库；代码同步不代表观察单元、socket权限或调度配置已经安装。真实通知、源读取权限和Linux运行仍须独立验收。详情及跨仓验证记录见 [监控接入与验收](../cmc-platform-monitor/docs/DEPLOYMENT.md)（仓库间路径按所在文档目录解析）。
+
+本地验证：静态核对每日备份与隔离恢复验证单元均配置了完成通知；本次仅同步文档和lint技能说明，不修改任务命令、User或timer；未执行MDM数据库测试、备份、权限修改或部署。此变更不修改docs下Word派生文件。
