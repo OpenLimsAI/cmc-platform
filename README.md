@@ -40,6 +40,10 @@ uv run pytest -q
 
 真实API的启动命令为 `uv run uvicorn app.api:create_app --factory --host 127.0.0.1 --port 8025`；配置入口 backend/.env.example。它要求已完成迁移的监控库与MDM验签配置，不能直接用示例占位值运行。Linux采集进程为 `python -m app.collector`，现已由systemd托管；任务结束提示、启动补采及每日07:00兜底均已配置。生产执行事实、版本及剩余验收见 [协调发布记录](docs/RELEASE_20261010.md) 与 DEPLOYMENT。
 
+## MDM逐份恢复验证（P16）
+
+用户已确认两仓实现、测试及Linux发布。MDM负责独立Docker恢复/同备份snapshot基线检查，monitor只读展示验证范围与结果；不使用Mac现有真实库，不在原生正式PG建临时恢复库。详见[本次验证发布记录](docs/RELEASE_20261011_BACKUP_VERIFY.md)，自然下一次每日链路与一次已有文件恢复分别验收，不用旧验证给新备份标绿。
+
 ## 在用文档与权威分工
 
 | 文件 | 权威主题 |

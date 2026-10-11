@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     audit_fallback_path: Path = Path('/var/log/cmc-platform-monitor/access.jsonl')
     cron_schedule_path: Path = Path('/var/lib/cmc-platform-monitor/schedule-source/crontab.json')
     journal_socket_path: Path | None = None
+    mdm_verification_path: Path = Path('/var/lib/cmc-platform-monitor/mdm-verification')
     source_timeout: float = Field(5, ge=1, le=10)
     batch_timeout: float = Field(30, ge=5, le=60)
     history_days: int = Field(7, ge=1, le=31)

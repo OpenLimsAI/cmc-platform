@@ -56,6 +56,7 @@ class Run(BaseModel):
     evidence: list[dict] = []
     integrity: str | None = None
     restore: str | None = None
+    verification: dict | None = None
     source_kind: str = 'unknown'
 
     @field_validator('start','finish')
@@ -141,10 +142,20 @@ def assess(task: Task, runs: list[Run], now: datetime, gaps: list[str] | None = 
     if last.message: warnings.append(last.message)
     if seconds > task.timeout_minutes * 60: warnings.append('已完成，耗时偏长')
     if task.kind == 'backup':
+        if last.verification:
+            v = last.verification
+            if v.get('status') == 'unknown':
+                o.label='验证结果未知';o.reasons=['备份执行结果已保留，验证证据不可读或不匹配'];return o
+            if v.get('status') == 'failed':
+                o.state='failed';o.label='备份完成，验证失败';o.reasons=[v.get('reason','恢复验证失败')];return o
+            if v.get('cleanup_status') == 'failed':warnings.append('临时环境清理异常')
+            if v.get('status') in ('pending','running','incomplete'):warnings.append(v.get('reason','验证尚未完成'))
         if last.integrity != 'verified': warnings.append('完整性验证不足')
         if last.restore != 'verified': warnings.append('恢复未验证')
     o.state = 'warning' if warnings else 'success'
     o.label = ('备份完成，验证不足' if task.kind == 'backup' and warnings else '执行完成，有提醒') if warnings else '执行成功'
+    if task.key=='mdm-backup' and not warnings and last.verification:
+        o.label='备份完成，恢复验证通过'
     o.reasons = warnings
     return o
 

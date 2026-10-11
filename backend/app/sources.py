@@ -315,6 +315,8 @@ class Reader:
                         run.files=len(artifacts);run.size_bytes=sum(sizes)
                         if 0 in sizes:run.status='failed';run.message='备份产物为空'
                         run.evidence.extend(evidence('artifact',p.name,f'产物={p.name};size={p.stat().st_size};mtime={p.stat().st_mtime}') for p in artifacts)
+                        if task.key=='mdm-backup':
+                            self.mdm_verification(run,artifacts,now)
                 elif task.key.startswith('ingest-'):
                     try:self.instrument_evidence(run)
                     except Exception:
@@ -333,6 +335,47 @@ class Reader:
             if run.finish: run.duration_seconds=max(0,(run.finish-run.start).total_seconds())
             run.message=redact(run.message)
         return runs,list(dict.fromkeys(gaps))
+
+    def mdm_verification(self,run,artifacts,now):
+        """Read one bounded, trusted export; never open dump contents or Docker."""
+        root=self.settings.mdm_verification_path
+        try:
+            if len(artifacts)!=1:raise ValueError('ambiguous artifact')
+            artifact=artifacts[0];path=root/(artifact.name+'.json')
+            if not root.is_dir():raise ValueError('verification export unavailable')
+            if not path.exists():
+                run.verification={'status':'not_verified','reason':'本次备份没有验证记录'};return
+            if path.is_symlink() or not path.is_file() or path.stat().st_size>65536:
+                raise ValueError('invalid verification export')
+            report=json.loads(path.read_text());a=report['artifact'];v=report['verification']
+            if report.get('schema_version')!=1 or report.get('task_key')!='mdm-backup' or report.get('host')!='172.19.0.105' or report.get('environment')!='production':raise ValueError('report identity')
+            if not re.fullmatch(r'[a-f0-9]{32}',report.get('verification_id','')) or not re.fullmatch(r'[a-f0-9]{64}',a.get('sha256','')):raise ValueError('digest identity')
+            stat=artifact.stat()
+            if a['basename']!=artifact.name or a['size_bytes']!=stat.st_size or abs(a['mtime']-stat.st_mtime)>0.001:raise ValueError('artifact identity')
+            invocation=report.get('source_invocation_id')
+            if invocation and run.id!=f'mdm-backup:unit:{invocation}':raise ValueError('invocation identity')
+            start=dt(a['backup_started_at']);finish=dt(a['backup_finished_at'])
+            if not start or not finish or not run.finish or not run.start-timedelta(seconds=2)<=start<=finish<=run.finish+timedelta(seconds=2):raise ValueError('backup window identity')
+            allowed={'pending','running','passed','failed','incomplete'}
+            if v.get('status') not in allowed or v.get('restore_status') not in ('not_verified','verified','failed') or v.get('integrity_status') not in ('not_verified','verified','failed'):raise ValueError('verification state')
+            end=dt(v.get('finished_at'))
+            if end and end>now:raise ValueError('future verification')
+            if v['status'] in ('passed','failed','incomplete') and (not end or end<finish):raise ValueError('terminal verification time')
+            if v['status']=='passed' and v['restore_status']!='verified':raise ValueError('passed without restore')
+            if v['integrity_status']=='verified' and (v['status']!='passed' or report.get('baseline_basis')!='same_exported_snapshot' or v['restore_status']!='verified' or not v.get('checks') or any(x!='passed' for x in v['checks'].values())):raise ValueError('missing baseline checks')
+            stage=v['status'];reason={'pending':'验证尚未开始','running':'验证尚未完成','passed':'恢复验证通过','failed':'恢复或完整性检查失败','incomplete':'验证未完成'}.get(stage)
+            if stage in ('pending','running'):
+                begin=dt(v.get('started_at')) or finish
+                if now>begin+timedelta(minutes=12):stage='incomplete';reason='验证更新逾期，未完成'
+            run.integrity=v['integrity_status'];run.restore=v['restore_status']
+            safe={k:v.get(k) for k in ('status','started_at','finished_at','target_pg_version','image_digest','failure_step','checks')}
+            safe.update({'status':stage,'reason':reason,'cleanup_status':report.get('cleanup_status'),
+                         'verification_id':report['verification_id'],'artifact':a['basename'],'sha256':a['sha256'],
+                         'exclusions':report.get('exclusions',[])})
+            run.verification=safe
+            run.evidence.append(evidence('verification',a['basename']+'验证摘要',json.dumps(safe,ensure_ascii=False)))
+        except Exception:
+            run.integrity='unknown';run.restore='unknown';run.verification={'status':'unknown'}
 
     def instrument_evidence(self,run,root=Path('/mnt/ttlab-backups')):
         # Device heartbeat is overwritten across shifts. Never assign a different shift's success.

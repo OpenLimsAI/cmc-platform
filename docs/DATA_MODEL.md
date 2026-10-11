@@ -45,6 +45,14 @@ collector源查询用服务身份单独记录来源/时间窗/结果/行数，�
 
 采集source只读；自身追加由专用writer，API读取本schema并写自己的访问审计/更新请求；schema迁移及最小列权限另行通过共享迁移链。无SQLite/新库/新身份表/新设备权威源。实施前核验源字段变化，不为迎合统一模型改源台账。
 
+## MDM恢复验证报告契约（P16已确认）
+
+报告是MDM生成的文件证据，不是monitor新建业务台账。建议版本化字段：schema_version、verification_id、task_key/host/environment、source_run_id或明确源执行引用、artifact（basename/size_bytes/sha256/backup_started_at/backup_finished_at）、baseline（snapshot_basis/captured_at/table_counts/schema_summary/migration_revision/extensions/coverage）、verification（started_at/finished_at/target_pg_version/image_digest/restore_status/integrity_status/checks/exclusions/failure_step/reason）、cleanup_status。
+
+执行、完整性、恢复、清理分别记录；建议验证流程状态pending/running/passed/failed/incomplete与监控健康状态分开。只有同产物全部必要检查通过才映射verified；读不到为unknown，可读但没有验证证据为not_verified。历史备份baseline不可得用null并显式缺口，不造0行或补造历史版本。
+
+monitor只接脱敏摘要和有界检查结果，保存在既有Run/证据JSONB；完整业务行、凭据及原始restore日志不进入浏览器。SHA由MDM负责计算，monitor仅核对已有摘要身份及可信导出，不读取dump重算hash。服务身份、Git/镜像版本及scope帮助回溯；报告原子写入，禁止读取半写文件。物理路径及权限见ARCHITECTURE和MDM runbook；字段检查已实现，复用既有JSONB，无新增数据库迁移。真实报告生成及权限验收见RELEASE_20261011_BACKUP_VERIFY。
+
 ## V1实际物理模型
 
 | 表 | 实际键与用途 |

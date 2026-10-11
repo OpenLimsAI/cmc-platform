@@ -117,7 +117,7 @@ def create_app(settings=None,store=None):
             copy=r.model_copy(deep=True)
             if copy.finish and copy.finish>cutoff:
                 copy.finish=None;copy.status='running';copy.evidence=[];copy.children=[];copy.duration_seconds=None
-                copy.integrity=None;copy.restore=None;copy.files=None;copy.size_bytes=None;copy.message='该观测时尚未完成'
+                copy.integrity=None;copy.restore=None;copy.verification=None;copy.files=None;copy.size_bytes=None;copy.message='该观测时尚未完成'
             result.append(copy.model_dump(mode='json'))
         request.state.returned_rows=len(result);request.state.range_days=days
         return {'snapshot_id':data['id'],'items':result,'total':total,'has_more':offset+limit<total,'cutoff':data['collected_at']}
