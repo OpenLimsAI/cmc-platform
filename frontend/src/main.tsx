@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react'
+import React,{useEffect,useRef,useState} from 'react'
 import {createRoot} from 'react-dom/client'
 import {QueryClient,QueryClientProvider,useQuery,useQueryClient} from '@tanstack/react-query'
 import {demo,loadOverview,loadHistory,refreshOverview} from './api'
@@ -29,17 +29,24 @@ function Card({item,onClick}:{item:Observation;onClick:()=>void}){
 }
 function HistoryPanel({item,snapshot}:{item:Observation;snapshot:Snapshot}){
  const [days,setDays]=useState(7);const [offset,setOffset]=useState(0);const [selected,setSelected]=useState<Run|null>(null)
+ const evidenceSection=useRef<HTMLElement>(null);const [selectionRequest,setSelectionRequest]=useState(0)
+ function showRun(value:Run|null){setSelected(value);setSelectionRequest(n=>n+1)}
+ useEffect(()=>{
+  if(!selectionRequest)return
+  evidenceSection.current?.focus({preventScroll:true})
+  evidenceSection.current?.scrollIntoView({block:'start',behavior:'auto'})
+ },[selectionRequest])
  const q=useQuery({queryKey:['history',item.task.key,snapshot.id,days,offset],queryFn:()=>loadHistory(item.task.key,snapshot.id,days,offset),retry:false,refetchOnWindowFocus:false})
  const run=selected||item.last_run
  return <>
   <section className="detail-section"><div className="section-heading"><h2>运行历史</h2><select aria-label="历史范围" value={days} onChange={e=>{setDays(Number(e.target.value));setOffset(0);setSelected(null)}}><option value={7}>最近7天</option><option value={31}>最近31天</option></select></div>
-   {q.isLoading?<p>正在读取历史…</p>:q.error?<p className="error-text">历史读取失败，当前未核实：{q.error.message}</p>:!q.data?.items.length?<p className="empty">这段时间没有已取得的运行记录，不能据此判断全部正常。</p>:<div className="table-scroll"><table><thead><tr><th>计划 / 开始时间</th><th>结束时间</th><th>结果</th><th>耗时</th><th>证据</th></tr></thead><tbody>{q.data.items.map(r=><tr key={r.id} className={selected?.id===r.id?'selected':''}><td>{r.source_kind==='schedule'?'计划 ':''}{fmt(r.start)}</td><td>{fmt(r.finish)}</td><td><span className={`run-status ${r.status==='failed'?'failed':r.status==='success'?'success':'warning'}`}>{r.source_kind==='schedule'?'未按计划启动':runLabel[r.status]||r.status}</span></td><td>{duration(r.duration_seconds)}</td><td><button className="text-button" onClick={()=>setSelected(r)} aria-label={`查看${fmt(r.start)}的证据`}>查看记录</button></td></tr>)}</tbody></table></div>}
+   {q.isLoading?<p>正在读取历史…</p>:q.error?<p className="error-text">历史读取失败，当前未核实：{q.error.message}</p>:!q.data?.items.length?<p className="empty">这段时间没有已取得的运行记录，不能据此判断全部正常。</p>:<div className="table-scroll"><table><thead><tr><th>计划 / 开始时间</th><th>结束时间</th><th>结果</th><th>耗时</th><th>证据</th></tr></thead><tbody>{q.data.items.map(r=><tr key={r.id} className={selected?.id===r.id?'selected':''}><td>{r.source_kind==='schedule'?'计划 ':''}{fmt(r.start)}</td><td>{fmt(r.finish)}</td><td><span className={`run-status ${r.status==='failed'?'failed':r.status==='success'?'success':'warning'}`}>{r.source_kind==='schedule'?'未按计划启动':runLabel[r.status]||r.status}</span></td><td>{duration(r.duration_seconds)}</td><td><button className="text-button" onClick={()=>showRun(r)} aria-label={`查看${fmt(r.start)}的证据`}>查看记录</button></td></tr>)}</tbody></table></div>}
    {q.data&&<div className="pagination"><span>已取得 {q.data.total} 次记录 · 截至 {fmt(q.data.cutoff)}</span><div><button disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-100))}>上一页</button><button disabled={!q.data.has_more} onClick={()=>setOffset(offset+100)}>下一页</button></div></div>}
   </section>
-  <section className="detail-section"><div className="section-heading"><h2>{selected?'所选运行的步骤与证据':'最近运行的步骤与证据'}</h2>{selected&&<button className="text-button" onClick={()=>setSelected(null)}>回到最近运行</button>}</div>
+  <section className="detail-section run-evidence" ref={evidenceSection} tabIndex={-1} aria-labelledby="run-evidence-title"><div className="section-heading"><h2 id="run-evidence-title">{selected?'所选运行的步骤与证据':'最近运行的步骤与证据'}</h2>{selected&&<button className="text-button" onClick={()=>showRun(null)}>回到最近运行</button>}</div>
    {run?<><p className="section-subtitle">{fmt(run.start)} · {run.source_kind==='schedule'?'未按计划启动':runLabel[run.status]||run.status} · {duration(run.duration_seconds)}</p>{run.message&&<p className="inline-note">{run.message}</p>}
     <div className="steps">{run.children.map((child,i)=><div key={i}><span className={`step-symbol ${child.status==='success'?'success':child.status==='failed'?'failed':'unknown'}`}>{child.status==='success'?'✓':child.status==='failed'?'!':'?'}</span><span>{child.name}</span><small>{runLabel[child.status]||child.status}</small></div>)}</div>
-    {run.evidence.length?run.evidence.map(e=><details key={e.id} className="evidence"><summary>{e.ref}<span>{e.kind==='log'||e.kind==='journal'?'脱敏日志':'来源摘要'}</span></summary><pre>{e.excerpt}</pre></details>):<p className="empty">这次运行没有已取得的证据摘要。</p>}
+    {run.evidence.length?run.evidence.map((e,i)=><details key={`${run.id}:${selectionRequest}:${e.id}`} className="evidence" open={selectionRequest>0&&i===0}><summary>{e.ref}<span>{e.kind==='log'||e.kind==='journal'?'脱敏日志':'来源摘要'}</span></summary><pre>{e.excerpt}</pre></details>):<p className="empty">这次运行没有已取得的证据摘要。</p>}
    </>:<p className="empty">尚无可关联的运行证据。</p>}
   </section>
  </>
