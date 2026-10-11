@@ -165,3 +165,17 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 - DM §6：audit schema（备份必含）
 - 21 CFR Part 11 §11.10(c)：可获取性 / 可读性 / 可检索性
 - PostgreSQL 文档：[Backup and Restore](https://www.postgresql.org/docs/16/backup.html)
+
+
+## 8. 逐份自动隔离恢复验证（P16，2026-10-11实现中）
+
+负责人已确认：每次Linux每日备份成功后，自动在独立Docker PostgreSQL16中恢复验证，验证完成清理临时数据库，保留报告；不使用Mac现有真实数据或Linux原生正式实例作恢复目标。本项目当前仍按原型运维工具推进，不新增GMP会签流程。
+
+- `scripts/backup_db.sh`仅在每日服务设置`BACKUP_VERIFY_ENABLED=1`时启用：同只读导出snapshot基线与pg_dump，保存应用表/行数、结构、迁移版本、扩展及大对象范围；普通手工/发布保护性备份默认沿用原流程。基线不可取得时回退正常全库备份，不能宣称完整性通过。
+- 新脚本`scripts/mdm_backup_verification.py`只恢复到自身新建、带唯一标签的容器。固定镜像内容摘要、无宿主端口、network=none、1 CPU/512MiB/600秒，不挂正式数据目录、配置或Docker socket。恢复使用严格错误退出；校验备份SHA、同快照基线与恢复后清单/计数/结构；对象所有者/ACL、服务器角色口令、整站功能与外部文件不在本次验证范围。
+- `deploy/linux/install_backup_verification.py --image <审核过的sha256内容摘要>`由受控root安装service/path及每日服务环境drop-in；不启动正式备份、不改变02:00 timer。验证请求目录为`/var/lib/cmab-mdm-backup-verify/requests`，完整报告在同根的`reports`；报告90天，dump仍原30天，基线侧文件随dump保留期清理。
+- 脱敏摘要导出到`/var/lib/cmc-platform-monitor/mdm-verification`，目录prometheus属主、opsmonitor-evidence组只读；monitor不读dump内容，不拥有Docker控制权。备份结束和验证结束分别提示只读采集，执行与验证状态分开。
+- service异常停止仍通过受控ExecStopPost仅清理本项目带唯一ID的容器；残留、空间不足、超时、读取/关联失败不能显示验证通过。失败摘要不暴露原始SQL/业务行或连接串；SHA/检查步骤/耗时与检查结论在报告内追溯。
+- 先对合成库测试并发写入/损坏文件/对账失败，再对一份已有Linux备份恢复；历史dump没有同快照基线时，只标实际恢复通过、完整性证据不足。每日自动链路等待发布后下一次自然02:00备份单独验收，不主动重跑正式备份。
+
+本节为已确认实现说明，最终两仓SHA、真实恢复结果、容量实测、部署及自然链路状态以platform-monitor的`docs/RELEASE_20261011_BACKUP_VERIFY.md`为发布记录；尚未取得的结果不得标通过。V1.1 Word派生设计文件不在本次修改范围。

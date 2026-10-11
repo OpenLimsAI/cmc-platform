@@ -12,4 +12,5 @@ Type=oneshot
 User=prometheus
 WorkingDirectory=/opt/cmab-mdm-platform
 Environment=RETENTION_DAYS=30
+Environment=BACKUP_VERIFY_ENABLED=1
 ExecStart=/bin/bash /opt/cmab-mdm-platform/scripts/backup_db.sh

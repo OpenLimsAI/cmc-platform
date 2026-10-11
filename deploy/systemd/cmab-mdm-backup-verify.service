@@ -1,0 +1,22 @@
+[Unit]
+Description=Isolated MDM backup restore verification
+After=docker.service
+Requires=docker.service
+OnSuccess=ops-notify-mdm-backup.service
+OnFailure=ops-notify-mdm-backup.service
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/cmab-mdm-platform
+ExecStart=/usr/bin/python3 /opt/cmab-mdm-platform/scripts/mdm_backup_verification.py process
+ExecStopPost=/usr/bin/python3 /opt/cmab-mdm-platform/scripts/mdm_backup_verification.py cleanup
+# Each request has a 600s deadline; systemd also bounds a stalled worker.
+TimeoutStartSec=20min
+TimeoutStopSec=45
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/var/lib/cmab-mdm-backup-verify /var/lib/cmc-platform-monitor/mdm-verification
+RestrictAddressFamilies=AF_UNIX
