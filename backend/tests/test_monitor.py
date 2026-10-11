@@ -59,6 +59,44 @@ def test_stale_collectors_never_keep_green():
  updated=current_view(s,NOW+timedelta(days=1))
  assert updated.tasks[0].state=='unknown' and s.tasks[0].state=='success'
 
+@pytest.mark.parametrize('timeout', [15,30])
+@pytest.mark.parametrize('status,state', [('success','success'),('failed','failed'),('partial_failed','warning')])
+def test_completed_scheduled_run_does_not_expire_at_its_deadline(timeout,status,state):
+ t=task(times=['12:05','16:20'],timeout_minutes=timeout)
+ start=datetime(2026,10,11,16,20,3,tzinfo=SH)
+ observed=start+timedelta(seconds=32)
+ o=assess(t,[run(status,start=start,minutes=0.2)],observed)
+ s=Snapshot(id='completed',collected_at=observed,trigger='event',tasks=[o])
+ result=current_view(s,datetime(2026,10,11,18,tzinfo=SH)).tasks[0]
+ assert result.state==state and result.collection_status=='ok'
+ assert result.last_run.status==status and s.tasks[0].state==state
+ # A successful daily check does not cover tomorrow's missing scheduled run.
+ checked=datetime(2026,10,12,7,1,tzinfo=SH)
+ s.tasks[0].observed_at=checked
+ result=current_view(s,datetime(2026,10,12,12,41,tzinfo=SH)).tasks[0]
+ assert result.state=='unknown' and result.collection_status=='stale'
+
+@pytest.mark.parametrize('case', ['wrong_window','missing_finish','future_finish','source_unavailable','running'])
+def test_deadline_requires_same_window_observed_terminal_evidence(case):
+ t=task(times=['16:20'])
+ observed=datetime(2026,10,11,16,20,35,tzinfo=SH)
+ r=run(start=datetime(2026,10,11,16,20,3,tzinfo=SH),minutes=0.2)
+ if case=='wrong_window':r.start-=timedelta(hours=1);r.finish-=timedelta(hours=1)
+ if case=='missing_finish':r.finish=None
+ if case=='future_finish':r.finish=observed+timedelta(seconds=1)
+ if case=='running':r.status='running';r.finish=None
+ o=assess(t,[r],observed,['采集失败'] if case=='source_unavailable' else [])
+ s=Snapshot(id='insufficient',collected_at=observed,trigger='event',tasks=[o])
+ assert current_view(s,datetime(2026,10,11,18,tzinfo=SH)).tasks[0].state=='unknown'
+
+@pytest.mark.parametrize('minute,state', [(1,'success'),(-1,'unknown')])
+def test_daily_safety_grace_is_deadline_not_required_second_observation(minute,state):
+ observed=datetime(2026,10,11,7,tzinfo=SH)+timedelta(minutes=minute)
+ o=assess(task(times=[]),[run()],observed)
+ s=Snapshot(id='safety',collected_at=observed,trigger='daily_safety',tasks=[o])
+ result=current_view(s,datetime(2026,10,11,7,6,tzinfo=SH)).tasks[0]
+ assert result.state==state
+
 def test_startup_refuses_missing_verification_and_storage():
  with pytest.raises(ValidationError):Settings(mode='demo',jwt_verify_key='short')
  with pytest.raises(ValidationError):Settings(jwt_verify_key=KEY)

@@ -165,12 +165,23 @@ def current_view(snapshot: Snapshot, now: datetime) -> Snapshot:
     if snapshot.mode=='demo' or snapshot.trigger=='none':return snapshot
     copy=snapshot.model_copy(deep=True)
     local=now.astimezone(SH)
-    safety=datetime.combine(local.date(),datetime.strptime('07:05','%H:%M').time(),SH).astimezone(UTC)
-    if now<safety:safety-=timedelta(days=1)
+    safety=datetime.combine(local.date(),datetime.strptime('07:00','%H:%M').time(),SH).astimezone(UTC)
+    # 07:05 is the deadline for the 07:00 check, not a second required check.
+    if now<safety+timedelta(minutes=5):safety-=timedelta(days=1)
     for item in copy.tasks:
         if item.task.enabled is False:continue
-        ends=[t+timedelta(minutes=item.task.timeout_minutes+item.task.grace_minutes)
-              for t in item.task.occurrences(now) if t+timedelta(minutes=item.task.timeout_minutes+item.task.grace_minutes)<now]
+        ends=[]
+        run=item.last_run
+        for planned in item.task.occurrences(now):
+            deadline=planned+timedelta(minutes=item.task.timeout_minutes+item.task.grace_minutes)
+            if deadline>=now:continue
+            # An observed terminal result already covers this scheduled window.
+            # Retain success, warning or failure; never reuse it for the next run.
+            covered=(item.collection_status=='ok' and run is not None
+                     and run.status in ('success','partial_failed','failed')
+                     and planned<=run.start<=planned+timedelta(minutes=item.task.grace_minutes)
+                     and run.finish is not None and run.start<=run.finish<=item.observed_at)
+            if not covered:ends.append(deadline)
         cutoff=max([safety]+ends)
         if item.observed_at<cutoff:
             item.state='unknown';item.label='更新逾期，当前未核实';item.collection_status='stale'
