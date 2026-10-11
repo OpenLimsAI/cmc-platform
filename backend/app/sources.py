@@ -362,13 +362,15 @@ class Reader:
             if end and end>now:raise ValueError('future verification')
             if v['status'] in ('passed','failed','incomplete') and (not end or end<finish):raise ValueError('terminal verification time')
             if v['status']=='passed' and v['restore_status']!='verified':raise ValueError('passed without restore')
-            if v['integrity_status']=='verified' and (v['status']!='passed' or report.get('baseline_basis')!='same_exported_snapshot' or v['restore_status']!='verified' or not v.get('checks') or any(x!='passed' for x in v['checks'].values())):raise ValueError('missing baseline checks')
+            necessary={'full_restore','database','tables','columns','constraints','indexes','views','sequences','extensions','unsupported','large_objects','migration_revision','table_counts'}
+            if report.get('cleanup_status') not in ('passed','failed','not_started','not_needed'):raise ValueError('missing cleanup outcome')
+            if v['integrity_status']=='verified' and (v['status']!='passed' or report.get('baseline_basis')!='same_exported_snapshot' or v['restore_status']!='verified' or not necessary.issubset(v.get('checks',{})) or any(x!='passed' for x in v['checks'].values()) or report['cleanup_status']=='not_started'):raise ValueError('missing baseline checks')
             stage=v['status'];reason={'pending':'验证尚未开始','running':'验证尚未完成','passed':'恢复验证通过','failed':'恢复或完整性检查失败','incomplete':'验证未完成'}.get(stage)
             if stage in ('pending','running'):
                 begin=dt(v.get('started_at')) or finish
                 if now>begin+timedelta(minutes=12):stage='incomplete';reason='验证更新逾期，未完成'
             run.integrity=v['integrity_status'];run.restore=v['restore_status']
-            safe={k:v.get(k) for k in ('status','started_at','finished_at','target_pg_version','image_digest','failure_step','checks')}
+            safe={k:v.get(k) for k in ('status','started_at','finished_at','target_pg_version','image_digest','failure_step','checks','verifier_code_sha','actor','duration_seconds','restored_database_bytes','temporary_data_bytes','resource_sample')}
             safe.update({'status':stage,'reason':reason,'cleanup_status':report.get('cleanup_status'),
                          'verification_id':report['verification_id'],'artifact':a['basename'],'sha256':a['sha256'],
                          'exclusions':report.get('exclusions',[])})

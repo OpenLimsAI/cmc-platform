@@ -2,7 +2,7 @@
 
 > 版本：V0.7｜日期：2026-10-10｜状态：已提交/push并部署Linux真实监控及Hub入口；服务、采集、权限和培训空表核验通过。真实MDM角色浏览器及下一次自然任务端到端通知待验收；详见 RELEASE_20261010。Mac保留模拟预览。
 
-第一版只读源运维证据，无重跑、恢复、修改调度或任意文件读取功能。2026-10-10用户D15授权发布已执行；当前部署事实、完整多仓SHA及备份证据只在 [RELEASE_20261010](RELEASE_20261010.md) 维护。下方Mac记录为当时历史，不覆盖Linux最新状态。
+第一版只读源运维证据，无重跑、恢复、修改调度或任意文件读取功能。2026-10-10用户D15授权发布已执行；原监控部署事实、完整多仓SHA及备份证据在 [RELEASE_20261010](RELEASE_20261010.md) 维护；新增MDM逐份验证的两仓版本、资源实测和未验收项见 [RELEASE_20261011_BACKUP_VERIFY](RELEASE_20261011_BACKUP_VERIFY.md)。下方Mac记录为当时历史，不覆盖Linux最新状态。
 
 ## 当前Linux配置
 
@@ -56,3 +56,8 @@
 ### 2026-10-10 D14显示调整已更新Mac预览
 
 在已有LaunchAgent托管服务下重建模拟frontend/dist，固定5125直接提供新产物，不需重启nginx或改变Hub磁贴。新JS为 `index-BRamCZfm.js`，CSS `index-C1DiSWi4.css`，实际服务JS与本次构建逐字节一致。真实浏览器通过5100验证主区和折叠分区；用户5125页已刷新。先前构建和发布记录保留为历史，最新版按本节识别；仍是模拟数据，不执行Biacore接管或源任务。
+
+
+## P16专项更新与回滚
+
+MDM先按既有deploy/deploy.sh固定SHA流程发布，再运行deploy/linux/install_backup_verification.py，配置固定镜像摘要及隔离service/path；原02:00 timer不改。monitor按scripts/deploy_backup_verification_monitor.py --sha <完整SHA>发布仅本项目构建/API/collector，不重复共享迁移、源通知或其他仓库发布。最后检查源/验证独立结果、摘要读取与私有资源拒绝、实际Hub构建及无容器残留。回滚先停用MDM verify.path并移除60-backup-verification.conf，保留备份timer/文件；monitor可回退前一代码SHA，四表无downgrade。详情只在本次发布记录维护。

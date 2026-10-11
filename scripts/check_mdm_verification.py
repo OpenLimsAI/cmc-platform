@@ -35,7 +35,7 @@ class VerificationTest(unittest.TestCase):
         self.request['baseline']=baseline
         self.request['baseline_basis']='same_exported_snapshot' if baseline is not None else None
         def fake(d,args,**kwargs):
-            if fault and kwargs.get('step')==fault:raise v.StepFailure(fault,fault=='restore')
+            if fault and kwargs.get('step')==fault:raise v.StepFailure(fault,fault=='restore','PRIVATE_DIAGNOSTIC')
             return self.fake(args,**kwargs)
         with patch.object(v.Docker,'run',fake),patch.object(v,'catalog',return_value=restored or {'coverage_gaps':[]}),patch.object(v.shutil,'disk_usage',return_value=type('Disk',(),{'free':5*1024**3})()):
             return v.verify(self.request,self.config)
@@ -65,6 +65,10 @@ class VerificationTest(unittest.TestCase):
         self.assertEqual(result['status'],'failed')
         self.assertEqual(result['restore_status'],'failed')
         self.assertTrue(any(c[0:2]==['rm','-fv'] and c[-1]=='cmab-mdm-verify-'+self.request['verification_id'] for c in self.calls))
+        exported=(self.export/(self.art.name+'.json')).read_text()
+        private=v.read_json(self.state/'reports'/(self.request['verification_id']+'.json'))
+        self.assertNotIn('PRIVATE_DIAGNOSTIC',exported)
+        self.assertEqual(private['private_diagnostic'],'PRIVATE_DIAGNOSTIC')
     def test_environment_failure_is_incomplete(self):
         self.assertEqual(self.exercise(fault='image_unavailable')['status'],'incomplete')
     def test_rls_scope_gap_does_not_pass_integrity(self):

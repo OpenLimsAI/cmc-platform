@@ -18,7 +18,7 @@ def fixture(tmp_path, status='passed', baseline=True):
       'verification':{'status':status,'started_at':r.finish.isoformat(),'finished_at':NOW.isoformat(),
                      'restore_status':'verified' if status=='passed' else 'failed',
                      'integrity_status':'verified' if status=='passed' and baseline else 'not_verified',
-                     'checks':{'full_restore':'passed'}},'cleanup_status':'passed','exclusions':[]}
+                     'checks':{k:'passed' for k in ('full_restore','database','tables','columns','constraints','indexes','views','sequences','extensions','unsupported','large_objects','migration_revision','table_counts')}},'cleanup_status':'passed','exclusions':[]}
     p=root/(a.name+'.json');p.write_text(json.dumps(report))
     s=config();s.mdm_verification_path=root
     r.task_key='mdm-backup'
@@ -80,3 +80,10 @@ def test_future_or_false_baseline_cannot_pass(tmp_path):
     reader.mdm_verification(r,[a],NOW);assert r.restore=='unknown'
     report['verification']['finished_at']=NOW.isoformat();report['verification']['checks']={'full_restore':'failed'}
     p.write_text(json.dumps(report));reader.mdm_verification(r,[a],NOW);assert r.integrity=='unknown'
+
+
+def test_partial_required_check_list_cannot_claim_full_integrity(tmp_path):
+    reader,r,a,p,report=fixture(tmp_path)
+    report['verification']['checks']={'full_restore':'passed'}
+    p.write_text(json.dumps(report));reader.mdm_verification(r,[a],NOW)
+    assert assess(task(key='mdm-backup',kind='backup'),[r],NOW).state=='unknown'
