@@ -118,4 +118,8 @@ TypeScript/Vite模拟构建通过。通过Mac Hub实际浏览器确认主区10�
 
 用户已授权修正后直接Linux发布。同次计划提前完成后，success/failed/partial_failed分别保留绿/红/黄；测试覆盖Vi-CELL15分钟及Nova30分钟窗口。次日新计划无结果、窗口外记录、缺结束/未来结束、仍在执行或采集失败均不允许持续绿色。07:01兜底已完成不要求07:05之后再采集，06:59旧观测在宽限后仍未知；原跨日失联测试保留。修正前新增场景7项失败、5项通过，证明测试可复现缺陷。
 
-本地后端74项通过（含新增13项回归，既有httpx/Starlette弃用提示1项），发布文件敏感内容检查及git diff --check通过；未改前端，未重复界面构建测试。Linux待发布后填写；不以重启补采一次变绿代替旧快照逾期算法验收。发布前真实快照d1c4c7e4-b7f2-4c44-ae80-556ce40aef8b已保存success，但旧current_view把Vi-CELL/Nova变unknown。
+本地后端74项通过（含新增13项回归，既有httpx/Starlette弃用提示1项），发布文件敏感内容检查及git diff --check通过；未改前端，未重复界面构建测试。Linux发布与原快照验收见下方；不以重启补采一次变绿代替旧快照逾期算法验收。发布前真实快照d1c4c7e4-b7f2-4c44-ae80-556ce40aef8b已保存success，但旧current_view把Vi-CELL/Nova变unknown。
+
+Linux已拉取并发布业务代码cf636220fbea280106e4cb1bd9a6f05e189bdf00，与Mac/GitHub相同；使用现有本项目专项发布脚本构建生产前端并重启API/collector，无共享迁移或源通知重装。2026-10-11 17:46北京时间，直接读取原快照d1c4c7e4-b7f2-4c44-ae80-556ce40aef8b并用新current_view判定，Vi-CELL/Nova在当前时间及模拟当日23:59均success；模拟次日13:00缺少新检查均unknown。该验证只在内存中计算，未改历史或服务器时间。
+
+实际Hub overview两项state=success、collection_status=ok、label=执行成功，最新观测UTC09:46:08.812985；Hub首页和生产JS index-osVqnXlR.js与磁盘逐字节一致，未登录401/SYS_ADMIN200/其他角色403/临时密码403（服务器内合成权限令牌，不代表真实MDM浏览器会话）。MDM仍为restore已验证、缺基线黄色；四个既有黄色提醒未被此修正掩盖。API/collector/MDM后端/nginx均active，两ETL仍只显示今日16:20那次实际执行；timer下一次均2026-10-12 12:05，没有重跑任务、修改数据库结构/权限/调度或部署其他项目。Mac模拟构建保持。后续文档提交仅同步验收记录，不重启服务。
