@@ -49,6 +49,18 @@ export const HUB_APPS: HubApp[] = [
     status: 'live',
     color: '#1677ff',
   },
+  // 2026-10-11：管理员完整四列布局第一行第二个。
+  {
+    id: 'ops',
+    name: '数据中台运维',
+    description: 'ETL 与自动备份的执行结果、异常和历史证据',
+    icon: 'dashboard',
+    path: '/ops/',
+    requires: ['SYS_ADMIN'],
+    status: 'live', // 与真实监控服务协调发布；本地注册不表示已上线。
+    color: '#26375d',
+  },
+
   {
     id: 'labops',
     name: '实验室运营 LabOps',
@@ -133,7 +145,7 @@ export const HUB_APPS: HubApp[] = [
     status: 'live',
     color: '#2f54eb',
   },
-  // 完整四列布局：第三行第 2 个（2026-10-09 负责人指定）。
+  // 注册顺序随运维磁贴前移；按用户权限过滤后连续排列。
   { id: 'water', name: '制药用水看板', description: '纯化水、注射用水与纯蒸汽检验结果、趋势和来源追溯', icon: 'line-chart', path: '/water/', requires: ['CMC_WATER_VIEWER', 'CMC_WATER_EXPORTER'], status: 'live', color: '#167d9a' },
   {
     id: 'cost',
@@ -144,15 +156,5 @@ export const HUB_APPS: HubApp[] = [
     requires: ['CMC_COST_USER'], // 2026-09-04 负责人：成本模型只给指定人（MDM 角色 CMC_COST_USER）+ SYS_ADMIN 看
     status: 'planned',
     color: '#eb2f96',
-  },
-  {
-    id: 'ops',
-    name: '数据中台运维',
-    description: 'ETL 与自动备份的执行结果、异常和历史证据',
-    icon: 'dashboard',
-    path: '/ops/',
-    requires: ['SYS_ADMIN'],
-    status: 'live', // 与真实监控服务协调发布；本地注册不表示已上线。
-    color: '#26375d',
   },
 ]
