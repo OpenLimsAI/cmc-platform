@@ -22,7 +22,10 @@ class Task(BaseModel):
     timeout_minutes: int = 30
     unit: str | None = None
     timer: str | None = None
-    adapter: Literal['systemd', 'lucullus', 'rd_lims', 'training', 'unconnected']
+    adapter: Literal['systemd', 'lucullus', 'rd_lims', 'training', 'unconnected', 'archive_device']
+    visible: bool = True
+    archive_device: Literal['vicell','flex2'] | None = None
+    slot_timeouts: dict[str,int] = {}
     db_source: Literal['rd', 'gmp'] | None = None
     ledger: Literal['meta', 'vicell', 'nova'] | None = None
     jobs: list[str] = []
@@ -34,6 +37,10 @@ class Task(BaseModel):
     watermark_path: str | None = None
     notes: list[str] = []
     producer_users: list[str] = []
+
+    def timeout_at(self, when: datetime, mode: str | None = None) -> int:
+        if self.archive_device and mode=='day':return min(self.slot_timeouts.values(),default=self.timeout_minutes)
+        return self.slot_timeouts.get(when.astimezone(SH).strftime('%H:%M'),self.timeout_minutes)
 
     def occurrences(self, now: datetime, days: int = 1) -> list[datetime]:
         local = now.astimezone(SH)
@@ -58,6 +65,8 @@ class Run(BaseModel):
     restore: str | None = None
     verification: dict | None = None
     source_kind: str = 'unknown'
+    archive_mode: Literal['day','night'] | None = None
+    parent_run_id: str | None = None
 
     @field_validator('start','finish')
     @classmethod
@@ -83,8 +92,8 @@ class Snapshot(BaseModel):
     trigger: str
     tasks: list[Observation]
     mode: str = 'production'
-    inventory_version: str = '2026-10-10'
-    rule_version: str = 'v1'
+    inventory_version: str = '2026-10-12'
+    rule_version: str = 'v2-file-archive'
     gaps: list[str] = []
 
 class Event(BaseModel):
@@ -128,7 +137,7 @@ def assess(task: Task, runs: list[Run], now: datetime, gaps: list[str] | None = 
         o.label = '尚无运行记录'; return o
     seconds = (last.finish or now).timestamp() - last.start.timestamp()
     if last.status == 'running':
-        if seconds > task.timeout_minutes * 60:
+        if seconds > task.timeout_at(last.start,last.archive_mode) * 60:
             o.state = 'failed'; o.label = '运行时间过长'; o.reasons = ['已超过耗时上限，尚未结束']
         else:
             o.label = '本次尚未完成'
@@ -136,11 +145,24 @@ def assess(task: Task, runs: list[Run], now: datetime, gaps: list[str] | None = 
     if last.status == 'unknown':
         o.label = '当前未知'; o.reasons = ['结束证据不足或冲突']; return o
     if last.status == 'failed':
-        o.state = 'failed'; o.label = '执行失败'; o.reasons = [last.message or '任务执行失败']; return o
+        o.state = 'failed'; o.label = '文件归档失败' if task.archive_device else '执行失败'; o.reasons = [last.message or '任务执行失败']; return o
     warnings = []
     if last.status == 'partial_failed': warnings.append('部分步骤或记录失败')
     if last.message: warnings.append(last.message)
-    if seconds > task.timeout_minutes * 60: warnings.append('已完成，耗时偏长')
+    if seconds > task.timeout_at(last.start,last.archive_mode) * 60: warnings.append('已完成，耗时偏长')
+    if task.archive_device:
+        if last.integrity=='failed':
+            o.state='failed';o.label='文件校验失败';o.reasons=[last.message or '本次SHA256不一致'];return o
+        if last.integrity not in ('scope_verified','no_changed_files'):
+            o.label='本次校验结果未取得';o.reasons=[last.message or '缺少本设备同次校验记录'];return o
+        nights=[r for r in runs if r.archive_mode=='night']
+        if task.archive_device=='vicell' and last.archive_mode=='day' and nights:
+            night=nights[0]
+            if night.status!='success' or night.integrity not in ('scope_verified','no_changed_files'):
+                warnings.append('最近凌晨归档未完成或未核实，白天归档不能覆盖该范围')
+        o.state='warning' if warnings else 'success'
+        o.label='归档完成，有提醒' if warnings else '检查完成，无需新增归档' if last.integrity=='no_changed_files' else '文件归档完成，SHA256校验通过'
+        o.reasons=warnings;return o
     if task.kind == 'backup':
         if last.verification:
             v = last.verification
@@ -173,7 +195,7 @@ def current_view(snapshot: Snapshot, now: datetime) -> Snapshot:
         ends=[]
         run=item.last_run
         for planned in item.task.occurrences(now):
-            deadline=planned+timedelta(minutes=item.task.timeout_minutes+item.task.grace_minutes)
+            deadline=planned+timedelta(minutes=item.task.timeout_at(planned)+item.task.grace_minutes)
             if deadline>=now:continue
             # An observed terminal result already covers this scheduled window.
             # Retain success, warning or failure; never reuse it for the next run.

@@ -61,3 +61,8 @@
 ## P16专项更新与回滚
 
 MDM先按既有deploy/deploy.sh固定SHA流程发布，再运行deploy/linux/install_backup_verification.py，配置固定镜像摘要及隔离service/path；原02:00 timer不改。monitor按scripts/deploy_backup_verification_monitor.py --sha <完整SHA>发布仅本项目构建/API/collector，不重复共享迁移、源通知或其他仓库发布。最后检查源/验证独立结果、摘要读取与私有资源拒绝、实际Hub构建及无容器残留。回滚先停用MDM verify.path并移除60-backup-verification.conf，保留备份timer/文件；monitor可回退前一代码SHA，四表无downgrade。详情只在本次发布记录维护。
+
+
+## D17按设备归档专项发布
+
+本次只发布monitor仓库代码与配置：Mac验证并commit/push，Linux干净工作区拉取同一完整SHA，复用 `scripts/deploy_backup_verification_monitor.py --sha <完整SHA>` 进行生产前端构建及API/collector重启。该脚本虽然沿用P16名称，仅执行本项目构建/托管；不重复迁移、权限、源通知安装或MDM/ingest发布。启动补采仅只读核对已有证据。旧ingest-day/night结束通知仍按原身份接受，新设备结果在collector内派生。回退到此前monitor已发布SHA并重建/重启，保留原历史；不删除JSONB字段或数据库记录。实际发布结果仅在TEST_ACCEPTANCE维护。

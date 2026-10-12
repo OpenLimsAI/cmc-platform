@@ -124,6 +124,52 @@
     "watermark_path": "/var/lib/nova-etl/watermark"
   },
   {
+    "key": "ingest-vicell",
+    "name": "Vi-CELL 文件归档",
+    "kind": "backup",
+    "project": "cmc-instrument-ingest",
+    "times": [
+      "02:00",
+      "11:45",
+      "16:00"
+    ],
+    "adapter": "archive_device",
+    "archive_device": "vicell",
+    "timeout_minutes": 240,
+    "slot_timeouts": {
+      "02:00": 240,
+      "11:45": 15,
+      "16:00": 15
+    },
+    "notes": [
+      "只评价本设备当次文件归档和SHA256；不要求数据库恢复验证",
+      "02:00日常范围包含Vi-CELL图片，白天不含图片"
+    ]
+  },
+  {
+    "key": "ingest-nova",
+    "name": "Nova FLEX2 文件归档",
+    "kind": "backup",
+    "project": "cmc-instrument-ingest",
+    "times": [
+      "02:00",
+      "11:45",
+      "16:00"
+    ],
+    "adapter": "archive_device",
+    "archive_device": "flex2",
+    "timeout_minutes": 240,
+    "slot_timeouts": {
+      "02:00": 240,
+      "11:45": 15,
+      "16:00": 15
+    },
+    "notes": [
+      "只评价本设备当次文件归档和SHA256；不要求数据库恢复验证",
+      "每天三次归档检测文件和设备导出的备份文件"
+    ]
+  },
+  {
     "key": "ingest-day",
     "name": "仪器文件归档 · 日班",
     "kind": "backup",
@@ -142,7 +188,8 @@
     "notes": [
       "FLEX2和Vi-CELL完整批次",
       "日班不抓图片；最长等锁30分钟与15分钟硬超时存在冲突"
-    ]
+    ],
+    "visible": false
   },
   {
     "key": "ingest-night",
@@ -161,7 +208,8 @@
     "timer": "instrument-ingest-night.timer",
     "notes": [
       "两设备；校验只证明已有清单范围"
-    ]
+    ],
+    "visible": false
   },
   {
     "key": "mdm-backup",

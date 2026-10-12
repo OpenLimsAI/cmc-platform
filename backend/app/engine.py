@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 from uuid import uuid4
 from .domain import UTC, SH, Snapshot, Run, assess
+from .archive import device_runs,PARENTS
 
 class WorkerReader:
     def __init__(self,settings):self.settings=settings
@@ -69,13 +70,23 @@ class Engine:
                     if old and old.last_run:runs=[old.last_run]
                 if backfill_gap:gaps.append('监控中断超31天，较早执行未覆盖')
                 return assess(task,runs,datetime.now(UTC),gaps), runs
-            results=await asyncio.wait_for(asyncio.gather(*(read(t) for t in self.tasks)),self.settings.batch_timeout)
+            results=await asyncio.wait_for(asyncio.gather(*(read(t) for t in self.tasks if not t.archive_device)),self.settings.batch_timeout)
             for obs,runs in results:observations.append(obs);all_runs.extend(runs)
+            for task in self.tasks:
+                if not task.archive_device:continue
+                parents=[r for r in all_runs if r.task_key in PARENTS]
+                runs=device_runs(task,parents)
+                gaps=[f'{o.task.name}: {g}' for o in observations if o.task.key in PARENTS for g in o.gaps]
+                if gaps and not runs and prev:
+                    old=next((o for o in prev.tasks if o.task.key==task.key),None)
+                    if old and old.last_run:runs=[old.last_run]
+                observations.append(assess(task,runs,datetime.now(UTC),gaps));all_runs.extend(runs)
             for obs in observations:
                 if obs.task.key not in ('vicell','nova') or not obs.last_run or obs.state not in ('success','warning'):continue
-                upstream=[r for r in all_runs if r.task_key in ('ingest-day','ingest-night') and r.start<=obs.last_run.start]
+                archive_key={'vicell':'ingest-vicell','nova':'ingest-nova'}[obs.task.key]
+                upstream=[r for r in all_runs if r.task_key==archive_key and r.start<=obs.last_run.start]
                 parent=max(upstream,key=lambda r:r.start,default=None)
-                if parent and (parent.status!='success' or not parent.finish or parent.finish>obs.last_run.start):
+                if parent and (parent.status!='success' or parent.integrity not in ('scope_verified','no_changed_files') or not parent.finish or parent.finish>obs.last_run.start):
                     obs.state='warning';obs.label='执行完成，上游归档有风险';obs.reasons.append('本次ETL之前最近归档失败、未结束或证据不足；ETL成功不证明已取得新文件')
             snap=Snapshot(id=str(uuid4()),collected_at=datetime.now(UTC),trigger=trigger,tasks=observations,mode=self.settings.mode,
                           gaps=['外部来源未全部接入；覆盖以登记清单及各源截至时间为准'])

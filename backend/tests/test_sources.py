@@ -23,20 +23,21 @@ def test_journal_export_excludes_business_payload_and_credentials():
 
 def test_heartbeat_from_other_shift_cannot_prove_integrity(tmp_path):
  reader=Reader(config());r=run();r.evidence=[evidence('journal','example.service','<<< [night] flex2 完成\n<<< [night] vicell 完成')]
+ r.children=[dict(name=d,status='success',archive_mode='night',start=r.start.isoformat(),finish=r.finish.isoformat(),evidence=[]) for d in ('flex2','vicell')]
  (tmp_path/'State').mkdir()
  for machine in ('T281240040C_Nova','C4V61257XH_ViCell'):
   (tmp_path/'State'/f'{machine}_heartbeat.json').write_text(json.dumps({'last_run_time':(r.start-timedelta(days=1)).isoformat(),'last_run_finished':(r.finish-timedelta(days=1)).isoformat(),'backup_status':'SUCCESS'}))
  reader.instrument_evidence(r,tmp_path)
- assert r.status=='success' and r.integrity is None and '其他批次' in r.message
+ assert all(c['status']=='unknown' and c['integrity']=='unknown' for c in r.children)
 
 
 def test_matched_checksum_mismatch_overrides_exit_zero(tmp_path):
  reader=Reader(config());r=run();r.evidence=[evidence('journal','example.service','<<< [night] flex2 完成\n<<< [night] vicell 完成')]
- (tmp_path/'State').mkdir()
+ r.children=[dict(name=d,status='success',archive_mode='night',start=r.start.isoformat(),finish=r.finish.isoformat(),evidence=[]) for d in ('flex2','vicell')]
  for machine in ('T281240040C_Nova','C4V61257XH_ViCell'):
-  (tmp_path/'State'/f'{machine}_heartbeat.json').write_text(json.dumps({'last_run_time':r.start.isoformat(),'last_run_finished':r.finish.isoformat(),'backup_status':'SUCCESS','files_failed':0}))
   folder=tmp_path/'Checksums'/machine;folder.mkdir(parents=True)
-  report=folder/'test_SHA256_Compare.csv';report.write_text('Relative_Path,match_status\nPRIVATE,Mismatch\n');os.utime(report,(r.finish.timestamp(),r.finish.timestamp()))
+  report=folder/(machine+'_SHA256_Compare_v1_20261010_040000.csv')
+  report.write_text('Relative_Path,Local_SHA256,NAS_SHA256,match_status\nPRIVATE,'+'a'*64+','+'b'*64+',Mismatch\n')
  reader.instrument_evidence(r,tmp_path)
  assert r.status=='failed'
  assert 'PRIVATE' not in json.dumps(r.evidence)

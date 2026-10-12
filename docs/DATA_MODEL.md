@@ -65,3 +65,7 @@ monitor只接脱敏摘要和有界检查结果，保存在既有Run/证据JSONB�
 任务/主机/环境/来源绑定在config/tasks.json，不建第二套主数据。子步骤、水位、备份检查和最小证据嵌入JSONB；上述逻辑对象不代表已经分别建表。V1使用人可读的状态/原因文本，没有独立reason_codes字典、task_occurrence表；迁移revision已发布为20261010_ops_monitor_v1。确认漏跑只在监控首次采集后的计划窗口追加source_kind=schedule的历史引用，start为计划时刻，界面标“计划”，不假称实际启动。
 
 ORM在backend/app/store.py；共享迁移权威在cmc-schema-migrations/alembic/versions/cmc_analytics/20261010_ops_monitor_v1.py，接analytics_water_mart_perf_1009并离线/隔离数据库核对ORM；Linux正式及培训库已应用目标revision。实际源字段、角色列授权和原始业务表拒绝访问均已核验，见RELEASE_20261010。运行数据90天/审计180天的自有清理代码在成功日兜底之后执行，不清理源台账或备份。已完成隔离数据库迁移测试和两库正式迁移、真实持久化与历史API读取。培训四表为空，下一次自然培训复制后仍需复核。
+
+## D17 设备归档关联
+
+复用既有JSONB，不建新表或迁移。配置新增按设备的派生任务和内部来源可见性；原ingest-day/night标识继续接收真实flex2ingest通知及保留父历史，新ingest-vicell/ingest-nova从已读父批次子结果派生。设备Run保留archive_mode、parent_run_id、父计划启动时刻及设备实际耗时，证据只导出固定标记和校验计数，不展示业务文件路径或内容。日/夜原标识不改作设备标识，不混淆旧历史。

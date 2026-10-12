@@ -1,6 +1,6 @@
 # 数据中台运维看板 — cmc-platform-monitor
 
-> 版本：V0.8｜日期：2026-10-11｜状态：Linux真实监控、Hub入口及MDM逐份恢复验证已发布；已有真实备份恢复及权限核验通过。下一次自然每日备份完整链路、真实MDM角色浏览器登录待验收。Mac保留模拟预览。
+> 版本：V0.9｜日期：2026-10-12｜状态：Linux真实监控、Hub入口及MDM逐份恢复验证已发布；按设备展示文件归档（D17）已确认，本地实现/测试通过、Linux发布验收中。Mac保留模拟预览。
 
 目标：独立监控Linux数据中台ETL与自动备份，Hub入口和后端业务访问仅MDM SYS_ADMIN，第一屏异常优先，V1只读。已确认目标不重复询问；全部覆盖仍是目标。
 
@@ -44,6 +44,10 @@ uv run pytest -q
 
 用户已确认两仓实现、测试及Linux发布。MDM负责独立Docker恢复/同备份snapshot基线检查，monitor只读展示验证范围与结果；不使用Mac现有真实库，不在原生正式PG建临时恢复库。10-12首次自然备份已生成同snapshot基线并触发独立恢复；14条等价CHECK写法误报已修复，凌晨原文件以新ID复验13项检查全部通过并清理，看板已绿色，原失败报告保留。详见[本次验证发布记录](docs/RELEASE_20261011_BACKUP_VERIFY.md)，下一次新产物自然任务尚待观察，不用旧验证给新备份标绿。
 
+## 按设备文件归档（D17）
+
+Vi-CELL与Nova各一张文件归档卡片；归档成功且同次源端/NAS端SHA256一致即绿色，没有新增或变化文件且检查正常结束也为绿色。文件归档不要求数据库恢复验证。原日/夜任务继续按既有时刻执行和通知，改为内部来源；详情保留逐次归档范围、历史及校验摘要。MDM数据库备份规则保持。具体判断见MONITORING_RULES，实际版本与验收见TEST_ACCEPTANCE。
+
 ## 在用文档与权威分工
 
 | 文件 | 权威主题 |
@@ -61,7 +65,7 @@ uv run pytest -q
 | [RELEASE_20261010](docs/RELEASE_20261010.md) | 首次实际多仓SHA、迁移、备份、权限与上线验收 |
 | [RELEASE_20261011_BACKUP_VERIFY](docs/RELEASE_20261011_BACKUP_VERIFY.md) | MDM自动恢复验证两仓版本、隔离测试、真实恢复与剩余验收 |
 | [ADMISSION_CHECKLIST](docs/ADMISSION_CHECKLIST.md) | 白皮书Part V C01–C15逐项结论 |
-| [DECISIONS](docs/DECISIONS.md) | 已确认目标、D01–D15已确认基线、发布授权与待验收项 |
+| [DECISIONS](docs/DECISIONS.md) | 已确认目标、D01–D17已确认基线、发布授权与待验收项 |
 | [CHANGELOG](docs/CHANGELOG.md) | 改动、原因、影响、实际验证及提交/部署状态 |
 | [HANDOFF](docs/HANDOFF.md) | 状态导航，仅引用权威文件，不产生后续授权 |
 

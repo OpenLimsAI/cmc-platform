@@ -48,3 +48,7 @@ POST /api/v1/refresh：仅SYS_ADMIN，202返回update_id，固定全清单只读
 overview/detail可带snapshot_id；缺省为当前视图，积压/应更新后失联会变未知；带引用为不可变历史观测，显示截至时间。runs必须带引用，页100/最多31天，返回total/has_more/cutoff；过期引用410。evidence仅解析该快照最近运行已有证据ID，其他历史证据由有界runs响应提供。API不读任意文件。
 
 当前JSON返回任务、collection_status、state、label、reasons、last_run、next_at及gaps；rule_version/inventory_version/snapshot引用已实现。原四维逻辑与reason_codes属于设计解释，尚未独立编码成全部物理字段；不声称跨来源同时刻事务快照。公开错误不含DSN或traceback。无数据时unknown，审计失败业务读取503。
+
+## D17设备归档兼容字段
+
+公开任务新增archive_device=vicell/flex2/null；设备Run增加archive_mode=day/night/null及parent_run_id，restore=not_applicable只用于文件归档，不改变MDM验证语义。overview/tasks隐藏内部父来源，公开仍16项；内部父记录可按原key读取，仅SYS_ADMIN。旧snapshot未包含新增设备任务时明确410要求更新，不返回500或拼入未来证据；原结束事件key/UID授权不变。

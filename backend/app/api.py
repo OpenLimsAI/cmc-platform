@@ -13,12 +13,13 @@ from .security import authenticate
 from .store import MemoryStore,PostgresStore
 
 
-def public_snapshot(snap):
+def public_snapshot(snap,include_hidden=False):
     payload=snap.model_dump(mode='json')
+    if not include_hidden:payload['tasks']=[x for x in payload['tasks'] if x['task']['visible']]
     # Server-only source locations and sender bindings must not become browser configuration.
     for item in payload['tasks']:
         task=item['task']
-        for key in ('log_dir','log_pattern','backup_dir','backup_pattern','watermark_path','producer_users','jobs','ledger','db_source','instance'):
+        for key in ('log_dir','log_pattern','backup_dir','backup_pattern','watermark_path','producer_users','jobs','ledger','db_source','instance','visible','slot_timeouts'):
             task.pop(key,None)
     return payload
 
@@ -99,8 +100,10 @@ def create_app(settings=None,store=None):
     async def task_item(request,key,sid):
         if key not in {t.key for t in tasks}:raise HTTPException(404,'任务未登记')
         request.state.task_key=key
-        data=public_snapshot(await snapshot(request,sid))
-        return data,next(x for x in data['tasks'] if x['task']['key']==key)
+        data=public_snapshot(await snapshot(request,sid),include_hidden=True)
+        item=next((x for x in data['tasks'] if x['task']['key']==key),None)
+        if item is None:raise HTTPException(410,'该观测未包含此任务，请更新看板')
+        return data,item
     @app.get('/api/v1/tasks/{task_key}',dependencies=[Depends(guard)])
     async def detail(request:Request,task_key:str,snapshot_id:str|None=Query(None,max_length=36)):
         data,item=await task_item(request,task_key,snapshot_id)

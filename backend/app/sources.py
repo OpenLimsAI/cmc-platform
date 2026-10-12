@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from .domain import Task, Run, UTC, SH
 from .security import redact
+from .archive import lifecycle,instrument_evidence as archive_evidence,PARENTS
 
 PAGE=500
 MAX_LOG_BYTES=65536
@@ -70,7 +71,7 @@ async def command(*args):
 
 class Reader:
     def __init__(self, settings):
-        self.settings=settings; self.engines={}
+        self.settings=settings; self.engines={};self.archive_reports={}
         for key,secret in [('rd',settings.rd_read_url),('gmp',settings.gmp_read_url)]:
             if secret:
                 self.engines[key]=create_async_engine(secret.get_secret_value(),pool_pre_ping=True,
@@ -194,8 +195,11 @@ class Reader:
             if start < since: continue
             if not has_start:result='unknown'
             excerpt=journal_summary(messages)
-            runs.append(Run(id=f'{task.key}:unit:{i}',task_key=task.key,start=start,finish=finish,status=result,
-                            source_kind='systemd',evidence=[evidence('journal',unit,excerpt)]))
+            run=Run(id=f'{task.key}:unit:{i}',task_key=task.key,start=start,finish=finish,status=result,
+                    source_kind='systemd',evidence=[evidence('journal',unit,excerpt)])
+            if task.key in PARENTS:
+                run.archive_mode=PARENTS[task.key];run.children=lifecycle(items,run.archive_mode,run)
+            runs.append(run)
         if not runs:
             # Without invocation history do not use "inactive"/Result=success as a success record.
             raise ValueError('缺少可关联的完整systemd执行记录（可能权限不足）')
@@ -380,37 +384,4 @@ class Reader:
             run.integrity='unknown';run.restore='unknown';run.verification={'status':'unknown'}
 
     def instrument_evidence(self,run,root=Path('/mnt/ttlab-backups')):
-        # Device heartbeat is overwritten across shifts. Never assign a different shift's success.
-        summary='\n'.join(e['excerpt'] for e in run.evidence if e['kind']=='journal')
-        found=set()
-        for device,machine in [('flex2','T281240040C_Nova'),('vicell','C4V61257XH_ViCell')]:
-            ending=re.findall(rf'<<< \[(?:day|night)\] {device} (完成|失败，退出码 \d+)',summary)
-            child={'name':device,'status':'unknown'}
-            if len(ending)==1:child['status']='success' if ending[0]=='完成' else 'failed';found.add(device)
-            if child['status']=='failed':run.status='failed'
-            run.children.append(child)
-            hb=root/'State'/f'{machine}_heartbeat.json'
-            if not hb.exists():run.message='部分设备心跳或校验摘要缺失';continue
-            if hb.is_symlink() or hb.stat().st_size>MAX_LOG_BYTES:raise ValueError('心跳不在有界读取范围')
-            h=json.loads(hb.read_text())
-            start,finish=dt(h.get('last_run_time')),dt(h.get('last_run_finished'))
-            if not start or not finish or not run.finish or not (run.start-timedelta(seconds=2)<=start<=finish<=run.finish+timedelta(seconds=2)):
-                run.message='部分最新心跳属于其他批次，本次校验范围未齐';continue
-            child['files_processed']=h.get('files_processed');child['files_failed']=h.get('files_failed')
-            if h.get('backup_status')!='SUCCESS' or h.get('files_failed',0):child['status']='failed';run.status='failed'
-            run.evidence.append(evidence('heartbeat',f'{machine}_heartbeat.json',json.dumps({k:h.get(k) for k in ('machine_name','run_tag','last_run_time','last_run_finished','backup_status','files_processed','files_failed','alerts')},ensure_ascii=False)))
-            folder=root/'Checksums'/machine
-            if not folder.is_dir():run.message='同次校验摘要缺失';continue
-            paths=list(folder.glob('*SHA256_Compare*.csv'))
-            if len(paths)>1000:raise ValueError('校验清单目录超出范围')
-            associated=[p for p in paths if not p.is_symlink() and p.is_file() and start.timestamp()-2<=p.stat().st_mtime<=finish.timestamp()+2]
-            if len(associated)!=1:run.message='同次校验清单缺失或关联有歧义';continue
-            p=associated[0]
-            if p.stat().st_size>2_000_000:raise ValueError('校验清单超出范围')
-            report=checksum_summary(p.read_text(encoding='utf-8-sig'))
-            child['integrity']='failed' if report['mismatch'] else 'unknown' if report['unknown'] else 'scope_verified' if report['rows'] else 'no_changed_files'
-            if report['mismatch']:run.status='failed';run.message='已有文件校验发现不一致'
-            if report['unknown']:run.message='已有文件校验存在无法识别的结论'
-            run.evidence.append(evidence('checksum',p.name,json.dumps(report,ensure_ascii=False)+';SHA256，仅已列文件范围，不证明整个备份可恢复'))
-        if run.status=='success' and found!={'flex2','vicell'}:run.status='unknown';run.message='父执行完成，但两设备结束证据不齐或重复'
-        if len(run.children)==2 and all(c.get('integrity')=='scope_verified' for c in run.children):run.integrity='scope_verified'
+        archive_evidence(run,evidence,root,self.archive_reports)

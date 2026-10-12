@@ -160,3 +160,7 @@ Linux实际发布/权限/持久化/沙箱读取/队列通知/Hub构建及培训�
 ## Linux最小读取落地（2026-10-10）
 
 API与collector分别为opsmonitor-api/opsmonitor，环境文件root600且分离角色。读取子进程不继承API密钥或自有写库连接。源ops_monitor_reader仅获meta三表及两仪器etl_log必要列；cmc_rd的26张和cmc_gmp的17张raw业务表读取被拒绝，无继承角色、superuser或通用sudo。journald通过单独受限socket桥接，固定7个unit、真实peer、32天时间上限、有界游标分页及固定生命周期/设备标记；collector不加入adm/systemd-journal。桥接复用prometheus已有日志读取身份，隔离/opt其他项目及本项目root配置，具体配置与生产核验见RELEASE_20261010。
+
+## D17 按设备归档视图
+
+隐藏内部日/夜来源任务，继续仅从现有白名单journal/CSV读取，保留原通知及UID限制；派生两张设备卡片和历史，不增加源worker或权限。完整读取后按设备独立判断，并把Vi-CELL/Nova ETL上游风险关联到各自设备归档。原16个公开任务/10个Linux在用数量保持，内部父批次仍可追溯；源程序、调度和Hub/MDM鉴权不改。后端模型新增字段均可空/默认，旧快照兼容，无JSONB结构迁移。
