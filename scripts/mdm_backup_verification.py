@@ -92,6 +92,61 @@ QUERIES = {
 }
 
 
+# Only PostgreSQL's observed literal-varchar-array -> text[] rewrite is
+# accepted. Quoted SQL values/identifiers are indivisible, so text inside a
+# value cannot be mistaken for an expression and rewritten.
+_SQL_TOKEN = re.compile(
+    r"--[^\n]*(?:\n|$)|/\*.*?\*/|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|::|[A-Za-z_][A-Za-z_0-9$]*|\S",
+    re.DOTALL,
+)
+
+
+def canonical_check_definition(value):
+    tokens = _SQL_TOKEN.findall(value)
+    result = []
+    i = 0
+    while i < len(tokens):
+        if tokens[i:i+3] == ['(', 'ARRAY', '[']:
+            j = i+3
+            literals = []
+            while j+3 < len(tokens):
+                literal = tokens[j]
+                if not (len(literal) >= 2 and literal.startswith("'") and literal.endswith("'")
+                        and tokens[j+1:j+4] == ['::', 'character', 'varying']):
+                    literals = []
+                    break
+                literals.append(literal)
+                j += 4
+                if tokens[j:j+1] != [',']:
+                    break
+                j += 1
+            if literals and tokens[j:j+6] == [']', ')', '::', 'text', '[', ']']:
+                result.extend(['ARRAY', '['])
+                for index, literal in enumerate(literals):
+                    if index:
+                        result.append(',')
+                    result.extend(['(', literal, '::', 'character', 'varying', ')', '::', 'text'])
+                result.append(']')
+                i = j+6
+                continue
+        result.append(tokens[i])
+        i += 1
+    return tuple(result)
+
+
+def constraints_equal(baseline, restored):
+    if len(baseline) != len(restored):
+        return False
+    for before, after in zip(baseline, restored):
+        if before == after:
+            continue
+        if (len(before) != 6 or len(after) != 6 or before[:5] != after[:5]
+                or before[3] != 'c'
+                or canonical_check_definition(before[5]) != canonical_check_definition(after[5])):
+            return False
+    return True
+
+
 def catalog(query):
     result = {key: query(sql) for key, sql in QUERIES.items()}
     # Non-superuser backup roles cannot SELECT pg_largeobject. With no large
@@ -179,12 +234,15 @@ def make_request(artifact, start, finish, invocation=None, baseline=None):
             'baseline':baseline,'baseline_basis':'same_exported_snapshot' if baseline else None}
 
 
-def enqueue(artifact, start=None, finish=None, invocation=None):
+def enqueue(artifact, start=None, finish=None, invocation=None, reverify=False):
     path = Path(artifact)
     if path.parent.resolve() != BACKUPS or not NAME.fullmatch(path.name):
         raise ValueError('unregistered_artifact_directory')
     baseline_path = Path(str(path)+'.baseline.json')
     request = read_json(baseline_path) if baseline_path.exists() else make_request(path,start,finish,invocation)
+    if reverify:
+        request['previous_verification_id'] = request['verification_id']
+        request['verification_id'] = uuid.uuid4().hex
     key = request['artifact']['basename'] + '.json'
     # The producer writes only its registered spool and safe summary. Verifier
     # owns full reports; Docker access never goes to the monitor.
@@ -259,7 +317,8 @@ def verify(request, c):
     verification = {'status':'running','started_at':now(),'finished_at':None,
                     'restore_status':'not_verified','integrity_status':'not_verified',
                     'failure_step':None,'image_digest':c['image'],'checks':{},
-                    'verifier_code_sha':code_sha(),'actor':'controlled_root_service'}
+                    'verifier_code_sha':code_sha(),'actor':'controlled_root_service',
+                    'constraint_comparison_policy':'literal_varchar_array_to_text_v1'}
     began=time.monotonic()
     publish(request, verification, 'not_started')
     d = Docker(time.monotonic()+600)
@@ -333,7 +392,7 @@ def verify(request, c):
             else:
                 if request.get('baseline_basis') != 'same_exported_snapshot':
                     raise StepFailure('baseline_identity')
-                differences = [key for key in QUERIES if baseline[key]!=restored[key]]
+                differences = [key for key in QUERIES if (not constraints_equal(baseline[key],restored[key]) if key=='constraints' else baseline[key]!=restored[key])]
                 if baseline['table_counts']!=restored['table_counts']:
                     differences.append('table_counts')
                 verification['checks'].update({key:'failed' if key in differences else 'passed' for key in [*QUERIES,'table_counts']})
@@ -439,13 +498,13 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
     snap=sub.add_parser('snapshot');snap.add_argument('--output',required=True,type=Path);snap.add_argument('--level',type=int,default=6)
-    queue=sub.add_parser('enqueue');queue.add_argument('--artifact',required=True,type=Path);queue.add_argument('--start');queue.add_argument('--finish');queue.add_argument('--invocation')
+    queue=sub.add_parser('enqueue');queue.add_argument('--artifact',required=True,type=Path);queue.add_argument('--start');queue.add_argument('--finish');queue.add_argument('--invocation');queue.add_argument('--reverify',action='store_true')
     sub.add_parser('process')
     sub.add_parser('cleanup')
     args=parser.parse_args()
     try:
         if args.command=='snapshot':snapshot_dump(args.output,args.level)
-        elif args.command=='enqueue':enqueue(args.artifact,args.start,args.finish,args.invocation)
+        elif args.command=='enqueue':enqueue(args.artifact,args.start,args.finish,args.invocation,args.reverify)
         elif args.command=='cleanup':cleanup_owned()
         else:process_queue()
         return 0

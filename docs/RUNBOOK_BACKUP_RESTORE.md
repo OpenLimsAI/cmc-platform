@@ -167,7 +167,7 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 - PostgreSQL 文档：[Backup and Restore](https://www.postgresql.org/docs/16/backup.html)
 
 
-## 8. 逐份自动隔离恢复验证（P16，2026-10-11实现中）
+## 8. 逐份自动隔离恢复验证（P16，2026-10-12维护）
 
 负责人已确认：每次Linux每日备份成功后，自动在独立Docker PostgreSQL16中恢复验证，验证完成清理临时数据库，保留报告；不使用Mac现有真实数据或Linux原生正式实例作恢复目标。本项目当前仍按原型运维工具推进，不新增GMP会签流程。
 
@@ -179,3 +179,9 @@ curl -fsS --noproxy '*' http://127.0.0.1:5100/mdm/api/v1/health
 - 先对合成库测试并发写入/损坏文件/对账失败，再对一份已有Linux备份恢复；历史dump没有同快照基线时，只标实际恢复通过、完整性证据不足。每日自动链路等待发布后下一次自然02:00备份单独验收，不主动重跑正式备份。
 
 本节为已确认实现说明，最终两仓SHA、真实恢复结果、容量实测、部署及自然链路状态以platform-monitor的`docs/RELEASE_20261011_BACKUP_VERIFY.md`为发布记录；尚未取得的结果不得标通过。V1.1 Word派生设计文件不在本次修改范围。
+
+### 2026-10-12 等价CHECK表达式与复验
+
+仅归一化常量character varying数组整体转text[]与每个常量转text后组数组的已核实等价写法；SQL字符串/引号标识符不拆分，约束身份/类型/验证标志及允许值/操作符/NULL条件/其他类型差异仍失败。不跳过约束或其他完整性检查。约束比较策略标识写入验证报告，原始基线/恢复catalog保留，便于复核。
+
+已存在备份需要明确复验时，受控调用enqueue --artifact <白名单路径> --reverify，生成新验证ID并在私有请求记录previous_verification_id，保存原失败报告和基线；当前摘要由新验证流程原子更新，未通过仍不绿。普通每日入队仍使用该份初次ID。此命令不生成新备份，不改变每日调度；只允许原固定备份目录及独立Docker目标。实际发布/复验结果见platform-monitor发布记录。
