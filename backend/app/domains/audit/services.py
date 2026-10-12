@@ -22,6 +22,7 @@ from app.domains.audit.schemas import (
     ESignatureItem,
     SignatureFilter,
 )
+from app.domains.auth.models import User
 from app.domains.mm.models import Material, MaterialBatch
 from app.domains.prs.models import Project, ProjectMilestone, ProjectTeam
 from app.domains.srs.models import Substance, SubstanceXref
@@ -457,6 +458,18 @@ class AuditService:
         )
         logs = list(page_result.scalars())
 
+        # 按稳定的用户 ID 批量补充当前姓名；保留停用/软删除账号的历史日志。
+        user_ids = {log.user_id for log in logs if log.user_id is not None}
+        names_by_user: dict[int, str | None] = {}
+        if user_ids:
+            names_result = await self.db.execute(
+                select(User.user_id, User.full_name).where(User.user_id.in_(user_ids))
+            )
+            names_by_user = {
+                user_id: full_name if full_name and full_name.strip() else None
+                for user_id, full_name in names_result
+            }
+
         log_ids = [log.log_id for log in logs]
         changes_by_log: dict[int, list[ChangeHistoryItem]] = {}
         if log_ids:
@@ -479,6 +492,7 @@ class AuditService:
                 log_id=log.log_id,
                 user_id=log.user_id,
                 username=log.username,
+                full_name=names_by_user.get(log.user_id) if log.user_id is not None else None,
                 action=log.action,
                 entity_schema=log.entity_schema,
                 entity_table=log.entity_table,

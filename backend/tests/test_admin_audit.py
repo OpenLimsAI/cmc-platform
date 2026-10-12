@@ -13,6 +13,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from tests.conftest import pg_connect_kwargs
+
 
 # ============== helper ==============
 async def _create_substance(admin_client, suffix: str) -> str:
@@ -54,6 +56,74 @@ async def test_list_audit_logs_basic(admin_client):
     assert "pagination" in body["meta"]
     assert body["meta"]["pagination"]["page"] == 1
     assert body["meta"]["pagination"]["page_size"] == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "account_case",
+    ["active", "locked", "disabled", "soft_deleted", "empty_name", "no_user_id", "missing_user"],
+)
+async def test_audit_logs_current_name_preserves_history(admin_client, unique_suffix, account_case):
+    """姓名按用户 ID 匹配；账号状态或缺失资料不能丢弃审计记录。"""
+    import asyncpg
+
+    kwargs = pg_connect_kwargs()
+    assert kwargs["database"] == "cmab_test", "此用例只能在隔离 cmab_test 库执行"
+    conn = await asyncpg.connect(**kwargs)
+    try:
+        assert await conn.fetchval("SELECT current_database()") == "cmab_test"
+        username = f"audit_name_{unique_suffix}"
+        full_name = "" if account_case == "empty_name" else "审计测试员工"
+        status = account_case if account_case in {"locked", "disabled"} else "active"
+        user_id = await conn.fetchval(
+            'INSERT INTO auth."user" (username, email, password_hash, full_name, status, deleted_at) '
+            "VALUES ($1, $2, 'unused-test-hash', $3, $4, $5) RETURNING user_id",
+            username,
+            f"{username}@test.com",
+            full_name,
+            status,
+            datetime.now(UTC) if account_case == "soft_deleted" else None,
+        )
+        log_user_id = user_id
+        if account_case == "no_user_id":
+            log_user_id = None
+        elif account_case == "missing_user":
+            log_user_id = -1
+        code = f"AUD-NAME-{unique_suffix}"
+        for _ in range(2):
+            await conn.execute(
+                "INSERT INTO audit.audit_log (user_id, username, action, entity_code) "
+                "VALUES ($1, $2, 'LOGIN', $3)",
+                log_user_id, username, code,
+            )
+
+        response = await admin_client.get(
+            f"/api/v1/audit-logs?entity_code={code}&username={username}&page_size=1"
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["meta"]["pagination"]["total"] == 2
+        assert len(body["data"]) == 1
+        item = body["data"][0]
+        assert item["username"] == username
+        assert item["user_id"] == log_user_id
+        assert item["full_name"] == (
+            None if account_case in {"empty_name", "no_user_id", "missing_user"} else full_name
+        )
+
+        if account_case == "active":
+            # 账号更名时按 ID 取当前姓名，历史工号及操作保持原值。
+            await conn.execute(
+                'UPDATE auth."user" SET username=$1, full_name=$2 WHERE user_id=$3',
+                f"renamed_{unique_suffix}", "更新后的姓名", user_id,
+            )
+            updated = await admin_client.get(f"/api/v1/audit-logs?entity_code={code}")
+            assert updated.status_code == 200
+            assert all(row["username"] == username for row in updated.json()["data"])
+            assert all(row["full_name"] == "更新后的姓名" for row in updated.json()["data"])
+            assert all(row["action"] == "LOGIN" for row in updated.json()["data"])
+    finally:
+        await conn.close()
 
 
 @pytest.mark.asyncio

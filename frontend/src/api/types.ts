@@ -1472,6 +1472,7 @@ export interface AuditLogItem {
   log_id: number;
   user_id?: number | null;
   username: string;
+  full_name?: string | null;
   action: string;
   entity_schema?: string | null;
   entity_table?: string | null;

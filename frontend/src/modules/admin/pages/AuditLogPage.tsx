@@ -127,10 +127,17 @@ export function AuditLogPage() {
       render: (v: string) => <TimeDisplay value={v} />,
     },
     {
-      title: '操作人',
+      title: '工号',
       dataIndex: 'username',
       key: 'username',
       width: 110,
+    },
+    {
+      title: '姓名',
+      dataIndex: 'full_name',
+      key: 'full_name',
+      width: 120,
+      render: (v: string | null | undefined) => v || '—',
     },
     {
       title: '动作',
@@ -243,7 +250,7 @@ export function AuditLogPage() {
             }}
           />
           <Input
-            placeholder="操作人 username"
+            placeholder="工号"
             allowClear
             style={{ width: 180 }}
             value={pendingUser}
@@ -322,7 +329,7 @@ export function AuditLogPage() {
               setPageSize(size);
             },
           }}
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1420 }}
         />
       </Card>
     </div>

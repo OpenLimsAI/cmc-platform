@@ -65,6 +65,7 @@ class AuditLogItem(BaseModel):
     log_id: int
     user_id: int | None = None
     username: str
+    full_name: str | None = Field(default=None, description="账号资料中的当前姓名，非操作发生时的姓名快照")
     action: str
     entity_schema: str | None = None
     entity_table: str | None = None
