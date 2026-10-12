@@ -131,3 +131,7 @@ Linux已拉取并发布业务代码cf636220fbea280106e4cb1bd9a6f05e189bdf00，�
 业务代码ce8d88521d5fb2045ab1b3a829fbc0864efc5c0c已commit/push并同SHA同步Linux，仅运行生产前端构建，不重启API/collector/nginx或源任务。Linux生产JS index-C12aH7HE.js、CSS index-BgtqGBZN.css；Mac模拟JS index-DiVI9tjf.js，环境标识保留。
 
 真实已登录管理员Chrome会话在Linux研发LIMS详情21条历史中实测：点击10/11 12:00自动定位/聚焦、第一条摘要展开且对应run1240/43秒；切换08:00对应run1239/23秒，手动收起后同按钮键盘Enter再次展开，回到最近运行对应16:00/run1241/22秒。最后保留12:00所选证据便于用户复核，截图/private/tmp/cmc-monitor-record-fixed.jpg；这是已有真实会话下的记录交互验收，不代表重新登录/非管理员角色矩阵已完成。Hub正式HTML/JS与Linux在用dist逐字节一致；服务器内合成角色守卫仍401/200/403/临时密码403，MDM缺基线黄色保留。正式页面已实际加载本次修复，不因按钮变蓝或后端健康200就宣称记录可查看。无后端/API/数据库/源任务调整，无需重跑ETL、备份或迁移。
+
+## 2026-10-12 — MDM等价约束修正回归与复验
+
+用户明确确认修复。离线配套20项通过（Docker/SQL均为桩）；180条真实约束及14处非等价类型变更反例回归通过。Linux新建合成源/恢复容器验证历史varchar数组等价CHECK通过、真正允许值差异/计数错配/损坏archive失败，snapshot并发及清理通过。MDM b1d9d08固定SHA部署后，对10-12凌晨同一份dump以新验证ID复验，恢复及13项检查通过，清理正常，原基线和失败报告SHA不变，Hub当前API已绿色。详细证据仅在RELEASE_20261011_BACKUP_VERIFY对应章节维护；不把同文件复验称为次日新备份自然任务验收，不改正式数据库数据或跑每日备份来制造结果。

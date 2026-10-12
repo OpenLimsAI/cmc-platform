@@ -11,10 +11,15 @@ MODULE=Path(__file__).resolve().parents[2]/'cmab-mdm-platform/scripts/mdm_backup
 spec=importlib.util.spec_from_file_location('mdm_verify',MODULE)
 v=importlib.util.module_from_spec(spec);spec.loader.exec_module(v)
 
+OLD="CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying])::text[])))"
+NEW="CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('published'::character varying)::text])))"
+def constraint(definition,kind='c',validated=True):
+    return ['example','task','ck_status',kind,validated,definition]
+
 
 class VerificationTest(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
+        self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name).resolve()
         self.backups=self.root/'backups';self.state=self.root/'state';self.export=self.root/'export'
         for p in (self.backups,self.state/'reports',self.state/'requests',self.export):p.mkdir(parents=True)
         self.art=self.backups/'cmab_mdm_test_20261010_1801.dump';self.art.write_bytes(b'synthetic dump')
@@ -52,6 +57,35 @@ class VerificationTest(unittest.TestCase):
         base={k:[] for k in v.QUERIES};base.update(table_counts={'mm.material':5},coverage_gaps=[])
         result=self.exercise(base,base)
         self.assertEqual(result['integrity_status'],'verified')
+    def test_equivalent_array_constraint_passes_verifier(self):
+        base={k:[] for k in v.QUERIES};base.update(table_counts={},coverage_gaps=[],constraints=[constraint(OLD)])
+        target={**base,'constraints':[constraint(NEW)]}
+        result=self.exercise(base,target)
+        self.assertEqual(result['integrity_status'],'verified')
+        self.assertEqual(result['checks']['constraints'],'passed')
+    def test_changed_allowed_value_fails_verifier(self):
+        base={k:[] for k in v.QUERIES};base.update(table_counts={},coverage_gaps=[],constraints=[constraint(OLD)])
+        target={**base,'constraints':[constraint(NEW.replace("'published'","'retired'"))]}
+        result=self.exercise(base,target)
+        self.assertEqual(result['status'],'failed')
+        self.assertEqual(result['checks']['constraints'],'failed')
+    def test_reverify_keeps_original_baseline_and_report(self):
+        v.atomic(str(self.art)+'.baseline.json',self.request)
+        old_id=self.request['verification_id']
+        old_report=self.state/'reports'/(old_id+'.json')
+        old_report.write_text('{"status":"original failure"}')
+        v.enqueue(self.art,reverify=True)
+        queued=v.read_json(self.state/'requests'/(self.art.name+'.json'))
+        self.assertNotEqual(queued['verification_id'],old_id)
+        self.assertEqual(queued['previous_verification_id'],old_id)
+        self.assertEqual(queued['artifact'],self.request['artifact'])
+        self.assertEqual(v.read_json(str(self.art)+'.baseline.json')['verification_id'],old_id)
+        self.assertEqual(old_report.read_text(),'{"status":"original failure"}')
+    def test_normal_enqueue_retains_original_identity(self):
+        v.atomic(str(self.art)+'.baseline.json',self.request)
+        v.enqueue(self.art)
+        queued=v.read_json(self.state/'requests'/(self.art.name+'.json'))
+        self.assertEqual(queued['verification_id'],self.request['verification_id'])
     def test_count_mismatch_fails(self):
         base={k:[] for k in v.QUERIES};base.update(table_counts={'mm.material':5},coverage_gaps=[])
         target={**base,'table_counts':{'mm.material':4}}
@@ -91,6 +125,37 @@ class VerificationTest(unittest.TestCase):
         v.publish(self.request,{'status':'pending'},'not_started')
         value=(self.export/(self.art.name+'.json')).read_text()
         self.assertNotIn('PRIVATE',value);self.assertNotIn('secret business value',value)
+
+
+class ConstraintComparisonTest(unittest.TestCase):
+    def test_known_equivalence_and_escaped_quotes(self):
+        for old,new in [(OLD,NEW),(OLD.replace('draft',"can''t"),NEW.replace('draft',"can''t"))]:
+            self.assertTrue(v.constraints_equal([constraint(old)],[constraint(new)]))
+            self.assertTrue(v.constraints_equal([constraint(new)],[constraint(old)]))
+    def test_real_changes_remain_different(self):
+        for changed in [NEW.replace('draft','retired'),NEW.replace('ANY','ALL'),
+                        NEW.replace('status','other_status'),NEW.replace('character varying','character varying (1)'),
+                        NEW.replace('::text','::integer'),NEW.replace("'draft'","' draft'"),
+                        NEW.replace('CHECK (','CHECK ((status IS NULL) OR ',1)]:
+            with self.subTest(changed=changed):
+                self.assertFalse(v.constraints_equal([constraint(OLD)],[constraint(changed)]))
+    def test_metadata_and_missing_constraints_not_ignored(self):
+        for row in [constraint(NEW,kind='f'),constraint(NEW,validated=False),['other',*constraint(NEW)[1:]]]:
+            self.assertFalse(v.constraints_equal([constraint(OLD)],[row]))
+        self.assertFalse(v.constraints_equal([constraint(OLD)],[]))
+        self.assertFalse(v.constraints_equal([constraint(OLD,kind='f')],[constraint(NEW,kind='f')]))
+    def test_sql_inside_quoted_values_is_not_rewritten(self):
+        old="CHECK (note = '"+OLD.replace("'","''")+"')"
+        new="CHECK (note = '"+NEW.replace("'","''")+"')"
+        self.assertFalse(v.constraints_equal([constraint(old)],[constraint(new)]))
+        self.assertEqual(v.canonical_check_definition('"'+OLD.replace('"','""')+'"'),('"'+OLD+'"',))
+        escaped="E'"+OLD.replace("'","\\'")+"'"
+        expression='CHECK (note = '+escaped+')'
+        self.assertEqual(v.canonical_check_definition(expression),('CHECK','(','note','=',escaped,')'))
+    def test_unknown_or_malformed_arrays_remain_different(self):
+        for old in [OLD.replace("'published'::character varying","NULL"),
+                    OLD.replace('])::text[]',',])::text[]'),OLD.replace('::text[]','::varchar[]')]:
+            self.assertFalse(v.constraints_equal([constraint(old)],[constraint(NEW)]))
 
 
 if __name__=='__main__':unittest.main()

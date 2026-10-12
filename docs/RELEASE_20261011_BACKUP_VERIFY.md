@@ -1,6 +1,6 @@
 # MDM逐份恢复验证发布记录
 
-> 日期：2026-10-11｜状态：P16已明确确认；代码/本地与Linux合成隔离验证通过；正式验证服务、已有真实备份恢复及看板已发布验收。不得将下一次自然每日链路标为已通过。
+> 日期：2026-10-12更新｜状态：P16已上线；首次自然备份的等价约束误报已修复，同文件新ID复验13项检查通过，看板已绿。下一次新产物自然任务尚待观察。
 
 ## 范围与版本
 
@@ -39,3 +39,23 @@ restore/integrity/cleanup与备份执行分开。失败红色、未完成/缺基
 ## 回滚
 
 停止/禁用cmab-mdm-backup-verify.path，不动cmab-mdm-backup.timer；移除60-backup-verification.conf后daemon-reload即可恢复原普通备份路径。正在执行的验证经service停止及ExecStopPost清理自己的临时容器，保留dump和已有报告，不恢复或清空正式库。monitor可回到此前固定代码提交并重建/重启，既有4表和历史保留，无数据库downgrade。
+
+## 2026-10-12 首次自然每日链路只读调查
+
+用户反馈MDM红色卡片。实际backup.service在北京时间02:03:40～02:03:42退出0，生成cmab_mdm_prometheus_20261011_1803.dump（1,010,258字节），当前SHA256与报告一致：1f2af5bfd5a19983a21e31af1da5cb8b6b810d6a899e25899563adaef2a20c8f。verify.path自然触发02:03:42～02:03:54，验证ID b4815e723fa34b5b9c5899dafef45d73，restore=verified、full_restore=passed、38张表计数完全一致，清理passed且无验证容器残留；验证业务结果failed、failure_step=baseline_compare。worker退出0仅表示请求已处理，不能替代报告内验证结果。
+
+唯一不一致项constraints：源/恢复均180条约束，14条CHECK定义不同。源写法为常量varchar数组整体转text[]，恢复后变成各常量先转text再组数组；逐条只读核验约束身份/类型/验证标识及所有允许值均相同，14条差异完全是这一个类型转换表达式重写，其他catalog字段/表计数均相等，coverage_gaps为空。源PG16.15 Ubuntu、隔离目标PG16.15 Debian；不能归因于主版本不匹配。现有验证器直接比较pg_get_constraintdef文本，把恢复重解析产生的等价写法当结构变化，属于本次误报。原失败报告保留，不直接改成passed。
+
+自然任务→同snapshot基线→恢复→清理→报告→看板的触发链路已有实际证据，但完整验收未通过；待修正等价约束比较，并用此类varchar数组约束及真实不等价变更补回归后复验，不能跳过约束检查。此轮只读读取API/报告/备份清单与SHA，未修改MDM/monitor业务代码、数据库/权限/调度，未启动备份/恢复、创建容器或部署。MDM当前SHA ef0373adbd0da1816807f8b2cacf7dec7a01c58a、monitor8064e1edac79bd090f78a9fa2f25c33ea55a611b；服务active。
+
+## 2026-10-12 等价约束修正发布与同文件复验
+
+用户确认修复后，MDM实现仅接受已核实的常量varchar数组转text等价CHECK写法，并按SQL词法保留字符串/引号标识符；约束清单、身份/类型/验证标志及真实规则变化仍严格比较。普通每日入队行为保持，显式enqueue --reverify生成新验证ID，在私有请求记录原验证ID，原基线和失败报告不改写。策略标识literal_varchar_array_to_text_v1写入验证报告，原始两份catalog继续保留。
+
+本地20项离线配套测试通过，覆盖等价与真实允许值/运算符/字段/类型/NULL条件变化、缺失/属性变化、字符串里的SQL与转义、未知表达式，以及首次/复验ID和报告保留；所有SQL/Docker操作为桩。直接对本次报告180条真实约束回归，14处等价写法通过，逐处类型改变仍拒绝。Linux实际隔离合成源测试：并发新增后备份仍取原snapshot2行；历史等价约束通过，真允许值变更/计数差异/损坏archive均检出，容器清理完毕。未连接Mac或Linux原生库作合成测试目标。
+
+MDM最终SHA b1d9d08a7c22ecaeb0e67745ccf2a7d7e95a71e0（包含416ff66修复），Mac→GitHub→Linux相同，按现有deploy/deploy.sh发布完成。保护性发布备份/验收目录/opt/cmab-mdm-platform/backups/releases/linux-20261012T013053Z.nzUhgk；现有迁移版本核验、设备/物料前后计数一致，服务和Hub验收恢复正常。无新迁移或权限/调度改变；部署短暂停后端期间502后按脚本恢复。
+
+北京时间09:32对凌晨原文件cmab_mdm_prometheus_20261011_1803.dump显式复验，SHA仍1f2af5bfd5a19983a21e31af1da5cb8b6b810d6a899e25899563adaef2a20c8f。新验证ID0e64866ae5aa4d4dbeaf1e0793964c75引用原失败IDb4815e723fa34b5b9c5899dafef45d73；完整恢复+13项检查全部passed，restore/integrity均verified，耗时8.963秒、结束内存样本49.81MiB/512MiB（不是峰值）、临时数据80,426,432字节已清理，无验证容器残留。原失败报告SHA be050a682b135a47a233ea28092a24d658ffa4522b1a5f26a935f60336fb26bd及原基线SHA af038a778bd3fa149a790e9633161a74613cebda97a3344eb7dff27ae739a6fd均未变化。
+
+恢复结束通知已自动驱动collector采集，UTC01:32:32.599362的Hub实际overview为绿色“备份完成，恢复验证通过”，关联本次新ID。未修改monitor业务判定或强制改历史状态；只同步本次文档/离线回归脚本，Mac模拟保持。每天02:00原备份及07:00兜底保持，10-12自然链路的等价误报已定位修复并在同文件实测通过；下一次10-13新产物自然执行尚未发生，不冒称已验收。
