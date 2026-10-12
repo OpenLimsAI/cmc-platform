@@ -96,7 +96,7 @@ QUERIES = {
 # accepted. Quoted SQL values/identifiers are indivisible, so text inside a
 # value cannot be mistaken for an expression and rewritten.
 _SQL_TOKEN = re.compile(
-    r"--[^\n]*(?:\n|$)|/\*.*?\*/|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|::|[A-Za-z_][A-Za-z_0-9$]*|\S",
+    r"--[^\n]*(?:\n|$)|/\*.*?\*/|[Ee]'(?:''|\\.|[^'\\])*'|U&'(?:''|[^'])*'|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|::|[A-Za-z_][A-Za-z_0-9$]*|\S",
     re.DOTALL,
 )
 
