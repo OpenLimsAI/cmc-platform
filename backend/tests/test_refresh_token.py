@@ -8,9 +8,11 @@ Refresh Token 旋转 + 撤销测试（P4.B-1）
 - 改密：撤销该用户所有活跃 refresh
 """
 import pytest
+from app.core.security import decode_token
 from httpx import AsyncClient
 
 from tests.conftest import BASE_URL
+from tests.test_password_policy import sql
 
 
 @pytest.mark.asyncio
@@ -58,8 +60,8 @@ async def test_refresh_returns_new_access_and_rotates_cookie():
 
 
 @pytest.mark.asyncio
-async def test_refresh_old_token_rejected_after_rotation():
-    """旋转后旧 refresh 应失效（防 refresh 重放）"""
+async def test_refresh_old_token_rejected_after_repeat_window():
+    """5 秒复取窗口结束后，旧 refresh 继续拒绝。"""
     async with AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
         await client.post(
             "/api/v1/auth/login",
@@ -72,6 +74,9 @@ async def test_refresh_old_token_rejected_after_rotation():
         # 触发一次 refresh（client 自动用旧 cookie，并接收新 cookie）
         r1 = await client.post("/api/v1/auth/refresh")
         assert r1.status_code == 200
+
+        await sql("UPDATE auth.refresh_token SET revoked_at=now()-interval '6 seconds' WHERE jti=$1",
+                  decode_token(old_refresh)['jti'])
 
         # 手工用旧 refresh 再次调 refresh（不带 cookie jar，自己塞）
         async with AsyncClient(base_url=BASE_URL, timeout=10.0) as fresh:

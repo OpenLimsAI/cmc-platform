@@ -31,6 +31,7 @@ def create_access_token(
     extra_claims: dict[str, Any] | None = None,
     expires_minutes: int | None = None,
     expires_at: datetime | None = None,
+    issued_at: datetime | None = None,
 ) -> str:
     """生成 Access Token（按 settings.JWT_ALGORITHM 选 HS256/RS256）"""
     expire = expires_at or datetime.now(UTC) + timedelta(
@@ -40,7 +41,7 @@ def create_access_token(
         "sub": str(subject),
         "type": "access",
         "exp": expire,
-        "iat": datetime.now(UTC),
+        "iat": issued_at or datetime.now(UTC),
     }
     if extra_claims:
         payload.update(extra_claims)
@@ -52,7 +53,9 @@ def create_access_token(
     )
 
 
-def create_refresh_token(subject: int | str, jti: str, expires_at: datetime) -> str:
+def create_refresh_token(
+    subject: int | str, jti: str, expires_at: datetime, *, issued_at: datetime | None = None,
+) -> str:
     """生成 Refresh Token。到期时间由会话策略算好传入（min(空闲窗口, 硬上限)，见 session_policy）"""
     expire = expires_at
     payload = {
@@ -60,7 +63,7 @@ def create_refresh_token(subject: int | str, jti: str, expires_at: datetime) -> 
         "type": "refresh",
         "jti": jti,
         "exp": expire,
-        "iat": datetime.now(UTC),
+        "iat": issued_at or datetime.now(UTC),
     }
     return jwt.encode(
         payload,

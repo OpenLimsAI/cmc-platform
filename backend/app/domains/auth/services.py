@@ -46,6 +46,13 @@ from app.domains.auth.password_policy import (
     temporary_password_expired,
     validate_new_password,
 )
+from app.domains.auth.refresh_sessions import (
+    lock_refresh_context,
+    normalized_agent,
+    repeated_refresh_result,
+    session_filter,
+    session_start,
+)
 from app.domains.auth.schemas import (
     LoginHistoryItem,
     LoginResponse,
@@ -433,23 +440,11 @@ class AuthService:
         if not jti:
             raise TokenInvalidError("refresh token 缺少 jti")
 
-        # 查 DB：jti 必须存在 + 未撤销 + 未过期（DB 表的 expires_at 与 JWT exp 双校验）
-        result = await self.db.execute(
-            select(RefreshToken).where(RefreshToken.jti == jti)
-        )
-        rt = result.scalar_one_or_none()
-        if rt is None:
-            raise TokenInvalidError("refresh token 不存在")
+        # 与改密、锁定一致：先锁账号再锁凭据，等待后读取最新状态。
+        user, rt = await lock_refresh_context(self.db, payload)
         now = datetime.now(UTC)
-        if rt.revoked_at is not None:
-            # 已撤销但仍被用——可能是 refresh 重放攻击；记录 warn
-            logger.warning(
-                f"refresh token 重放尝试：jti={jti} user_id={rt.user_id} "
-                f"revoked_reason={rt.revoked_reason}"
-            )
-            raise TokenInvalidError("refresh token 已被撤销")
         policy = await load_session_policy(self.db)
-        session_started_at = rt.session_started_at or rt.issued_at
+        session_started_at = session_start(rt)
         absolute_deadline = session_started_at + timedelta(hours=policy.absolute_max_hours)
         if absolute_deadline <= now:
             raise TokenExpiredError(
@@ -458,41 +453,44 @@ class AuthService:
         if rt.expires_at <= now:
             raise TokenExpiredError("长时间未操作，已自动退出，请重新登录")
 
-        # 拉用户 + roles
-        user_result = await self.db.execute(
-            select(User)
-            .options(selectinload(User.roles))
-            .where(User.user_id == rt.user_id, User.deleted_at.is_(None))
-        )
-        user = user_result.scalar_one_or_none()
-        if user is None or user.status != "active":
+        if user.deleted_at is not None or user.status != "active":
             raise TokenInvalidError("用户不存在或已禁用")
         if temporary_password_expired(user, now):
             raise TemporaryPasswordExpiredError()
 
-        # 旋转：撤销旧 jti
-        new_jti = str(uuid4())
-        rt.revoked_at = now
-        rt.revoked_reason = "rotated"
-        rt.rotated_to_jti = new_jti
-
-        # 签发新 refresh：只续到 min(现在 + 空闲窗口, 会话开始 + 硬上限)
         roles = [r.role_code for r in user.roles]
-        new_expires_at = self._refresh_deadline(policy, roles, session_started_at, now)
-        new_refresh = create_refresh_token(
-            subject=user.user_id, jti=new_jti, expires_at=new_expires_at
-        )
-        self.db.add(RefreshToken(
-            jti=new_jti,
-            user_id=user.user_id,
-            expires_at=new_expires_at,
-            session_started_at=session_started_at,
-            ip_address=ip,
-            user_agent=(ua or "")[:512] if ua else None,
-        ))
+        if rt.revoked_at is not None:
+            try:
+                chosen = await repeated_refresh_result(self.db, rt, now=now, ip=ip, ua=ua)
+                # 没有持久化旧策略快照；策略已变时不能按更长的新时长重建旧结果。
+                # 新凭据的正常续期仍读取最新策略，旧凭据复取保守拒绝。
+                if policy.updated_at is not None and policy.updated_at > chosen.issued_at:
+                    raise TokenInvalidError("会话策略已更新，请使用新的续期凭据")
+            except TokenInvalidError:
+                logger.warning("无效重复续期：user_id={} reason={}", user.user_id, rt.revoked_reason)
+                raise
+        else:
+            new_jti = str(uuid4())
+            rt.revoked_at = now
+            rt.revoked_reason = "rotated"
+            rt.rotated_to_jti = new_jti
+            chosen = RefreshToken(
+                jti=new_jti, user_id=user.user_id, issued_at=now,
+                expires_at=self._refresh_deadline(policy, roles, session_started_at, now),
+                session_started_at=session_started_at, ip_address=ip,
+                user_agent=normalized_agent(ua),
+            )
+            self.db.add(chosen)
 
-        # 签发新 access
-        deadline = access_deadline(user, policy.access_token_minutes, now)
+        # 复取使用原签发时间和到期日，不再轮换或推进续期期限。
+        new_refresh = create_refresh_token(
+            subject=user.user_id, jti=chosen.jti, expires_at=chosen.expires_at,
+            issued_at=chosen.issued_at,
+        )
+        deadline = min(access_deadline(user, policy.access_token_minutes, chosen.issued_at),
+                       chosen.expires_at, absolute_deadline)
+        if deadline <= now:
+            raise TokenExpiredError("通行证已到期，请重新登录")
         new_access = create_access_token(
             subject=user.user_id,
             extra_claims={
@@ -510,6 +508,7 @@ class AuthService:
             },
             expires_minutes=policy.access_token_minutes,
             expires_at=deadline,
+            issued_at=chosen.issued_at,
         )
 
         # 强一致：refresh 端点必须 commit 后才返回（避免 yield 依赖 commit 时机坑）
@@ -531,11 +530,12 @@ class AuthService:
         ip: str | None = None,
         ua: str | None = None,
     ) -> None:
-        """登出：撤销 cookie 中携带的 refresh token（如果有效则 revoke；无则静默）"""
+        """结束 cookie 所属的这一次登录全部分支；其他独立登录保留。"""
         if not refresh_token:
             return
         try:
-            payload = decode_token(refresh_token)
+            # 即使旧 cookie 已到期，也只能结束已知的同一次登录，不能续期。
+            payload = decode_token(refresh_token, verify_exp=False)
         except (TokenInvalidError, TokenExpiredError):
             return
         if payload.get("type") != "refresh":
@@ -543,42 +543,31 @@ class AuthService:
         jti = payload.get("jti")
         if not jti:
             return
-        await self.db.execute(
+        try:
+            user, rt = await lock_refresh_context(self.db, payload)
+        except TokenInvalidError:
+            await self.db.commit()
+            return
+        started_at = session_start(rt)
+        revoked = (await self.db.execute(
             update(RefreshToken)
             .where(
-                RefreshToken.jti == jti,
+                session_filter(user.user_id, started_at),
                 RefreshToken.revoked_at.is_(None),
             )
             .values(
                 revoked_at=datetime.now(UTC),
                 revoked_reason="logout",
-            )
-        )
-        # LOGOUT 审计：logout 路由不走 get_current_user，操作人身份从 refresh token 的
-        # sub 解析后再查 username（audit_log.username 非空）；解析不出则跳过审计但仍登出。
-        sub_raw = payload.get("sub")
-        try:
-            user_id_int = int(sub_raw) if sub_raw is not None else None
-        except (TypeError, ValueError):
-            user_id_int = None
-        if user_id_int is not None:
-            uname = (
-                await self.db.execute(
-                    select(User.username).where(User.user_id == user_id_int)
-                )
-            ).scalar_one_or_none()
-            if uname is not None:
-                self.db.add(
-                    AuditLog(
-                        user_id=user_id_int,
-                        username=uname,
-                        action="LOGOUT",
-                        ip_address=ip,
-                        user_agent=ua,
-                        request_id=audit_request_id.get(),
-                        reason="登出",
-                    )
-                )
+            ).returning(RefreshToken.jti)
+        )).scalars().all()
+        if revoked:
+            self.db.add(AuditLog(
+                user_id=user.user_id, username=user.username, action="LOGOUT",
+                session_id=started_at.isoformat(), ip_address=ip, user_agent=ua,
+                request_id=audit_request_id.get(), reason="登出",
+                change_summary="退出当前登录及其全部续期分支",
+                extra={"operation": "logout_session", "revoked_records": len(revoked)},
+            ))
         await self.db.flush()
         await self.db.commit()
 
