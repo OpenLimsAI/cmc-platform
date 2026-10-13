@@ -122,7 +122,7 @@ class AssetService:
             Asset.deleted_at.is_(None),
         )
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update(of=Asset).execution_options(populate_existing=True)
         result = await self.db.execute(stmt)
         asset = result.scalar_one_or_none()
         if not asset:
@@ -181,7 +181,7 @@ class AssetService:
                 {"r": payload.change_reason},
             )
 
-        asset = await self._get_asset_or_404(code)
+        asset = await self._get_asset_or_404(code, for_update=True)
         if asset.version != payload.version:
             raise VersionConflictError(
                 f"版本号不匹配（服务器: {asset.version}，请求: {payload.version}）"
@@ -197,6 +197,7 @@ class AssetService:
 
         await self.db.flush()
         await self.db.refresh(asset, ["version", "updated_at", "phase_change_at"])
+        await self.db.commit()
         return AssetDetail.model_validate(asset)
 
     # ----------- 软删除 -----------

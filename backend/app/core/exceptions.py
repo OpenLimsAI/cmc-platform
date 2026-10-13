@@ -158,7 +158,14 @@ class PasswordChangeRequiredError(AppError):
     code = 40307
     http_status = 403
     error_type = "password_change_required"
-    default_message = "请先修改初始密码后再使用系统"
+    default_message = "密码需要修改，请先改密后再使用系统"
+
+
+class TemporaryPasswordExpiredError(AppError):
+    code = 40308
+    http_status = 403
+    error_type = "temporary_password_expired"
+    default_message = "临时密码已过期，请联系管理员重新发放"
 
 
 class NotFoundError(AppError):

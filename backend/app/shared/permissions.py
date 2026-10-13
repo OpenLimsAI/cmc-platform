@@ -1,6 +1,8 @@
 """
 认证与权限依赖
 """
+from datetime import UTC
+
 from fastapi import Depends, Header, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,11 +13,13 @@ from app.core.exceptions import (
     AccountDisabledError,
     PasswordChangeRequiredError,
     PermissionDeniedError,
+    TemporaryPasswordExpiredError,
     TokenInvalidError,
     TokenMissingError,
 )
 from app.core.security import decode_token
 from app.domains.auth.models import User
+from app.domains.auth.password_policy import requires_password_change, temporary_password_expired
 from app.shared.audit_context import (
     audit_user_id,
     audit_username,
@@ -29,6 +33,7 @@ FORCE_PASSWORD_CHANGE_ALLOWED_PATHS = frozenset({
     "/api/v1/auth/logout",
     "/api/v1/auth/me",
     "/api/v1/auth/refresh",
+    "/api/v1/auth/session-policy",
 })
 
 
@@ -78,6 +83,9 @@ async def get_current_user(
     # 必须把 password_changed_at 也截到整秒比较，否则改密后立即重登的 token（iat=秒）
     # 会被误判（fromtimestamp(秒) < 同一秒.123 → True）。
     if user.password_changed_at is not None:
+        changed_at_claim = payload.get("password_changed_at")
+        if changed_at_claim is not None and changed_at_claim != user.password_changed_at.astimezone(UTC).isoformat():
+            raise TokenInvalidError("密码已变更，请重新登录")
         token_iat = payload.get("iat")
         if token_iat is not None:
             pwd_changed_sec = int(user.password_changed_at.timestamp())
@@ -86,7 +94,9 @@ async def get_current_user(
 
     # 强制改密拦截：临时密码仅可走改密闭环，其余接口 403
     # （403 而非 401：避免前端拦截器按会话失效登出）
-    if user.force_password_change and request.url.path not in FORCE_PASSWORD_CHANGE_ALLOWED_PATHS:
+    if temporary_password_expired(user):
+        raise TemporaryPasswordExpiredError()
+    if requires_password_change(user) and request.url.path not in FORCE_PASSWORD_CHANGE_ALLOWED_PATHS:
         raise PasswordChangeRequiredError()
 
     # 认证通过后把 user 写入 ContextVar 并回灌当前事务的 PG session 变量，

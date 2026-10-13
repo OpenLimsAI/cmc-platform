@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.exceptions import (
     BadRequestError,
@@ -466,11 +467,12 @@ class SubstanceService:
                 {"r": payload.change_reason},
             )
 
+        # 同主记录排队后重读，并重查未删除条件；旧版本不能覆盖已提交的资料。
         result = await self.db.execute(
             select(Substance).where(
                 Substance.substance_code == code,
                 Substance.deleted_at.is_(None),
-            )
+            ).with_for_update(of=Substance).execution_options(populate_existing=True)
         )
         sub = result.scalar_one_or_none()
         if not sub:
@@ -508,11 +510,14 @@ class SubstanceService:
                 raise BadRequestError(
                     f"protein 信息不适用于 {sub.substance_type} 类型物质"
                 )
+            # 只改子结构时也更新主记录，让下一位编辑者的旧版本失效。
+            flag_modified(sub, "updated_by")
             await self._upsert_protein(sub.substance_id, payload.protein)
 
         await self.db.flush()
         # 触发器修改了 version/updated_at，ORM identity map 不会自动同步，需显式 refresh
         await self.db.refresh(sub, ["version", "updated_at"])
+        await self.db.commit()
         return await self.get_by_code(code)
 
     async def _upsert_protein(self, substance_id: int, payload) -> None:

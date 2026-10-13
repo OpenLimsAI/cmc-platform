@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
 
     # ----------- 业务配置 -----------
-    PASSWORD_MIN_LENGTH: int = 12
+    PASSWORD_MIN_LENGTH: int = 8
     # 管理员重置后临时密码有效期（用户必须在此期间登录并改密；超期 expires 拒登）
     PASSWORD_TEMP_DAYS: int = 7
     LOGIN_MAX_FAILED_ATTEMPTS: int = 5

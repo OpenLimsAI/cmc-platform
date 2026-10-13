@@ -30,9 +30,10 @@ def create_access_token(
     subject: int | str,
     extra_claims: dict[str, Any] | None = None,
     expires_minutes: int | None = None,
+    expires_at: datetime | None = None,
 ) -> str:
     """生成 Access Token（按 settings.JWT_ALGORITHM 选 HS256/RS256）"""
-    expire = datetime.now(UTC) + timedelta(
+    expire = expires_at or datetime.now(UTC) + timedelta(
         minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     payload: dict[str, Any] = {

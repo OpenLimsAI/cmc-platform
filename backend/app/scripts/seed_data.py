@@ -11,7 +11,7 @@ import asyncio
 import hashlib
 import re
 import sys
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from loguru import logger
 from sqlalchemy import select, text
@@ -27,6 +27,7 @@ from app.domains.auth.models import (
     User,
     UserRole,
 )
+from app.domains.auth.password_policy import record_password
 from app.domains.mm.models import Material, MaterialBatch
 from app.domains.prs.models import (
     Project,
@@ -286,10 +287,13 @@ async def seed_users(db: AsyncSession):
             department=u.get("department"),
             title=u.get("title"),
             status="active",
+            password_changed_at=datetime.now(UTC),
+            password_expires_at=datetime.now(UTC) + timedelta(days=90),
         )
         db.add(user)
         await db.flush()
 
+        await record_password(db, user)
         for role_code in u["roles"]:
             rid = role_map.get(role_code)
             if rid:

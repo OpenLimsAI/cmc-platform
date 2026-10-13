@@ -104,6 +104,7 @@ interface AuthState {
   hasAnyReadPermission: () => boolean;
   /** 强制改密完成后清标记：否则 ProtectedRoute 会一直把人弹回改密页 */
   clearMustChangePassword: () => void;
+  requirePasswordChange: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -125,10 +126,21 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      // P4.B：refresh 路径只更新 access token，权限/用户信息保持
+      // 换证可能恰好跨越密码到期日；同步服务端声明，权限仍沿用现有用户资料。
       updateToken: (token) => {
-        set({ token });
+        let mustChange: boolean | undefined;
+        try {
+          const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          const flag = JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, '='))).must_change_password;
+          if (typeof flag === 'boolean') mustChange = flag;
+        } catch { /* 后端鉴权仍是权威；解析失败不清已有改密标记 */ }
+        set((state) => ({ token, user: state.user && mustChange !== undefined
+          ? { ...state.user, must_change_password: mustChange } : state.user }));
       },
+
+      requirePasswordChange: () => set((state) => ({
+        user: state.user ? { ...state.user, must_change_password: true } : null,
+      })),
 
       logout: () => {
         // 清 React Query 缓存：登出走 SPA 跳转不刷新页面，不清会把上一个人的

@@ -227,7 +227,11 @@ async def database_state(username, role_code):
         'SELECT row_to_json(rp)::text FROM auth.role_permission rp JOIN auth.role r USING(role_id) '
         'WHERE r.role_code=$1 ORDER BY rp.permission_id', role_code,
     )
-    return (rows, roles, links, permissions, await stored_logs(username), await stored_logs(role_code, "role"))
+    password_history = await db_rows(
+        'SELECT row_to_json(h)::text FROM auth.password_history h JOIN auth."user" u USING(user_id) '
+        'WHERE u.username=$1 ORDER BY h.history_id', username,
+    )
+    return (rows, roles, links, permissions, password_history, await stored_logs(username), await stored_logs(role_code, "role"))
 
 
 @pytest.mark.asyncio

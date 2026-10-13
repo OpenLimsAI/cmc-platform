@@ -36,6 +36,7 @@ from app.core.security import hash_password
 from app.domains.audit.models import AuditLog
 from app.domains.auth.admin_service import _generate_temp_password
 from app.domains.auth.models import Role, User, UserRole
+from app.domains.auth.password_policy import record_password, validate_new_password
 
 HEADER_ALIASES = {
     "full_name": {"姓名", "name", "full_name"},
@@ -150,6 +151,7 @@ async def main() -> int:
                 created.append((row["username"], row["full_name"], f"(dry-run) 角色={codes} 部门={row['department']}"))
                 continue
             temp_pw = _generate_temp_password(16)
+            await validate_new_password(db, temp_pw)
             now = datetime.now(UTC)
             user = User(
                 username=row["username"],
@@ -167,6 +169,7 @@ async def main() -> int:
             )
             db.add(user)
             await db.flush()
+            await record_password(db, user)
             for r in rlist:
                 db.add(UserRole(user_id=user.user_id, role_id=r.role_id, granted_by=actor.user_id))
             db.add(

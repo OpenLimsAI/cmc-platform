@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { adminUsersApi } from '@/api/admin';
 import type { UserDetail } from '@/api/types';
 import { applyFormErrors } from '@/shared/utils/formErrors';
+import { passwordRules } from '@/shared/utils/passwordRules';
 import { useRoleOptions } from '../useRoleOptions';
 
 type Mode = 'create' | 'edit';
@@ -132,10 +133,10 @@ export function UserFormDrawer({ open, mode, user, onClose, onSaved }: Props) {
           <Form.Item
             name="password"
             label="初始密码"
-            extra="≥12 字符，包含大小写、数字、符号"
+            extra="至少8位，包含大写、小写、数字和符号"
             rules={[
               { required: true, message: '请输入初始密码' },
-              { min: 12, message: '密码至少 12 位' },
+              ...passwordRules,
             ]}
           >
             <Input.Password placeholder="请输入初始密码" />

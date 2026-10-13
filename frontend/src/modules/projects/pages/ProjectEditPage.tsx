@@ -20,6 +20,8 @@ import dayjs, { Dayjs } from 'dayjs';
 import { projectsApi } from '@/api/projects';
 import { assetsApi } from '@/api/assets';
 import { applyFormErrors } from '@/shared/utils/formErrors';
+import { useEditSnapshot } from '@/shared/hooks/useEditSnapshot';
+import { EditConflictAlert } from '@/shared/components/EditConflictAlert';
 import type { ProjectCategory, ProjectUpdatePayload } from '@/api/types';
 import {
   OWNING_FUNCTION_OPTIONS,
@@ -63,6 +65,8 @@ export function ProjectEditPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const snapshot = useEditSnapshot(code);
+  const { capture, reloadKey } = snapshot;
   const [form] = Form.useForm<FormValues>();
   const category = Form.useWatch('project_category', form);
   const nature = Form.useWatch('project_nature', form);
@@ -71,7 +75,7 @@ export function ProjectEditPage() {
   const {
     data: proj,
     isLoading,
-    isError,
+    refetch,
   } = useQuery({
     queryKey: ['project', code],
     queryFn: () => projectsApi.get(code!),
@@ -89,7 +93,7 @@ export function ProjectEditPage() {
   }));
 
   useEffect(() => {
-    if (proj) {
+    if (proj && capture(proj.version)) {
       form.setFieldsValue({
         project_name: proj.project_name,
         project_name_en: proj.project_name_en ?? undefined,
@@ -114,7 +118,7 @@ export function ProjectEditPage() {
         notes: proj.notes ?? undefined,
       });
     }
-  }, [proj, form]);
+  }, [proj, form, capture, reloadKey]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: ProjectUpdatePayload) => projectsApi.update(code!, payload),
@@ -127,7 +131,8 @@ export function ProjectEditPage() {
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
       const status = err?.response?.status;
-      if (status === 409) {
+      if (status === 409 && err?.response?.data?.meta?.error?.type === 'version_conflict') {
+        snapshot.setConflict(true);
         message.error('数据已被他人修改，请刷新后重试');
       } else {
         message.error(err?.response?.data?.message ?? '更新失败');
@@ -138,7 +143,7 @@ export function ProjectEditPage() {
   const onFinish = (values: FormValues) => {
     if (!proj) return;
     const payload: ProjectUpdatePayload = {
-      version: proj.version,
+      version: snapshot.version.current,
       change_reason: values.change_reason,
       project_name: values.project_name,
       project_name_en: values.project_name_en,
@@ -172,7 +177,7 @@ export function ProjectEditPage() {
       </Card>
     );
   }
-  if (isError || !proj) {
+  if (!proj) {
     return (
       <Result
         status="404"
@@ -211,7 +216,12 @@ export function ProjectEditPage() {
           </Typography.Text>
         </Title>
 
-        <Form<FormValues> form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 880 }}>
+        {snapshot.conflict && <EditConflictAlert
+        recordPath={`/projects/${encodeURIComponent(proj.project_code)}`}
+        onReload={async () => { await refetch({ throwOnError: true }); snapshot.reload(); }}
+      />}
+
+      <Form<FormValues> form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 880 }}>
           <Form.Item
             label="项目名称"
             name="project_name"

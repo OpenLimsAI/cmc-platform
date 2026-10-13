@@ -84,7 +84,7 @@ class DeptAdminPolicyUpdate(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     old_password: str = Field(..., min_length=1)
-    new_password: str = Field(..., min_length=12, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 # =============================================================================
@@ -99,7 +99,7 @@ class UserCreate(BaseModel):
     # 因此放开为"字母或数字开头",不可收窄为纯数字。后续将整列正名为 employee_id。
     username: str = Field(..., min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
     email: EmailStr
-    password: str = Field(..., min_length=12, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
     full_name: str = Field(..., min_length=1, max_length=128)
     full_name_en: str | None = Field(None, max_length=128)
     department: str | None = Field(None, max_length=64)

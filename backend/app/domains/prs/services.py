@@ -227,7 +227,7 @@ class ProjectService:
             Project.deleted_at.is_(None),
         )
         if for_update:
-            stmt = stmt.with_for_update()
+            stmt = stmt.with_for_update(of=Project).execution_options(populate_existing=True)
         result = await self.db.execute(stmt)
         proj = result.scalar_one_or_none()
         if not proj:
@@ -325,7 +325,7 @@ class ProjectService:
                 {"r": payload.change_reason},
             )
 
-        proj = await self._get_project_or_404(code)
+        proj = await self._get_project_or_404(code, for_update=True)
 
         if proj.version != payload.version:
             raise VersionConflictError(
@@ -361,6 +361,7 @@ class ProjectService:
 
         await self.db.flush()
         await self.db.refresh(proj, ["version", "updated_at"])
+        await self.db.commit()
         return ProjectDetail.model_validate(proj)
 
     # ----------- 软删除 -----------

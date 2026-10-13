@@ -14,6 +14,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
+import { passwordRules } from '@/shared/utils/passwordRules';
 
 const { Title, Text } = Typography;
 
@@ -28,8 +29,9 @@ export function ChangePasswordPage() {
   const [searchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
   const clearMustChangePassword = useAuthStore((s) => s.clearMustChangePassword);
+  const mustChangePassword = useAuthStore((s) => s.user?.must_change_password ?? false);
   const [form] = Form.useForm<FormValues>();
-  const isForced = searchParams.get('required') === '1';
+  const isForced = mustChangePassword || searchParams.get('required') === '1';
 
   const mutation = useMutation({
     mutationFn: (payload: { old_password: string; new_password: string }) =>
@@ -82,8 +84,8 @@ export function ChangePasswordPage() {
           <Alert
             type="error"
             showIcon
-            message="管理员已重置您的密码"
-            description="此密码为一次性临时凭证，必须设置新密码后才能正常使用系统。新密码长度 ≥ 12 位，包含大小写、数字与符号。"
+            message="当前密码需要更新"
+            description="当前密码需要更新，完成改密后才能正常使用系统。新密码至少 8 位，包含大写、小写、数字和符号。"
             style={{ marginBottom: 16 }}
           />
         )}
@@ -91,8 +93,8 @@ export function ChangePasswordPage() {
         <Alert
           type="warning"
           showIcon
-          message="改密后旧登录凭证立即失效"
-          description="为符合 21 CFR Part 11 §11.300（标识码/密码生命周期管理），密码变更后所有现存 access token 都会即时作废，包括其他浏览器/设备上的登录会话。提交成功后此页面会自动登出。"
+          message="改密后需要重新登录"
+          description="密码修改成功后，此页面会自动退出登录。其他 MDM 登录会话也需要重新登录。"
           style={{ marginBottom: 20 }}
         />
 
@@ -113,11 +115,10 @@ export function ChangePasswordPage() {
           <Form.Item
             label="新密码"
             name="new_password"
-            tooltip="至少 12 位，建议包含大小写字母 + 数字 + 特殊字符"
+            tooltip="至少 8 位，须包含大写、小写、数字和符号"
             rules={[
               { required: true, message: '请输入新密码' },
-              { min: 12, message: '新密码至少 12 位' },
-              { max: 128 },
+              ...passwordRules,
               {
                 validator: (_, value) =>
                   value && value === form.getFieldValue('old_password')

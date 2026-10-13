@@ -2,6 +2,7 @@
 认证服务
 """
 from datetime import UTC, datetime, timedelta
+from math import ceil
 from uuid import uuid4
 
 from loguru import logger
@@ -16,6 +17,7 @@ from app.core.exceptions import (
     AccountLockedError,
     InvalidCredentialsError,
     OldPasswordWrongError,
+    TemporaryPasswordExpiredError,
     TokenExpiredError,
     TokenInvalidError,
 )
@@ -35,6 +37,14 @@ from app.domains.auth.models import (
     RefreshToken,
     RolePermission,
     User,
+)
+from app.domains.auth.password_policy import (
+    access_deadline,
+    ensure_current_password_recorded,
+    record_password,
+    requires_password_change,
+    temporary_password_expired,
+    validate_new_password,
 )
 from app.domains.auth.schemas import (
     LoginHistoryItem,
@@ -252,7 +262,14 @@ class AuthService:
                 raise AccountLockedError()
             raise InvalidCredentialsError()
 
-        # 登录成功
+        if temporary_password_expired(user):
+            await self._persist_login_failure(
+                user_id=user.user_id, username=username, ip=ip, ua=ua,
+                failure_reason="temporary_password_expired",
+            )
+            raise TemporaryPasswordExpiredError()
+
+        # 登录成功；普通过期密码只能进入改密闭环，不延长其原到期日期。
         user.failed_login_count = 0
         user.locked_at = None
         user.last_login_at = datetime.now(UTC)
@@ -276,6 +293,8 @@ class AuthService:
         roles = [r.role_code for r in user.roles]
         policy = await load_session_policy(self.db)
 
+        must_change = requires_password_change(user)
+        deadline = access_deadline(user, policy.access_token_minutes)
         access_token = create_access_token(
             subject=user.user_id,
             extra_claims={
@@ -287,9 +306,12 @@ class AuthService:
                 # 2026-09-11：临时密码状态随令牌下发。MDM 自己早就拦住了（shared/permissions.py），
                 # 但下游系统本地验签、不回调 MDM，不下发就不知道 → 拿临时密码的人照样能在
                 # LabOps / 批号 / 看板里干活。下游据此一律 403 并提示先去 MDM 改密码。
-                "must_change_password": user.force_password_change,
+                "must_change_password": must_change,
+                "password_changed_at": user.password_changed_at.astimezone(UTC).isoformat()
+                if user.password_changed_at else None,
             },
             expires_minutes=policy.access_token_minutes,
+            expires_at=deadline,
         )
 
         refresh_token = await self._issue_refresh_token(
@@ -301,14 +323,14 @@ class AuthService:
         return (
             LoginResponse(
                 access_token=access_token,
-                expires_in=policy.access_token_minutes * 60,
+                expires_in=max(1, ceil((deadline - datetime.now(UTC)).total_seconds())),
                 user=LoginResponseUser(
                     user_id=user.user_id,
                     username=user.username,
                     full_name=user.full_name,
                     department=user.department,
                     title=user.title,
-                    must_change_password=user.force_password_change,
+                    must_change_password=must_change,
                     roles=roles,
                     permissions=permissions,
                 ),
@@ -331,7 +353,7 @@ class AuthService:
             "phone": user.phone,
             "status": user.status,
             "mfa_enabled": user.mfa_enabled,
-            "force_password_change": user.force_password_change,
+            "force_password_change": requires_password_change(user),
             "last_login_at": user.last_login_at,
             "roles": [
                 {"role_id": r.role_id, "role_code": r.role_code, "role_name": r.role_name}
@@ -349,10 +371,14 @@ class AuthService:
         user = result.scalar_one()
         if not verify_password(old_password, user.password_hash):
             raise OldPasswordWrongError()
+        if temporary_password_expired(user):
+            raise TemporaryPasswordExpiredError()
+        policy = await validate_new_password(self.db, new_password, user)
         before = user_state(user)
+        await ensure_current_password_recorded(self.db, user)
         user.password_hash = hash_password(new_password)
         user.password_changed_at = datetime.now(UTC)
-        user.password_expires_at = datetime.now(UTC) + timedelta(days=90)
+        user.password_expires_at = datetime.now(UTC) + timedelta(days=policy.expire_days)
         # 管理员重置密码后用户首次改密，清空强制改密标记
         user.force_password_change = False
         # 撤销该用户全部活跃 refresh token（同 access token 黑名单语义）
@@ -368,6 +394,7 @@ class AuthService:
             )
         )
         await self.db.flush()
+        await record_password(self.db, user)
         await record_auth_change(
             self.db, user, target=user, action="UPDATE",
             summary=f"用户 {user.username} 自行修改密码，活跃会话已撤销",
@@ -440,6 +467,8 @@ class AuthService:
         user = user_result.scalar_one_or_none()
         if user is None or user.status != "active":
             raise TokenInvalidError("用户不存在或已禁用")
+        if temporary_password_expired(user, now):
+            raise TemporaryPasswordExpiredError()
 
         # 旋转：撤销旧 jti
         new_jti = str(uuid4())
@@ -463,6 +492,7 @@ class AuthService:
         ))
 
         # 签发新 access
+        deadline = access_deadline(user, policy.access_token_minutes, now)
         new_access = create_access_token(
             subject=user.user_id,
             extra_claims={
@@ -474,9 +504,12 @@ class AuthService:
                 # 2026-09-11：临时密码状态随令牌下发。MDM 自己早就拦住了（shared/permissions.py），
                 # 但下游系统本地验签、不回调 MDM，不下发就不知道 → 拿临时密码的人照样能在
                 # LabOps / 批号 / 看板里干活。下游据此一律 403 并提示先去 MDM 改密码。
-                "must_change_password": user.force_password_change,
+                "must_change_password": requires_password_change(user, now),
+                "password_changed_at": user.password_changed_at.astimezone(UTC).isoformat()
+                if user.password_changed_at else None,
             },
             expires_minutes=policy.access_token_minutes,
+            expires_at=deadline,
         )
 
         # 强一致：refresh 端点必须 commit 后才返回（避免 yield 依赖 commit 时机坑）
@@ -486,7 +519,7 @@ class AuthService:
         return (
             RefreshTokenResponse(
                 access_token=new_access,
-                expires_in=policy.access_token_minutes * 60,
+                expires_in=max(1, ceil((deadline - datetime.now(UTC)).total_seconds())),
             ),
             new_refresh,
             policy,

@@ -174,6 +174,20 @@ class LoginHistory(Base):
     )
 
 
+class PasswordHistory(Base):
+    """仅供密码校验，不进入响应或应用审计；recorded_at 是记录采集时间。"""
+
+    __tablename__ = "password_history"
+    __table_args__ = (Index("ix_password_history_user", "user_id", "recorded_at", "history_id"),
+                      {"schema": "auth"})
+
+    history_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("auth.user.user_id"), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
+                                                server_default=func.now())
+
+
 class RefreshToken(Base):
     """Phase 4.B：refresh token 持久化（jti 旋转 + DB 撤销列表）"""
 

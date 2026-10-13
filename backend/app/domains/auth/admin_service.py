@@ -37,6 +37,7 @@ from app.core.exceptions import (
     ValidationError,
 )
 from app.core.security import hash_password
+from app.domains.auth.admin_guard import ensure_admin_remains, lock_admin_management
 from app.domains.auth.audit_service import record_auth_change, user_state
 from app.domains.auth.dept_admin import (
     PROTECTED_ROLES,
@@ -50,6 +51,12 @@ from app.domains.auth.models import (
     RolePermission,
     User,
     UserRole,
+)
+from app.domains.auth.password_policy import (
+    ensure_current_password_recorded,
+    load_password_policy,
+    record_password,
+    validate_new_password,
 )
 from app.domains.auth.schemas import (
     ResetPasswordResponse,
@@ -67,7 +74,7 @@ _TEMP_PW_SYMBOLS = "!@#$%&*+-_"
 
 
 def _generate_temp_password(length: int = 16) -> str:
-    """生成 16 位临时密码：保证至少 1 大写、1 小写、1 数字、1 符号（满足 12 位 + 复杂度策略）"""
+    """生成指定长度的临时密码，保证大写、小写、数字、符号各至少一个。"""
     rng = secrets.SystemRandom()
     chars = (
         [rng.choice(string.ascii_uppercase)]
@@ -290,6 +297,7 @@ class UserAdminService:
 
     # ----------- 创建 / 更新 -----------
     async def create_user(self, payload: UserCreate, actor: User) -> UserDetail:
+        password_policy = await validate_new_password(self.db, payload.password)
         # 预检：username / email 唯一（pre-check 避免 IntegrityError）
         exist = await self.db.execute(
             select(User).where(User.username == payload.username, User.deleted_at.is_(None))
@@ -316,7 +324,7 @@ class UserAdminService:
             phone=payload.phone,
             status="active",
             password_changed_at=datetime.now(UTC),
-            password_expires_at=datetime.now(UTC) + timedelta(days=90),
+            password_expires_at=datetime.now(UTC) + timedelta(days=password_policy.expire_days),
             force_password_change=False,
             created_by=actor.user_id,
             updated_by=actor.user_id,
@@ -329,6 +337,7 @@ class UserAdminService:
         await self.db.flush()
         await self.db.refresh(user, ["roles"])
 
+        await record_password(self.db, user)
         await self._audit(
             actor, None, action="CREATE", target=user,
             summary=f"创建用户 {user.username}",
@@ -379,6 +388,7 @@ class UserAdminService:
         actor: User,
         scope: UserAdminScope | None = None,
     ) -> UserDetail:
+        await lock_admin_management(self.db)
         user = await _load_user(self.db, username, for_update=True)
         self._ensure_in_scope(user, scope)
         current = {r.role_code for r in user.roles}
@@ -400,26 +410,8 @@ class UserAdminService:
             keep = [c for c in sorted(current) if not policy.is_delegable(c)]
             role_codes = keep + [c for c in role_codes if c not in keep]
 
-        # SYS_ADMIN 防呆：管理员不能取消自己最后一个 SYS_ADMIN（避免锁死）
-        if (
-            user.user_id == actor.user_id
-            and "SYS_ADMIN" not in role_codes
-            and "SYS_ADMIN" in current
-        ):
-            # 检查是否是最后一个 SYS_ADMIN
-            count_result = await self.db.execute(
-                select(func.count(UserRole.user_id.distinct()))
-                .join(Role, Role.role_id == UserRole.role_id)
-                .join(User, User.user_id == UserRole.user_id)
-                .where(
-                    Role.role_code == "SYS_ADMIN",
-                    User.deleted_at.is_(None),
-                    User.status == "active",
-                )
-            )
-            count = count_result.scalar_one()
-            if count <= 1:
-                raise OperationNotAllowedError("不能取消最后一个 SYS_ADMIN 的角色")
+        if "SYS_ADMIN" not in role_codes:
+            await ensure_admin_remains(self.db, user, removing_role=True)
 
         role_ids = await self._resolve_role_ids(role_codes)
 
@@ -463,11 +455,13 @@ class UserAdminService:
     ) -> UserDetail:
         if username == actor.username:
             raise CannotOperateSelfError("不能锁定自己")
+        await lock_admin_management(self.db)
         user = await _load_user(self.db, username, for_update=True)
         self._ensure_in_scope(user, scope)
         self._ensure_not_protected(user, scope, "锁定")
         if user.status == "locked":
             raise OperationNotAllowedError("用户已处于锁定状态")
+        await ensure_admin_remains(self.db, user)
         before = user_state(user)
         user.status = "locked"
         user.locked_at = datetime.now(UTC)
@@ -525,11 +519,13 @@ class UserAdminService:
         user = await _load_user(self.db, username, with_roles=False, for_update=True)
         before = user_state(user)
 
-        temp_pw = _generate_temp_password(16)
+        password_policy = await load_password_policy(self.db)
+        temp_pw = _generate_temp_password(max(16, password_policy.min_length))
+        await validate_new_password(self.db, temp_pw, user)
+        await ensure_current_password_recorded(self.db, user)
         user.password_hash = hash_password(temp_pw)
         user.password_changed_at = datetime.now(UTC)
-        # 临时密码立即过期视角：不设 password_expires_at 短窗口，而是用 force_password_change
-        # 强制走改密流程；用户改密后正常进入 90 天有效期
+        # 临时密码保留发放窗口；有效期内也只允许进入改密闭环。
         user.password_expires_at = datetime.now(UTC) + timedelta(days=settings.PASSWORD_TEMP_DAYS)
         user.force_password_change = True
         user.failed_login_count = 0
@@ -545,6 +541,7 @@ class UserAdminService:
             .values(revoked_at=datetime.now(UTC), revoked_reason="admin")
         )
         await self.db.flush()
+        await record_password(self.db, user)
         await self._audit(
             actor, None, action="UPDATE", target=user,
             summary=f"管理员重置用户 {username} 密码，须首次改密，活跃会话已撤销",

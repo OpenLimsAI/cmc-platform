@@ -17,6 +17,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assetsApi } from '@/api/assets';
 import { applyFormErrors } from '@/shared/utils/formErrors';
+import { useEditSnapshot } from '@/shared/hooks/useEditSnapshot';
+import { EditConflictAlert } from '@/shared/components/EditConflictAlert';
 import type { AssetUpdatePayload } from '@/api/types';
 import { ASSET_PHASE_OPTIONS, ASSET_TYPE_OPTIONS } from '../constants';
 
@@ -43,12 +45,14 @@ export function AssetEditPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const snapshot = useEditSnapshot(code);
+  const { capture, reloadKey } = snapshot;
   const [form] = Form.useForm<FormValues>();
 
   const {
     data: asset,
     isLoading,
-    isError,
+    refetch,
   } = useQuery({
     queryKey: ['asset', code],
     queryFn: () => assetsApi.get(code!),
@@ -56,7 +60,7 @@ export function AssetEditPage() {
   });
 
   useEffect(() => {
-    if (asset) {
+    if (asset && capture(asset.version)) {
       form.setFieldsValue({
         internal_name: asset.internal_name,
         trade_name: asset.trade_name ?? undefined,
@@ -73,7 +77,7 @@ export function AssetEditPage() {
         notes: asset.notes ?? undefined,
       });
     }
-  }, [asset, form]);
+  }, [asset, form, capture, reloadKey]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: AssetUpdatePayload) => assetsApi.update(code!, payload),
@@ -86,7 +90,8 @@ export function AssetEditPage() {
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
       const status = err?.response?.status;
-      if (status === 409) {
+      if (status === 409 && err?.response?.data?.meta?.error?.type === 'version_conflict') {
+        snapshot.setConflict(true);
         message.error('数据已被他人修改，请刷新后重试');
       } else {
         message.error(err?.response?.data?.message ?? '更新失败');
@@ -96,7 +101,7 @@ export function AssetEditPage() {
 
   const onFinish = (values: FormValues) => {
     if (!asset) return;
-    updateMutation.mutate({ version: asset.version, ...values });
+    updateMutation.mutate({ version: snapshot.version.current, ...values });
   };
 
   if (isLoading) {
@@ -106,7 +111,7 @@ export function AssetEditPage() {
       </Card>
     );
   }
-  if (isError || !asset) {
+  if (!asset) {
     return (
       <Result
         status="404"
@@ -145,7 +150,12 @@ export function AssetEditPage() {
           </Typography.Text>
         </Title>
 
-        <Form<FormValues> form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 880 }}>
+        {snapshot.conflict && <EditConflictAlert
+        recordPath={`/assets/${encodeURIComponent(asset.asset_code)}`}
+        onReload={async () => { await refetch({ throwOnError: true }); snapshot.reload(); }}
+      />}
+
+      <Form<FormValues> form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 880 }}>
           <Space size="large" style={{ display: 'flex' }}>
             <Form.Item label="内部名称" name="internal_name" style={{ flex: 2 }} rules={[{ required: true }]}>
               <Input maxLength={255} />

@@ -146,6 +146,13 @@ api.interceptors.response.use(
 
     // 403 权限不足
     if (status === 403) {
+      if (errorType === 'password_change_required') {
+        useAuthStore.getState().requirePasswordChange();
+        if (stripBase(window.location.pathname) !== '/profile/password') {
+          window.location.href = withBase('/profile/password?required=1');
+        }
+        return Promise.reject(error);
+      }
       antdMessage.error(errorMessage);
       return Promise.reject(error);
     }

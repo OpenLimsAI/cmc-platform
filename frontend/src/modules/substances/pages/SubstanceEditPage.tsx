@@ -21,6 +21,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { substancesApi } from '@/api/substances';
 import { applyFormErrors } from '@/shared/utils/formErrors';
+import { useEditSnapshot } from '@/shared/hooks/useEditSnapshot';
+import { EditConflictAlert } from '@/shared/components/EditConflictAlert';
 import type {
   Confidentiality,
   ProteinExtensionInput,
@@ -54,9 +56,11 @@ export function SubstanceEditPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const snapshot = useEditSnapshot(code);
+  const { capture, reloadKey } = snapshot;
   const [form] = Form.useForm<FormShape>();
 
-  const { data: sub, isLoading, isError } = useQuery({
+  const { data: sub, isLoading, refetch } = useQuery({
     queryKey: ['substance', code],
     queryFn: () => substancesApi.get(code!, 'protein,xrefs'),
     enabled: !!code,
@@ -69,7 +73,7 @@ export function SubstanceEditPage() {
 
   // 初始值预填
   useEffect(() => {
-    if (!sub) return;
+    if (!sub || !capture(sub.version)) return;
     form.setFieldsValue({
       internal_code: sub.internal_code ?? undefined,
       preferred_name: sub.preferred_name,
@@ -94,7 +98,7 @@ export function SubstanceEditPage() {
           }
         : undefined,
     });
-  }, [sub, form]);
+  }, [sub, form, capture, reloadKey]);
 
   const hcSeq = Form.useWatch(['protein', 'heavy_chain_sequence'], form);
   const lcSeq = Form.useWatch(['protein', 'light_chain_sequence'], form);
@@ -110,7 +114,8 @@ export function SubstanceEditPage() {
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
       const status = err?.response?.status;
-      if (status === 409) {
+      if (status === 409 && err?.response?.data?.meta?.error?.type === 'version_conflict') {
+        snapshot.setConflict(true);
         message.error('数据已被他人修改，请刷新后重试');
       } else {
         message.error(err?.response?.data?.message ?? '更新失败');
@@ -118,14 +123,14 @@ export function SubstanceEditPage() {
     },
   });
 
-  if (isLoading || !sub) {
+  if (isLoading) {
     return (
       <Card>
         <Skeleton active paragraph={{ rows: 10 }} />
       </Card>
     );
   }
-  if (isError) {
+  if (!sub) {
     return (
       <Result
         status="404"
@@ -139,7 +144,7 @@ export function SubstanceEditPage() {
     const v = await form.validateFields();
 
     const payload: SubstanceUpdatePayload = {
-      version: sub.version,
+      version: snapshot.version.current,
       change_reason: v.change_reason?.trim() || undefined,
       internal_code: v.internal_code?.trim() || undefined,
       preferred_name: v.preferred_name.trim(),
@@ -212,6 +217,11 @@ export function SubstanceEditPage() {
         style={{ marginBottom: 16 }}
         message="编辑会生成审计记录（21 CFR Part 11）。建议填写变更原因，便于事后追溯。"
       />
+
+      {snapshot.conflict && <EditConflictAlert
+        recordPath={`/substances/${encodeURIComponent(sub.substance_code)}`}
+        onReload={async () => { await refetch({ throwOnError: true }); snapshot.reload(); }}
+      />}
 
       <Form<FormShape> form={form} layout="vertical" autoComplete="off">
         <Card title="基本信息" style={{ marginBottom: 16 }}>
