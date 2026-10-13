@@ -196,13 +196,13 @@ class MaterialService:
         )
 
     # ----------- 详情 -----------
-    async def _get_material_or_404(self, code: str) -> Material:
-        result = await self.db.execute(
-            select(Material).where(
-                Material.material_code == code,
-                Material.deleted_at.is_(None),
-            )
+    async def _get_material_or_404(self, code: str, *, for_update: bool = False) -> Material:
+        stmt = select(Material).where(
+            Material.material_code == code, Material.deleted_at.is_(None),
         )
+        if for_update:
+            stmt = stmt.with_for_update(of=Material).execution_options(populate_existing=True)
+        result = await self.db.execute(stmt)
         material = result.scalar_one_or_none()
         if not material:
             raise MaterialNotFoundError(f"未找到 material: {code}")
@@ -376,8 +376,9 @@ class MaterialService:
     async def add_batch(
         self, code: str, payload: MaterialBatchCreate, current_user: User
     ) -> MaterialBatchSchema:
-        material = await self._get_material_or_404(code)
-        # 预检 UNIQUE (material_id, batch_number)
+        # 同物料的批次写操作共用父行锁，避免两个查重同时通过。
+        material = await self._get_material_or_404(code, for_update=True)
+        # 唯一性只约束未软删除批次；历史同号记录保留。
         existing = await self.db.execute(
             select(MaterialBatch.batch_id).where(
                 MaterialBatch.material_id == material.material_id,
@@ -409,6 +410,7 @@ class MaterialService:
         self.db.add(batch)
         await self.db.flush()
         await self.db.refresh(batch)
+        await self.db.commit()
         return MaterialBatchSchema.model_validate(batch)
 
     async def update_batch(
@@ -423,7 +425,7 @@ class MaterialService:
                 text("SELECT set_config('app.change_reason', :r, true)"),
                 {"r": payload.change_reason},
             )
-        material = await self._get_material_or_404(code)
+        material = await self._get_material_or_404(code, for_update=True)
         result = await self.db.execute(
             select(MaterialBatch).where(
                 MaterialBatch.batch_id == batch_id,
@@ -458,6 +460,7 @@ class MaterialService:
         batch.updated_by = current_user.user_id
         await self.db.flush()
         await self.db.refresh(batch, ["updated_at"])
+        await self.db.commit()
         return MaterialBatchSchema.model_validate(batch)
 
     async def delete_batch(
@@ -467,7 +470,7 @@ class MaterialService:
             text("SELECT set_config('app.change_reason', :r, true)"),
             {"r": reason},
         )
-        material = await self._get_material_or_404(code)
+        material = await self._get_material_or_404(code, for_update=True)
         result = await self.db.execute(
             select(MaterialBatch).where(
                 MaterialBatch.batch_id == batch_id,
@@ -482,3 +485,4 @@ class MaterialService:
         batch.deleted_by = current_user.user_id
         batch.updated_by = current_user.user_id
         await self.db.flush()
+        await self.db.commit()

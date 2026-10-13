@@ -5,6 +5,8 @@
 - 范围：仅 High 共 19 条；Medium/Low 不在本清单。全部 High 复核未完成（对抗复核被会话限额中断）
 - 注：H-05 与 H-06 为两个审查员对同一问题的重复发现，可合并处置
 
+> H-02/H-13 的 2026-10-13 收尾状态记录到本地验收时点。负责人随后已授权提交/推送及 Linux 固定版本备份部署，最终执行状态以 README 对应发布安排和 Linux `backups/releases/linux-*` 报告为准；不把发布计划写成已完成事实。
+
 ## H-01：[BE-be-auth-01] 锁定期满后可无限暴力破解
 
 - 来源章节：2. 后端代码审查发现（按域）（后端:be-auth）
@@ -32,6 +34,8 @@
 
 ## H-02：[BE-be-auth-02] auth 域全部表无审计追踪
 
+> 2026-10-13 更新：负责人确认应用层补齐方案，已本地实现并完成隔离回归；后续经授权恢复本地业务服务并完成只读验收，尚未提交/推送，Linux 未部署。以下复核证据和备选机制保留为 2026-06-11 历史快照，当前收尾范围见本节末尾及 README。
+
 - 来源章节：2. 后端代码审查发现（按域）（后端:be-auth）
 - 严重程度：High
 - 置信度：高
@@ -39,7 +43,7 @@
 - 涉及文件：`backend/alembic/versions/2026_05_11_1200_0001_init_schemas.py:76-165；backend/app/domains/auth/admin_service.py:201-375`
 - 问题摘要：auth.user/user_role/role/role_permission/refresh_token 均未挂 audit.fn_audit_trigger，管理员建用户、改角色、锁定、重置密码等安全敏感写操作仅 loguru 日志，不落 audit_log。
 - 原报告建议：为 auth 业务表挂 audit trigger 或在 admin service 写应用层审计记录。
-- 当前状态：已复核（2026-06-11）
+- 当前状态：已本地实现并验证（2026-10-13；原复核日期 2026-06-11）
 - 复核结论：**真实**
   - 证据 1（trigger 全景）：grep 全部 migration 的 CREATE TRIGGER——srs（substance 及五张子表）/prs（project/milestone/team）/ars（asset/market_id）/mm（material/batch）/eqp（equipment）/ref（三张链接表）全部挂了 audit trigger，**auth schema 零覆盖**（user/role/user_role/role_permission/refresh_token 一张都没有）；
   - 证据 2（应用层也没有）：admin_service.py 与 admin_role_service.py 全文无 audit_log/AuditLog 引用——建用户、改角色、分配权限、锁定/解锁、重置密码等安全敏感操作只有 loguru logger.info/warning，日志轮转即灭失、不可结构化查询；
@@ -49,12 +53,12 @@
   - 方案 T（trigger）：新增 migration 为 auth.user/role/user_role/role_permission 挂 audit.fn_audit_trigger（refresh_token/login_history 本身是会话/日志表，不挂）。**两个前置必须验证**：① 高频自更新噪声——auth.user 的 failed_login_count/last_login_at 每次登录都变，trigger v3 是否支持列排除，否则 audit_log 会被登录流量淹没；② 旁路 session（登录失败计数、签名失败审计）未调 set_audit_session_vars，trigger 取 app.user_id GUC 的行为（NULL 写入 or 报错）需确认，报错会反过来打断登录主流程；
   - 方案 A（应用层）：admin_service/admin_role_service 在各写操作内显式写 audit_log（actor/action/entity/before-after），不动 DB。规避方案 T 的两个坑，但覆盖面靠人工维护、绕过 service 的写不留痕。
   - 倾向：方案 T 排除高频列 + 方案 A 兜底语义字段，但工作量为本批 High 之最，建议作为独立工作项排期而非顺手修。
-- 修复状态：未开始
-- 是否需要代码修复：是（机制待决策：migration 挂 trigger 或 service 层审计写入，或组合）
-- 是否需要 migration：方案 T 需要；方案 A 不需要
+- 修复状态：本地代码完成、隔离测试通过、本地业务服务已启用并通过只读验收；未提交/推送，Linux 未部署
+- 是否需要代码修复：应用层方案已实现，覆盖用户创建/资料修改/重置密码/自行改密，以及自定义角色创建/修改/权限替换/删除；既有分配角色与锁定/解锁补字段明细且不重复记日志。
+- 是否需要 migration：账号审计无需结构迁移
 - 是否需要测试：是（建用户/改角色/重置密码后 audit_log 可查；若挂 trigger 须加"高频登录不产生审计洪水 + 旁路 session 写 user 表不报错"两个回归）
 - 风险说明：现状违背 Part 11 审计追踪要求（账户与权限变更不可追溯），原型阶段可接受但进 GMP 前必须补；修复本身的主要风险在方案 T 的两个前置（噪声与 GUC 缺失），未验证就挂 trigger 可能直接打挂登录链路。
-- 人工决策备注：
+- 人工决策备注：2026-10-13 负责人确认应用层审计，业务与审计同事务、响应前提交；白名单字段写入现有 change_history，密码/哈希/临时密码/令牌不入审计。同账号/角色加行锁保证前值准确，不追补历史缺失记录。LOGIN 日志与 refresh 台账在响应前一起提交，跨连接用例确认即时可读；登录失败旁路逻辑保留。最终完整隔离回归 472 项通过，10 类审计失败回滚、并发连续性、现有权限/部门管理员/登录/换证均验证。后续本地备份升级及服务验收中，历史审计 10356、字段明细 93548、电子签名 318 的全部内容未变；仅验收登录/登出新增两条正常审计。本地服务已启用，未提交/推送、Linux 未部署；详见 README 与本地升级报告。
 
 ## H-03：[BE-be-auth-03] 软删角色重建触发 500
 
@@ -300,6 +304,8 @@
 
 ## H-13：[BE-be-mm-01] 软删批次后复用批号触发500
 
+> 2026-10-13 更新：负责人选择方案 B。新迁移 0063、ORM 与批次写入锁已本地完成，隔离库验证通过；后续按授权备份并升级 Mac 开发业务库到 0063，服务恢复与只读验收通过。未提交/推送，Linux 未应用迁移。以下 2026-06-11 复核与备选口径保留作决策溯源。
+
 - 来源章节：2. 后端代码审查发现（按域）（后端:be-mm）
 - 严重程度：High
 - 置信度：高
@@ -307,18 +313,19 @@
 - 涉及文件：`backend/app/domains/mm/services.py:380-391, 440-454; backend/alembic/versions/2026_05_13_0500_0033_mm_material_batch.py:72`
 - 问题摘要：uq_material_batch 是全表唯一约束（含软删行），但 add_batch/update_batch 的重复预检均过滤 deleted_at IS NULL。软删某批次后再以同批号新建/改名，预检通过、flush 时撞 DB 唯一约束抛 IntegrityError。
 - 原报告建议：将 uq_material_batch 改为 partial unique index（WHERE deleted_at IS NULL），或预检改为全表口径并提示编码占用。
-- 当前状态：已复核（2026-06-11，与 H-08/H-10 同属"软删唯一约束"同类缺陷包）
+- 当前状态：方案 B 已本地实现并验证（2026-10-13；原复核日期 2026-06-11）
 - 复核结论：**真实**
   - 证据 1：0033 migration:72 与 mm/models.py:109 均为全量 `UniqueConstraint("material_id", "batch_number", name="uq_material_batch")`，含软删行；
   - 证据 2：add_batch 预检（services.py:380-391）与 update_batch 改批号预检（services.py:441-454）均过滤 `deleted_at IS NULL`——软删批次占用的批号预检放行，flush 撞全量约束 → IntegrityError 冒泡 500，绕过了已定义的业务错误 MaterialBatchNumberDuplicateError（44001 族）；
   - 证据 3：触发路径有两条（新建批次 / 改名撞已删批号），与原报告所述一致。
 - 根因：0033 建表时唯一约束未考虑软删行，与预检 active-only 口径错位（与 H-08/H-10 同模式）。
 - 策略建议：**倾向策略 B，但批号口径属合规敏感，需负责人先拍板**。考量：错删批次后重录同批号是主要业务场景（B 支持）；但 GxP 视角下"同一物料同一批号出现一活一删两行"对批次追溯/审计报表有歧义风险——若合规口径要求批号终身唯一，则选策略 A（预检去掉 deleted_at 过滤、改全表口径，命中时返回 MaterialBatchNumberDuplicateError 并提示"批号已被已删除批次占用"），A 无需 migration、改动仅 services.py 两处查询。原型阶段两者皆可行，区别在口径承诺。
-- 修复状态：未开始
-- 是否需要代码修复：是（B：migration + models.py；A：services.py 两处预检）
-- 是否需要 migration：策略 B 需要；策略 A 不需要
+- 修复状态：本地代码完成、隔离测试通过；Mac 业务库已备份升级、本地服务验收通过；未提交/推送，Linux 未部署
+- 是否需要代码修复：方案 B 已实现，ORM 与迁移改部分唯一索引；新建/修改/删除批次共用物料行锁并在响应前提交，当前重号仍返回 409 / 44001。
+- 是否需要 migration：0063_mm_batch_partial_unique，已在 cmab_test 验证，并在后续授权下应用到 Mac 业务库；Linux 未应用
 - 是否需要测试：是（软删批次后复用批号：按选定口径断言 201 或 409；改名撞已删批号同口径；未删行间重复仍 409）
 - 人工决策备注：批号复用口径必须负责人确认（合规敏感，参照原型阶段姿态由负责人直接决策）。2026-06-11 决策：暂不与 H-08/H-10 同批修复（H-08/H-10 已按策略 B 走 migration 0045），本条保持未修，待批号复用口径确认后单独处理。
+- 2026-10-13 收尾：负责人确认同一物料下软删除后批号可复用，旧行/审计保留，新建使用新 batch_id；不同物料可同号，历史关联不得仅凭批号假定唯一。发生历史重复时，downgrade 在破坏索引前明确拒绝，不清理历史。完整隔离回归 472 项通过，含复用新建/改号、当前重号、并发冲突、记录与审计保留、迁移升降级及重复时降级阻断；无需改前端请求格式。后续经授权完成本地业务库备份和 0062→0063 升级，37 张表全部内容一致，备份已在隔离容器恢复验证；真实部分唯一索引有效、物料 3770/设备 461/批次 0 未变，未注入测试记录。本地服务已恢复，Linux 发布前仍需核对消费者与备份，按 MDM 部署脚本应用迁移。
 
 ## H-14：[TEST-be-tests-01] 硬编码 8000 绕过隔离 test DB
 

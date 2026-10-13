@@ -22,6 +22,7 @@ from app.core.exceptions import (
     RoleNotFoundError,
     SystemRoleProtectedError,
 )
+from app.domains.auth.audit_service import record_auth_change, role_state
 from app.domains.auth.dept_admin import load_dept_admin_policy
 from app.domains.auth.models import (
     Permission,
@@ -70,9 +71,12 @@ class RoleAdminService:
             )
         return [p.permission_id for p in perms]
 
-    async def _load_role(self, role_code: str) -> Role:
+    async def _load_role(self, role_code: str, *, for_update: bool = False) -> Role:
+        stmt = select(Role).where(Role.role_code == role_code, Role.deleted_at.is_(None))
+        if for_update:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         result = await self.db.execute(
-            select(Role).where(Role.role_code == role_code, Role.deleted_at.is_(None))
+            stmt
         )
         role = result.scalar_one_or_none()
         if not role:
@@ -176,6 +180,12 @@ class RoleAdminService:
             self.db.add(RolePermission(role_id=role.role_id, permission_id=pid, granted_by=actor.user_id))
         await self.db.flush()
 
+        await record_auth_change(
+            self.db, actor, target=role, action="CREATE",
+            summary=f"创建自定义角色 {role.role_code}",
+            after=role_state(role, payload.permission_codes),
+        )
+        await self.db.commit()
         logger.info(
             f"管理员 {actor.username} 创建自定义角色 {payload.role_code}（权限={payload.permission_codes}）"
         )
@@ -184,11 +194,13 @@ class RoleAdminService:
     async def update_role(
         self, role_code: str, payload: RoleUpdate, actor: User
     ) -> RoleDetail:
-        role = await self._load_role(role_code)
+        role = await self._load_role(role_code, for_update=True)
         if role.is_system:
             raise SystemRoleProtectedError(
                 f"系统内置角色 {role_code} 不可修改"
             )
+        permissions_before = [p.permission_code for p in await self._load_permissions(role.role_id)]
+        before = role_state(role, permissions_before)
 
         if payload.role_name is not None:
             role.role_name = payload.role_name
@@ -214,11 +226,22 @@ class RoleAdminService:
 
         role.updated_by = actor.user_id
         await self.db.flush()
+        permissions_after = (
+            payload.permission_codes if payload.permission_codes is not None else permissions_before
+        )
+        after = role_state(role, permissions_after)
+        if before != after:
+            await record_auth_change(
+                self.db, actor, target=role,
+                action="PERMISSION_CHANGE" if before["permissions"] != after["permissions"] else "UPDATE",
+                summary=f"修改自定义角色 {role_code}", before=before, after=after,
+            )
+        await self.db.commit()
         logger.info(f"管理员 {actor.username} 更新自定义角色 {role_code}")
         return await self.get_role(role.role_code)
 
     async def delete_role(self, role_code: str, actor: User) -> None:
-        role = await self._load_role(role_code)
+        role = await self._load_role(role_code, for_update=True)
         if role.is_system:
             raise SystemRoleProtectedError(
                 f"系统内置角色 {role_code} 不可删除"
@@ -228,6 +251,7 @@ class RoleAdminService:
             raise ReferenceInUseError(
                 f"角色 {role_code} 仍有 {user_count} 个用户持有，无法删除"
             )
+        before = role_state(role, [p.permission_code for p in await self._load_permissions(role.role_id)])
 
         # 先删 role_permission 行，再软删 role
         await self.db.execute(
@@ -238,6 +262,12 @@ class RoleAdminService:
         role.deleted_at = datetime.now(UTC)
         role.deleted_by = actor.user_id
         await self.db.flush()
+        await record_auth_change(
+            self.db, actor, target=role, action="DELETE",
+            summary=f"删除自定义角色 {role_code}", before=before, after=role_state(role, []),
+            extra={"role_before": before},
+        )
+        await self.db.commit()
         logger.info(f"管理员 {actor.username} 删除自定义角色 {role_code}")
 
 

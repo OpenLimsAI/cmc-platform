@@ -11,11 +11,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -106,7 +108,10 @@ class MaterialBatch(Base):
 
     __tablename__ = "material_batch"
     __table_args__ = (
-        UniqueConstraint("material_id", "batch_number", name="uq_material_batch"),
+        Index(
+            "uq_material_batch_active", "material_id", "batch_number", unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
         CheckConstraint(
             "status IN ('in_stock','in_use','depleted','expired','recalled')",
             name="ck_material_batch_status",

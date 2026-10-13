@@ -28,6 +28,7 @@ from app.core.security import (
 )
 from app.domains.audit.models import AuditLog, ESignature
 from app.domains.audit.schemas import ESignatureItem
+from app.domains.auth.audit_service import record_auth_change, user_state
 from app.domains.auth.models import (
     LoginHistory,
     Permission,
@@ -256,7 +257,7 @@ class AuthService:
         user.locked_at = None
         user.last_login_at = datetime.now(UTC)
         await self._record_login(username, True, ip, ua, user.user_id)
-        # LOGIN 成功审计：随主登录事务一起 commit（get_db 在 response 后提交）。
+        # LOGIN 成功审计与 refresh 台账同事务；响应前提交，避免立即换证查不到记录。
         self.db.add(
             AuditLog(
                 user_id=user.user_id,
@@ -295,6 +296,7 @@ class AuthService:
             user.user_id, ip, ua,
             policy=policy, roles=roles, session_started_at=datetime.now(UTC),
         )
+        await self.db.commit()
 
         return (
             LoginResponse(
@@ -339,8 +341,15 @@ class AuthService:
         }
 
     async def change_password(self, user: User, old_password: str, new_password: str):
+        result = await self.db.execute(
+            select(User).where(User.user_id == user.user_id)
+            .options(selectinload(User.roles))
+            .with_for_update(of=User).execution_options(populate_existing=True)
+        )
+        user = result.scalar_one()
         if not verify_password(old_password, user.password_hash):
             raise OldPasswordWrongError()
+        before = user_state(user)
         user.password_hash = hash_password(new_password)
         user.password_changed_at = datetime.now(UTC)
         user.password_expires_at = datetime.now(UTC) + timedelta(days=90)
@@ -359,6 +368,12 @@ class AuthService:
             )
         )
         await self.db.flush()
+        await record_auth_change(
+            self.db, user, target=user, action="UPDATE",
+            summary=f"用户 {user.username} 自行修改密码，活跃会话已撤销",
+            before=before, after=user_state(user), extra={"operation": "change_password"},
+        )
+        await self.db.commit()
 
     # ----------- Refresh / Logout -----------
     async def refresh(

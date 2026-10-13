@@ -58,7 +58,7 @@ class ChangeHistoryItem(BaseModel):
 
 
 class AuditLogItem(BaseModel):
-    """审计日志条目 + 嵌入字段级 diff（仅 UPDATE 有）"""
+    """审计日志条目 + 嵌入字段级 diff（含创建、修改、删除与权限变更）"""
 
     model_config = ConfigDict(from_attributes=True)
 

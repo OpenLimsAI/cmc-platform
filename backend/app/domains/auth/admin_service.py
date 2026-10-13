@@ -11,7 +11,7 @@
 - list/get/assign_roles/lock/unlock 接收 UserAdminScope；scope 限定部门时只能碰同部门用户
   （跨部门 → DataAccessDeniedError 40303），挂/摘角色只能动白名单角色（其余 → 40301），
   不能锁定持有 SYS_ADMIN / DEPT_ADMIN 的账号
-- 角色分配 / 锁定 / 解锁三类操作**无论谁做**都写一条应用层 audit_log
+- 用户管理的成功变更**无论谁做**都写一条应用层 audit_log + 字段明细
   （auth 表没有触发器审计；谁、对谁、加了/去了什么角色、何时 + extra 明细）
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ from app.core.exceptions import (
     ValidationError,
 )
 from app.core.security import hash_password
-from app.domains.audit.models import AuditLog
+from app.domains.auth.audit_service import record_auth_change, user_state
 from app.domains.auth.dept_admin import (
     PROTECTED_ROLES,
     UserAdminScope,
@@ -59,7 +59,6 @@ from app.domains.auth.schemas import (
     UserListItem,
     UserUpdate,
 )
-from app.shared.audit_context import audit_ip, audit_request_id
 
 # 16 位临时密码字符集（去掉易混淆字符 O/0/I/l）
 _TEMP_PW_ALPHABET = string.ascii_letters.replace("O", "").replace("I", "").replace("l", "")
@@ -85,8 +84,13 @@ def _to_role_brief(role: Role) -> RoleBrief:
     return RoleBrief(role_id=role.role_id, role_code=role.role_code, role_name=role.role_name)
 
 
-async def _load_user(db: AsyncSession, username: str, *, with_roles: bool = True) -> User:
+async def _load_user(
+    db: AsyncSession, username: str, *, with_roles: bool = True, for_update: bool = False,
+) -> User:
     stmt = select(User).where(User.username == username, User.deleted_at.is_(None))
+    if for_update:
+        # 认证依赖可能已加载该对象；锁定后重新读取，避免前值仍来自旧身份快照。
+        stmt = stmt.with_for_update(of=User).execution_options(populate_existing=True)
     if with_roles:
         stmt = stmt.options(selectinload(User.roles))
     result = await db.execute(stmt)
@@ -122,7 +126,7 @@ class UserAdminService:
                 f"部门管理员不能{verb}持有 {', '.join(held)} 角色的账号"
             )
 
-    def _audit(
+    async def _audit(
         self,
         actor: User,
         scope: UserAdminScope | None,
@@ -131,6 +135,8 @@ class UserAdminService:
         target: User,
         summary: str,
         extra: dict | None = None,
+        before: dict | None = None,
+        after: dict | None = None,
     ) -> None:
         """应用层审计：auth.user / auth.user_role 没有触发器审计，管理动作在这里落 audit_log。
         与主事务同 session，业务失败则一起回滚（成功才有审计，不产生半条记录）。"""
@@ -140,20 +146,9 @@ class UserAdminService:
             "target_department": target.department,
             **(extra or {}),
         }
-        self.db.add(
-            AuditLog(
-                user_id=actor.user_id,
-                username=actor.username,
-                action=action,
-                entity_schema="auth",
-                entity_table="user",
-                entity_id=target.user_id,
-                entity_code=target.username,
-                change_summary=summary,
-                ip_address=audit_ip.get(),
-                request_id=audit_request_id.get(),
-                extra=payload,
-            )
+        await record_auth_change(
+            self.db, actor, target=target, action=action, summary=summary,
+            before=before, after=after, extra=payload,
         )
 
     async def _resolve_role_ids(self, role_codes: list[str]) -> list[int]:
@@ -334,6 +329,12 @@ class UserAdminService:
         await self.db.flush()
         await self.db.refresh(user, ["roles"])
 
+        await self._audit(
+            actor, None, action="CREATE", target=user,
+            summary=f"创建用户 {user.username}",
+            after=user_state(user, roles=[r.role_code for r in user.roles]),
+        )
+        await self.db.commit()
         logger.info(
             f"管理员 {actor.username} 创建用户 {user.username}（角色={payload.role_codes}）"
         )
@@ -342,7 +343,8 @@ class UserAdminService:
     async def update_user(
         self, username: str, payload: UserUpdate, actor: User
     ) -> UserDetail:
-        user = await _load_user(self.db, username)
+        user = await _load_user(self.db, username, for_update=True)
+        before = user_state(user)
 
         if payload.email is not None and payload.email != user.email:
             exist = await self.db.execute(
@@ -361,6 +363,13 @@ class UserAdminService:
                 setattr(user, field, val)
         user.updated_by = actor.user_id
         await self.db.flush()
+        after = user_state(user)
+        if before != after:
+            await self._audit(
+                actor, None, action="UPDATE", target=user,
+                summary=f"修改用户 {username} 资料", before=before, after=after,
+            )
+        await self.db.commit()
         return await self.get_user(user.username)
 
     async def assign_roles(
@@ -370,7 +379,7 @@ class UserAdminService:
         actor: User,
         scope: UserAdminScope | None = None,
     ) -> UserDetail:
-        user = await _load_user(self.db, username)
+        user = await _load_user(self.db, username, for_update=True)
         self._ensure_in_scope(user, scope)
         current = {r.role_code for r in user.roles}
 
@@ -429,11 +438,12 @@ class UserAdminService:
             parts.append("+" + ", +".join(added))
         if removed:
             parts.append("-" + ", -".join(removed))
-        self._audit(
+        await self._audit(
             actor, scope,
             action="PERMISSION_CHANGE",
             target=user,
             summary=f"调整用户 {user.username} 角色：{'; '.join(parts) or '无变化'}",
+            before={"roles": sorted(current)}, after={"roles": sorted(final)},
             extra={
                 "roles_before": sorted(current),
                 "roles_after": sorted(final),
@@ -443,6 +453,7 @@ class UserAdminService:
         )
         await self.db.flush()
         await self.db.refresh(user, ["roles"])
+        await self.db.commit()
         logger.info(f"{actor.username} 调整用户 {username} 角色：+{added} -{removed}")
         return await self.get_user(user.username)
 
@@ -452,11 +463,12 @@ class UserAdminService:
     ) -> UserDetail:
         if username == actor.username:
             raise CannotOperateSelfError("不能锁定自己")
-        user = await _load_user(self.db, username)
+        user = await _load_user(self.db, username, for_update=True)
         self._ensure_in_scope(user, scope)
         self._ensure_not_protected(user, scope, "锁定")
         if user.status == "locked":
             raise OperationNotAllowedError("用户已处于锁定状态")
+        before = user_state(user)
         user.status = "locked"
         user.locked_at = datetime.now(UTC)
         user.updated_by = actor.user_id
@@ -466,37 +478,42 @@ class UserAdminService:
             .where(RefreshToken.user_id == user.user_id, RefreshToken.revoked_at.is_(None))
             .values(revoked_at=datetime.now(UTC), revoked_reason="admin")
         )
-        self._audit(
+        await self._audit(
             actor, scope,
             action="UPDATE",
             target=user,
-            summary=f"锁定用户 {user.username}（status: active → locked，活跃会话已撤销）",
-            extra={"field": "status", "old": "active", "new": "locked"},
+            summary=f"锁定用户 {user.username}（status: {before['status']} → locked，活跃会话已撤销）",
+            before=before, after=user_state(user),
+            extra={"field": "status", "old": before["status"], "new": "locked"},
         )
         await self.db.flush()
+        await self.db.commit()
         logger.info(f"管理员 {actor.username} 锁定用户 {username}")
         return await self.get_user(username)
 
     async def unlock_user(
         self, username: str, actor: User, scope: UserAdminScope | None = None
     ) -> UserDetail:
-        user = await _load_user(self.db, username)
+        user = await _load_user(self.db, username, for_update=True)
         self._ensure_in_scope(user, scope)
         self._ensure_not_protected(user, scope, "解锁")
         if user.status != "locked":
             raise OperationNotAllowedError("用户当前不是锁定状态")
+        before = user_state(user)
         user.status = "active"
         user.locked_at = None
         user.failed_login_count = 0
         user.updated_by = actor.user_id
-        self._audit(
+        await self._audit(
             actor, scope,
             action="UPDATE",
             target=user,
             summary=f"解锁用户 {user.username}（status: locked → active，失败计数清零）",
+            before=before, after=user_state(user),
             extra={"field": "status", "old": "locked", "new": "active"},
         )
         await self.db.flush()
+        await self.db.commit()
         logger.info(f"管理员 {actor.username} 解锁用户 {username}")
         return await self.get_user(username)
 
@@ -505,7 +522,8 @@ class UserAdminService:
     ) -> ResetPasswordResponse:
         if username == actor.username:
             raise CannotOperateSelfError("不能重置自己的密码，请走 /auth/change-password")
-        user = await _load_user(self.db, username, with_roles=False)
+        user = await _load_user(self.db, username, with_roles=False, for_update=True)
+        before = user_state(user)
 
         temp_pw = _generate_temp_password(16)
         user.password_hash = hash_password(temp_pw)
@@ -527,6 +545,12 @@ class UserAdminService:
             .values(revoked_at=datetime.now(UTC), revoked_reason="admin")
         )
         await self.db.flush()
+        await self._audit(
+            actor, None, action="UPDATE", target=user,
+            summary=f"管理员重置用户 {username} 密码，须首次改密，活跃会话已撤销",
+            before=before, after=user_state(user), extra={"operation": "reset_password"},
+        )
+        await self.db.commit()
         logger.warning(
             f"管理员 {actor.username} 重置了用户 {username} 的密码（force_password_change=True）"
         )
