@@ -89,6 +89,7 @@ class MaterialCreate(MaterialBase):
 class MaterialUpdate(BaseModel):
     """PUT 请求体"""
 
+    version: int = Field(..., ge=1, description="本次打开记录时的版本")
     change_reason: str | None = None
 
     material_name: str | None = Field(None, max_length=255)
@@ -129,6 +130,7 @@ class MaterialBrief(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    version: int
     material_code: str
     material_name: str
     material_name_en: str | None = None
@@ -151,6 +153,7 @@ class MaterialDetail(MaterialBase):
     """详情响应"""
 
     material_id: int
+    version: int
     material_code: str
     status: MaterialStatus
     substance_code: str | None = None

@@ -30,8 +30,8 @@ export const projectsApi = {
   get: (code: string) =>
     unwrap<ProjectDetail>(api.get(`/projects/${encodeURIComponent(code)}`)),
 
-  create: (payload: ProjectCreatePayload) =>
-    unwrap<ProjectDetail>(api.post('/projects', payload)),
+  create: (payload: ProjectCreatePayload, submissionKey?: string) =>
+    unwrap<ProjectDetail>(api.post('/projects', payload, submissionKey ? { headers: { 'Idempotency-Key': submissionKey } } : undefined)),
 
   update: (code: string, payload: ProjectUpdatePayload) =>
     unwrap<ProjectDetail>(api.put(`/projects/${encodeURIComponent(code)}`, payload)),
@@ -111,8 +111,8 @@ export const projectsApi = {
       api.post(`/projects/${encodeURIComponent(code)}/relationships`, payload)
     ),
 
-  deleteRelationship: (code: string, relationship_id: number) =>
-    api.delete(`/projects/${encodeURIComponent(code)}/relationships/${relationship_id}`),
+  deleteRelationship: (code: string, relationship_id: number, change_reason: string) =>
+    api.delete(`/projects/${encodeURIComponent(code)}/relationships/${relationship_id}`, { data: { change_reason } }),
 
   // ref.project_substance link/unlink (DM-MDM-001 §11.2 复合 PK)
   listSubstances: (code: string, include_deleted = false) =>

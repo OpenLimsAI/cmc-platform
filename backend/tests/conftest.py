@@ -108,3 +108,9 @@ async def researcher_client(http_client):
 def unique_suffix() -> str:
     """每个测试拿到一个唯一后缀，用于构造不冲突的 internal_code 等"""
     return uuid.uuid4().hex[:8]
+
+
+async def current_version(client, url: str) -> int:
+    """旧业务回归从详情取得版本；冲突用例显式提供旧版本。"""
+    response = await client.get(url)
+    return response.json()["data"]["version"] if response.status_code == 200 else 1

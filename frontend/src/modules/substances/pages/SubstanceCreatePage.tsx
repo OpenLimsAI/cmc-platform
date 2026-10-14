@@ -1,3 +1,4 @@
+import { useIdempotentCreate } from '@/shared/hooks/useIdempotentCreate';
 import { useMemo, useState } from 'react';
 import {
   Alert,
@@ -63,6 +64,7 @@ interface FormShape {
 }
 
 export function SubstanceCreatePage() {
+  const createOnce = useIdempotentCreate((payload: SubstanceCreatePayload, key: string) => substancesApi.create(payload, key));
   const navigate = useNavigate();
   const [form] = Form.useForm<FormShape>();
   const [currentStep, setCurrentStep] = useState(0);
@@ -130,7 +132,7 @@ export function SubstanceCreatePage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: SubstanceCreatePayload) => substancesApi.create(payload),
+    mutationFn: createOnce,
     onSuccess: async (data) => {
       message.success(`物质 ${data.substance_code} 创建成功`);
       // 保存后自动关联 INN 预填选中的靶点（缺的建草稿 + 快照；标识符已在建物质时写入，故不再回填）
@@ -168,7 +170,7 @@ export function SubstanceCreatePage() {
     },
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
-      message.error(err?.response?.data?.message ?? '创建失败');
+      message.error(err?.response?.data?.message ?? err?.message ?? '创建失败');
     },
   });
 

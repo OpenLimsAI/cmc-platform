@@ -110,6 +110,9 @@ export function AuditLogPanel({ queryKey, loadFn, tableLabels = {} }: Props) {
       render: (t: string, row: AuditLogItem) => (
         <span>
           {tableLabels[t] || t}
+          {t === 'project_relationship' && row.change_summary && (
+            <Text type="secondary" style={{ display: 'block' }}>{row.change_summary}</Text>
+          )}
           {row.entity_code && (
             <Text type="secondary" style={{ marginLeft: 4 }}>
               {row.entity_code}

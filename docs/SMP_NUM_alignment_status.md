@@ -36,7 +36,7 @@
 | sap_wbs_mapping / external_contract_refs / partner_reference §10.3 | SAP/合同/合作方 | 🟡 | 0048：列 + schema | **无前端 UI**，仅 API |
 | project_phase 受控 §10.3 | discovery…post_marketing 枚举 | ✅ | 0048：列改 CHECK(nullable)；旧 `phase_N→pN` remap | 前端 create/edit 下拉、detail、list 均覆盖 |
 | §7A 上市后变更 | regulatory_change_level/pre_approval_required/comparability_study_ref/regulatory_submission_refs | ✅(核心) 🟡(部分UI) | 0049：4 列 + CHECK(level)；`_validate_regulatory_change`(nature∈cmc_change/lcm 必填 level；major→pre_approval 强制) | UI：level/pre_approval/comparability 在 create/edit 条件区(nature∈cmc_change/lcm)+detail；**regulatory_submission_refs 无 UI** |
-| §11.4-11.6 合并/拆分/衍生 | project_relationship 落地 | ✅ | `prs.project_relationship`(既有表) 补 `services.{list,add,delete}_relationship` + 端点 + detail「项目关系」Tab | 纯关联(硬删)，**不改状态机**；in/out 双向 |
+| §11.4-11.6 合并/拆分/衍生 | project_relationship 落地 | ✅ | `prs.project_relationship`(既有表) 补 `services.{list,add,delete}_relationship` + 端点 + detail「项目关系」Tab | 纯关联，**不改状态机**；in/out 双向。0065 本地修改改为取消保留原记录及双端审计，见下方后续记录 |
 | §11.8 历史遗留编号 | legacy_project_id | ✅ | 0049：列 + create/edit 表单 + detail | |
 | §11.8 / 附录C 保留/禁用编号清单 | RESERVED 编号 | ➖ | — | 偏**资产域**(SMP 例子均为 Asset ID 如 CMAB806)，留待资产域统一 |
 | §12 治理角色 / §13 申请流程 / RACI | DGC/Steward/e-Request 工作流 | ➖ | — | 制度流程非系统字段；原型阶段不做（[[project_prototype_stage_posture]]） |
@@ -81,3 +81,7 @@
 
 ## 8. 数据现状
 PRS 项目真实数据 **0 条**（[[project_real_demo_dataset]]）；加必填/迁移零回填压力。物质/资产也为 0；物料~3770、设备~461 为真实数据，勿动。
+
+
+## 9. 后续本地变更（2026-10-14，0065）
+负责人已确认：项目关系建立和取消均填写至少5个字符的原因；取消前确认，保留记录、取消人和时间，取消后可重新建立。每个成功动作只写一份审计及字段明细，保存两端项目编码和关系类型；两端项目审计页均能查询。已有方向、类型、权限和项目状态规则保留，失败事务一起撤回，重复取消不重复留成功事件。0065 同时包含三主记录编辑和六类重复新增保护，需求、验证和阶段状态以 README 对应章节为准。本节仅说明本地修改，不宣称真实业务库或 Linux 已升级。

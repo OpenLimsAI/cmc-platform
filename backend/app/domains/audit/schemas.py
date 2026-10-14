@@ -71,6 +71,7 @@ class AuditLogItem(BaseModel):
     entity_table: str | None = None
     entity_id: int | None = None
     entity_code: str | None = None
+    change_summary: str | None = None
     reason: str | None = None
     ip_address: str | None = None
     request_id: str | None = None

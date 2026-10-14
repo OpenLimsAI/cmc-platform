@@ -19,6 +19,7 @@ from app.core.database import Base  # noqa: E402
 from app.domains.audit import models as audit_models  # noqa: E402,F401
 from app.domains.auth import models as auth_models  # noqa: E402,F401
 from app.domains.srs import models as srs_models  # noqa: E402,F401
+from app.shared import idempotency_models  # noqa: E402,F401
 
 config = context.config
 

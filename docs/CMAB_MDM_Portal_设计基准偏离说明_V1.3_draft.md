@@ -46,7 +46,7 @@ V1.2_draft 封版于 2026-05-14（修订十二，head 0036）。其后代码主�
 | 5.C JWT RS256 | RS256（生产）/ HS256（开发）双模式 + RUNBOOK_JWT_RS256 | **ARCH2 合规升级完成** |
 | EQP 横切 | 全局搜索第 5 类 + 仪表盘第 5 域 + Excel 表头驱动批量导入工具 | 新增能力（V1.1 无对应基准） |
 
-**B 决议中仍未实施项**：P8 project_relationship 上层 API/UI（表自 migration 0016 存在，但 projects.py 无任何 relationship 端点）→ 继续 🟠 推迟，V1.3 评审确认去留。
+**2026-06-06 时点的未实施项**：P8 project_relationship 上层 API/UI 当时尚未实现。后续已于 0049 依据负责人 SMP 对齐决策落地 API/UI（见 SMP_NUM_alignment_status）；2026-10-14 的 0065 本地修改补充取消保留原记录与双端审计，实际隔离验证和部署阶段以 README 当前变更记录为准，不再将 P8 上层功能列为待开发。
 
 ---
 
@@ -114,7 +114,7 @@ DM §4.3 列 7 角色（含 **REGULATORY_USER**）/ ARCH §7.2.2 列 6 角色（
 | 4 | MM v2 规则重写 DM §10（本文档 §3.1） | 本文档 | ⏳ |
 | 5 | 封面版本 + 文件名重命名 + docs-extract 重跑 | 本文档 §3.4 | ⏸ 不在原型阶段执行；待进入 GMP 准备阶段前一次性处理（连同 V1.3 docx 正文修订一起做）——2026-06-06 决策 |
 | 6 | REGULATORY_USER 决议（E12 方案 A/B） | 项目负责人决策 | ✅ 已完成（2026-06-06 方案 A 删除并落地，见 §3.3 与 DM 修订清单 #E12） |
-| 7 | P8 project_relationship 去留确认 | 评审会 | ⏳ |
+| 7 | P8 project_relationship 上层 | 负责人 SMP 对齐决策 | ✅ 0049 已实现；0065 本地补取消留痕，见 README 阶段记录 |
 | 8 | OQ 矩阵 +104 用例定级 | csv_oq §0 | ⏸ 不在原型阶段执行；待真正 GMP 启用前一次性补完——2026-06-06 决策 |
 
 ---

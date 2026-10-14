@@ -50,6 +50,7 @@ export interface TargetUniprotFields {
 }
 
 export interface TargetBrief {
+  version: number;
   target_code: string; // TGT-NNNNNN（系统取号）
   target_name: string;
   uniprot_id: string | null;
@@ -65,6 +66,7 @@ export interface TargetBrief {
 }
 
 export interface TargetDetail extends Required<TargetUniprotFields> {
+  version: number;
   target_id: number;
   target_code: string;
   target_name: string;
@@ -95,6 +97,7 @@ export interface TargetCreatePayload extends TargetUniprotFields {
 }
 
 export interface TargetUpdatePayload extends Partial<TargetCreatePayload> {
+  version: number;
   change_reason?: string;
 }
 
@@ -281,8 +284,8 @@ export const targetsApi = {
   get: (code: string) =>
     unwrap<TargetDetail>(api.get(`/targets/${encodeURIComponent(code)}`)),
 
-  create: (payload: TargetCreatePayload) =>
-    unwrap<TargetDetail>(api.post('/targets', payload)),
+  create: (payload: TargetCreatePayload, submissionKey?: string) =>
+    unwrap<TargetDetail>(api.post('/targets', payload, submissionKey ? { headers: { 'Idempotency-Key': submissionKey } } : undefined)),
 
   update: (code: string, payload: TargetUpdatePayload) =>
     unwrap<TargetDetail>(api.put(`/targets/${encodeURIComponent(code)}`, payload)),

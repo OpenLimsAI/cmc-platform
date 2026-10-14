@@ -1,3 +1,4 @@
+import { useIdempotentCreate } from '@/shared/hooks/useIdempotentCreate';
 import { useState } from 'react';
 import { Alert, Breadcrumb, Button, Card, Form, Space, Typography, message } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,6 +15,7 @@ import { UniprotInfoPanel } from '../components/UniprotInfoPanel';
 const { Title, Text } = Typography;
 
 export function TargetCreatePage() {
+  const createOnce = useIdempotentCreate((payload: TargetCreatePayload, key: string) => targetsApi.create(payload, key));
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [prefill, setPrefill] = useState<TargetPrefillResponse | null>(null);
@@ -38,7 +40,7 @@ export function TargetCreatePage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (payload: TargetCreatePayload) => targetsApi.create(payload),
+    mutationFn: createOnce,
     onSuccess: async (detail) => {
       // 有拉取原文就顺手存快照（失败不阻断，靶点已建成）
       if (snapshot && snapshot.source_id === detail.uniprot_id) {
@@ -52,7 +54,7 @@ export function TargetCreatePage() {
       navigate(`/targets/${encodeURIComponent(detail.target_code)}`);
     },
     onError: (err: any) => {
-      message.error(err?.response?.data?.message ?? '创建失败');
+      message.error(err?.response?.data?.message ?? err?.message ?? '创建失败');
     },
   });
 

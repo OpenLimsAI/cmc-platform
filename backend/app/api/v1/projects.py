@@ -20,6 +20,7 @@ from app.domains.prs.schemas import (
     ProjectMilestoneDelete,
     ProjectMilestoneUpdate,
     ProjectRelationshipCreate,
+    ProjectRelationshipDelete,
     ProjectStatusChange,
     ProjectTeamMemberCreate,
     ProjectTeamMemberRemove,
@@ -99,10 +100,11 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
 ):
     if idempotency_key:
-        cached = await IdempotencyService.check(user.user_id, idempotency_key, payload.model_dump())
+        cached = await IdempotencyService.check(db, user.user_id, idempotency_key, payload.model_dump(), "projects:create")
         if cached:
             if cached.headers.get("Location"):
                 response.headers["Location"] = cached.headers["Location"]
+            await db.commit()
             return cached.body
 
     service = ProjectService(db)
@@ -115,13 +117,13 @@ async def create_project(
         message="Project 创建成功",
         request_id=getattr(request.state, "request_id", None),
     )
-    # H-11：先显式 commit 再写幂等缓存，避免 commit 失败后 Redis 留下假成功
-    await db.commit()
+    # H-11：业务与提交结果同事务提交，失败一并撤回
     if idempotency_key:
         await IdempotencyService.save(
-            user.user_id, idempotency_key, payload.model_dump(),
+            db, user.user_id, idempotency_key, payload.model_dump(), "projects:create",
             status_code=201, response_body=body, location=location,
         )
+    await db.commit()
     return body
 
 
@@ -581,11 +583,12 @@ async def add_project_relationship(
 async def delete_project_relationship(
     code: str,
     relationship_id: int,
+    payload: ProjectRelationshipDelete,
     user: User = Depends(require_permission("project:update")),
     db: AsyncSession = Depends(get_db),
 ):
     service = ProjectService(db)
-    await service.delete_relationship(code, relationship_id, user)
+    await service.delete_relationship(code, relationship_id, user, reason=payload.change_reason)
     return None
 
 

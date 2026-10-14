@@ -24,7 +24,7 @@ from app.domains.audit.schemas import (
 )
 from app.domains.auth.models import User
 from app.domains.mm.models import Material, MaterialBatch
-from app.domains.prs.models import Project, ProjectMilestone, ProjectTeam
+from app.domains.prs.models import Project, ProjectMilestone, ProjectRelationship, ProjectTeam
 from app.domains.srs.models import Substance, SubstanceXref
 
 # CSV 导出列定义（21 CFR Part 11 §11.10(c) 审计归档；用户决策 CSV-only）
@@ -143,6 +143,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 entity_code=log.entity_code,
                 reason=log.reason,
+                change_summary=log.change_summary,
                 ip_address=str(log.ip_address) if log.ip_address else None,
                 request_id=log.request_id,
                 timestamp=log.timestamp,
@@ -175,6 +176,12 @@ class AuditService:
         ]
 
         if include_children:
+            relationship_ids = select(ProjectRelationship.relationship_id).where(or_(
+                ProjectRelationship.from_project_id == project_id,
+                ProjectRelationship.to_project_id == project_id,
+            ))
+            conditions.append(and_(AuditLog.entity_schema == "prs", AuditLog.entity_table == "project_relationship",
+                                   AuditLog.entity_id.in_(relationship_ids)))
             # milestone：entity_id 是 milestone_id；用 project_id 反查
             mid_result = await self.db.execute(
                 select(ProjectMilestone.milestone_id).where(
@@ -260,6 +267,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 entity_code=log.entity_code,
                 reason=log.reason,
+                change_summary=log.change_summary,
                 ip_address=str(log.ip_address) if log.ip_address else None,
                 request_id=log.request_id,
                 timestamp=log.timestamp,
@@ -347,6 +355,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 entity_code=log.entity_code,
                 reason=log.reason,
+                change_summary=log.change_summary,
                 ip_address=str(log.ip_address) if log.ip_address else None,
                 request_id=log.request_id,
                 timestamp=log.timestamp,
@@ -402,6 +411,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 entity_code=log.entity_code,
                 reason=log.reason,
+                change_summary=log.change_summary,
                 ip_address=str(log.ip_address) if log.ip_address else None,
                 request_id=log.request_id,
                 timestamp=log.timestamp,
@@ -499,6 +509,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 entity_code=log.entity_code,
                 reason=log.reason,
+                change_summary=log.change_summary,
                 ip_address=str(log.ip_address) if log.ip_address else None,
                 request_id=log.request_id,
                 timestamp=log.timestamp,
@@ -693,6 +704,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 entity_code=log.entity_code,
                 reason=log.reason,
+                change_summary=log.change_summary,
                 ip_address=str(log.ip_address) if log.ip_address else None,
                 request_id=log.request_id,
                 timestamp=log.timestamp,

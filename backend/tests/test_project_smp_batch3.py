@@ -89,7 +89,7 @@ async def test_relationship_roundtrip(admin_client, unique_suffix):
 
     r = await admin_client.post(
         f"/api/v1/projects/{a}/relationships",
-        json={"to_project_code": b, "relationship_type": "derived_from", "notes": "拆分衍生"},
+        json={"to_project_code": b, "relationship_type": "derived_from", "change_reason": "拆分衍生关系", "notes": "拆分衍生"},
     )
     assert r.status_code == 201, r.text
 
@@ -106,7 +106,7 @@ async def test_relationship_roundtrip(admin_client, unique_suffix):
 
     # 删除
     rid = a_rels[0]["relationship_id"]
-    dr = await admin_client.delete(f"/api/v1/projects/{a}/relationships/{rid}")
+    dr = await admin_client.delete(f"/api/v1/projects/{a}/relationships/{rid}", json={"change_reason": "取消已有衍生关系"})
     assert dr.status_code == 204, dr.text
     after = (await admin_client.get(f"/api/v1/projects/{a}/relationships")).json()["data"]
     assert len(after) == 0
@@ -117,7 +117,7 @@ async def test_relationship_self_rejected(admin_client, unique_suffix):
     a = await _new_project(admin_client, f"rel-self {unique_suffix}")
     r = await admin_client.post(
         f"/api/v1/projects/{a}/relationships",
-        json={"to_project_code": a, "relationship_type": "blocks"},
+        json={"to_project_code": a, "relationship_type": "blocks", "change_reason": "建立项目依赖"},
     )
     assert r.status_code == 400, r.text
 
@@ -126,7 +126,7 @@ async def test_relationship_self_rejected(admin_client, unique_suffix):
 async def test_relationship_duplicate_rejected(admin_client, unique_suffix):
     a = await _new_project(admin_client, f"rel-dupA {unique_suffix}")
     b = await _new_project(admin_client, f"rel-dupB {unique_suffix}")
-    body = {"to_project_code": b, "relationship_type": "depends_on"}
+    body = {"to_project_code": b, "relationship_type": "depends_on", "change_reason": "建立项目依赖"}
     r1 = await admin_client.post(f"/api/v1/projects/{a}/relationships", json=body)
     assert r1.status_code == 201, r1.text
     r2 = await admin_client.post(f"/api/v1/projects/{a}/relationships", json=body)

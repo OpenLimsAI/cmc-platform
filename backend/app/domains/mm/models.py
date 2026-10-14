@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
@@ -49,6 +50,7 @@ class Material(Base):
         {"schema": "mm"},
     )
 
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     material_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     material_code: Mapped[str] = mapped_column(String(32), nullable=False)
 

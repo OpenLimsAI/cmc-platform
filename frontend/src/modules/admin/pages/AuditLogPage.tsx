@@ -151,7 +151,11 @@ export function AuditLogPage() {
       dataIndex: 'entity_table',
       key: 'entity_table',
       width: 160,
-      render: (v: string | null) => v ?? '—',
+      render: (v: string | null, row: AuditLogItem) => (
+        <span>{v ?? '—'}{v === 'project_relationship' && row.change_summary && (
+          <Text type="secondary" style={{ display: 'block' }}>{row.change_summary}</Text>
+        )}</span>
+      ),
     },
     {
       title: '编码',

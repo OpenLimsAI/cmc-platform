@@ -12,6 +12,8 @@ import uuid
 
 import pytest
 
+from tests.conftest import current_version
+
 
 def _payload(suffix: str, **over):
     base = {
@@ -129,7 +131,7 @@ async def test_update_and_soft_delete(admin_client, unique_suffix):
 
     upd = await admin_client.put(
         f"/api/v1/targets/{code}",
-        json={"notes": "膜结合前体可脱落", "cd_antigen_names": ["CD340"], "change_reason": "pytest 补 CD 号"},
+        json={"version": await current_version(admin_client, f"/api/v1/targets/{code}"), **{"notes": "膜结合前体可脱落", "cd_antigen_names": ["CD340"], "change_reason": "pytest 补 CD 号"}},
     )
     assert upd.status_code == 200, upd.text
     assert upd.json()["data"]["cd_antigen_names"] == ["CD340"]
@@ -205,7 +207,7 @@ async def test_permissions(researcher_client, readonly_client, admin_client, uni
     assert r.status_code == 200
     r = await readonly_client.post("/api/v1/targets", json=_payload(unique_suffix + "ro"))
     assert r.status_code == 403
-    r = await readonly_client.put(f"/api/v1/targets/{code}", json={"notes": "x"})
+    r = await readonly_client.put(f"/api/v1/targets/{code}", json={"version": await current_version(readonly_client, f"/api/v1/targets/{code}"), **{"notes": "x"}})
     assert r.status_code == 403
 
 
@@ -223,7 +225,7 @@ async def test_idempotency_key_replay(admin_client, unique_suffix):
 async def test_target_audit_logs(admin_client, readonly_client, unique_suffix):
     """审计 v3：创建 + 更新 + 发布都应在 /audit-logs 里可见（含字段级 diff）"""
     code = (await admin_client.post("/api/v1/targets", json=_payload(unique_suffix))).json()["data"]["target_code"]
-    await admin_client.put(f"/api/v1/targets/{code}", json={"notes": "审计测试", "change_reason": "pytest 审计日志"})
+    await admin_client.put(f"/api/v1/targets/{code}", json={"version": await current_version(admin_client, f"/api/v1/targets/{code}"), **{"notes": "审计测试", "change_reason": "pytest 审计日志"}})
     await admin_client.post(f"/api/v1/targets/{code}:publish", json={"change_reason": "pytest 发布进审计"})
     r = await admin_client.get(f"/api/v1/targets/{code}/audit-logs")
     assert r.status_code == 200, r.text

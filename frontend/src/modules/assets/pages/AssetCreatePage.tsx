@@ -1,3 +1,4 @@
+import { useIdempotentCreate } from '@/shared/hooks/useIdempotentCreate';
 import {
   Breadcrumb,
   Button,
@@ -36,18 +37,19 @@ interface FormValues {
 }
 
 export function AssetCreatePage() {
+  const createOnce = useIdempotentCreate((payload: AssetCreatePayload, key: string) => assetsApi.create(payload, key));
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
 
   const createMutation = useMutation({
-    mutationFn: (payload: AssetCreatePayload) => assetsApi.create(payload),
+    mutationFn: createOnce,
     onSuccess: (detail) => {
       message.success(`资产已创建：${detail.asset_code}`);
       navigate(`/assets/${encodeURIComponent(detail.asset_code)}`);
     },
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
-      message.error(err?.response?.data?.message ?? '创建失败');
+      message.error(err?.response?.data?.message ?? err?.message ?? '创建失败');
     },
   });
 

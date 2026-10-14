@@ -668,7 +668,8 @@ class ProjectService:
                 or_(
                     ProjectRelationship.from_project_id == proj.project_id,
                     ProjectRelationship.to_project_id == proj.project_id,
-                )
+                ),
+                ProjectRelationship.deleted_at.is_(None),
             ).order_by(ProjectRelationship.relationship_id.asc())
         )
         rels = list(result.scalars().all())
@@ -707,6 +708,10 @@ class ProjectService:
     async def add_relationship(
         self, code: str, payload: ProjectRelationshipCreate, current_user: User
     ) -> ProjectRelationshipItem:
+        await self.db.execute(text("SELECT set_config('app.change_reason', :r, true)"), {"r": payload.change_reason})
+        # 与项目状态操作采用一致的主表顺序；相同关系并发建立先重读，避免唯一性错误。
+        await self.db.execute(select(Project).where(Project.project_code.in_([code, payload.to_project_code]))
+            .order_by(Project.project_id).with_for_update().execution_options(populate_existing=True))
         from_proj = await self._get_project_or_404(code)
         to_proj = await self._get_project_or_404(payload.to_project_code)
 
@@ -719,6 +724,7 @@ class ProjectService:
                 ProjectRelationship.from_project_id == from_proj.project_id,
                 ProjectRelationship.to_project_id == to_proj.project_id,
                 ProjectRelationship.relationship_type == payload.relationship_type,
+                ProjectRelationship.deleted_at.is_(None),
             )
         )
         if existing.scalar_one_or_none():
@@ -736,7 +742,7 @@ class ProjectService:
         self.db.add(rel)
         await self.db.flush()
         await self.db.refresh(rel)
-        return ProjectRelationshipItem(
+        item = ProjectRelationshipItem(
             relationship_id=rel.relationship_id,
             relationship_type=rel.relationship_type,
             direction="outgoing",
@@ -745,6 +751,8 @@ class ProjectService:
             notes=rel.notes,
             created_at=rel.created_at,
         )
+        await self.db.commit()
+        return item
 
     async def delete_relationship(
         self, code: str, relationship_id: int, current_user: User, reason: str | None = None
@@ -763,11 +771,14 @@ class ProjectService:
                     ProjectRelationship.from_project_id == proj.project_id,
                     ProjectRelationship.to_project_id == proj.project_id,
                 ),
-            )
+            ).with_for_update().execution_options(populate_existing=True)
         )
         rel = result.scalar_one_or_none()
         if not rel:
             raise NotFoundError(f"relationship_id={relationship_id} 不属于 {code}")
-        _ = current_user
-        await self.db.delete(rel)
+        if rel.deleted_at is not None:
+            return
+        rel.deleted_at = datetime.now(UTC)
+        rel.deleted_by = current_user.user_id
         await self.db.flush()
+        await self.db.commit()

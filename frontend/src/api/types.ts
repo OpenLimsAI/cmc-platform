@@ -660,6 +660,7 @@ export interface ProjectRelationshipItem {
 }
 
 export interface ProjectRelationshipCreatePayload {
+  change_reason: string;
   to_project_code: string;
   relationship_type: ProjectRelationshipType;
   notes?: string;
@@ -1288,6 +1289,7 @@ export type MaterialStatus =
   | 'retired';
 
 export interface MaterialBrief {
+  version: number;
   material_code: string;
   material_name: string;
   material_name_en?: string | null;
@@ -1307,6 +1309,7 @@ export interface MaterialBrief {
 }
 
 export interface MaterialDetail {
+  version: number;
   material_id: number;
   material_code: string;
   material_name: string;
@@ -1376,6 +1379,7 @@ export interface MaterialCreatePayload {
 }
 
 export interface MaterialUpdatePayload {
+  version: number;
   change_reason?: string;
   material_name?: string;
   material_name_en?: string;
@@ -1469,6 +1473,7 @@ export interface ChangeHistoryItem {
 }
 
 export interface AuditLogItem {
+  change_summary?: string | null;
   log_id: number;
   user_id?: number | null;
   username: string;

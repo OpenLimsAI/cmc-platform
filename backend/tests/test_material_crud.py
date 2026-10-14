@@ -10,6 +10,8 @@ Material CRUD 关键路径测试（M4.1 v2）
 """
 import pytest
 
+from tests.conftest import current_version
+
 
 @pytest.mark.asyncio
 async def test_create_material_with_user_code(admin_client, unique_suffix):
@@ -193,11 +195,11 @@ async def test_update_material_status_and_grade(admin_client, unique_suffix):
 
     resp = await admin_client.put(
         f"/api/v1/materials/{code}",
-        json={
+        json={"version": await current_version(admin_client, f"/api/v1/materials/{code}"), **{
             "change_reason": "进入隔离区待检",
             "status": "quarantine",
             "grade": "ACS Reagent Grade",
-        },
+        }},
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]

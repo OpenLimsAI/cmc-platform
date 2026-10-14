@@ -10,6 +10,8 @@ eqp.equipment（0040_eqp_equipment）：
 """
 import pytest
 
+from tests.conftest import current_version
+
 
 @pytest.mark.asyncio
 async def test_create_equipment_auto_code(admin_client, unique_suffix):
@@ -65,7 +67,7 @@ async def test_create_equipment_new_fields_roundtrip(admin_client, unique_suffix
 
     upd = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"rated_power": "220V/50Hz/2kW", "change_reason": "校准额定功率"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"rated_power": "220V/50Hz/2kW", "change_reason": "校准额定功率"}},
     )
     assert upd.status_code == 200, upd.text
     assert upd.json()["data"]["rated_power"] == "220V/50Hz/2kW"
@@ -110,8 +112,8 @@ async def test_create_equipment_with_workstation(admin_client, unique_suffix):
     # 取消勾选 → 清空配置
     upd = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"has_workstation": False, "workstation_info": None,
-              "change_reason": "拆除专用工作站"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"has_workstation": False, "workstation_info": None,
+              "change_reason": "拆除专用工作站"}},
     )
     assert upd.status_code == 200, upd.text
     assert upd.json()["data"]["has_workstation"] is False
@@ -163,7 +165,7 @@ async def test_equipment_no_and_fixed_asset_no_roundtrip(admin_client, unique_su
 
     upd = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"equipment_no": f"{no}-R", "change_reason": "更正业务编号"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"equipment_no": f"{no}-R", "change_reason": "更正业务编号"}},
     )
     assert upd.status_code == 200, upd.text
     assert upd.json()["data"]["equipment_no"] == f"{no}-R"
@@ -202,11 +204,11 @@ async def test_get_update_delete_equipment(admin_client, unique_suffix):
     # 更新
     upd = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{
             "manufacturer": "Mettler Toledo",
             "status": "retired",
             "change_reason": "pytest 更新测试",
-        },
+        }},
     )
     assert upd.status_code == 200, upd.text
     assert upd.json()["data"]["manufacturer"] == "Mettler Toledo"
@@ -243,14 +245,14 @@ async def test_equipment_status_managed_in_mdm_with_audit_reason(admin_client, u
     assert create.json()["data"]["equipment_status"] == "enabled"
 
     missing_reason = await admin_client.put(
-        f"/api/v1/equipments/{code}", json={"equipment_status": "sealed"}
+        f"/api/v1/equipments/{code}", json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"equipment_status": "sealed"}}
     )
     assert missing_reason.status_code == 400, missing_reason.text
     assert "变更原因" in missing_reason.text
 
     sealed = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"equipment_status": "sealed", "change_reason": "设备暂停使用并封存"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"equipment_status": "sealed", "change_reason": "设备暂停使用并封存"}},
     )
     assert sealed.status_code == 200, sealed.text
     assert sealed.json()["data"]["status"] == "active"
@@ -264,14 +266,14 @@ async def test_equipment_status_managed_in_mdm_with_audit_reason(admin_client, u
 
     scrapped = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"equipment_status": "scrapped", "change_reason": "设备完成审批并正式报废"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"equipment_status": "scrapped", "change_reason": "设备完成审批并正式报废"}},
     )
     assert scrapped.status_code == 200, scrapped.text
     assert scrapped.json()["data"]["equipment_status"] == "scrapped"
 
     legacy = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"equipment_status": "retired", "change_reason": "验证非法设备状态"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"equipment_status": "retired", "change_reason": "验证非法设备状态"}},
     )
     assert legacy.status_code == 400, legacy.text
 
@@ -337,7 +339,7 @@ async def test_equipment_governance_fields_roundtrip(admin_client, unique_suffix
 
     upd = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"criticality": "一般", "change_reason": "复评后降级"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"criticality": "一般", "change_reason": "复评后降级"}},
     )
     assert upd.status_code == 200, upd.text
     assert upd.json()["data"]["criticality"] == "一般"
@@ -399,18 +401,18 @@ async def test_equipment_criticality_rejected_when_category_changes(admin_client
 
     bad = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={"category": "工艺/制备设备", "change_reason": "重新界定为生产设备"},
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"category": "工艺/制备设备", "change_reason": "重新界定为生产设备"}},
     )
     assert bad.status_code == 400, bad.text
 
     # 分类和分级一起改则通过
     ok = await admin_client.put(
         f"/api/v1/equipments/{code}",
-        json={
+        json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{
             "category": "工艺/制备设备",
             "criticality": "关键",
             "change_reason": "重新界定为生产设备并定级",
-        },
+        }},
     )
     assert ok.status_code == 200, ok.text
     assert ok.json()["data"]["criticality"] == "关键"
@@ -459,7 +461,7 @@ async def test_alias_create_update_and_search(admin_client, unique_suffix):
     assert code in {e["equipment_code"] for e in r.json()["data"]}
 
     # 可改；改完按新旧称分别验证
-    r = await admin_client.put(f"/api/v1/equipments/{code}", json={"alias": "只剩一个旧称"})
+    r = await admin_client.put(f"/api/v1/equipments/{code}", json={"version": await current_version(admin_client, f"/api/v1/equipments/{code}"), **{"alias": "只剩一个旧称"}})
     assert r.status_code == 200, r.text
     assert r.json()["data"]["alias"] == "只剩一个旧称"
     r = await admin_client.get(f"/api/v1/equipments?q={old_name}")

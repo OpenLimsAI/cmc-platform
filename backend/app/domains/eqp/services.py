@@ -18,6 +18,7 @@ from app.domains.eqp.schemas import (
     EquipmentUpdate,
     allowed_criticalities,
 )
+from app.shared.master_edit import locked_master
 
 
 class EquipmentService:
@@ -170,9 +171,9 @@ class EquipmentService:
                 {"r": payload.change_reason},
             )
 
-        equipment = await self._get_equipment_or_404(code)
+        equipment = await locked_master(self.db, Equipment, "equipment_code", code, payload.version)
 
-        update_data = payload.model_dump(exclude_unset=True, exclude={"change_reason"})
+        update_data = payload.model_dump(exclude_unset=True, exclude={"version", "change_reason"})
 
         # 两类状态变更都必须给出原因，供审计触发器记录。
         master_status_changed = update_data.get("status", equipment.status) != equipment.status
@@ -200,7 +201,8 @@ class EquipmentService:
         # updated_at 由 eqp.fn_equipment_before_update 触发器维护
 
         await self.db.flush()
-        await self.db.refresh(equipment, ["updated_at"])
+        await self.db.refresh(equipment, ["updated_at", "version"])
+        await self.db.commit()
         return EquipmentDetail.model_validate(equipment)
 
     # ----------- 软删除 -----------

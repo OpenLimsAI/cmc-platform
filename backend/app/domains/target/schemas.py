@@ -96,6 +96,7 @@ class TargetUpdate(TargetUniprotFields):
     """PUT 请求体（target_code / status 不在此改；status 走 :publish / :retire）
     UniProt 字段一般由 :refresh-uniprot 整体刷新，PUT 主要改 notes / 兜底字段。"""
 
+    version: int = Field(..., ge=1, description="本次打开记录时的版本")
     change_reason: str | None = None
 
     target_name: str | None = Field(None, max_length=255)
@@ -132,6 +133,7 @@ class TargetRefreshUniprot(BaseModel):
 class TargetBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    version: int
     target_code: str
     target_name: str
     uniprot_id: str | None = None
@@ -148,6 +150,7 @@ class TargetBrief(BaseModel):
 
 class TargetDetail(TargetBase):
     target_id: int
+    version: int
     target_code: str
     status: TargetStatus
     created_at: datetime

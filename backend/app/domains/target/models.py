@@ -45,6 +45,7 @@ class Target(Base):
         {"schema": "tgt"},
     )
 
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     target_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # 靶点编码 TGT-NNNNNN：留空由 tgt.fn_target_assign_code 触发器取号
     target_code: Mapped[str] = mapped_column(String(32), nullable=False)

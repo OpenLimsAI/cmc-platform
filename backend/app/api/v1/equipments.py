@@ -68,10 +68,11 @@ async def create_equipment(
     db: AsyncSession = Depends(get_db),
 ):
     if idempotency_key:
-        cached = await IdempotencyService.check(user.user_id, idempotency_key, payload.model_dump(mode="json"))
+        cached = await IdempotencyService.check(db, user.user_id, idempotency_key, payload.model_dump(mode="json"), "equipments:create")
         if cached:
             if cached.headers.get("Location"):
                 response.headers["Location"] = cached.headers["Location"]
+            await db.commit()
             return cached.body
 
     service = EquipmentService(db)
@@ -84,13 +85,13 @@ async def create_equipment(
         message="Equipment 创建成功",
         request_id=getattr(request.state, "request_id", None),
     )
-    # H-11：先显式 commit 再写幂等缓存，避免 commit 失败后 Redis 留下假成功
-    await db.commit()
+    # H-11：业务与提交结果同事务提交，失败一并撤回
     if idempotency_key:
         await IdempotencyService.save(
-            user.user_id, idempotency_key, payload.model_dump(mode="json"),
+            db, user.user_id, idempotency_key, payload.model_dump(mode="json"), "equipments:create",
             status_code=201, response_body=body, location=location,
         )
+    await db.commit()
     return body
 
 

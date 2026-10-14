@@ -13,6 +13,7 @@ export type EquipmentStatus = 'enabled' | 'sealed' | 'scrapped';
 export type EquipmentCriticality = 'A' | 'B' | 'C' | '关键' | '一般';
 
 export interface EquipmentBrief {
+  version: number;
   equipment_code: string; // 设备ID（系统生成 EQP-）
   equipment_no: string | null; // 设备编号（业务/历史号）
   fixed_asset_no: string | null; // 固资编号
@@ -49,6 +50,7 @@ export interface WorkstationInfo {
 }
 
 export interface EquipmentDetail extends EquipmentBrief {
+  version: number;
   equipment_id: number;
   rated_power: string | null;
   total_weight: number | null;
@@ -99,6 +101,7 @@ export interface EquipmentCreatePayload {
 }
 
 export interface EquipmentUpdatePayload extends Partial<Omit<EquipmentCreatePayload, 'equipment_code'>> {
+  version: number;
   change_reason?: string;
   status?: EquipmentMasterStatus;
   equipment_status?: EquipmentStatus;
@@ -125,8 +128,8 @@ export const equipmentsApi = {
   get: (code: string) =>
     unwrap<EquipmentDetail>(api.get(`/equipments/${encodeURIComponent(code)}`)),
 
-  create: (payload: EquipmentCreatePayload) =>
-    unwrap<EquipmentDetail>(api.post('/equipments', payload)),
+  create: (payload: EquipmentCreatePayload, submissionKey?: string) =>
+    unwrap<EquipmentDetail>(api.post('/equipments', payload, submissionKey ? { headers: { 'Idempotency-Key': submissionKey } } : undefined)),
 
   update: (code: string, payload: EquipmentUpdatePayload) =>
     unwrap<EquipmentDetail>(api.put(`/equipments/${encodeURIComponent(code)}`, payload)),

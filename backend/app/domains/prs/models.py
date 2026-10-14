@@ -12,12 +12,14 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -291,13 +293,13 @@ class ProjectStatusHistory(Base):
 
 
 class ProjectRelationship(Base):
-    """§9.5 项目衍生/合并关系（M3.0.2 仅建表，service/API/UI 留 Phase 3+）"""
+    """§9.5 项目衍生/合并关系（建立/取消保留历史，双端可查询审计）"""
 
     __tablename__ = "project_relationship"
     __table_args__ = (
-        UniqueConstraint(
-            "from_project_id", "to_project_id", "relationship_type",
-            name="uq_project_relationship",
+        Index(
+            "uq_project_relationship_active", "from_project_id", "to_project_id", "relationship_type",
+            unique=True, postgresql_where=text("deleted_at IS NULL"),
         ),
         CheckConstraint("from_project_id != to_project_id", name="ck_project_rel_self"),
         CheckConstraint(
@@ -306,6 +308,9 @@ class ProjectRelationship(Base):
         ),
         {"schema": "prs"},
     )
+
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("auth.user.user_id"))
 
     relationship_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     from_project_id: Mapped[int] = mapped_column(

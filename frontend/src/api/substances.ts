@@ -28,8 +28,8 @@ export const substancesApi = {
       api.get(`/substances/${encodeURIComponent(code)}`, { params: { expand } })
     ),
 
-  create: (payload: SubstanceCreatePayload) =>
-    unwrap<SubstanceDetail>(api.post('/substances', payload)),
+  create: (payload: SubstanceCreatePayload, submissionKey?: string) =>
+    unwrap<SubstanceDetail>(api.post('/substances', payload, submissionKey ? { headers: { 'Idempotency-Key': submissionKey } } : undefined)),
 
   update: (code: string, payload: SubstanceUpdatePayload) =>
     unwrap<SubstanceDetail>(api.put(`/substances/${encodeURIComponent(code)}`, payload)),

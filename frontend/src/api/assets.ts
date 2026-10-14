@@ -26,8 +26,8 @@ export const assetsApi = {
   get: (code: string) =>
     unwrap<AssetDetail>(api.get(`/assets/${encodeURIComponent(code)}`)),
 
-  create: (payload: AssetCreatePayload) =>
-    unwrap<AssetDetail>(api.post('/assets', payload)),
+  create: (payload: AssetCreatePayload, submissionKey?: string) =>
+    unwrap<AssetDetail>(api.post('/assets', payload, submissionKey ? { headers: { 'Idempotency-Key': submissionKey } } : undefined)),
 
   update: (code: string, payload: AssetUpdatePayload) =>
     unwrap<AssetDetail>(api.put(`/assets/${encodeURIComponent(code)}`, payload)),

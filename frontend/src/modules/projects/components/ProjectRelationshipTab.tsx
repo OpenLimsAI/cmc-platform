@@ -36,6 +36,7 @@ interface Props {
 interface AddForm {
   to_project_code: string;
   relationship_type: ProjectRelationshipType;
+  change_reason: string;
   notes?: string;
 }
 
@@ -83,11 +84,16 @@ export function ProjectRelationshipTab({ projectCode }: Props) {
     },
   });
 
+  const [cancelling, setCancelling] = useState<ProjectRelationshipItem | null>(null);
+  const [cancelForm] = Form.useForm<{ change_reason: string }>();
+
   const deleteMutation = useMutation({
-    mutationFn: (relationship_id: number) =>
-      projectsApi.deleteRelationship(projectCode, relationship_id),
+    mutationFn: ({ relationship_id, reason }: { relationship_id: number; reason: string }) =>
+      projectsApi.deleteRelationship(projectCode, relationship_id, reason),
     onSuccess: () => {
-      message.success('关系已删除');
+      message.success('关系已取消，历史已保留');
+      setCancelling(null);
+      cancelForm.resetFields();
       invalidate();
     },
     onError: (err: any) => message.error(err?.response?.data?.message ?? '删除失败'),
@@ -137,9 +143,9 @@ export function ProjectRelationshipTab({ projectCode }: Props) {
             danger
             icon={<DeleteOutlined />}
             loading={deleteMutation.isPending}
-            onClick={() => deleteMutation.mutate(row.relationship_id)}
+            onClick={() => { cancelForm.resetFields(); setCancelling(row); }}
           >
-            删除
+            取消关系
           </Button>
         </PermissionGuard>
       ),
@@ -188,7 +194,7 @@ export function ProjectRelationshipTab({ projectCode }: Props) {
         destroyOnClose
         width={640}
       >
-        <Form form={addForm} layout="vertical">
+        <Form name="relationship-create" form={addForm} layout="vertical">
           <Form.Item
             label="关系类型"
             name="relationship_type"
@@ -223,8 +229,24 @@ export function ProjectRelationshipTab({ projectCode }: Props) {
               filterOption={false}
             />
           </Form.Item>
+          <Form.Item label="建立原因" name="change_reason" rules={[{ required: true, min: 5, max: 2000, message: '请填写至少5个字符的原因' }]}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
           <Form.Item label="备注" name="notes">
             <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal title="确认取消项目关系" open={!!cancelling} okText="确认取消" cancelText="返回"
+        confirmLoading={deleteMutation.isPending} onCancel={() => setCancelling(null)}
+        onOk={async () => {
+          const values = await cancelForm.validateFields();
+          if (cancelling) deleteMutation.mutate({ relationship_id: cancelling.relationship_id, reason: values.change_reason });
+        }}>
+        <p>取消后保留原关系和操作历史，可重新建立关系。</p>
+        <Form name="relationship-cancel" form={cancelForm} layout="vertical">
+          <Form.Item name="change_reason" label="取消原因" rules={[{ required: true, min: 5, max: 2000, message: '请填写至少5个字符的原因' }]}>
+            <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
       </Modal>

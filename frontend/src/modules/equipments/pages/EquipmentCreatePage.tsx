@@ -1,3 +1,4 @@
+import { useIdempotentCreate } from '@/shared/hooks/useIdempotentCreate';
 import {
   Breadcrumb,
   Button,
@@ -23,6 +24,7 @@ import { GovernanceFields } from '../components/GovernanceFields';
 const { Title, Text } = Typography;
 
 export function EquipmentCreatePage() {
+  const createOnce = useIdempotentCreate((payload: EquipmentCreatePayload, key: string) => equipmentsApi.create(payload, key));
   const navigate = useNavigate();
   const [form] = Form.useForm();
   // 支持从 LabOps "去 MDM 登记"跳转带入预填值(?code= / ?name=)
@@ -34,11 +36,13 @@ export function EquipmentCreatePage() {
   };
 
   const mutation = useMutation({
-    mutationFn: (payload: EquipmentCreatePayload) => equipmentsApi.create(payload),
+    mutationFn: createOnce,
     onSuccess: (detail) => {
       message.success(`设备 ${detail.equipment_code} 创建成功`);
       navigate(`/equipments/${encodeURIComponent(detail.equipment_code)}`);
     },
+
+    onError: (err: any) => message.error(err?.response?.data?.message ?? err?.message ?? '创建失败'),
   });
 
   const onFinish = async () => {

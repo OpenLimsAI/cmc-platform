@@ -1,3 +1,4 @@
+import { useIdempotentCreate } from '@/shared/hooks/useIdempotentCreate';
 import {
   Button,
   Card,
@@ -54,6 +55,7 @@ interface FormValues {
 const POST_APPROVAL_NATURES = ['cmc_change', 'lcm'];
 
 export function ProjectCreatePage() {
+  const createOnce = useIdempotentCreate((payload: ProjectCreatePayload, key: string) => projectsApi.create(payload, key));
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const category = Form.useWatch('project_category', form);
@@ -72,14 +74,14 @@ export function ProjectCreatePage() {
   }));
 
   const createMutation = useMutation({
-    mutationFn: (payload: ProjectCreatePayload) => projectsApi.create(payload),
+    mutationFn: createOnce,
     onSuccess: (detail) => {
       message.success(`项目已创建：${detail.project_code}`);
       navigate(`/projects/${encodeURIComponent(detail.project_code)}`);
     },
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
-      message.error(err?.response?.data?.message ?? '创建失败');
+      message.error(err?.response?.data?.message ?? err?.message ?? '创建失败');
     },
   });
 

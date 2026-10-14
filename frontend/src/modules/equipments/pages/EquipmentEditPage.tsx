@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useEditSnapshot } from '@/shared/hooks/useEditSnapshot';
 import {
   Breadcrumb,
   Button,
@@ -33,6 +35,7 @@ export function EquipmentEditPage() {
   const { code = '' } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { capture, version } = useEditSnapshot(code);
   const [form] = Form.useForm();
 
   const { data: eq, isLoading } = useQuery({
@@ -41,8 +44,20 @@ export function EquipmentEditPage() {
     enabled: !!code,
   });
 
+  useEffect(() => {
+    if (eq && capture(eq.version)) {
+      form.resetFields();
+      form.setFieldsValue({
+        ...eq,
+        manufacture_date: eq.manufacture_date ? dayjs(eq.manufacture_date) : null,
+        commission_date: eq.commission_date ? dayjs(eq.commission_date) : null,
+      });
+    }
+  }, [eq, capture, form]);
+
   const mutation = useMutation({
     mutationFn: (payload: EquipmentUpdatePayload) => equipmentsApi.update(code, payload),
+    onError: (err: any) => message.error(err?.response?.data?.message ?? '更新失败'),
     onSuccess: () => {
       message.success('更新成功');
       queryClient.invalidateQueries({ queryKey: ['equipment', code] });
@@ -58,6 +73,7 @@ export function EquipmentEditPage() {
   const onFinish = async () => {
     const v = await form.validateFields();
     mutation.mutate({
+      version: version.current,
       equipment_no: v.equipment_no,
       fixed_asset_no: v.fixed_asset_no,
       equipment_name: v.equipment_name,

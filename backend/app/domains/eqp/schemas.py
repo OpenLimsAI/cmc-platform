@@ -91,6 +91,7 @@ class EquipmentCreate(EquipmentBase):
 class EquipmentUpdate(BaseModel):
     """PUT 请求体（equipment_code 不可修改）"""
 
+    version: int = Field(..., ge=1, description="本次打开记录时的版本")
     change_reason: str | None = None
 
     equipment_name: str | None = Field(None, max_length=255, description="设备名称（中文）")
@@ -132,6 +133,7 @@ class EquipmentBrief(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    version: int
     equipment_code: str
     equipment_no: str | None = None
     fixed_asset_no: str | None = None
@@ -156,6 +158,7 @@ class EquipmentDetail(EquipmentBase):
     """详情响应"""
 
     equipment_id: int
+    version: int
     equipment_code: str
     status: EquipmentMasterStatus
     equipment_status: EquipmentStatus

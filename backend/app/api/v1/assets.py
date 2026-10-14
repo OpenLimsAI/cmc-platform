@@ -81,10 +81,11 @@ async def create_asset(
     db: AsyncSession = Depends(get_db),
 ):
     if idempotency_key:
-        cached = await IdempotencyService.check(user.user_id, idempotency_key, payload.model_dump())
+        cached = await IdempotencyService.check(db, user.user_id, idempotency_key, payload.model_dump(), "assets:create")
         if cached:
             if cached.headers.get("Location"):
                 response.headers["Location"] = cached.headers["Location"]
+            await db.commit()
             return cached.body
 
     service = AssetService(db)
@@ -98,14 +99,14 @@ async def create_asset(
         message="Asset 创建成功",
         request_id=getattr(request.state, "request_id", None),
     )
-    # H-11：先显式 commit 再写幂等缓存，避免 commit 失败后 Redis 留下假成功
+    # H-11：业务与提交结果同事务提交，失败一并撤回
     # （get_db 收尾的 commit 对已提交会话是 no-op；body 已 dump 完毕不受 expire 影响）
-    await db.commit()
     if idempotency_key:
         await IdempotencyService.save(
-            user.user_id, idempotency_key, payload.model_dump(),
+            db, user.user_id, idempotency_key, payload.model_dump(), "assets:create",
             status_code=201, response_body=body, location=location,
         )
+    await db.commit()
     return body
 
 

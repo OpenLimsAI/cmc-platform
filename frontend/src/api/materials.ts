@@ -18,8 +18,8 @@ export const materialsApi = {
   get: (code: string) =>
     unwrap<MaterialDetail>(api.get(`/materials/${encodeURIComponent(code)}`)),
 
-  create: (payload: MaterialCreatePayload) =>
-    unwrap<MaterialDetail>(api.post('/materials', payload)),
+  create: (payload: MaterialCreatePayload, submissionKey?: string) =>
+    unwrap<MaterialDetail>(api.post('/materials', payload, submissionKey ? { headers: { 'Idempotency-Key': submissionKey } } : undefined)),
 
   update: (code: string, payload: MaterialUpdatePayload) =>
     unwrap<MaterialDetail>(api.put(`/materials/${encodeURIComponent(code)}`, payload)),

@@ -14,6 +14,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Float,
+    Integer,
     Numeric,
     String,
     Text,
@@ -59,6 +60,7 @@ class Equipment(Base):
         {"schema": "eqp"},
     )
 
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     equipment_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     # 设备ID：系统生成 EQP-yyyy-NNNNNN，全局唯一、不可改（主数据主标识）
     equipment_code: Mapped[str] = mapped_column(String(32), nullable=False)

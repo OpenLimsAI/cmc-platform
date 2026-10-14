@@ -312,9 +312,30 @@ RelationshipType = Literal[
 
 
 class ProjectRelationshipCreate(BaseModel):
+    change_reason: str = Field(..., min_length=5, max_length=2000)
+
+    @field_validator("change_reason")
+    @classmethod
+    def reason_not_blank(cls, value: str) -> str:
+        if len(value.strip()) < 5:
+            raise ValueError("请填写至少5个字符的原因")
+        return value.strip()
+
     to_project_code: str = Field(..., max_length=32)
     relationship_type: RelationshipType
     notes: str | None = None
+
+
+class ProjectRelationshipDelete(BaseModel):
+    change_reason: str = Field(..., min_length=5, max_length=2000)
+
+    @field_validator("change_reason")
+    @classmethod
+    def reason_not_blank(cls, value: str) -> str:
+        if len(value.strip()) < 5:
+            raise ValueError("请填写至少5个字符的原因")
+        return value.strip()
+
 
 
 class ProjectRelationshipItem(BaseModel):

@@ -1,3 +1,4 @@
+import { useEditSnapshot } from '@/shared/hooks/useEditSnapshot';
 import { useEffect, useState } from 'react';
 import {
   AutoComplete,
@@ -41,6 +42,7 @@ export function MaterialEditPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { capture, version } = useEditSnapshot(code);
   const [form] = Form.useForm<FormValues>();
   const [subQuery, setSubQuery] = useState('');
 
@@ -65,7 +67,8 @@ export function MaterialEditPage() {
     })) ?? [];
 
   useEffect(() => {
-    if (material) {
+    if (material && capture(material.version)) {
+      form.resetFields();
       form.setFieldsValue({
         material_name: material.material_name,
         material_name_en: material.material_name_en ?? undefined,
@@ -88,7 +91,7 @@ export function MaterialEditPage() {
         notes: material.notes ?? undefined,
       });
     }
-  }, [material, form]);
+  }, [material, form, capture]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: MaterialUpdatePayload) => materialsApi.update(code!, payload),
@@ -107,6 +110,7 @@ export function MaterialEditPage() {
   const onFinish = (values: FormValues) => {
     updateMutation.mutate({
       ...values,
+      version: version.current,
       substance_code: values.substance_code === '' ? null : values.substance_code,
     });
   };

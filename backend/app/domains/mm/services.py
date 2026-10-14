@@ -30,6 +30,7 @@ from app.domains.mm.schemas import (
     MaterialUpdate,
 )
 from app.domains.srs.models import Substance
+from app.shared.master_edit import locked_master
 
 
 class MaterialService:
@@ -173,6 +174,7 @@ class MaterialService:
         return (
             [
                 MaterialBrief(
+                    version=m.version,
                     material_code=m.material_code,
                     material_name=m.material_name,
                     material_name_en=m.material_name_en,
@@ -275,11 +277,11 @@ class MaterialService:
                 {"r": payload.change_reason},
             )
 
-        material = await self._get_material_or_404(code)
+        material = await locked_master(self.db, Material, "material_code", code, payload.version)
 
         update_data = payload.model_dump(
             exclude_unset=True,
-            exclude={"change_reason", "substance_code"},
+            exclude={"version", "change_reason", "substance_code"},
         )
 
         # 物质引用解析（substance_code 优先；只有显式传一边才动 substance_id）
@@ -297,11 +299,12 @@ class MaterialService:
         # updated_at 由 mm.fn_material_before_update 触发器维护
 
         await self.db.flush()
-        await self.db.refresh(material, ["updated_at"])
+        await self.db.refresh(material, ["updated_at", "version"])
 
         sub_code = await self._substance_code(material.substance_id)
         detail = MaterialDetail.model_validate(material)
         detail.substance_code = sub_code
+        await self.db.commit()
         return detail
 
     # ----------- 软删除 -----------
@@ -340,6 +343,7 @@ class MaterialService:
         materials = list(result.scalars())
         return [
             MaterialBrief(
+                version=m.version,
                 material_code=m.material_code,
                 material_name=m.material_name,
                 material_name_en=m.material_name_en,

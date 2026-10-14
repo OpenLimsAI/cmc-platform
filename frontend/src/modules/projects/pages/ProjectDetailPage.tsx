@@ -375,6 +375,7 @@ export function ProjectDetailPage() {
           tableLabels={{
             project: '项目主表',
             project_milestone: '里程碑',
+            project_relationship: '项目关系',
             project_team: '团队',
             project_substance: '物质绑定',
             project_asset: '资产关联',

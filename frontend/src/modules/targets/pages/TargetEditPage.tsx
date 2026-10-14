@@ -1,3 +1,4 @@
+import { useEditSnapshot } from '@/shared/hooks/useEditSnapshot';
 import { useEffect } from 'react';
 import { Breadcrumb, Button, Card, Form, Input, Space, Spin, Typography, message } from 'antd';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -12,6 +13,7 @@ export function TargetEditPage() {
   const { code = '' } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { capture, version } = useEditSnapshot(code);
   const [form] = Form.useForm();
 
   const { data: t, isLoading } = useQuery({
@@ -21,7 +23,8 @@ export function TargetEditPage() {
   });
 
   useEffect(() => {
-    if (t) {
+    if (t && capture(t.version)) {
+      form.resetFields();
       form.setFieldsValue({
         uniprot_id: t.uniprot_id ?? undefined,
         target_name: t.target_name,
@@ -32,7 +35,7 @@ export function TargetEditPage() {
         notes: t.notes ?? undefined,
       });
     }
-  }, [t, form]);
+  }, [t, form, capture]);
 
   const mutation = useMutation({
     mutationFn: (payload: TargetUpdatePayload) => targetsApi.update(code, payload),
@@ -55,7 +58,7 @@ export function TargetEditPage() {
   const onFinish = async () => {
     const v = await form.validateFields();
     // 有 UniProt 号：标准字段只能靠「重新拉取」改，这里只改备注；无 UniProt 号：兜底字段可改
-    const payload: TargetUpdatePayload = hasUniprot
+    const payload: Omit<TargetUpdatePayload, 'version'> = hasUniprot
       ? { notes: v.notes || null, change_reason: v.change_reason }
       : {
           target_name: v.target_name,
@@ -66,7 +69,7 @@ export function TargetEditPage() {
           notes: v.notes || null,
           change_reason: v.change_reason,
         };
-    mutation.mutate(payload);
+    mutation.mutate({ ...payload, version: version.current });
   };
 
   return (

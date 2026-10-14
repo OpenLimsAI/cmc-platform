@@ -50,6 +50,7 @@ from app.domains.target.schemas import (
     TargetSnapshotDetail,
     TargetUpdate,
 )
+from app.shared.master_edit import locked_master
 
 # 轻档"状态机"：只允许这两步（draft/retired → published 需人工核对后发布；published → retired）
 STATUS_ACTIONS: dict[str, dict[str, str]] = {
@@ -178,8 +179,8 @@ class TargetService:
     # ----------- 更新 -----------
     async def update(self, code: str, payload: TargetUpdate, current_user: User) -> TargetDetail:
         await _set_change_reason(self.db, payload.change_reason)
-        target = await self._get_target_or_404(code)
-        update_data = payload.model_dump(exclude_unset=True, mode="json", exclude={"change_reason", "uniprot_fetched_at"})
+        target = await locked_master(self.db, Target, "target_code", code, payload.version)
+        update_data = payload.model_dump(exclude_unset=True, mode="json", exclude={"version", "change_reason", "uniprot_fetched_at"})
         if payload.model_fields_set & {"uniprot_fetched_at"}:
             update_data["uniprot_fetched_at"] = payload.uniprot_fetched_at
         if "uniprot_id" in update_data and update_data["uniprot_id"]:
@@ -189,7 +190,8 @@ class TargetService:
             setattr(target, k, v)
         target.updated_by = current_user.user_id
         await self.db.flush()
-        await self.db.refresh(target, ["updated_at"])
+        await self.db.refresh(target, ["updated_at", "version"])
+        await self.db.commit()
         return TargetDetail.model_validate(target)
 
     # ----------- 状态动作（轻档）-----------
@@ -209,7 +211,7 @@ class TargetService:
         target.status = new_status
         target.updated_by = current_user.user_id
         await self.db.flush()
-        await self.db.refresh(target, ["updated_at"])
+        await self.db.refresh(target, ["updated_at", "version"])
         return TargetDetail.model_validate(target)
 
     # ----------- 软删除 -----------

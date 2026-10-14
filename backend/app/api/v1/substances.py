@@ -81,12 +81,13 @@ async def create_substance(
     user: User = Depends(require_permission("substance:create")),
     db: AsyncSession = Depends(get_db),
 ):
-    # API §3.4：Idempotency-Key 24h 窗口（命中且 body 一致直接返回缓存；body 不同 → 40905）
+    # API §3.4：固定24h内相同提交取回已有结果，不同内容/用途返回40905
     if idempotency_key:
-        cached = await IdempotencyService.check(user.user_id, idempotency_key, payload.model_dump())
+        cached = await IdempotencyService.check(db, user.user_id, idempotency_key, payload.model_dump(), "substances:create")
         if cached:
             if cached.headers.get("Location"):
                 response.headers["Location"] = cached.headers["Location"]
+            await db.commit()
             return cached.body
 
     service = SubstanceService(db)
@@ -100,13 +101,13 @@ async def create_substance(
         message="Substance 创建成功",
         request_id=getattr(request.state, "request_id", None),
     )
-    # H-11：先显式 commit 再写幂等缓存，避免 commit 失败后 Redis 留下假成功
-    await db.commit()
+    # H-11：业务与提交结果同事务提交，失败一并撤回
     if idempotency_key:
         await IdempotencyService.save(
-            user.user_id, idempotency_key, payload.model_dump(),
+            db, user.user_id, idempotency_key, payload.model_dump(), "substances:create",
             status_code=201, response_body=body, location=location,
         )
+    await db.commit()
     return body
 
 

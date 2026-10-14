@@ -1,3 +1,4 @@
+import { useIdempotentCreate } from '@/shared/hooks/useIdempotentCreate';
 import { useState } from 'react';
 import {
   AutoComplete,
@@ -37,6 +38,7 @@ interface FormValues extends MaterialCreatePayload {
 }
 
 export function MaterialCreatePage() {
+  const createOnce = useIdempotentCreate((payload: MaterialCreatePayload, key: string) => materialsApi.create(payload, key));
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   // 支持从 LabOps "去 MDM 登记"跳转带入预填值(?code= / ?name=)
@@ -60,14 +62,14 @@ export function MaterialCreatePage() {
     })) ?? [];
 
   const createMutation = useMutation({
-    mutationFn: (payload: MaterialCreatePayload) => materialsApi.create(payload),
+    mutationFn: createOnce,
     onSuccess: (detail) => {
       message.success(`物料已创建：${detail.material_code}`);
       navigate(`/materials/${encodeURIComponent(detail.material_code)}`);
     },
     onError: (err: any) => {
       if (applyFormErrors(form, err)) return;
-      message.error(err?.response?.data?.message ?? '创建失败');
+      message.error(err?.response?.data?.message ?? err?.message ?? '创建失败');
     },
   });
 
