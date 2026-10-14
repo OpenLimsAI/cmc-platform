@@ -19,6 +19,14 @@
 - 研发LIMS模拟详情在1440/390/320px点击历史“查看记录”，证据区域获焦、第一条摘要展开、标题位于导航栏下方，重复定位也未被遮挡；详情导航栏top=0，浏览器无控制台错误。
 - Hub /ops实际加载模拟JS index-BFmBcdlz.js/CSS index-CxxWI-HL.css，桌面导航栏高度仍76px，原模拟标识保留。Mac预览已更新，未提交/push或发布Linux，未作真实角色或源采集验收。
 
+### D18发布验收（2026-10-14）
+
+- 用户明确授权两次页面调整合并提交/push并同步Linux。业务提交1e3b9fbee77d3a0cea150dded6730819d18975fc，Mac/GitHub main/Linux main在发布验收时同SHA且工作区干净。Linux仅重建正式前端，API/collector/nginx PID及启动时间不变，均active；无迁移、源任务执行、权限或调度修改。
+- Linux Hub实际提供的HTML、JS index-CMBrdHdz.js、CSS index-CxxWI-HL.css与/opt/cmc-platform-monitor/frontend/dist逐字节一致，也与Mac临时正式构建一致。JS SHA256 d7582702245c5259356399bf1250fd377f2ebbcf7e7ea4f21f6cfc48d2033087，CSS SHA256 adb6214dd470f9db55c3e73acff27247c17f7c51f7263021b16ee8ef67927caa。旧dist保存在/opt/cmc-platform-monitor/.local/ui-release-20261014-112719。
+- Mac Hub仍提供模拟JS index-BFmBcdlz.js及同一CSS，与Mac在用dist逐字节一致。Mac模拟JS与Linux正式JS不同是既有环境配置，源代码及正式构建一致；未将模拟dist复制到Linux。
+- Linux健康200，经Hub匿名overview401、SYS_ADMIN200、其他角色403、临时密码403；仅服务器内短期合成角色探针，不代表真实MDM登录。真实production观测截至UTC08:20:37.454649（北京时间16:20），公开16项、在用10项，9成功/1提醒/0失败/0未知。8025/5125仍只监听127.0.0.1，Hub5100保持既有监听。
+- Linux浏览器实际入口转统一登录，没有现成管理员会话，因此本次未执行真实管理员滚动或更新点击；页面交互已在Mac明确模拟环境验收，正式资源一致性及API守卫独立通过。后续仅同步本节文档记录，不重建前端或重启服务。
+
 ## 2026-10-10 Linux协调发布实际验收
 
 - 本地后端53项通过（既有FastAPI测试客户端依赖弃用提示1项）；前端3项、配套桩10项通过；生产TypeScript/Vite构建、四表ORM/迁移对照、隔离PostgreSQL迁移读写验证通过。

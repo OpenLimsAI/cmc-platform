@@ -6,7 +6,7 @@
 
 用户明确授权将总览标题区移除/更新控件上移，以及顶部导航栏固定两次调整一起提交GitHub、同步Linux，并核对三端。发布前Mac/GitHub/Linux均为aac23464e6351dc4ca523e7f65cf1c16acff89f6，Linux main干净、API/collector/nginx均active。本次按前端最小发布路径：显式源文件清单提交/push，Linux ff-only拉取同一完整SHA，保留旧静态产物后构建正式前端；不重启API/collector/nginx、不执行迁移或源任务。Mac继续使用明确标注的模拟预览。
 
-本节发布及三端验收进行中；上方最新记录更新当前交付状态，下方两次本地条目保留各自阶段的历史事实。
+两次页面调整已合并为业务提交1e3b9fbee77d3a0cea150dded6730819d18975fc并push到GitHub，Linux干净main已ff-only同步并完成正式构建。API/collector/nginx发布前后PID及启动时间完全相同、均active；原dist备份为/opt/cmc-platform-monitor/.local/ui-release-20261014-112719。Mac/GitHub/Linux业务SHA相同，实际Hub HTML/JS/CSS与各自磁盘一致，Linux正式JS/CSS还与Mac临时正式构建逐字节一致；Mac在用模拟标识保留。健康200、匿名401/SYS_ADMIN200/其他角色403/临时密码403通过，权限令牌仅服务器内合成探针。Linux真实观测为9项成功、1项提醒、无失败/未知（16张公开卡片、10项在用），采集截至北京时间10-14 16:20。真实管理员浏览器没有可用会话，入口转统一登录，未将合成令牌注入浏览器作滚动验收。详见TEST_ACCEPTANCE D18发布验收；后续仅文档记录同步，无需再构建或重启。下方两次本地条目保留各自阶段的历史事实。
 
 ## 2026-10-14 — 顶部导航栏固定（D18补充）
 
