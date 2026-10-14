@@ -31,6 +31,12 @@
 
 ## 验证与回退
 
+### D18前端单独更新（2026-10-14已授权）
+
+本次两次页面调整仅涉及前端及文档。复用此前历史记录入口修正的前端发布路径：Mac验证并显式文件清单commit/push；Linux检查干净main、git pull --ff-only并核对完整SHA，保留原frontend/dist到Git忽略的.local目录，再以prometheus执行 `env -u VITE_DEMO_MODE npm --prefix frontend run build`。既有nginx直接提供dist，不重启API/collector/nginx，不重复依赖安装、数据库迁移、权限或源通知配置。发布后核对三端SHA、Hub实际HTML/JS/CSS与磁盘及Mac正式构建、服务/监听和只读API守卫；Mac在用dist仍为模拟构建，不能要求与Linux正式JS逐字节相同。
+
+需要回退时回到发布前已确认SHA并重建正式前端；原dist备份用于恢复对应静态产物，保留监控历史和原任务调度。本次实际SHA、产物及检查结果在TEST_ACCEPTANCE D18发布验收维护。
+
 本地测试见README及TEST_ACCEPTANCE；服务器 `verify_linux_release.py permissions/api/notifications` 以实际角色/peer检查。api探针使用本机MDM验签配置构造短期合成角色令牌，sub=0、username=release-verification，只证明接口守卫，不能代替真实MDM登录。通知探针只请求重新读证据，不伪造成功、失败或启动源单元。
 
 保留目录 `/var/backups/cmc-platform-monitor/20261010`，包含迁移前两库dump/SHA、旧Hub dist及已有受管文件。回退先停本项目API/collector/证据/摘要托管、撤回本项目源通知drop-in（保留旧告警及原timer），Hub恢复旧构建/路由后nginx -t/reload；源码退到明确已发布版本。源通知不可用不会改变原程序退出码。禁止默认DROP自有四表：保留运维/审计历史，迁移downgrade拒绝破坏性删除。任何整库恢复须另行评估并授权，本次未执行回退或恢复。
