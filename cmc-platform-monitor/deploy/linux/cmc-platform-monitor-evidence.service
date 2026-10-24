@@ -1,0 +1,25 @@
+[Unit]
+Description=Restricted journal lifecycle export for registered monitor tasks
+After=systemd-journald.service
+[Service]
+User=prometheus
+Group=opsmonitor-evidence
+SupplementaryGroups=adm
+WorkingDirectory=/opt/cmc-platform-monitor
+ExecStart=/usr/bin/python3 /opt/cmc-platform-monitor/scripts/journal_bridge.py
+RuntimeDirectory=cmc-platform-monitor-evidence
+RuntimeDirectoryMode=0750
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateNetwork=true
+RestrictAddressFamilies=AF_UNIX
+TemporaryFileSystem=/opt:ro
+BindReadOnlyPaths=/opt/cmc-platform-monitor/scripts
+InaccessiblePaths=-/etc/cmc-platform-monitor
+ReadWritePaths=/run/cmc-platform-monitor-evidence
+UMask=0027
+[Install]
+WantedBy=multi-user.target

@@ -1,128 +1,31 @@
-# cmc-instrument-ingest
+# CMC Platform
 
-> **小仪器原始数据备份归档中心。** 从实验室仪器侧**只读拉取**数据，SHA-256 校验后归档到 NAS，作为 CMC 数据中台的底本与业务备份。
+本仓库汇集 8 个 CMC 项目的代码与 Git 历史。各项目放在同名子目录中，保持导入时的源文件内容；这次整合不代表已完成业务功能、启动方式或部署的运行时集成。
 
-本仓库**只做备份归档（Stage 1）**，不解析业务字段、不入库。每台仪器的解析入库（ETL）各自独立成 repo。
-已接入的源：
+## 项目与导入版本
 
-| 仪器 | 目录 | 源 | 状态 |
-|---|---|---|---|
-| Nova Biomedical BioProfile **FLEX2**（生化分析仪，Analyzer ID `T281240040C`） | `flex2/` | `//10.0.13.66/Export`（SMB 3.0） | ✅ 已上线 |
-| Beckman **Vi-CELL XR**（细胞计数仪，工作站 `C4V61257XH`） | `vicell/` | `//10.0.13.36/Vi-Cell$`（**SMB 2.1**，Win7） | 🟡 待首跑 |
-| Bioengineering **RALF** 发酵工作站（**数据库型源**，多台） | `ralf/` | MySQL 4.1 `10.0.13.58:3306` 等，`mysqldump` 导出 | 🌱 勘察/设计中（脚本待联网实测） |
+| 目录 | 来源仓库 | 导入提交（main） |
+|---|---|---|
+| `cmc-instrument-ingest/` | [qingcheng81/cmc-instrument-ingest](https://github.com/qingcheng81/cmc-instrument-ingest) | [`2de8f8330d69ba8fa8273eef3be03a487eb7ef92`](https://github.com/qingcheng81/cmc-instrument-ingest/commit/2de8f8330d69ba8fa8273eef3be03a487eb7ef92) |
+| `cmc-labops/` | [qingcheng81/cmc-labops](https://github.com/qingcheng81/cmc-labops) | [`3ac2fb181cc57ed007dedcc585b310cc734899af`](https://github.com/qingcheng81/cmc-labops/commit/3ac2fb181cc57ed007dedcc585b310cc734899af) |
+| `cmc-platform-monitor/` | [qingcheng81/cmc-platform-monitor](https://github.com/qingcheng81/cmc-platform-monitor) | [`85dda2e2365104c2d6f4658ff81d96ce8fac20dd`](https://github.com/qingcheng81/cmc-platform-monitor/commit/85dda2e2365104c2d6f4658ff81d96ce8fac20dd) |
+| `cmc-quality-analytics-platform/` | [qingcheng81/cmc-quality-analytics-platform](https://github.com/qingcheng81/cmc-quality-analytics-platform) | [`9a5af3ded7e0e7cf398188b8dd14fdce262f8b9f`](https://github.com/qingcheng81/cmc-quality-analytics-platform/commit/9a5af3ded7e0e7cf398188b8dd14fdce262f8b9f) |
+| `cmc-rd-lims-dashboard/` | [qingcheng81/cmc-rd-lims-dashboard](https://github.com/qingcheng81/cmc-rd-lims-dashboard) | [`179f08998af748d2a49681cb2c650ed44345d7cf`](https://github.com/qingcheng81/cmc-rd-lims-dashboard/commit/179f08998af748d2a49681cb2c650ed44345d7cf) |
+| `cmc-rd-usp-dashboard/` | [qingcheng81/cmc-rd-usp-dashboard](https://github.com/qingcheng81/cmc-rd-usp-dashboard) | [`3a7bcb36ddbd50ebf6048c9fad3412f95d788384`](https://github.com/qingcheng81/cmc-rd-usp-dashboard/commit/3a7bcb36ddbd50ebf6048c9fad3412f95d788384) |
+| `cmc-schema-migrations/` | [qingcheng81/cmc-schema-migrations](https://github.com/qingcheng81/cmc-schema-migrations) | [`7a6785a68b18c412c0dc10df97b1a8b709748457`](https://github.com/qingcheng81/cmc-schema-migrations/commit/7a6785a68b18c412c0dc10df97b1a8b709748457) |
+| `cmc-water-system-dashboard/` | [qingcheng81/cmc-water-system-dashboard](https://github.com/qingcheng81/cmc-water-system-dashboard) | [`f4e2c81da2e56f7c52c040e8abbcc9c25c45ee25`](https://github.com/qingcheng81/cmc-water-system-dashboard/commit/f4e2c81da2e56f7c52c040e8abbcc9c25c45ee25) |
 
-> ⚠️ **ralf 是本库第一个「数据库型」源**：用 `mysqldump` 导出整库，而非复制文件；
-> 与文件型仪器的规范差异（不挂 CIFS、走只读 DB 账号、自己的周/月定时器）见 `docs/source-survey-ralf.md` §3。
->
-> ⚠️ 动手前先读 [`CLAUDE.md`](./CLAUDE.md)（铁律）和对应的数据源实测记录：
-> [`docs/source-survey-flex2.md`](./docs/source-survey-flex2.md) / [`docs/source-survey-vicell.md`](./docs/source-survey-vicell.md) / [`docs/source-survey-ralf.md`](./docs/source-survey-ralf.md)。
+## 历史、分支与标签
 
----
+原始提交不改写。整合主分支的初始提交以 8 个源 main 提交作为父提交，并将各项目的原始文件树放入对应子目录。原历史中的文件路径仍位于各自仓库根目录。
 
-## 架构：两阶段解耦
+- 原分支保留为 `source/<项目名>/<原分支名>`，分支指向原始提交。
+- 原标签保留为 `source/<项目名>/<原标签名>`，保留原标签对象。
+- 来源仅为 GitHub 已提交的分支和标签，不包含本地未提交或未推送的内容。
+- Issues、Pull Requests、Actions secrets、运行记录等非 Git 数据未复制。
 
-归档是**记录保存义务**，ETL 是**分析**，两者验证范围不同、物理上拆成两个 repo。
-ETL 挂掉时归档必须照常跑——数据先落袋为安。
+## 后续开发
 
-```
-FLEX2 共享（SMB，只读挂载）
-    │   Stage 1 ← 本仓库：复制 + SHA-256 校验，不解析业务字段
-    ▼
-NAS 原始归档（底本，永久保留）
-    │   Stage 2 ← 独立 repo rd-nova-etl（未建）：解析 + 入库，只读 NAS，绝不回连 FLEX2
-    ▼
-cmc_rd  →  cmc_analytics
-```
+在本仓库工作副本的对应项目子目录中开发，通过本仓库 main 或新功能分支提交。个人原仓库保留，本次不设置向原仓库的自动同步。旧项目目录及其 origin 不变。
 
-**法规定位**：法规意义上的原始记录是 FLEX2 机内数据库 + 审计追踪；CSV 是副本，NAS 归档是副本的副本。
-本系统是**分析数据源 + 业务备份**，不是 Part 11 原始记录保存系统。
-
----
-
-## 目录结构
-
-```
-cmc-instrument-ingest/
-├── CLAUDE.md                     # 项目铁律 + 状态 + 待办（每次会话先读）
-├── README.md                     # 本文件
-├── CHANGELOG.md                  # 变更记录（跟随脚本 SCRIPT_VERSION）
-├── flex2/
-│   ├── flex2_ingest.py           # Stage 1 采集脚本（仅标准库）
-│   └── flex2-ingest.env.example  # 配置样例（真配置不入库）
-└── docs/
-    ├── SETUP.md                  # Linux 部署：凭据 / 挂载 / systemd / 首跑
-    └── source-survey-flex2.md    # 数据源实测记录（连通性 / CSV 格式 / 坑）
-```
-
-第二台小仪器接入时，加一个平级目录（如 `biacore/`）——现在不做过度抽象。
-
----
-
-## 快速开始
-
-部署与首跑完整步骤见 [`docs/SETUP.md`](./docs/SETUP.md)。要点：
-
-```bash
-# 1. 配置：复制样例，改成实际值（不要提交真配置）
-cp flex2/flex2-ingest.env.example /etc/flex2-ingest.env
-
-# 2. 首跑，按顺序，别跳步（详见 SETUP.md §4）
-flex2/flex2_ingest.py --dry-run --backfill   # a. 空跑，只探测和校验，不写 NAS
-flex2/flex2_ingest.py --backfill             # b. 回填历史
-flex2/flex2_ingest.py                        # c. 日常增量（systemd timer 这么跑）
-```
-
-**源挂载点必须 `ro`**：脚本启动会自验，能写入就立即中止（保护仪器数据的第一道锁）。
-
----
-
-## NAS 归档布局
-
-归档写到 NAS 共享根 `TTLab_Backups` 下、按设备划分的目录：
-
-沿用 NAS 上既有的多设备备份约定（数据在 `Daily/`，记账在根级 `Checksums/`、`Logs/`、`State/`，均按机器名分）：
-
-```
-/mnt/ttlab-backups/                     NAS 共享根（多设备共用）
-├── Daily/T281240040C_Nova/             数据（内部镜像仪器 Export）
-│   ├── Results/                        月度快照（Monthly/）+ 逐次冷备（PerEvent/）
-│   ├── Database/                       每晚数据库备份（Nova 只留一份，不抓就永久丢失）
-│   └── Report/                         NAS 侧预建，程序不写（人工 PDF，忽略）
-├── Checksums/T281240040C_Nova/         每次运行一个 SHA256_Compare CSV（审计记录，格式同其它设备）
-├── Logs/T281240040C_Nova/              运行日志
-└── State/T281240040C_Nova_backup_state.json   运行状态（断点续传）
-```
-
----
-
-## 铁律（摘要，完整见 [`CLAUDE.md`](./CLAUDE.md)）
-
-1. 解析 CSV 必须按**列名**映射，禁止按列位置（逐次/月度列顺序不同，按位置会静默调包数值）。
-2. 源挂载点永远 `ro`，脚本自验，可写即中止。
-3. `.dbb` 只归档，不解析，不破解（7z + AES 加密，密码在 Nova 手里）。
-4. 不做"样品数据陈旧"告警（仪器会连续停机数周，只会误报）；健康信号用 Database 备份新鲜度。
-5. 校验不过就不归档（宁可告警缺一天，不把坏数据写进底本）。
-6. 凭据绝不进仓库（`.gitignore` 挡 `*.cred` / `*.env` / `*_state.json`，只提交 `*.env.example`）。
-7. 法规定位见上，不在代码/文档里暗示自己是 Part 11 原始记录系统。
-8. **真库建表走 `cmc-schema-migrations`**，本项目 `sql/` 仅本地测试镜像，绝不在生产库直接跑。
-
----
-
-## 当前状态
-
-| | |
-|---|---|
-| 连通性 | ✅ 全部验证完毕 |
-| Stage 1 `flex2/flex2_ingest.py` | ✅ v1.2.0（校验放宽：多行宽只告警不拒收） |
-| 部署（挂载 / systemd） | ✅ 已上线（Linux `/opt`；所有仪器共用两个 timer：`02:00` 全量 / `11:45`+`16:00` 不含图片；历史 backfill 已归档） |
-| Stage 2 ETL | ⬜ 未开始，迁往独立 repo `rd-nova-etl`（不在本项目） |
-
----
-
-## 相关仓库
-
-| 仓库 | 作用 |
-|---|---|
-| `cmc-schema-migrations` | 数据库建表/改表的**权威** DDL（Alembic 迁移，`dbmig`） |
-| `rd-nova-etl`（未建） | Nova FLEX2 的 ETL：从 NAS 读归档 → 解析 → 入 `cmc_rd` |
-| `rd-vicell-etl` / `rd-lucullus-etl` | 同类设备 ETL，本项目的架构参照 |
+`cmc-cost-modeler` 和原 code/archive 中的项目不属于本仓库。

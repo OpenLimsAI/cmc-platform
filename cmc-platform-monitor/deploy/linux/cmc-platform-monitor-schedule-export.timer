@@ -1,0 +1,8 @@
+[Unit]
+Description=Prepare cron metadata before monitor daily safety check
+[Timer]
+OnCalendar=*-*-* 06:59:00 Asia/Shanghai
+Persistent=true
+Unit=cmc-platform-monitor-schedule-export.service
+[Install]
+WantedBy=timers.target

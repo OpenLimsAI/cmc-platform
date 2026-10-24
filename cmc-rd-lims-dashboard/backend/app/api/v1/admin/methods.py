@@ -1,0 +1,187 @@
+import io
+
+import openpyxl
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.admin.auth import verify_admin
+from app.core.auth import CurrentUser
+from app.core.database import get_mdm_db
+from app.models.mdm.masters import MethodMaster as DimMethod
+
+router = APIRouter()
+
+
+class MethodItem(BaseModel):
+    method_code: str
+    method_name: str | None
+    std_minutes: float | None
+    target_days: int | None
+
+
+class MethodCreate(BaseModel):
+    method_code: str
+    method_name: str | None = None
+    std_minutes: float | None = None
+    target_days: int | None = None
+
+
+class MethodUpdate(BaseModel):
+    method_name: str | None = None
+    std_minutes: float | None = None
+    target_days: int | None = None
+
+
+@router.get("", response_model=list[MethodItem], dependencies=[Depends(verify_admin)])
+async def list_methods(db: AsyncSession = Depends(get_mdm_db)):
+    result = await db.execute(
+        select(DimMethod)
+        .where(DimMethod.deleted_at.is_(None))
+        .order_by(DimMethod.method_code)
+    )
+    return [MethodItem(
+        method_code=r.method_code,
+        method_name=r.method_name,
+        std_minutes=r.std_minutes,
+        target_days=r.target_days,
+    ) for r in result.scalars()]
+
+
+@router.post("", response_model=MethodItem)
+async def create_method(
+    body: MethodCreate,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
+    existing = await db.execute(select(DimMethod).where(DimMethod.method_code == body.method_code))
+    row = existing.scalar_one_or_none()
+    if row is not None:
+        if row.deleted_at is None:
+            raise HTTPException(status_code=409, detail="该方法编码已存在")
+        row.method_name = body.method_name or row.method_name
+        if body.std_minutes is not None:
+            row.std_minutes = body.std_minutes
+        if body.target_days is not None:
+            row.target_days = body.target_days
+        row.deleted_at = None
+        row.deleted_by = None
+        row.updated_by = user.username
+    else:
+        if not body.method_name:
+            raise HTTPException(status_code=422, detail="method_name 必填")
+        row = DimMethod(
+            method_code=body.method_code,
+            method_name=body.method_name,
+            std_minutes=body.std_minutes,
+            target_days=body.target_days,
+            created_by=user.username,
+            updated_by=user.username,
+        )
+        db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return MethodItem(method_code=row.method_code, method_name=row.method_name, std_minutes=row.std_minutes, target_days=row.target_days)
+
+
+@router.put("/{method_code}", response_model=MethodItem)
+async def update_method(
+    method_code: str,
+    body: MethodUpdate,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
+    result = await db.execute(
+        select(DimMethod)
+        .where(DimMethod.method_code == method_code, DimMethod.deleted_at.is_(None))
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="未找到该检验方法")
+    if body.method_name is not None:
+        row.method_name = body.method_name
+    if body.std_minutes is not None:
+        row.std_minutes = body.std_minutes
+    if body.target_days is not None:
+        row.target_days = body.target_days
+    row.updated_by = user.username
+    await db.commit()
+    await db.refresh(row)
+    return MethodItem(method_code=row.method_code, method_name=row.method_name, std_minutes=row.std_minutes, target_days=row.target_days)
+
+
+@router.post("/upload")
+async def upload_methods(
+    file: UploadFile,
+    db: AsyncSession = Depends(get_mdm_db),
+    user: CurrentUser = Depends(verify_admin),
+):
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+
+    sheet_name = "method_hours" if "method_hours" in wb.sheetnames else wb.sheetnames[0]
+    ws = wb[sheet_name]
+
+    headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
+    try:
+        col_code = headers.index("method_code") + 1
+        col_name = next(
+            i + 1 for i, h in enumerate(headers)
+            if h and ("ANALDESC" in str(h) or "method_name" in str(h))
+        )
+        col_min = next(
+            i + 1 for i, h in enumerate(headers)
+            if h and ("std_" in str(h).lower() or "min" in str(h).lower())
+            and i != (col_name - 1)
+        )
+    except (ValueError, StopIteration) as e:
+        raise HTTPException(status_code=422, detail=f"Excel 列名无法识别: {e}")
+
+    # 按 method_code 去重（同码取最后一行）：同一 VALUES 里重复主键会让
+    # ON CONFLICT DO UPDATE 报 "cannot affect row a second time" 整体 500
+    rows: dict[str, dict] = {}
+    bad_rows: list[str] = []
+    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        code = row[col_code - 1]
+        name = row[col_name - 1]
+        mins_raw = row[col_min - 1]
+        if not code or not name:
+            continue
+        if mins_raw is None or (isinstance(mins_raw, str) and not mins_raw.strip()):
+            mins = None
+        else:
+            try:
+                mins = round(float(mins_raw), 2)
+            except (TypeError, ValueError):
+                bad_rows.append(f"第 {idx} 行工时“{mins_raw}”不是数字")
+                continue
+        rows[str(code)] = {
+            "method_code": str(code), "method_name": str(name), "std_minutes": mins,
+            "created_by": user.username, "updated_by": user.username,
+        }
+
+    if bad_rows:
+        shown = "；".join(bad_rows[:5]) + ("…" if len(bad_rows) > 5 else "")
+        raise HTTPException(status_code=422, detail=f"Excel 有 {len(bad_rows)} 行工时无法解析：{shown}")
+    if not rows:
+        raise HTTPException(status_code=422, detail="Excel 中无有效数据行")
+
+    stmt = insert(DimMethod).values(list(rows.values()))
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["method_code"],
+        set_={
+            "method_name": stmt.excluded.method_name,
+            # 文件里工时留空 = 不改动，不把库里已维护的工时清成 NULL
+            "std_minutes": func.coalesce(stmt.excluded.std_minutes, DimMethod.std_minutes),
+            "deleted_at": None,
+            "deleted_by": None,
+            # ON CONFLICT 不触发 ORM onupdate，审计字段要显式写
+            "updated_at": func.now(),
+            "updated_by": user.username,
+        },
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"upserted": len(rows)}

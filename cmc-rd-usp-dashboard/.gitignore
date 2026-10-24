@@ -1,0 +1,36 @@
+# 环境变量（含口令）
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+build/
+frontend/.env*.local
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+logs/
+
+# Playwright MCP 截图/快照
+.playwright-mcp/
+*.png
+!frontend/public/*.png
+
+# 负责人放在根目录的 Excel（项目第一表等），不进 git
+*.xlsx

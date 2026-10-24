@@ -1,0 +1,47 @@
+{
+  "cmab-hub": {
+    "sha": "173a2be5a75eeb43a92931977a4677789a0c1a02",
+    "branch": "main"
+  },
+  "cmc-schema-migrations": {
+    "sha": "7a6785a68b18c412c0dc10df97b1a8b709748457",
+    "branch": "main"
+  },
+  "rd-batch-registry": {
+    "sha": "6abb23e84ae4b2cf07950be0b12eb543ed0a6a36",
+    "branch": "main"
+  },
+  "rd-lucullus-etl": {
+    "sha": "7ff0762831af10b87a6d2ddadc40dff3b780fe06",
+    "branch": "main"
+  },
+  "rd-lims-etl": {
+    "sha": "6f9145df081ea1fb9929b4178bfc4259493f3953",
+    "branch": "main"
+  },
+  "qc-lims-etl": {
+    "sha": "973d4392ada42d3816d9ee24b55729b678cb4cb4",
+    "branch": "main"
+  },
+  "rd-vicell-etl": {
+    "sha": "0db5b191c583f50dd77ef7df3a7c2799b5caa253",
+    "branch": "main"
+  },
+  "rd-nova-etl": {
+    "sha": "2e463e56c18e79ee8d67f15b676568e9cdc3d671",
+    "branch": "main"
+  },
+  "cmc-instrument-ingest": {
+    "sha": "2de8f8330d69ba8fa8273eef3be03a487eb7ef92",
+    "branch": "main"
+  },
+  "cmab-mdm-platform": {
+    "sha": "2512244e6e49dfe67765cfc04cf0be5c141d4e92",
+    "branch": "main"
+  },
+  "rd-batch-registry-training": {
+    "sha": "044db835baa7f039a040f30688b5b08c621b9978",
+    "branch": "release/platform-monitor-training-20261010",
+    "remote_repo": "rd-batch-registry"
+  }
+}

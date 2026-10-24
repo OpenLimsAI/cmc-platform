@@ -1,0 +1,46 @@
+# =============================================================================
+# 文件: systemd/cmc-backend.service
+# 用途: 用 systemd 管 FastAPI 后端进程
+# 安装位置: /etc/systemd/system/cmc-backend.service
+#          (install.sh 会自动 cp + daemon-reload + enable --now)
+# =============================================================================
+
+[Unit]
+Description=CMC LabOps Portal Backend (FastAPI)
+Documentation=https://github.com/qingcheng81/cmc-labops
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+WorkingDirectory=/opt/cmc-labops/backend
+
+# .env 用 systemd EnvironmentFile 加载,文件里就是 KEY=VALUE
+# 端口由 .env 中的 BACKEND_PORT 控制(本机若 8000 被占,改 .env 即可,不动 unit)
+# 注意:不要再用 Environment=BACKEND_PORT=... 兜底 ——
+#       systemd 中 Environment= 会覆盖 EnvironmentFile= 中的同名变量,导致 .env 失效
+EnvironmentFile=/opt/cmc-labops/.env
+
+# 只监听 127.0.0.1:前端 Streamlit 通过 localhost 调它,
+# 远端用户只访问前端,不直接连后端 API。
+# 想从办公网看 /docs?用 SSH 隧道(见 DEPLOY.md §6)。
+ExecStart=/opt/cmc-labops/backend/.venv/bin/uvicorn main:app \
+    --host 127.0.0.1 \
+    --port ${BACKEND_PORT} \
+    --workers 2
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# 简单加固:限制文件创建在工作目录之外
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

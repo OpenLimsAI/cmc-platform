@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* 看板固定为白底深字，不跟系统深色/浅色外观切换（否则深色模式下标题会变成浅灰，看不清） */
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

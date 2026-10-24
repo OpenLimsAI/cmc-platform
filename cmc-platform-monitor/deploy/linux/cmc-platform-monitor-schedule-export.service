@@ -1,0 +1,14 @@
+[Unit]
+Description=Export registered cron plans only (read-only original crontab)
+[Service]
+Type=oneshot
+User=prometheus
+WorkingDirectory=/opt/cmc-platform-monitor
+ExecStart=/usr/bin/python3 /opt/cmc-platform-monitor/scripts/export_cron_schedule.py
+TimeoutStartSec=5
+# Stock crontab may require its existing setgid to traverse the spool directory.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/cmc-platform-monitor/schedule-source
+UMask=0027

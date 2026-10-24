@@ -1,0 +1,20 @@
+[Unit]
+Description=CMC platform monitor API (read-only source access)
+After=network.target
+[Service]
+Type=simple
+User=opsmonitor-api
+Group=opsmonitor-api
+WorkingDirectory=/opt/cmc-platform-monitor/backend
+EnvironmentFile=/etc/cmc-platform-monitor/api.env
+Environment=HOME=/nonexistent
+ExecStart=/opt/cmc-platform-monitor/backend/.venv/bin/python -m uvicorn app.api:create_app --factory --host 127.0.0.1 --port 8025 --no-access-log
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/cmc-platform-monitor
+UMask=0077
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,209 @@
+"""只读接口：Nova FLEX2 生化分析仪趋势曲线。
+
+数据源：cmc_analytics.mart.fact_nova（Nova Biomedical BioProfile FLEX2 生化分析，
+rd-nova-etl 入库）。一行 = 某批次某罐在某培养天的一次取样（葡萄糖、乳酸、氨…）。
+只读，绝不写入。所有查询走参数绑定。
+
+术语（给非技术同事）：
+- 批次（batch_key）= 项目编号_批号_罐号，如 0071_R2601_B2，与细胞生长曲线同一套身份。
+- 培养天（culture_day）= 接种后第几天，趋势曲线的横轴。
+- 指标：gluc 葡萄糖(g/L)、lac 乳酸(g/L)、gln 谷氨酰胺、glu 谷氨酸、nh4 氨(mmol/L)、
+  na/k/ca 钠钾钙(mmol/L)、ph、po2/pco2 氧/二氧化碳分压(mmHg)。
+"""
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import text
+
+from ..db import analytics_engine
+
+router = APIRouter(prefix="/api/nova", tags=["nova"])
+
+SCHEMA = "mart"
+VIEW = f"{SCHEMA}.fact_nova"
+
+# 全部生化指标列（fact_nova 里的数值列），列表接口/序列接口共用。
+METRICS = ["gluc", "lac", "gln", "glu", "nh4", "na", "k", "ca", "ph", "po2", "pco2"]
+
+# 批次年份从批号解析（与 vicell.py 同规则）：R2601 -> 26 -> 2026。
+# 多数批次没关联 dim_batch（batch_year 空），优先按批号算，回退 dim_batch，再回退取样时间年份。
+_YEAR_EXPR = """
+    coalesce(
+        CASE WHEN min(batch_number) ~* '^R[0-9]{4}$'
+             THEN 2000 + substring(min(batch_number) from 2 for 2)::int
+             WHEN min(batch_number) ~ '^[0-9]{5}$'
+             THEN 2000 + substring(min(batch_number) from 1 for 2)::int END,
+        min(batch_year),
+        extract(year FROM min(measured_at))::int
+    )
+"""
+
+
+@router.get("/batches")
+async def list_batches(limit: int = Query(5000, ge=1, le=20000)):
+    """能画生化趋势的批次列表（有 culture_day 且能拆出 batch_key 的那部分）。
+
+    每个 batch_key 聚合成一行，供前端级联筛选（项目→年份→罐）与列表使用。
+    """
+    sql = text(f"""
+        SELECT
+            batch_key,
+            min(project_id)    AS project_id,
+            min(batch_number)  AS batch_number,
+            min(bioreactor_id) AS bioreactor_id,
+            {_YEAR_EXPR}       AS batch_year,
+            count(*)           AS n_samples,
+            min(culture_day)   AS day_min,
+            max(culture_day)   AS day_max,
+            min(measured_at)   AS first_measured_at,
+            bool_or(lucullus_procid IS NOT NULL) AS has_process_link
+        FROM {VIEW}
+        WHERE batch_key IS NOT NULL
+          AND culture_day IS NOT NULL
+        GROUP BY batch_key
+        ORDER BY min(project_id), batch_year DESC NULLS LAST, min(bioreactor_id)
+        LIMIT :lim
+    """)
+    async with analytics_engine().connect() as conn:
+        rows = (await conn.execute(sql, {"lim": limit})).mappings().all()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["batch_year"] = int(d["batch_year"]) if d["batch_year"] is not None else None
+        d["n_samples"] = int(d["n_samples"])
+        d["day_min"] = int(d["day_min"]) if d["day_min"] is not None else None
+        d["day_max"] = int(d["day_max"]) if d["day_max"] is not None else None
+        out.append(d)
+    return out
+
+
+# 取样点在横轴上的位置：培养天 + 当天时刻占一天的比例（北京时间）。同一天两次取样 = 两个点，不平均。
+_T_DAY = "culture_day + extract(epoch FROM (measured_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0"
+
+
+@router.get("/series")
+async def get_series(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
+    """某批次的生化趋势：每次取样一个点，全部指标一次返回，前端勾选展示。
+
+    t_day = 该点在横轴上的位置（培养天 + 当天时刻）。渗透压、以及摇瓶摇管用试剂盒单测的葡萄糖
+    来自人工录入（manual.sample_result），单独成点，时刻按三级取：① 录入时填的取样时刻；
+    ② 没填的，借同一批次同一天生化仪 / 细胞计数仪最早一次记录的时刻（录入时留空、仪器数据后到
+    也能自动归位，不改库里任何数据）；③ 都没有才放当天中午（day + 0.5）。
+
+    葡萄糖优先仪器：同一批次同一培养天只要 Nova 测到了葡萄糖，人工录的那条就不上图（只留档）；
+    没做生化分析的那些天才用人工值，点上带 gluc_manual = true，前端提示框标「人工」。
+    """
+    cols = ", ".join(METRICS)
+    # 人工录入的行：只有对应指标那一列有值，其余列留空（各自成点，不和仪器点混在一行）
+    man_cols = ", ".join(
+        ("CASE WHEN m.metric_code = 'gluc' THEN m.value END" if c == "gluc" else "NULL::double precision")
+        for c in METRICS
+    )
+    sql = text(f"""
+        WITH inst AS (
+            SELECT culture_day, min(t) AS t
+            FROM (
+                SELECT culture_day, (measured_at AT TIME ZONE 'Asia/Shanghai')::time AS t
+                FROM mart.fact_nova
+                WHERE batch_key = :bk AND culture_day IS NOT NULL AND measured_at IS NOT NULL
+                UNION ALL
+                SELECT culture_day, (run_date AT TIME ZONE 'UTC')::time
+                FROM mart.fact_vicell
+                WHERE batch_key = :bk AND culture_day IS NOT NULL AND run_date IS NOT NULL
+            ) u
+            GROUP BY culture_day
+        )
+        SELECT culture_day, {_T_DAY} AS t_day, {cols},
+               NULL::double precision AS osmolality, false AS gluc_manual
+        FROM {VIEW}
+        WHERE batch_key = :bk AND culture_day IS NOT NULL
+        UNION ALL
+        SELECT m.culture_day,
+               m.culture_day + COALESCE(
+                   extract(epoch FROM (m.sampled_at AT TIME ZONE 'Asia/Shanghai')::time) / 86400.0,
+                   extract(epoch FROM i.t) / 86400.0,
+                   0.5) AS t_day,
+               {man_cols},
+               CASE WHEN m.metric_code = 'osmolality' THEN m.value END,
+               (m.metric_code = 'gluc') AS gluc_manual
+        FROM mart.fact_manual_latest m
+        LEFT JOIN inst i ON i.culture_day = m.culture_day
+        WHERE m.batch_key = :bk AND m.metric_code IN ('osmolality', 'gluc')
+          -- 当天生化仪测到葡萄糖就以仪器值为准，人工录的那条不上图（库里仍留着）
+          AND NOT (m.metric_code = 'gluc' AND EXISTS (
+                SELECT 1 FROM {VIEW} n
+                WHERE n.batch_key = :bk AND n.culture_day = m.culture_day AND n.gluc IS NOT NULL))
+        ORDER BY 2
+    """)
+    meta_sql = text(f"""
+        SELECT
+            min(project_id)    AS project_id,
+            min(batch_number)  AS batch_number,
+            min(bioreactor_id) AS bioreactor_id,
+            count(*)           AS n_samples
+        FROM {VIEW}
+        WHERE batch_key = :bk
+    """)
+    async with analytics_engine().connect() as conn:
+        rows = (await conn.execute(sql, {"bk": batch_key})).mappings().all()
+        meta = (await conn.execute(meta_sql, {"bk": batch_key})).mappings().first()
+
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"没有该批次的生化数据：{batch_key}")
+
+    def num(v):
+        return float(v) if v is not None else None
+
+    points = [
+        {
+            "culture_day": int(r["culture_day"]),
+            "t_day": float(r["t_day"]),
+            **{m: num(r[m]) for m in METRICS},
+            "osmolality": num(r["osmolality"]),  # 人工录入，mOsm/kg
+            "gluc_manual": bool(r["gluc_manual"]),  # true = 这个葡萄糖点是人工录的（当天没做生化）
+            "n": 1,
+        }
+        for r in rows
+    ]
+    return {
+        "batch_key": batch_key,
+        "project_id": meta["project_id"] if meta else None,
+        "batch_number": meta["batch_number"] if meta else None,
+        "bioreactor_id": meta["bioreactor_id"] if meta else None,
+        "n_samples": int(meta["n_samples"]) if meta else 0,
+        "metrics": METRICS + ["osmolality"],
+        "points": points,
+    }
+
+
+@router.get("/samples")
+async def get_samples(batch_key: str = Query(..., description="批次身份，如 0071_R2601_B2")):
+    """某批次的取样记录明细（总览页明细表用）：每次取样一行，不按天聚合。"""
+    cols = ",\n            ".join(METRICS)
+    sql = text(f"""
+        SELECT
+            sample_result_id,
+            sample_id,
+            culture_day,
+            measured_at,
+            {cols},
+            parse_status
+        FROM {VIEW}
+        WHERE batch_key = :bk
+        ORDER BY measured_at
+    """)
+    async with analytics_engine().connect() as conn:
+        rows = (await conn.execute(sql, {"bk": batch_key})).mappings().all()
+
+    def num(v):
+        return float(v) if v is not None else None
+
+    return [
+        {
+            "sample_result_id": int(r["sample_result_id"]),
+            "sample_id": r["sample_id"],
+            "culture_day": int(r["culture_day"]) if r["culture_day"] is not None else None,
+            "measured_at": r["measured_at"].isoformat() if r["measured_at"] else None,
+            **{m: num(r[m]) for m in METRICS},
+            "parse_status": r["parse_status"],
+        }
+        for r in rows
+    ]
