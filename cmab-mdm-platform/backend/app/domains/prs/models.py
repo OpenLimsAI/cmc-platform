@@ -189,6 +189,27 @@ class Project(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class ProjectPMLink(Base):
+    """Immutable, MDM-owned one-to-one execution project association."""
+
+    __tablename__ = "project_pm_link"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_project_pm_link_project_id"),
+        UniqueConstraint("pm_project_id", name="uq_project_pm_link_pm_project_id"),
+        {"schema": "prs"},
+    )
+
+    link_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("prs.project.project_id"), nullable=False)
+    pm_project_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    pm_project_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    pm_project_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("auth.user.user_id"), nullable=False)
+    change_reason: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class ProjectMilestone(Base):
     """§9.3 项目里程碑"""
 
