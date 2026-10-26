@@ -1,6 +1,6 @@
 # CMC Platform
 
-本仓库汇集 9 个 CMC/CMAB 项目的代码与 Git 历史。各项目放在同名子目录中，保留各项目文件内容（MDM 的凭据清理例外见下文）；这次整合不代表已完成业务功能、启动方式或部署的运行时集成。
+本仓库汇集 10 个 CMC/CMAB 项目的代码与 Git 历史。各项目放在同名子目录中，保留各项目文件内容（MDM 的凭据清理例外见下文）；这次整合不代表已完成业务功能、启动方式或部署的运行时集成。
 
 ## 项目与导入版本
 
@@ -15,12 +15,13 @@
 | `cmc-schema-migrations/` | [qingcheng81/cmc-schema-migrations](https://github.com/qingcheng81/cmc-schema-migrations) | [`7a6785a68b18c412c0dc10df97b1a8b709748457`](https://github.com/qingcheng81/cmc-schema-migrations/commit/7a6785a68b18c412c0dc10df97b1a8b709748457) |
 | `cmc-water-system-dashboard/` | [qingcheng81/cmc-water-system-dashboard](https://github.com/qingcheng81/cmc-water-system-dashboard) | [`f4e2c81da2e56f7c52c040e8abbcc9c25c45ee25`](https://github.com/qingcheng81/cmc-water-system-dashboard/commit/f4e2c81da2e56f7c52c040e8abbcc9c25c45ee25) |
 | `cmab-mdm-platform/` | [qingcheng81/cmab-mdm-platform](https://github.com/qingcheng81/cmab-mdm-platform) | [`5835e5b418b8ded4aee895466942122ac00a170b`](https://github.com/OpenLimsAI/cmc-platform/commit/5835e5b418b8ded4aee895466942122ac00a170b)（清理后的 main） |
+| `cmab-hub/` | [qingcheng81/cmab-hub](https://github.com/qingcheng81/cmab-hub) | [`643ea6431b3acb91dbf94251f3c989572f774807`](https://github.com/qingcheng81/cmab-hub/commit/643ea6431b3acb91dbf94251f3c989572f774807) |
 
 ## 历史、分支与标签
 
 既有八项目的原始提交不改写。整合主分支的初始提交以 8 个源 main 提交作为父提交，并将各项目的原始文件树放入对应子目录。原历史中的文件路径仍位于各自仓库根目录。
 
-- 原分支保留为 `source/<项目名>/<原分支名>`，既有八项目分支指向原始提交；MDM 分支指向凭据清理后的对应提交。
+- 原分支保留为 `source/<项目名>/<原分支名>`，既有八项目及 Hub 分支指向原始提交；MDM 分支指向凭据清理后的对应提交。
 - 原标签保留为 `source/<项目名>/<原标签名>`，保留原标签对象。
 - 历史导入来源为 GitHub 已提交的分支和标签。MDM 另纳入负责人明确批准的 README 六行工作区更新，单独提交；没有其他未提交代码更新。
 - Issues、Pull Requests、Actions secrets、运行记录等非 Git 数据未复制。
@@ -40,3 +41,11 @@ MDM 原 main 为 `b8b422af82c0adbe86912a13c685a938743b6b89`。负责人批准只
 负责人另行批准的源 README 六行记录在历史导入之后单独提交。两份 `outputs/20260922-equipment-reload/` 设备 Excel 不复制、不加入 Git；源文件原样保留。`.env`、JWT 文件、数据库备份、依赖和构建产物也未复制。
 
 本次只整合代码及清理后的 Git 历史，不迁移数据库、不改运行路径、不停止服务、不归档原目录、不部署。既有八项目的文件树与历史引用保持不变。
+
+## Hub 补充导入（2026-10-26）
+
+统一门户 `cmab-hub` 原 main 为 `643ea6431b3acb91dbf94251f3c989572f774807`，原样保留全部 57 条提交及 44 个受跟踪文件，历史分支为 `source/cmab-hub/main`；源仓库无额外分支或标签。补充整合提交以既有九项目 monorepo main 和 Hub 原 main 为父提交。已检查拟导入历史，未检出需清理的实际凭据；未改写 Hub 原始提交。
+
+源工作区干净，没有待纳入的未提交代码或非代码材料。`frontend/dist`、`node_modules`、本地缓存和环境文件均未复制。原项目目录、origin、原始历史和在用构建产物保持不变；现有 nginx 继续使用原路径，本次不构建、不切换服务、不部署或归档。
+
+MDM 既有整合不重做，两份设备 Excel 继续完全排除。此前九项目的文件树与所有既有历史引用保持不变。仓库侧栏简介不在本次修改范围。
