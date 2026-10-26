@@ -143,6 +143,43 @@ test('provider browser logout is followed only for confirmed requested global lo
   assert.equal(oidcLogoutPlan({ ...reply, logout_url: undefined }, true, logoutReturn).providerUrl, null);
 });
 
+test('confirmed global logout may return exactly to the fixed local login without a warning or external navigation', async () => {
+  const { oidcLogoutPlan, completeOidcLogout } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  const reply = { local_logout: true, global_logout: true, login_url: '/mdm/login?reason=logout', logout_url: logoutReturn };
+  assert.deepEqual(oidcLogoutPlan(reply, true, logoutReturn), { providerUrl: null, warning: null });
+  const events = [];
+  completeOidcLogout(reply, true, logoutReturn, {
+    clearLocal: () => events.push('clear'), navigateLocal: () => events.push('login'),
+    navigateProvider: () => events.push('provider'), warn: () => events.push('warning'),
+  });
+  assert.deepEqual(events, ['clear', 'login']);
+});
+
+test('local logout return requires byte-exact fixed URL and rejects extra, duplicate, credential and alternate destinations', async () => {
+  const { oidcLogoutPlan } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  for (const bad of [logoutReturn + '&reason=logout', logoutReturn + '&token=synthetic', logoutReturn + '&access_token=synthetic',
+    logoutReturn + '#token=synthetic', logoutReturn.replace('/login?', '/projects?'),
+    logoutReturn.replace('127.0.0.1:5188', 'user:synthetic@127.0.0.1:5188'),
+    logoutReturn.replace('127.0.0.1', 'localhost'), logoutReturn.replace('reason=logout', 'reason=%6Cogout')]) {
+    const plan = oidcLogoutPlan({ local_logout: true, global_logout: true, login_url: '/mdm/login?reason=logout', logout_url: bad }, true, logoutReturn);
+    assert.equal(plan.providerUrl, null, bad);
+    assert.match(plan.warning, /安全检查/, bad);
+  }
+});
+
+test('a fixed local logout return still displays an existing partial warning before navigation', async () => {
+  const { completeOidcLogout } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  const events = [];
+  let acknowledge;
+  completeOidcLogout({ local_logout: true, global_logout: false, login_url: '/mdm/login?reason=logout', logout_url: logoutReturn, warning: '部分应用注销未确认' }, true, logoutReturn, {
+    clearLocal: () => events.push('clear'), navigateLocal: () => events.push('login'), navigateProvider: () => events.push('provider'),
+    warn: (text, done) => { events.push(text); acknowledge = done; },
+  });
+  assert.deepEqual(events, ['部分应用注销未确认']);
+  acknowledge();
+  assert.deepEqual(events, ['部分应用注销未确认', 'clear', 'login']);
+});
+
 test('provider logout URL cannot carry credentials or change the local return destination', async () => {
   const { oidcLogoutPlan } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
   for (const bad of [providerLogout + '&id_token_hint=synthetic', providerLogout + '#token=synthetic',

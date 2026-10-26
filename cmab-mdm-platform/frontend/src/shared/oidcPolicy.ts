@@ -78,10 +78,11 @@ function providerLogoutUrl(raw: string, expectedLoginUrl: string): string | null
 
 export function oidcLogoutPlan(result: OidcLogout, requestedGlobal: boolean, expectedLoginUrl: string): { providerUrl: string | null; warning: string | null } {
   const candidate = requestedGlobal && result.global_logout ? result.logout_url : undefined;
-  const providerUrl = candidate ? providerLogoutUrl(candidate, expectedLoginUrl) : null;
+  const isFixedLocalReturn = candidate === expectedLoginUrl;
+  const providerUrl = candidate && !isFixedLocalReturn ? providerLogoutUrl(candidate, expectedLoginUrl) : null;
   let warning = result.warning || null;
   if (!warning && requestedGlobal && !result.global_logout) warning = 'MDM 已退出，但统一身份注销尚未确认，其他应用可能仍保持登录。';
-  if (!warning && candidate && !providerUrl) warning = 'MDM 已退出，但浏览器注销地址未通过安全检查，未打开外部地址。';
+  if (!warning && candidate && !isFixedLocalReturn && !providerUrl) warning = 'MDM 已退出，但浏览器注销地址未通过安全检查，未打开外部地址。';
   return { providerUrl, warning };
 }
 
