@@ -1,0 +1,42 @@
+# Disposable verification environment. No fixed container/volume names, no published ports.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: phase1-ci-dba-only
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./test/init.sql:/docker-entrypoint-initdb.d/phase1.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  tests:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/test/backend.Dockerfile
+    environment:
+      SECRET_KEY: phase1-ci-synthetic-session-key-only-00000000
+      DATABASE_URL: postgresql+asyncpg://cmab_app:phase1-ci-app-only@postgres:5432/cmab_test
+      DATABASE_URL_SYNC: postgresql://cmab_app:phase1-ci-app-only@postgres:5432/cmab_test
+      POSTGRES_DBA_USER: postgres
+      POSTGRES_DBA_PASSWORD: phase1-ci-dba-only
+      POSTGRES_USER: cmab_app
+      POSTGRES_PASSWORD: phase1-ci-app-only
+      TEST_DB: cmab_test
+      TEST_DB_HOST: postgres
+      RATE_LIMIT_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

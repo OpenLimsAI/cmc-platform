@@ -3,7 +3,7 @@
 """
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # ----------- 数据库 -----------
     DATABASE_URL: str
     DATABASE_URL_SYNC: str
+    # Separate approved PM identity; blank disables writes. Never reuse the MDM JWT.
+    PM_PUBLIC_URL: str = ""
+    PM_REFERENCE_API_URL: str = ""
+    PM_REFERENCE_ACCESS_TOKEN: SecretStr | None = None
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
 

@@ -13,6 +13,7 @@ from app.api.v1 import (
     equipments,
     lookups,
     materials,
+    pm_links,
     projects,
     search,
     substances,
@@ -21,6 +22,7 @@ from app.api.v1 import (
 )
 
 api_router = APIRouter()
+api_router.include_router(pm_links.router, tags=["pm-integration"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(substances.router, prefix="/substances", tags=["substances"])
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])

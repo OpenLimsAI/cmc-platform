@@ -1,0 +1,16 @@
+{
+  "anonymous_bind": 401,
+  "readonly_linked_query": 200,
+  "readonly_bind": 403,
+  "repeated_same_pair_1": 200,
+  "repeated_same_pair_2": 200,
+  "same_mdm_other_pm": 409,
+  "other_mdm_same_pm": 409,
+  "unknown_pm": 404,
+  "unknown_mdm": 404,
+  "reverse_resolver": 200,
+  "original_link_unchanged": true,
+  "conflicting_target_still_unlinked": true,
+  "no_url_token": true,
+  "existing_link_id": 1
+}

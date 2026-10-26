@@ -1,0 +1,31 @@
+{
+  "verifier_configuration_cleared": true,
+  "saved_mapping_after_clear": true,
+  "read_state_after_clear": "not_configured",
+  "mapping_counts": "2|2|2",
+  "successful_link_audits": 2,
+  "mdm_states": [
+    "CMAB-PRJ-2026-0001|proposed",
+    "CMAB-PRJ-2026-0002|proposed"
+  ],
+  "pm_states": [
+    "PHASE1-E2E-A|活跃|0",
+    "PHASE1-E2E-B|活跃|0"
+  ],
+  "pm_tasks": 0,
+  "disabled_casdoor_users": 3,
+  "disabled_mdm_users": 2,
+  "temporary_pm_portal_sessions_expired": true,
+  "stopped_services": [
+    "cmc-phase1-e2e-mdm-web",
+    "cmc-phase1-e2e-pm-api",
+    "cmc-phase1-e2e-mdm-api",
+    "cmc-phase1-e2e-casdoor",
+    "cmc-phase1-e2e-redis",
+    "cmc-mdm-pm-phase1-backend",
+    "cmc-mdm-pm-phase1-redis",
+    "cmc-mdm-pm-phase1-postgres",
+    "cmc-phase1-e2e-postgres"
+  ],
+  "completed_at_utc": "2026-10-26T11:45:10Z"
+}

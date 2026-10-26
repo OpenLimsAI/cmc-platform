@@ -37,6 +37,7 @@ import { TeamTable } from '../components/TeamTable';
 import { ProjectAssetTab } from '../components/ProjectAssetTab';
 import { ProjectSubstanceTab } from '../components/ProjectSubstanceTab';
 import { ProjectRelationshipTab } from '../components/ProjectRelationshipTab';
+import { ProjectPMLinkTab } from '../components/ProjectPMLinkTab';
 import type { ProjectDetail } from '@/api/types';
 import {
   AVAILABLE_PROJECT_ACTIONS,
@@ -120,6 +121,7 @@ export function ProjectDetailPage() {
   const progressPct = computeProjectProgress(proj);
 
   const tabs = [
+    { key: 'pm', label: 'PM 执行项目', children: <ProjectPMLinkTab projectCode={code!} /> },
     {
       key: 'basic',
       label: '概览',

@@ -24,7 +24,7 @@ from app.domains.audit.schemas import (
 )
 from app.domains.auth.models import User
 from app.domains.mm.models import Material, MaterialBatch
-from app.domains.prs.models import Project, ProjectMilestone, ProjectRelationship, ProjectTeam
+from app.domains.prs.models import Project, ProjectMilestone, ProjectPMLink, ProjectRelationship, ProjectTeam
 from app.domains.srs.models import Substance, SubstanceXref
 
 # CSV 导出列定义（21 CFR Part 11 §11.10(c) 审计归档；用户决策 CSV-only）
@@ -176,6 +176,9 @@ class AuditService:
         ]
 
         if include_children:
+            pm_link_ids = select(ProjectPMLink.link_id).where(ProjectPMLink.project_id == project_id)
+            conditions.append(and_(AuditLog.entity_schema == "prs", AuditLog.entity_table == "project_pm_link",
+                                   AuditLog.entity_id.in_(pm_link_ids)))
             relationship_ids = select(ProjectRelationship.relationship_id).where(or_(
                 ProjectRelationship.from_project_id == project_id,
                 ProjectRelationship.to_project_id == project_id,

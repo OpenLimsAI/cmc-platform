@@ -1,0 +1,31 @@
+name: MDM project link
+on:
+  pull_request:
+    branches: [main]
+    paths: ['cmab-mdm-platform/**', '.github/workflows/mdm-project-link.yml']
+  push:
+    branches: [main]
+    paths: ['cmab-mdm-platform/**', '.github/workflows/mdm-project-link.yml']
+permissions:
+  contents: read
+concurrency:
+  group: mdm-project-link-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  mdm-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL migration, permissions and one-to-one mapping regression
+        run: docker compose -p mdm-phase1-ci -f cmab-mdm-platform/deploy/docker-compose.phase1-test.yml up --build --abort-on-container-exit --exit-code-from tests
+      - name: Clean disposable containers
+        if: always()
+        run: docker compose -p mdm-phase1-ci -f cmab-mdm-platform/deploy/docker-compose.phase1-test.yml down -v
+  mdm-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locked install, types, build and lint
+        run: docker build -f cmab-mdm-platform/deploy/test/frontend.Dockerfile cmab-mdm-platform/frontend
