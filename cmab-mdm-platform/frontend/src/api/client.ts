@@ -3,6 +3,7 @@ import { message as antdMessage } from 'antd';
 import { useAuthStore } from '@/stores/authStore';
 import { BASE, stripBase, withBase } from '@/shared/base';
 import type { ApiResponse, ApiErrorInfo } from './types';
+import { authFailureLoginPath, authResultIsCurrent, mayRefreshNative } from '@/shared/oidcPolicy';
 
 // ============== 实例 ==============
 export const api = axios.create({
@@ -17,13 +18,16 @@ export const api = axios.create({
 interface RetryFlag {
   _skipAuthRefresh?: boolean;
   _retried?: boolean;
+  _authEpoch?: number;
 }
 type AxiosRequestConfigEx = InternalAxiosRequestConfig & RetryFlag;
 
 // ============== 请求拦截器 ==============
 api.interceptors.request.use(
   (config: AxiosRequestConfigEx) => {
-    const token = useAuthStore.getState().token;
+    const auth = useAuthStore.getState();
+    config._authEpoch = auth.authEpoch;
+    const token = auth.token;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -40,6 +44,9 @@ api.interceptors.request.use(
 let refreshPromise: Promise<string> | null = null;
 
 export async function performRefresh(): Promise<string> {
+  const context = useAuthStore.getState();
+  if (!mayRefreshNative(context.authMode, context.authExitReason)) throw new Error('当前认证方式不允许原生换证');
+  const epoch = context.authEpoch;
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     try {
@@ -49,6 +56,8 @@ export async function performRefresh(): Promise<string> {
         { _skipAuthRefresh: true } as AxiosRequestConfigEx,
       );
       const newToken: string = resp.data.data.access_token;
+      const current = useAuthStore.getState();
+      if (!authResultIsCurrent(epoch, current.authEpoch, current.authExitReason) || current.authMode !== 'native') throw new Error('登录状态已改变');
       useAuthStore.getState().updateToken(newToken);
       return newToken;
     } finally {
@@ -60,17 +69,11 @@ export async function performRefresh(): Promise<string> {
 
 // 登录后不该被自动送回去的页面（与 routes/ProtectedRoute.tsx 同口径）：
 // 改密页若被记成 redirect，用户改完密码重新登录会被送回改密页，像"退不出来"
-const NO_REDIRECT_BACK = ['/login', '/profile/password'];
-
 function gotoLogin() {
   const path = stripBase(window.location.pathname); // 去掉 /mdm 前缀，redirect 只存站内相对路径
   if (path.startsWith('/login')) return;
-  if (NO_REDIRECT_BACK.some((p) => path.startsWith(p))) {
-    window.location.href = withBase('/login');
-    return;
-  }
-  const redirect = encodeURIComponent(path + window.location.search);
-  window.location.href = withBase(`/login?redirect=${redirect}`);
+  const target = authFailureLoginPath(path, window.location.search, useAuthStore.getState().authExitReason);
+  window.location.replace(withBase(target));
 }
 
 // ============== 响应拦截器 ==============
@@ -84,6 +87,10 @@ type BackendErrorBody = {
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError<BackendErrorBody>) => {
+    const originalConfig = error.config as AxiosRequestConfigEx | undefined;
+    const currentAuth = useAuthStore.getState();
+    // A request dispatched before logout/login must not overwrite that transition.
+    if (!authResultIsCurrent(originalConfig?._authEpoch, currentAuth.authEpoch, currentAuth.authExitReason)) return Promise.reject(error);
     // 网络错误
     if (!error.response) {
       antdMessage.error('网络异常，请检查网络连接');
@@ -93,13 +100,12 @@ api.interceptors.response.use(
     const { status, data } = error.response;
     const errorMessage = data?.message || `请求失败（${status}）`;
     const errorType = data?.meta?.error?.type;
-    const originalConfig = error.config as AxiosRequestConfigEx | undefined;
 
     // 401 token_expired：尝试静默 refresh + retry
     // 排除：refresh 端点自身、已重试过的请求、电子签名 401（业务身份再验证）
     const isAuthRefreshUrl = originalConfig?.url?.includes('/auth/refresh');
     const canTryRefresh =
-      useAuthStore.getState().authMode !== 'oidc' &&
+      mayRefreshNative(currentAuth.authMode, currentAuth.authExitReason) &&
       status === 401 &&
       errorType === 'token_expired' &&
       !!originalConfig &&
@@ -118,9 +124,10 @@ api.interceptors.response.use(
       } catch {
         // refresh 失败 → 清状态跳登录
         const authStore = useAuthStore.getState();
+        if (!authResultIsCurrent(originalConfig._authEpoch, authStore.authEpoch, authStore.authExitReason)) return Promise.reject(error);
         if (authStore.token || authStore.authMode === 'oidc') {
           antdMessage.warning('登录已过期，请重新登录');
-          authStore.logout();
+          authStore.logout('expired');
         }
         gotoLogin();
         return Promise.reject(error);
@@ -139,7 +146,7 @@ api.interceptors.response.use(
         antdMessage.warning(
           isAuthRefreshUrl && errorType === 'token_expired' ? errorMessage : '登录已过期，请重新登录',
         );
-        authStore.logout();
+        authStore.logout('expired');
       }
       gotoLogin();
       return Promise.reject(error);

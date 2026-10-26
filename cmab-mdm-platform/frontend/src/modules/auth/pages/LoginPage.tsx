@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { APP_VERSION } from '@/shared/version';
 import { touchActivity } from '@/shared/sessionGuard';
 import { oidcLoginPath } from '@/api/oidc';
-import { safeAuthReturnTo } from '@/shared/oidcPolicy';
+import { oidcErrorNotice, safeAuthReturnTo, shouldAutoStartOidc } from '@/shared/oidcPolicy';
 import { withBase } from '@/shared/base';
 
 // 被会话守卫踢回登录页时的说明（?reason=idle|expired）
@@ -15,15 +15,6 @@ const REASON_NOTICE: Record<string, string> = {
   idle: '长时间未操作，已自动退出登录，请重新登录',
   expired: '登录已过期，请重新登录',
   logout: '已退出本应用。再次登录统一身份需由您主动发起。',
-};
-const OIDC_ERROR_NOTICE: Record<string, string> = {
-  state: '登录流程已失效或不属于此浏览器，请重新发起。',
-  provider: '暂时无法完成统一身份验证，请重试。',
-  unmapped: '统一身份尚未明确关联到 MDM 用户，请联系管理员。',
-  disabled: '关联的 MDM 用户或身份映射已停用。',
-  cancelled: '统一身份登录已取消。',
-  session: '尚未建立有效的 MDM 会话，请重新发起登录。',
-  expired: '统一身份会话已过期，请重新登录。',
 };
 
 const { Title, Text } = Typography;
@@ -44,17 +35,18 @@ export function LoginPage() {
       : (REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null);
   const native = searchParams.get('native') === '1' || !oidcEnabled;
   const oidcError = searchParams.get('oidc_error');
+  const reason = searchParams.get('reason');
   const returnTo = safeAuthReturnTo(searchParams.get('redirect')) ?? '/';
 
   useEffect(() => {
     // Return/error/logout pages are deliberately stable: no redirect loop or
     // automatic sign-in immediately after an explicit sign-out.
-    if (oidcEnabled && !native && !reasonNotice && !oidcError && !started.current) {
+    if (shouldAutoStartOidc(oidcEnabled, native, reason, oidcError) && !reasonNotice && !started.current) {
       started.current = true;
       setRedirecting(true);
       window.location.assign(oidcLoginPath(returnTo));
     }
-  }, [native, oidcEnabled, oidcError, reasonNotice, returnTo]);
+  }, [native, oidcEnabled, oidcError, reason, reasonNotice, returnTo]);
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -107,7 +99,7 @@ export function LoginPage() {
         {reasonNotice && !errorMessage && (
           <Alert type="info" message={reasonNotice} showIcon style={{ marginBottom: 16 }} />
         )}
-        {oidcError && <Alert type="error" showIcon message={OIDC_ERROR_NOTICE[oidcError] ?? '统一身份登录未完成，请重新发起。'} style={{ marginBottom: 16 }} />}
+        {oidcError && <Alert type="error" showIcon message={oidcErrorNotice(oidcError)} style={{ marginBottom: 16 }} />}
         {oidcEnabled && <>
           <Alert type="info" showIcon message="使用 Casdoor 统一身份，业务权限仍由 MDM 管理；电子签名仍需 MDM 密码再次认证。" style={{ marginBottom: 16 }} />
           <Button type="primary" block loading={redirecting} href={oidcLoginPath(returnTo)} style={{ marginBottom: 16 }}>使用 Casdoor 统一身份登录</Button>

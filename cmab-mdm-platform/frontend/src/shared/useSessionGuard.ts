@@ -10,6 +10,7 @@ import { performRefresh } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
 import { startSessionGuard, type LogoutReason } from './sessionGuard';
 import { oidcApi } from '@/api/oidc';
+import { authResultIsCurrent } from './oidcPolicy';
 
 const REASON_TEXT: Record<LogoutReason, string | null> = {
   idle: '长时间未操作，已自动退出登录',
@@ -31,13 +32,17 @@ export function useSessionGuard(): void {
       const activity = () => { lastActivity = Date.now(); };
       const end = (reason: 'idle' | 'expired') => {
         if (stopped) return;
+        if (useAuthStore.getState().authExitReason === 'logout') return;
         stopped = true;
-        useAuthStore.getState().logout();
+        useAuthStore.getState().logout(reason);
         message.warning(REASON_TEXT[reason]);
         navigate(`/login?reason=${reason}`, { replace: true });
       };
       const check = async () => {
         if (stopped || checking) return;
+        const context = useAuthStore.getState();
+        if (context.authExitReason) return;
+        const epoch = context.authEpoch;
         checking = true;
         try {
           if (Date.now() - lastActivity > idleMinutes * 60000) {
@@ -46,11 +51,13 @@ export function useSessionGuard(): void {
             return;
           }
           const session = await oidcApi.session();
-          if (stopped) return;
+          const current = useAuthStore.getState();
+          if (stopped || !authResultIsCurrent(epoch, current.authEpoch, current.authExitReason)) return;
           if (!session) { end('expired'); return; }
-          useAuthStore.getState().setOidcSession(session.user, session.expires_at, session.pm_delegated);
+          current.setOidcSession(session.user, session.expires_at, session.pm_delegated, epoch);
         } catch {
-          end('expired');
+          const current = useAuthStore.getState();
+          if (authResultIsCurrent(epoch, current.authEpoch, current.authExitReason)) end('expired');
         } finally { checking = false; }
       };
       void authApi.sessionPolicy().then((policy) => { idleMinutes = policy.idle_timeout_minutes; }).catch(() => undefined);
@@ -73,9 +80,10 @@ export function useSessionGuard(): void {
       onTokenReplaced: (t) => useAuthStore.getState().updateToken(t),
       onLogout: (reason) => {
         const store = useAuthStore.getState();
+        if (store.authExitReason === 'logout') return;
         if (store.token) {
           if (reason !== 'other-tab') void authApi.logout().catch(() => undefined);
-          store.logout();
+          store.logout(reason === 'idle' ? 'idle' : 'expired');
         }
         const text = REASON_TEXT[reason];
         if (text) message.warning(text);

@@ -1,5 +1,42 @@
 import type { OidcLogout } from './oidcTypes';
 
+export type AuthExitReason = 'logout' | 'expired' | 'idle' | null;
+
+export function oidcErrorNotice(code: string): string {
+  const notices: Record<string, string> = {
+    state: '登录流程已失效或不属于此浏览器，请重新发起。',
+    provider: '暂时无法完成统一身份验证，请重试。',
+    unmapped: '统一身份尚未明确关联到 MDM 用户，请联系管理员。',
+    mapping: '统一身份尚未建立有效的 MDM 用户映射，或该映射已停用；请联系管理员明确关联。',
+    account: '关联的 MDM 用户已禁用、锁定或不可用。',
+    disabled: '当前环境未启用统一身份登录，请使用已允许的原生恢复入口或联系管理员。',
+    cancelled: '统一身份登录已取消。',
+    session: '尚未建立有效的 MDM 会话，请重新发起登录。',
+    expired: '统一身份会话已过期，请重新登录。',
+  };
+  return notices[code] ?? '统一身份登录未完成，请重新发起。';
+}
+
+/** Async responses belong to one auth context, never to a later login/logout. */
+export function authResultIsCurrent(startedEpoch: number | undefined, currentEpoch: number, exitReason: AuthExitReason): boolean {
+  return exitReason === null && (startedEpoch === undefined || startedEpoch === currentEpoch);
+}
+
+export function mayRefreshNative(mode: 'native' | 'oidc' | null, exitReason: AuthExitReason): boolean {
+  return mode === 'native' && exitReason === null;
+}
+
+export function shouldAutoStartOidc(enabled: boolean, native: boolean, reason: string | null, error: string | null): boolean {
+  return enabled && !native && !reason && !error;
+}
+
+export function authFailureLoginPath(path: string, search: string, reason: AuthExitReason): string {
+  const params = new URLSearchParams({ reason: reason ?? 'expired' });
+  const target = safeAuthReturnTo(path + search);
+  if (target) params.set('redirect', target);
+  return `/login?${params.toString()}`;
+}
+
 /** Only application paths; credentials and callback state never belong in return URLs. */
 export function safeAuthReturnTo(raw: string | null): string | null {
   if (!raw || raw.length > 2048) return null;

@@ -1,4 +1,5 @@
 """Explicit URLs and separate OIDC client audiences; disabled by default."""
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -9,8 +10,8 @@ from app.domains.auth.oidc.protocol import OIDCError
 def checked_url(value: str, *, internal=False) -> str:
     if not value or len(value) > 2048 or not value.isascii() or any(ord(c) <= 32 or ord(c) == 127 for c in value):
         raise OIDCError("OIDC URL is not configured")
-    parsed = urlsplit(value)
     try:
+        parsed = urlsplit(value)
         if parsed.port is not None and parsed.port < 1:
             raise ValueError
     except ValueError:
@@ -31,6 +32,8 @@ class OIDCConfig:
     public_url: str
     client_id: str
     client_secret: str = field(repr=False)
+    organization: str = ""
+    account_status_visible: bool = False
     internal_url: str = ""
     pm_client_id: str = ""
     pm_client_secret: str = field(default="", repr=False)
@@ -63,9 +66,17 @@ def configured() -> OIDCConfig:
     internal = checked_url(settings.MDM_OIDC_INTERNAL_URL or issuer, internal=allow_internal)
     if not settings.MDM_OIDC_CLIENT_ID or not settings.MDM_OIDC_CLIENT_SECRET:
         raise OIDCError("OIDC client is not configured")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", settings.MDM_OIDC_ORGANIZATION):
+        raise OIDCError("A fixed identity organization is required")
+    if settings.MDM_OIDC_ACCOUNT_STATUS_VISIBLE is not True:
+        # Casdoor can mask Admin-only status fields as false for a self read.
+        # This is an explicit deployment precondition, not runtime proof of it.
+        raise OIDCError("Self-visible identity account status must be confirmed")
     return OIDCConfig(issuer=issuer, public_url=public, internal_url=internal,
                       client_id=settings.MDM_OIDC_CLIENT_ID,
                       client_secret=settings.MDM_OIDC_CLIENT_SECRET.get_secret_value(),
+                      organization=settings.MDM_OIDC_ORGANIZATION,
+                      account_status_visible=settings.MDM_OIDC_ACCOUNT_STATUS_VISIBLE,
                       pm_client_id=settings.MDM_OIDC_PM_CLIENT_ID,
                       pm_client_secret=settings.MDM_OIDC_PM_CLIENT_SECRET.get_secret_value() if settings.MDM_OIDC_PM_CLIENT_SECRET else "",
                       session_max_seconds=settings.MDM_OIDC_SESSION_MAX_SECONDS)

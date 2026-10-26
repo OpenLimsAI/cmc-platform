@@ -52,11 +52,10 @@ def password_version(user):
     return user.password_changed_at.astimezone(UTC).isoformat() if user.password_changed_at else None
 
 
-async def revoke_session(db, raw):
-    """Local revocation must remain available even if provider config is broken."""
-    if not raw:
+async def _revoke_session_id(db, session_id):
+    if not session_id:
         return
-    changed = (await db.execute(update(OIDCSession).where(OIDCSession.id == digest(raw),
+    changed = (await db.execute(update(OIDCSession).where(OIDCSession.id == session_id,
         OIDCSession.revoked_at.is_(None)).values(revoked_at=datetime.now(UTC)).returning(OIDCSession.identity_id))).scalar_one_or_none()
     if changed is not None:
         identity = await db.get(OIDCIdentity, changed)
@@ -64,8 +63,35 @@ async def revoke_session(db, raw):
         user = await db.get(User, identity.user_id)
         assert user is not None
         db.add(AuditLog(user_id=user.user_id, username=user.username, action="LOGOUT",
-            entity_schema="auth", entity_table="oidc_session", entity_code=digest(raw),
+            entity_schema="auth", entity_table="oidc_session", entity_code=session_id,
             reason="OIDC 本地会话撤销", request_id=audit_request_id.get(), ip_address=audit_ip.get()))
+
+
+async def revoke_session(db, raw):
+    """Local revocation must remain available even if provider config is broken."""
+    if not raw:
+        return
+    await _revoke_session_id(db, digest(raw))
+    await db.commit()
+
+
+async def cancel_login(db, state):
+    """Cancel only the transaction identified by this browser's opaque cookie.
+
+    A short-lived completed receipt also fences a callback response that has not
+    reached the browser yet. It contains only the created session's hash ID.
+    """
+    if not state or len(state) > 128:
+        return
+    item = (await db.execute(delete(OIDCLogin).where(OIDCLogin.id == digest(state)).returning(OIDCLogin))).scalar_one_or_none()
+    if item is not None:
+        try:
+            data = unseal(item.secret_data)
+        except TokenInvalidError:
+            data = {}
+        session_id = data.get("completed_session_id") if isinstance(data, dict) else None
+        if isinstance(session_id, str) and len(session_id) == 64:
+            await _revoke_session_id(db, session_id)
     await db.commit()
 
 
@@ -140,7 +166,7 @@ class OIDCService:
             match = or_(match, OIDCLogoutReplay.subject.is_(None) & (OIDCLogoutReplay.sid == sid))
         return (await self.db.execute(select(OIDCLogoutReplay.id).where(*conditions, match).limit(1))).scalar_one_or_none() is not None
 
-    async def issue_session(self, claims, tokens):
+    async def issue_session(self, claims, tokens, *, commit=True):
         if claims.get("iss") != self.config.issuer:
             raise TokenInvalidError()
         identity, user = await self._identity_user(claims["iss"], claims["sub"])
@@ -162,7 +188,8 @@ class OIDCService:
         self.db.add(LoginHistory(user_id=user.user_id, username_input=user.username, success=True, ip_address=audit_ip.get()))
         self.db.add(AuditLog(user_id=user.user_id, username=user.username, action="LOGIN", ip_address=audit_ip.get(),
             request_id=audit_request_id.get(), reason="OIDC 已验证并使用显式数字用户映射登录"))
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
         return raw, item
 
     async def current_session(self, raw):
@@ -215,26 +242,50 @@ class OIDCService:
     async def complete(self, code, state, cookie_state, *, raw_session=None, delegation=False):
         if not state or not cookie_state or len(state) > 128 or not secrets.compare_digest(state, cookie_state):
             raise OIDCError("state")
-        item = (await self.db.execute(delete(OIDCLogin).where(OIDCLogin.id == digest(state)).returning(OIDCLogin))).scalar_one_or_none()
-        await self.db.commit()
+        item = (await self.db.execute(select(OIDCLogin).where(OIDCLogin.id == digest(state))
+            .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if item is None or item.expires_at < datetime.now(UTC):
+            await self.db.commit()
             raise OIDCError("state")
         data = unseal(item.secret_data)
-        if data["delegation"] != delegation:
+        if not isinstance(data, dict) or data.get("claimed") or data["delegation"] != delegation:
+            await self.db.commit()
             raise OIDCError("state")
+        data["claimed"] = True
+        item.secret_data = seal(data)
+        # Keep the cancellable transaction, but release all locks before HTTP.
+        await self.db.commit()
         claims, tokens = await self.provider.exchange(code, data["verifier"], data["nonce"], delegation=delegation)
+        session = None
         if delegation:
             _, session = await self.current_session(raw_session)
             identity = (await self.db.execute(select(OIDCIdentity).where(OIDCIdentity.identity_id == session.identity_id))).scalar_one()
             if session.id != data["session_id"] or identity.issuer != claims["iss"] or identity.subject != claims["sub"]:
                 raise OIDCError("Delegated subject must match the MDM session")
+        # Logout/native recovery may have cancelled while the provider answered.
+        # Finalization and its short-lived receipt commit together under this lock.
+        item = (await self.db.execute(select(OIDCLogin).where(OIDCLogin.id == digest(state))
+            .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+        if item is None or item.expires_at < datetime.now(UTC):
+            await self.db.rollback()
+            raise OIDCError("state")
+        receipt = unseal(item.secret_data)
+        if not isinstance(receipt, dict) or receipt.get("claimed") is not True or receipt.get("completed_session_id"):
+            await self.db.rollback()
+            raise OIDCError("state")
+        if delegation:
+            assert session is not None
             secret = unseal(session.secret_data)
             secret.update(pm_access_token=tokens["access_token"], pm_expires_at=tokens["expires_at"], pm_subject=claims["sub"])
             session.secret_data = seal(secret)
+            item.secret_data = seal({**receipt, "completed_session_id": session.id})
             await self.db.commit()
             return None, session, data["return_to"]
-        raw, session = await self.issue_session(claims, tokens)
-        await self.revoke(raw_session)
+        raw, session = await self.issue_session(claims, tokens, commit=False)
+        item.secret_data = seal({**receipt, "completed_session_id": session.id})
+        if raw_session:
+            await _revoke_session_id(self.db, digest(raw_session))
+        await self.db.commit()
         return raw, session, data["return_to"]
 
     async def backchannel(self, claims):

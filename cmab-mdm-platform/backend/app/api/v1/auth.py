@@ -33,7 +33,11 @@ REFRESH_COOKIE_PATH = "/api/v1/auth"
 
 def _refresh_cookie_path():
     if settings.MDM_OIDC_ENABLED and settings.MDM_PUBLIC_URL:
-        return urlsplit(settings.MDM_PUBLIC_URL).path.rstrip("/") + REFRESH_COOKIE_PATH
+        try:
+            return urlsplit(settings.MDM_PUBLIC_URL).path.rstrip("/") + REFRESH_COOKIE_PATH
+        except ValueError:
+            # A malformed optional SSO URL must not block explicit password recovery.
+            return REFRESH_COOKIE_PATH
     return REFRESH_COOKIE_PATH
 
 
@@ -91,14 +95,22 @@ async def login(
         ua=getattr(request.state, "user_agent", None),
     )
     _set_refresh_cookie(response, refresh_token, policy)
-    if settings.MDM_OIDC_ENABLED:
-        from app.api.v1.oidc import clear_session_cookie
-        from app.domains.auth.oidc.service import SESSION_COOKIE, revoke_session
+    from app.domains.auth.oidc.service import (
+        LOGIN_COOKIE,
+        SESSION_COOKIE,
+        cancel_login,
+        revoke_session,
+    )
+    if settings.MDM_OIDC_ENABLED or request.cookies.get(LOGIN_COOKIE) or request.cookies.get(SESSION_COOKIE):
+        from app.api.v1.oidc import clear_login_cookie, clear_session_cookie
+        await cancel_login(db, request.cookies.get(LOGIN_COOKIE))
         await revoke_session(db, request.cookies.get(SESSION_COOKIE))
         if oidc_config:
             clear_session_cookie(response, oidc_config)
+            clear_login_cookie(response, oidc_config)
         else:
             response.delete_cookie(SESSION_COOKIE, path="/mdm/")
+            response.delete_cookie(LOGIN_COOKIE, path="/mdm/")
     return success(
         data=result.model_dump(),
         message="登录成功",

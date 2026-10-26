@@ -10,7 +10,7 @@ from app.core.exceptions import AccountDisabledError, PermissionDeniedError, Tok
 from app.domains.auth.models import User
 from app.domains.auth.oidc.config import OIDCConfig
 from app.domains.auth.oidc.models import OIDCIdentity, OIDCSession
-from app.domains.auth.oidc.service import OIDCService
+from app.domains.auth.oidc.service import OIDCService, OIDCUnavailableError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -24,6 +24,29 @@ class UnitProvider:
         self.active = True
     async def is_active(self, access, *, subject):
         return self.active
+
+
+class PendingProvider(UnitProvider):
+    def __init__(self, subject):
+        super().__init__()
+        self.subject = subject
+        self.started = None
+        self.resume = None
+        self.nonces = set()
+
+    async def authorization_url(self, params):
+        self.nonces.add(params["nonce"])
+        return "http://127.0.0.1:8018/login/oauth/authorize?state=" + params["state"]
+
+    async def exchange(self, code, verifier, nonce, *, delegation=False):
+        assert code == "pending-code" and nonce in self.nonces
+        if self.started is not None:
+            self.started.set()
+            await self.resume.wait()
+        return claims(self.subject), {"access_token": "synthetic-pending"}
+
+    async def global_logout(self, access):
+        assert access == "synthetic-old"
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +69,7 @@ async def db():
 def config():
     return OIDCConfig(issuer=_ISSUER, public_url="http://127.0.0.1:5188/mdm",
                       client_id="unit-mdm", client_secret="synthetic-only", internal_url="http://127.0.0.1:8018",
+                      organization="phase2-unit", account_status_visible=True,
                       pm_client_id="unit-delegate", pm_client_secret="synthetic-only")
 
 
@@ -192,6 +216,87 @@ async def test_one_time_callback_and_wrong_cookie_cannot_consume_another_login(d
         await service.complete("single-code", state, state)
 
 
+@pytest.mark.parametrize("action", ["local_logout", "global_logout", "native_login"])
+@pytest.mark.parametrize("phase", ["pending", "exchange_in_flight", "completed_before_response"])
+async def test_browser_logout_or_native_login_cancels_its_pending_callback(db, monkeypatch, action, phase):
+    import asyncio
+    import inspect
+    import re
+    from http.cookies import SimpleCookie
+    from pathlib import Path
+
+    import app.api.v1.oidc as oidc_api
+    from app.api.v1.auth import login
+    from app.domains.auth.oidc.models import OIDCLogin
+    from app.domains.auth.oidc.protocol import OIDCError, digest
+    from app.domains.auth.oidc.service import LOGIN_COOKIE, SESSION_COOKIE
+    from app.domains.auth.schemas import LoginRequest
+    from starlette.requests import Request
+    from starlette.responses import Response
+
+    admin, readonly = await actors(db)
+    cfg = config()
+    provider = PendingProvider("cancel-" + uuid4().hex)
+    service = OIDCService(db, config=cfg, provider=provider)
+    await service.bind_identity(provider.subject, readonly.user_id, actor=admin, reason="隔离浏览器待完成回调撤销")
+    old_raw, _ = await service.issue_session(claims(provider.subject), {"access_token": "synthetic-old"})
+    state, _ = await service.begin("/projects")
+    other_browser, _ = await service.begin("/projects")
+    monkeypatch.setattr(settings, "MDM_OIDC_ENABLED", True)
+    monkeypatch.setattr(settings, "MDM_NATIVE_LOGIN_ENABLED", True)
+    monkeypatch.setattr(settings, "MDM_PUBLIC_URL", cfg.public_url)
+    monkeypatch.setattr("app.domains.auth.oidc.config.configured", lambda: cfg)
+    monkeypatch.setattr(oidc_api, "OIDCService", lambda connection: OIDCService(connection, config=cfg, provider=provider))
+    request = Request({"type": "http", "method": "POST", "path": "/api/v1/auth/oidc/logout",
+        "headers": [(b"origin", cfg.origin.encode()),
+                    (b"cookie", (LOGIN_COOKIE + "=" + state + "; " + SESSION_COOKIE + "=" + old_raw).encode())],
+        "client": ("127.0.0.1", 12345)})
+    callback = None
+    completed_raw = None
+    if phase == "exchange_in_flight":
+        provider.started, provider.resume = asyncio.Event(), asyncio.Event()
+        callback = asyncio.create_task(service.complete("pending-code", state, state, raw_session=old_raw))
+        await asyncio.wait_for(provider.started.wait(), timeout=3)
+    elif phase == "completed_before_response":
+        completed_raw, _, _ = await service.complete("pending-code", state, state, raw_session=old_raw)
+    try:
+        # A real second database session models the independent logout/login request.
+        async with async_sessionmaker(db.bind, expire_on_commit=False)() as action_db:
+            if action == "native_login":
+                source = Path("tests/conftest.py").read_text()
+                password = re.search(r'_login\(http_client, "admin", "([^"]+)"\)', source).group(1)
+                response = Response()
+                result = await inspect.unwrap(login)(request=request, payload=LoginRequest(username="admin", password=password), response=response, db=action_db)
+                assert result["data"]["user"]["username"] == "admin"
+            else:
+                response = await oidc_api.oidc_logout(oidc_api.LogoutRequest(**{"global": action == "global_logout"}), request, action_db)
+                assert response.status_code == 200
+        if callback is not None:
+            provider.resume.set()
+            with pytest.raises(OIDCError):
+                await asyncio.wait_for(callback, timeout=3)
+        elif completed_raw:
+            with pytest.raises(TokenInvalidError):
+                await service.current_session(completed_raw)
+        else:
+            with pytest.raises(OIDCError):
+                await service.complete("pending-code", state, state, raw_session=old_raw)
+        assert await db.get(OIDCLogin, digest(state), populate_existing=True) is None
+        cleared = []
+        for header in response.headers.getlist("set-cookie"):
+            cookie = SimpleCookie(header)
+            if LOGIN_COOKIE in cookie:
+                cleared.append((cookie[LOGIN_COOKIE]["path"], cookie[LOGIN_COOKIE]["max-age"]))
+        assert cleared == [(cfg.cookie_path, "0")]
+        # Another browser's independent state remains usable.
+        another_raw, _, _ = await service.complete("pending-code", other_browser, other_browser)
+        assert (await service.current_session(another_raw))[0].user_id == readonly.user_id
+    finally:
+        if callback is not None:
+            provider.resume.set()
+            await asyncio.gather(callback, return_exceptions=True)
+
+
 async def test_cookie_auth_uses_live_mdm_user_and_rejects_cross_origin_write(db, monkeypatch):
     from app.shared.permissions import get_current_user
     from pydantic import SecretStr
@@ -201,6 +306,7 @@ async def test_cookie_auth_uses_live_mdm_user_and_rejects_cross_origin_write(db,
     for key, value in {"MDM_OIDC_ENABLED": True, "MDM_PUBLIC_URL": cfg.public_url,
                        "MDM_OIDC_ISSUER_URL": cfg.issuer, "MDM_OIDC_INTERNAL_URL": cfg.internal_url,
                        "MDM_OIDC_CLIENT_ID": cfg.client_id,
+                       "MDM_OIDC_ORGANIZATION": cfg.organization, "MDM_OIDC_ACCOUNT_STATUS_VISIBLE": True,
                        "MDM_OIDC_CLIENT_SECRET": SecretStr("synthetic-only")}.items():
         monkeypatch.setattr(settings, key, value)
     service = OIDCService(db, config=cfg)
@@ -262,3 +368,27 @@ async def test_provider_revocation_blocks_cookie_even_when_no_backchannel_arrive
     service.provider.active = False
     with pytest.raises(TokenInvalidError):
         await service.current_session(raw)
+    service.provider.active = True
+    # Provider restoration does not revive a cookie already revoked locally.
+    with pytest.raises(TokenInvalidError):
+        await service.current_session(raw)
+    fresh, _ = await service.issue_session(claims(subject), {"access_token": "synthetic-new"})
+    assert (await service.current_session(fresh))[0].user_id == readonly.user_id
+
+
+async def test_provider_outage_fails_closed_then_recovers_transient_session(db, monkeypatch):
+    from app.domains.auth.oidc.protocol import OIDCError
+    admin, readonly = await actors(db)
+    service = OIDCService(db, config=config())
+    subject = "outage-" + uuid4().hex
+    await service.bind_identity(subject, readonly.user_id, actor=admin, reason="隔离上游不可达恢复检查")
+    raw, session = await service.issue_session(claims(subject), {"access_token": "synthetic-only"})
+    original = service.provider.is_active
+    async def unavailable(access, *, subject):
+        raise OIDCError("Synthetic provider unavailable")
+    monkeypatch.setattr(service.provider, "is_active", unavailable)
+    with pytest.raises(OIDCUnavailableError):
+        await service.current_session(raw)
+    assert session.revoked_at is None
+    monkeypatch.setattr(service.provider, "is_active", original)
+    assert (await service.current_session(raw))[0].user_id == readonly.user_id

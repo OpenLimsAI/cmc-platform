@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     MDM_PUBLIC_URL: str = ""
     MDM_OIDC_ISSUER_URL: str = ""
     MDM_OIDC_INTERNAL_URL: str = ""
+    MDM_OIDC_ORGANIZATION: str = ""
+    MDM_OIDC_ACCOUNT_STATUS_VISIBLE: bool = False
     MDM_OIDC_CLIENT_ID: str = ""
     MDM_OIDC_CLIENT_SECRET: SecretStr | None = None
     MDM_OIDC_PM_CLIENT_ID: str = ""

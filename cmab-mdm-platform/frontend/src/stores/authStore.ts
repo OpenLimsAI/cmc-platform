@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { queryClient } from '@/shared/queryClient';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import type { LoginResponseUser } from '@/api/types';
+import { authResultIsCurrent, type AuthExitReason } from '@/shared/oidcPolicy';
 
 // ── 全公司统一令牌 key（cmab-hub 统一门户 2026-08-17 拍板）────────────────────
 // localStorage['cmab_access_token'] = MDM access token 原文（JWT）
@@ -92,6 +93,8 @@ function computeUserAdminScope(user: LoginResponseUser | null): UserAdminScope {
 interface AuthState {
   token: string | null;
   authMode: 'native' | 'oidc' | null;
+  authEpoch: number;
+  authExitReason: AuthExitReason;
   oidcExpiresAt: string | null;
   pmDelegated: boolean;
   oidcEnabled: boolean;
@@ -104,11 +107,13 @@ interface AuthState {
   userAdminScope: UserAdminScope;
 
   setAuth: (token: string, user: LoginResponseUser) => void;
-  setOidcSession: (user: LoginResponseUser, expiresAt: string, pmDelegated: boolean) => void;
+  setOidcSession: (user: LoginResponseUser, expiresAt: string, pmDelegated: boolean, expectedEpoch?: number) => void;
   setOidcConfig: (enabled: boolean, nativeEnabled: boolean) => void;
   finishBootstrap: (error?: string) => void;
   updateToken: (token: string) => void;
-  logout: () => void;
+  beginLogout: () => number;
+  cancelLogout: (expectedEpoch: number) => void;
+  logout: (reason?: AuthExitReason) => void;
   hasPermission: (perm: string) => boolean;
   /** 是否有任一主数据域读权限（仪表盘 / 首页落点用） */
   hasAnyReadPermission: () => boolean;
@@ -122,6 +127,8 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       authMode: null,
+      authEpoch: 0,
+      authExitReason: null,
       oidcExpiresAt: null,
       pmDelegated: false,
       oidcEnabled: false,
@@ -138,6 +145,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           token,
           authMode: 'native',
+          authEpoch: get().authEpoch + 1,
+          authExitReason: null,
           oidcExpiresAt: null,
           pmDelegated: false,
           user,
@@ -150,9 +159,12 @@ export const useAuthStore = create<AuthState>()(
 
       // OIDC credentials remain in the HttpOnly cookie/server session. Persist's
       // native-token adapter removes legacy bearer state instead of storing this user.
-      setOidcSession: (user, expiresAt, pmDelegated) => {
+      setOidcSession: (user, expiresAt, pmDelegated, expectedEpoch) => {
+        if (expectedEpoch !== undefined && !authResultIsCurrent(expectedEpoch, get().authEpoch, get().authExitReason)) return;
+        const changed = get().user?.user_id !== user.user_id || get().authMode !== 'oidc';
         if (get().user?.user_id !== user.user_id || get().authMode !== 'oidc') queryClient.clear();
         set({ token: null, authMode: 'oidc', user, oidcExpiresAt: expiresAt, pmDelegated,
+          authEpoch: get().authEpoch + (changed ? 1 : 0), authExitReason: null,
           permissions: new Set(user.permissions), isAdmin: user.roles.includes('SYS_ADMIN'),
           userAdminScope: computeUserAdminScope(user),
           // Existing guards select this function. A new reference also notifies
@@ -178,13 +190,25 @@ export const useAuthStore = create<AuthState>()(
         user: state.user ? { ...state.user, must_change_password: true } : null,
       })),
 
-      logout: () => {
+      beginLogout: () => {
+        const epoch = get().authEpoch + 1;
+        set({ authEpoch: epoch, authExitReason: 'logout' });
+        return epoch;
+      },
+      cancelLogout: (expectedEpoch) => {
+        if (get().authEpoch === expectedEpoch && get().user && get().authExitReason === 'logout') {
+          set({ authEpoch: expectedEpoch + 1, authExitReason: null });
+        }
+      },
+      logout: (reason) => {
         // 清 React Query 缓存：登出走 SPA 跳转不刷新页面，不清会把上一个人的
         // 列表/仪表盘/角色下拉带给下一个登录的人（2026-09-10 体检发现）
         queryClient.clear();
         set({
           token: null,
           authMode: null,
+          authEpoch: get().authEpoch + 1,
+          authExitReason: reason ?? get().authExitReason,
           oidcExpiresAt: null,
           pmDelegated: false,
           user: null,

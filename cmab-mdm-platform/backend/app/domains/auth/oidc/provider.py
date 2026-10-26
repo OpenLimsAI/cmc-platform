@@ -27,13 +27,15 @@ class OIDCProvider:
         prefix = self.config.internal_url or self.config.issuer
         return prefix + target.path
 
-    async def request(self, method, url, **kwargs):
+    async def request(self, method, url, *, denied_statuses=(), **kwargs):
         try:
             async with (
                 asyncio.timeout(10),
                 httpx.AsyncClient(trust_env=False, follow_redirects=False, timeout=5) as client,
                 client.stream(method, self.internal(url), **kwargs) as response,
             ):
+                if response.status_code in denied_statuses:
+                    return None
                 response.raise_for_status()
                 data = bytearray()
                 async for chunk in response.aiter_bytes():
@@ -129,19 +131,46 @@ class OIDCProvider:
         raise OIDCError("Invalid logout notification")
 
     async def global_logout(self, access):
+        discovery = await self.discovery()
+        endpoint = discovery.get("introspection_endpoint", self.config.issuer + "/api/login/oauth/introspect")
+        self.internal(endpoint)
+        arguments = {"auth": httpx.BasicAuth(self.config.client_id, self.config.client_secret),
+                     "data": {"token": access, "token_type_hint": "access_token"}}
+        before = await self.request("POST", endpoint, **arguments)
+        if not (isinstance(before, dict) and before.get("active") is True
+                and before.get("client_id") == self.config.client_id and isinstance(before.get("sub"), str) and before["sub"]):
+            raise OIDCError("Current identity cannot confirm global logout")
         body = await self.request("POST", self.config.issuer + "/api/sso-logout", params={"logoutAll": "true"},
                                   headers={"Authorization": "Bearer " + access})
         if not isinstance(body, dict) or body.get("status") != "ok":
             raise OIDCError("Global logout not confirmed")
+        after = await self.request("POST", endpoint, **arguments)
+        if not isinstance(after, dict) or after.get("active") is not False:
+            # Casdoor 3.152/PostgreSQL can return ok while expiring zero rows.
+            # Do not turn a transport success into a false global-success claim.
+            raise OIDCError("Identity provider did not confirm token revocation")
 
     async def is_active(self, access, *, subject):
         # Back-channel delivery is best effort. A missed notification must not
         # leave a locally valid cookie usable after provider revocation.
+        if not self.config.organization or self.config.account_status_visible is not True:
+            raise OIDCError("Self-visible identity account status is not configured")
         discovery = await self.discovery()
         endpoint = discovery.get("introspection_endpoint", self.config.issuer + "/api/login/oauth/introspect")
         self.internal(endpoint)
         body = await self.request("POST", endpoint,
             auth=httpx.BasicAuth(self.config.client_id, self.config.client_secret),
             data={"token": access, "token_type_hint": "access_token"})
-        return (isinstance(body, dict) and body.get("active") is True
-                and body.get("client_id") == self.config.client_id and body.get("sub") == subject)
+        if not (isinstance(body, dict) and body.get("active") is True
+                and body.get("client_id") == self.config.client_id and body.get("sub") == subject):
+            return False
+        # Introspection in Casdoor 3.152.0 does not reflect a later account
+        # disable/delete. Read only the verified subject with its own app token;
+        # never use get-account (which can mint a token) or an admin credential.
+        account = await self.request("GET", self.config.issuer + "/api/get-user",
+            params={"owner": self.config.organization, "userId": subject},
+            headers={"Authorization": "Bearer " + access}, denied_statuses=(401, 403, 404))
+        user = account.get("data") if isinstance(account, dict) and account.get("status") == "ok" else None
+        return (isinstance(user, dict) and user.get("id") == subject
+                and user.get("owner") == self.config.organization
+                and user.get("isForbidden") is False and user.get("isDeleted") is False)

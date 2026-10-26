@@ -190,3 +190,58 @@ test('an unconfirmed local logout does not clear or navigate', async () => {
   assert.equal(ok, false);
   assert.deepEqual(events, []);
 });
+
+test('a session response started before explicit logout cannot restore the old user', async () => {
+  useAuthStore.getState().setOidcSession(user, '2030-01-01T00:00:00Z', true);
+  const startedEpoch = useAuthStore.getState().authEpoch ?? 0;
+  let resolveSession;
+  const response = new Promise((resolve) => { resolveSession = resolve; });
+  const pending = response.then((session) => useAuthStore.getState().setOidcSession(session.user, session.expires_at, session.pm_delegated, startedEpoch));
+  useAuthStore.getState().logout('logout');
+  resolveSession({ user, expires_at: '2030-01-01T00:00:00Z', pm_delegated: true });
+  await pending;
+  assert.equal(useAuthStore.getState().authMode, null);
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().authExitReason, 'logout');
+});
+
+test('late 401 routing preserves an explicit logout and never creates an automatic SSO entry', async () => {
+  const { authFailureLoginPath, shouldAutoStartOidc } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  const target = authFailureLoginPath('/projects/CMAB-PRJ-2026-0001', '?tab=pm', 'logout');
+  const params = new URL(target, 'https://mdm.invalid').searchParams;
+  assert.equal(params.get('reason'), 'logout');
+  assert.equal(params.get('redirect'), '/projects/CMAB-PRJ-2026-0001?tab=pm');
+  assert.equal(shouldAutoStartOidc(true, false, params.get('reason'), null), false);
+  assert.equal(shouldAutoStartOidc(true, false, 'expired', null), false);
+  assert.equal(shouldAutoStartOidc(true, false, null, null), true);
+});
+
+test('starting logout invalidates old responses while retaining the warning acknowledgement view', async () => {
+  const { authResultIsCurrent } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  useAuthStore.getState().setOidcSession(user, '2030-01-01T00:00:00Z', true);
+  const oldEpoch = useAuthStore.getState().authEpoch;
+  const intent = useAuthStore.getState().beginLogout();
+  assert.equal(useAuthStore.getState().user.user_id, user.user_id);
+  assert.equal(authResultIsCurrent(oldEpoch, useAuthStore.getState().authEpoch, useAuthStore.getState().authExitReason), false);
+  assert.equal(authResultIsCurrent(intent, intent, 'logout'), false);
+  useAuthStore.getState().cancelLogout(intent);
+  assert.equal(useAuthStore.getState().authExitReason, null);
+  assert.equal(useAuthStore.getState().authMode, 'oidc');
+});
+
+test('only native mode may attempt native JWT refresh after an authentication failure', async () => {
+  const { mayRefreshNative } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  assert.equal(mayRefreshNative('native', null), true);
+  assert.equal(mayRefreshNative('oidc', null), false);
+  assert.equal(mayRefreshNative(null, 'logout'), false);
+  assert.equal(mayRefreshNative('native', 'logout'), false);
+});
+
+test('OIDC mapping, account and disabled-config errors have distinct safe explanations', async () => {
+  const { oidcErrorNotice } = await bundle('shared/oidcPolicy.ts', 'oidc-policy');
+  assert.match(oidcErrorNotice('mapping'), /关联|映射/);
+  assert.match(oidcErrorNotice('account'), /用户.*禁用|用户.*锁定/);
+  assert.match(oidcErrorNotice('disabled'), /环境.*启用/);
+  assert.notEqual(oidcErrorNotice('account'), oidcErrorNotice('disabled'));
+  assert.equal(oidcErrorNotice('unknown-untrusted-code').includes('unknown-untrusted-code'), false);
+});

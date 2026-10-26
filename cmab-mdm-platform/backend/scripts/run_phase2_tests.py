@@ -11,7 +11,7 @@ sources = ["app/domains/auth/oidc", "app/api/v1/oidc.py", "app/api/v1/auth.py", 
            "app/core/config.py", "app/core/logging.py", "app/main.py", "app/domains/prs/pm_create.py",
            "app/domains/prs/pm_links.py", "app/api/v1/pm_links.py", "app/scripts/oidc_identity.py"]
 tests = ["tests/test_oidc_protocol.py", "tests/test_oidc_provider.py", "tests/test_oidc_logout.py",
-         "tests/test_oidc_sessions.py", "tests/test_oidc_endpoints.py", "tests/test_pm_create.py"]
+         "tests/test_oidc_sessions.py", "tests/test_oidc_endpoints.py", "tests/test_oidc_recovery_urls.py", "tests/test_pm_create.py"]
 subprocess.run(["ruff", "check", "--no-cache", *sources, *tests], check=True)
 subprocess.run(["mypy", "--cache-dir=/tmp/mypy-phase2", "--follow-imports=silent",
                 "app/domains/auth/oidc", "app/api/v1/oidc.py", "app/domains/prs/pm_create.py"], check=True)

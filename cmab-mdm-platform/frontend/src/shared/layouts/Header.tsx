@@ -18,17 +18,20 @@ export function Header() {
   const { token } = theme.useToken();
 
   const handleLogout = async (global = false) => {
+    const intentEpoch = useAuthStore.getState().beginLogout();
     if (authMode === 'oidc') {
       try {
         const result = await oidcApi.logout(global);
+        if (useAuthStore.getState().authEpoch !== intentEpoch) return;
         const handled = completeOidcLogout(result, global, new URL(withBase('/login?reason=logout'), window.location.origin).href, {
-          clearLocal: logout,
+          clearLocal: () => logout('logout'),
           navigateLocal: () => navigate('/login?reason=logout'),
           navigateProvider: (url) => window.location.assign(url),
-          warn: (text, acknowledge) => { Modal.warning({ title: global ? '统一身份注销结果提示' : '注销结果提示', content: text, keyboard: false, maskClosable: false, okText: '已知晓，继续退出', onOk: acknowledge }); },
+          warn: (text, acknowledge) => { Modal.warning({ title: global ? '统一身份注销结果提示' : '注销结果提示', content: text, keyboard: false, maskClosable: false, okText: '已知晓，继续退出', onOk: () => { if (useAuthStore.getState().authEpoch === intentEpoch) acknowledge(); } }); },
         });
-        if (!handled) message.error('无法确认 MDM 服务端注销，请重试。');
+        if (!handled) { useAuthStore.getState().cancelLogout(intentEpoch); message.error('无法确认 MDM 服务端注销，请重试。'); }
       } catch {
+        useAuthStore.getState().cancelLogout(intentEpoch);
         message.error('无法确认服务端注销，请重试。不会把清除前端状态视为统一退出。');
       }
       return;
@@ -38,7 +41,8 @@ export function Header() {
     } catch {
       // 即使后端报错也要本地登出
     }
-    logout();
+    if (useAuthStore.getState().authEpoch !== intentEpoch) return;
+    logout('logout');
     navigate('/login?reason=logout');
   };
 

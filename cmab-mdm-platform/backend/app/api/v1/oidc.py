@@ -24,6 +24,7 @@ from app.domains.auth.oidc.service import (
     LOGIN_COOKIE,
     SESSION_COOKIE,
     OIDCService,
+    cancel_login,
     require_origin,
     unseal,
 )
@@ -41,6 +42,10 @@ def _unavailable():
 
 def clear_session_cookie(response, config):
     response.delete_cookie(SESSION_COOKIE, path=config.cookie_path, secure=config.secure, httponly=True, samesite="lax")
+
+
+def clear_login_cookie(response, config):
+    response.delete_cookie(LOGIN_COOKIE, path=config.cookie_path, secure=config.secure, httponly=True, samesite="lax")
 
 
 def _cookie(response, name, value, config, age):
@@ -149,6 +154,7 @@ async def oidc_logout(payload: LogoutRequest, request: Request, db: AsyncSession
         access = unseal(session.secret_data).get("access_token")
     except AppError:
         pass
+    await cancel_login(db, request.cookies.get(LOGIN_COOKIE))
     await service.revoke(raw)
     global_ok = False
     data = {"local_logout": True, "global_logout": False, "login_url": service.config.public_url + "/login?reason=logout"}
@@ -169,6 +175,7 @@ async def oidc_logout(payload: LogoutRequest, request: Request, db: AsyncSession
             "client_id": service.config.client_id, "post_logout_redirect_uri": data["login_url"]})
     response = JSONResponse(success(data=data), headers=HEADERS)
     clear_session_cookie(response, service.config)
+    clear_login_cookie(response, service.config)
     return response
 
 
