@@ -1,0 +1,8 @@
+{
+  "action": "arm",
+  "target_database": "mdm_phase2_sso",
+  "synthetic_project_id": 2,
+  "temporary_trigger": "prs.phase2_synthetic_link_fault",
+  "time_utc": "2026-10-26T15:00:04.955386+00:00",
+  "sql_sha256": "273840dab6e30815ef3346662d11f25f7f7a9dcf58f072b624ce49ac1790166b"
+}

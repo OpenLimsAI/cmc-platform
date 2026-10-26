@@ -1,0 +1,41 @@
+{
+  "started_at_utc": "2026-10-26T15:55:36Z",
+  "stage": "official_patch_healthy_fixed_identity_and_jwks_preserved",
+  "container": "cmc-phase2-sso-casdoor",
+  "backup_container": "cmc-phase2-sso-casdoor-before-31544-20261026t155536z",
+  "target_version": "3.154.4",
+  "target_repo_digest": "casbin/casdoor@sha256:95c7be68fb98daf2ec74a10c9f785af1ef75e8fef6dd4aad455a899e651e87e2",
+  "target_image_id": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+  "database": "casdoor_phase2_sso",
+  "manual_token_invalidation": false,
+  "production_or_other_database_touched": false,
+  "initDataNewOnly_before": false,
+  "initDataNewOnly_after": true,
+  "changed_configuration_lines": 1,
+  "rollback_warning": "Do not docker start the old container: its retained original initDataNewOnly=false. Any rollback must use old image with true configuration and new container, after parent decision.",
+  "all_other_environment_values_preserved": true,
+  "schema_sync_result": {
+    "added_columns": [
+      {
+        "table": "group",
+        "column": "gid_number",
+        "type": "integer",
+        "nullable": "YES"
+      },
+      {
+        "table": "user",
+        "column": "uid_number",
+        "type": "integer",
+        "nullable": "YES"
+      }
+    ],
+    "removed_columns": [],
+    "changed_existing_columns": []
+  },
+  "fixed_identity_metadata_unchanged": true,
+  "jwks_unchanged": true,
+  "jwks_after_sha256": "0734d972ab0a025d6b651d33fd689648ff3c71ff053b806762ab0ae31737d153",
+  "discovery_http": 200,
+  "new_container_id": "2a41700653faa21550d9c1e3fe476e224f83cefd525ad1571415b64b6784cccb",
+  "completed_at_utc": "2026-10-26T15:55:42Z"
+}

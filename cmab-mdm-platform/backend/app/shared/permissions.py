@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import (
     AccountDisabledError,
@@ -34,6 +35,8 @@ FORCE_PASSWORD_CHANGE_ALLOWED_PATHS = frozenset({
     "/api/v1/auth/me",
     "/api/v1/auth/refresh",
     "/api/v1/auth/session-policy",
+    "/api/v1/auth/oidc/session",
+    "/api/v1/auth/oidc/logout",
 })
 
 
@@ -43,18 +46,27 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """从 Authorization 头解析 JWT 并加载当前用户"""
-    if not authorization:
+    from app.domains.auth.oidc.service import SESSION_COOKIE, OIDCService, require_origin
+    opaque = request.cookies.get(SESSION_COOKIE) if settings.MDM_OIDC_ENABLED else None
+    if authorization:
+        if opaque:
+            raise TokenInvalidError("不能混用原生令牌和统一登录会话，请重新选择登录方式")
+        parts = authorization.split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise TokenInvalidError("Authorization 头格式错误")
+        payload = decode_token(parts[1])
+        if payload.get("type") != "access":
+            raise TokenInvalidError("Token 类型错误")
+    elif opaque:
+        service = OIDCService(db)
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            require_origin(request, service.config)
+        cookie_user, session = await service.current_session(opaque)
+        request.state.oidc_session = session
+        payload = {"sub": str(cookie_user.user_id), "type": "access",
+                   "iat": int(session.issued_at.timestamp()), "password_changed_at": session.password_version}
+    else:
         raise TokenMissingError()
-
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise TokenInvalidError("Authorization 头格式错误")
-
-    token = parts[1]
-    payload = decode_token(token)
-
-    if payload.get("type") != "access":
-        raise TokenInvalidError("Token 类型错误")
 
     user_id_str = payload.get("sub")
     if not user_id_str:

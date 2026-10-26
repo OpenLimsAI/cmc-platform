@@ -1,0 +1,123 @@
+{
+  "started_at_utc": "2026-10-26T16:34:50Z",
+  "container": "cmc-phase2-sso-mdm-web",
+  "backup_container": "cmc-phase2-sso-mdm-web-before-local-return-v2-20261026t163450z",
+  "new_image_id": "sha256:665c54a2f8c1e7c9932bf91ba1fd5b72b9947ed0e6538118948704defe06227f",
+  "stage": "healthy_frontend_configuration_and_other_services_verified",
+  "database_migration_or_seed_run": false,
+  "old_image_id": "sha256:4dd87fe9c4ee05f90ee57e30475e6292df299168da3d9bc80453dd28b4baa898",
+  "old_container_id": "23f0d0361d47b7661c6d21e059d80431fbf35b36b45ba91dc5e72e20b59a4225",
+  "network": "cmc-phase2-sso-net",
+  "ports": {
+    "5173/tcp": [
+      {
+        "HostIp": "127.0.0.1",
+        "HostPort": "5188"
+      }
+    ]
+  },
+  "security_options": {
+    "Privileged": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": null,
+    "CapAdd": null,
+    "CapDrop": null,
+    "PidMode": "",
+    "IpcMode": "private",
+    "UsernsMode": ""
+  },
+  "all_original_environment_preserved": true,
+  "api_proxy_target": "http://e2e-mdm-api:8000",
+  "other_services_before": {
+    "/cmc-phase2-sso-mdm": {
+      "id": "ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "image": "sha256:36542786a7819e985307225a4b2005d7109a928919e550f28db8fa59267f7b1c",
+      "started_at": "2026-10-26T14:29:04.369652545Z",
+      "running": true
+    },
+    "/cmc-phase2-sso-pm": {
+      "id": "ff40c6e6aba514924fb5bf8c746504a7f40f9943c0575eceaf7feb36e548b0e8",
+      "image": "sha256:cb2aee79a87023e7c22a9e3e5303c65a39ec4dbb2a0a84dd90e92eba87f29124",
+      "started_at": "2026-10-26T16:19:10.437315008Z",
+      "running": true
+    },
+    "/cmc-phase2-sso-casdoor": {
+      "id": "2a41700653faa21550d9c1e3fe476e224f83cefd525ad1571415b64b6784cccb",
+      "image": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+      "started_at": "2026-10-26T16:25:08.234695688Z",
+      "running": true
+    },
+    "/cmc-phase2-sso-postgres": {
+      "id": "9a09a05bf554af0f0bd09a317575353094a1e402cc2d3e051124b276c5958da3",
+      "image": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+      "started_at": "2026-10-26T13:49:03.06202855Z",
+      "running": true
+    }
+  },
+  "image_git_revision_label": null,
+  "other_services_after": {
+    "/cmc-phase2-sso-mdm": {
+      "id": "ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "image": "sha256:36542786a7819e985307225a4b2005d7109a928919e550f28db8fa59267f7b1c",
+      "started_at": "2026-10-26T14:29:04.369652545Z",
+      "running": true
+    },
+    "/cmc-phase2-sso-pm": {
+      "id": "ff40c6e6aba514924fb5bf8c746504a7f40f9943c0575eceaf7feb36e548b0e8",
+      "image": "sha256:cb2aee79a87023e7c22a9e3e5303c65a39ec4dbb2a0a84dd90e92eba87f29124",
+      "started_at": "2026-10-26T16:19:10.437315008Z",
+      "running": true
+    },
+    "/cmc-phase2-sso-casdoor": {
+      "id": "2a41700653faa21550d9c1e3fe476e224f83cefd525ad1571415b64b6784cccb",
+      "image": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+      "started_at": "2026-10-26T16:25:08.234695688Z",
+      "running": true
+    },
+    "/cmc-phase2-sso-postgres": {
+      "id": "9a09a05bf554af0f0bd09a317575353094a1e402cc2d3e051124b276c5958da3",
+      "image": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+      "started_at": "2026-10-26T13:49:03.06202855Z",
+      "running": true
+    }
+  },
+  "runtime_source_hashes": {
+    "working_directory": "/app",
+    "files": [
+      {
+        "path": "src/stores/authStore.ts",
+        "exists": true,
+        "sha256": "a5f558b18822ab00f51a5d83da93379d40c2f97278bcdad1344787d7a9e7629f"
+      },
+      {
+        "path": "src/shared/components/AuthBootstrap.tsx",
+        "exists": true,
+        "sha256": "f14eb0518ffb60e677523f9a1c928f55e863b67515145aed61ddef5c325da5e9"
+      },
+      {
+        "path": "src/modules/auth/pages/LoginPage.tsx",
+        "exists": true,
+        "sha256": "5a5398eeda12e95edcc566e6e900e83dbc170842c29f6783aab14f02b70b7855"
+      },
+      {
+        "path": "src/routes/ProtectedRoute.tsx",
+        "exists": true,
+        "sha256": "18617a27e95f07adcafe1a0d494a32027fa323362139461440a97c1baf40413e"
+      },
+      {
+        "path": "src/api/auth.ts",
+        "exists": true,
+        "sha256": "372d602fa5d687e6a3162de51a4306ee60425b22562241c87a786641ff3c6c32"
+      }
+    ]
+  },
+  "new_container_id": "6f15d8567cb718a9672e7c3f0a8e1086fa972743d129a8d7f4588d74b16bc020",
+  "health_checks": {
+    "http://127.0.0.1:5188/mdm/login": 200,
+    "http://127.0.0.1:5188/mdm/api/v1/health": 200
+  },
+  "actual_environment_verified": true,
+  "other_services_unchanged": true,
+  "old_frontend_retained_stopped": true,
+  "completed_at_utc": "2026-10-26T16:34:54Z"
+}

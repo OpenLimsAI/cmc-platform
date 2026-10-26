@@ -1,0 +1,462 @@
+[
+  {
+    "file": "screenshots/01-portal-creator-login.jpg",
+    "time_utc": "2026-10-26T14:35:42.221Z",
+    "role": "phase2.creator / PM cmc_lead",
+    "expected": "真实 Casdoor 登录门户",
+    "actual": "门户显示合成负责人和应用入口",
+    "sha256": "5f0d32c9fb25a06a2e709237be5d25c4aaf3519e1d0cf0131a525f15da54ecd0",
+    "bytes": 52292
+  },
+  {
+    "file": "screenshots/02-pm-session-before-mdm.jpg",
+    "time_utc": "2026-10-26T14:36:05.173Z",
+    "role": "phase2.creator / PM cmc_lead",
+    "expected": "门户登录后标准PM会话免重复输入",
+    "actual": "PM看板为同一合成负责人，空测试项目库",
+    "sha256": "ece0c722d8efb9ad6dcb952034a3f9ed00c523d51de434bf89e194d9e93a1609",
+    "bytes": 66783
+  },
+  {
+    "file": "screenshots/03-portal-to-mdm-sso.jpg",
+    "time_utc": "2026-10-26T14:36:49.157Z",
+    "role": "phase2.creator → MDM user_id1",
+    "expected": "门户入口进入MDM，无再次输入密码",
+    "actual": "MDM项目页显示Casdoor登录和原系统管理员",
+    "sha256": "e20f12c03852a3d9041218ffc69e574061a908f0e5b0054eb190cdba16098d60",
+    "bytes": 60353
+  },
+  {
+    "file": "screenshots/04-mdm-registration-created.jpg",
+    "time_utc": "2026-10-26T14:37:33.452Z",
+    "role": "phase2.creator → MDM1",
+    "expected": "真实创建登记项目并保留MDM治理状态",
+    "actual": "登记CMAB-PRJ-2026-0001处于已提议，未复制PM计划",
+    "sha256": "a53f691014b236454c6122fafd75637c5a674e78ae4115fd6ffe1dc7b793a7b4",
+    "bytes": 104209
+  },
+  {
+    "file": "screenshots/05-pm-explicit-create-input.jpg",
+    "time_utc": "2026-10-26T14:40:20.716Z",
+    "role": "phase2.creator / dedicated PM delegation",
+    "expected": "明确选择PM负责人、产品、阶段和计划后才创建",
+    "actual": "显示真实PM候选与输入，无自动复制MDM团队/预算",
+    "sha256": "b9e3dc863fd92ce59a99fa9c02a3b7809d4a161273c2e9f8500a05ee4d99dbbb",
+    "bytes": 106951
+  },
+  {
+    "file": "screenshots/06-pm-date-input-complete.jpg",
+    "time_utc": "2026-10-26T14:41:04.384Z",
+    "role": "phase2.creator / dedicated PM delegation",
+    "expected": "开始结束日期明确有效，才可提交",
+    "actual": "日期控件实际显示2026-11-01与2027-06-30；先前空日期提交被表单拒绝",
+    "sha256": "e78a5c652128163eeb645692b6d9baf6d65eca3b7269868e41830d4df02cc1d4",
+    "bytes": 107069
+  },
+  {
+    "file": "screenshots/07-real-create-and-link-A.jpg",
+    "time_utc": "2026-10-26T14:41:49.829Z",
+    "role": "phase2.creator / PM cmc_lead / MDM1",
+    "expected": "实际创建PM并建立严格一对一关联",
+    "actual": "PM ID p-mdm-13568efbecac46a7a007b73a，编号P2-E2E-A，已核验；MDM仍已提议",
+    "sha256": "508dac3aa2ed27ca532da4d3a65195fcac9dc2d86874f706ad0e2cc905de0efb",
+    "bytes": 99203
+  },
+  {
+    "file": "screenshots/08-link-survives-refresh-A.jpg",
+    "time_utc": "2026-10-26T14:43:07.796Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "刷新重新加载后仍是同一关联",
+    "actual": "重新进入PM页签仍为p-mdm-13568efbecac46a7a007b73a和原核验时间",
+    "sha256": "25e44614d1d166488af50dcca23f9aa6daae6187c9986f23b39616ec4270833f",
+    "bytes": 99207
+  },
+  {
+    "file": "screenshots/09-mdm-to-correct-pm-A.jpg",
+    "time_utc": "2026-10-26T14:44:09.196Z",
+    "role": "phase2.creator / PM cmc_lead",
+    "expected": "MDM深链打开对应PM执行项目",
+    "actual": "P2-E2E-A名称、负责人、IND→Ph1/2和日期正确，未生成预算或WBS假数据",
+    "sha256": "12c00a4ad678ce11fedc25173f18cde9f52895e709284ea4c84d6248b0b18fa6",
+    "bytes": 92067
+  },
+  {
+    "file": "screenshots/10-pm-to-original-mdm-A.jpg",
+    "time_utc": "2026-10-26T14:44:29.696Z",
+    "role": "phase2.creator → MDM1",
+    "expected": "PM上下文深链返回原登记项目",
+    "actual": "返回CMAB-PRJ-2026-0001，保持Casdoor会话和原治理状态",
+    "sha256": "98970c49e4ef435fe74a6922d8c28114046f33d5053bca645ad04e2a0276b9f7",
+    "bytes": 104218
+  },
+  {
+    "file": "screenshots/11-sso-still-needs-native-signature.jpg",
+    "time_utc": "2026-10-26T14:45:10.823Z",
+    "role": "phase2.creator → MDM1",
+    "expected": "SSO不替代敏感签名再次认证",
+    "actual": "审批立项弹窗明确要求MDM签名密码，非Casdoor密码",
+    "sha256": "3cfcb0719e43ca053c2165dbb1c5805aa5c99e67cfcc96824d09c2a35c03d2d5",
+    "bytes": 99027
+  },
+  {
+    "file": "screenshots/12-wrong-signature-keeps-proposed.jpg",
+    "time_utc": "2026-10-26T14:49:24.430Z",
+    "role": "phase2.creator → MDM1",
+    "expected": "错误签名不改变登记状态或退出SSO",
+    "actual": "错误Casdoor密码提交后仍已提议且签名弹窗保留；实际状态码由安全HTTP日志核对",
+    "sha256": "290e0c83984414d2f98805c0cf013047603ae1ad252395ad7359c73d89e6d0e6",
+    "bytes": 103436
+  },
+  {
+    "file": "screenshots/13-native-signature-approved-under-sso.jpg",
+    "time_utc": "2026-10-26T14:56:02.889Z",
+    "role": "phase2.creator → MDM1",
+    "expected": "只有原MDM密码再次认证才能完成敏感审批",
+    "actual": "原生密码正确后已立项v2，仍为Casdoor会话；签名和审计由数据库核对",
+    "sha256": "c75afff69d3645f80e61177d1db40ec9dc107489a4374201d267adc92facb569",
+    "bytes": 104665
+  },
+  {
+    "file": "screenshots/14-one-to-one-conflict-rejected.jpg",
+    "time_utc": "2026-10-26T14:57:58.412Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "已关联的PM不能绑定第二登记项目",
+    "actual": "B页面提示已有其他关联、不允许自动改绑，未出现假成功",
+    "sha256": "94e7825ea9476acfa4ea3f26b4b83522b49f0214757359fe52a968db2a13d526",
+    "bytes": 100964
+  },
+  {
+    "file": "screenshots/15-missing-pm-reference-rejected.jpg",
+    "time_utc": "2026-10-26T14:58:37.394Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "不存在的PM项目不保存关联",
+    "actual": "B仍未关联，界面保留错误；精确拒绝状态码见HTTP证据",
+    "sha256": "95a6f97c56e330906a2088226c3dfcc75e50812842e7949444039c3b8d07f14e",
+    "bytes": 99344
+  },
+  {
+    "file": "screenshots/16-recovery-B-explicit-input.jpg",
+    "time_utc": "2026-10-26T15:00:37.101Z",
+    "role": "phase2.creator / dedicated PM delegation",
+    "expected": "第二组明确输入，受控故障只影响MDM本地关联提交",
+    "actual": "B输入完成；将使用真实PM及新隔离数据库临时触发器验证远端成功后恢复",
+    "sha256": "5088f5cce342ded907d5bc9029a3ce7d63cf4789c523776128bde313ed84d06c",
+    "bytes": 104428
+  },
+  {
+    "file": "screenshots/17-remote-created-local-failed-B.jpg",
+    "time_utc": "2026-10-26T15:01:00.815Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "远端成功但MDM提交失败时不显示关联成功",
+    "actual": "界面保留原创建请求及PM远端ID，尚未声称本地关联完成；待DB快照核对",
+    "sha256": "3ceaca840ffeb6adeda29dd52967dc438aa9c3cb1ec0aa0a81fda33525c897dd",
+    "bytes": 96914
+  },
+  {
+    "file": "screenshots/18-same-request-recovered-B.jpg",
+    "time_utc": "2026-10-26T15:02:01.288Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "原PM成功回执恢复本地关联，不创建第三PM",
+    "actual": "原请求db33555b-41f7-4844-97ca-2e1b47d92b89第二次尝试完成，PM ID未变",
+    "sha256": "71c645b8888217937293f5059ae7250d19ff1e98989b1fd7bb008ff46517430b",
+    "bytes": 99015
+  },
+  {
+    "file": "screenshots/19-local-logout-auto-sso-regression.jpg",
+    "time_utc": "2026-10-26T15:04:05.833Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "仅退出MDM应稳定停在登录页，门户会话独立保留",
+    "actual": "失败：退出后立即经auth-complete自动SSO回来；已转交前端修复，不能算退出验收通过",
+    "sha256": "47b19c907c3e92a47d9892ac3b319c16dcc5fc5e6731f672e18b85ab90356b39",
+    "bytes": 102667
+  },
+  {
+    "file": "screenshots/20-global-logout-scope-prompt.jpg",
+    "time_utc": "2026-10-26T15:04:56.554Z",
+    "role": "phase2.creator / MDM1",
+    "expected": "清楚区分统一退出和本地退出范围",
+    "actual": "提示统一注销Casdoor/MDM/PM/门户，原生密码登录及其他应用不在范围",
+    "sha256": "9f2e74bfc3b594a10f45fdf8f41c0ebaca1466b061a5638b53302a9bdb844762",
+    "bytes": 87010
+  },
+  {
+    "file": "screenshots/21-global-logout-idp-needs-login.jpg",
+    "time_utc": "2026-10-26T15:05:39.633Z",
+    "role": "phase2.creator logged out",
+    "expected": "统一注销后IdP不再静默SSO",
+    "actual": "Casdoor标准授权显示空登录表单，SSO失效；前端多启一次授权流程待修",
+    "sha256": "a06d56979d81398a85bac31e4392cc99d5e5d9c07611611434c0285ca3dda018",
+    "bytes": 23318
+  },
+  {
+    "file": "screenshots/22-interrupted-expired-flow-rejected.jpg",
+    "time_utc": "2026-10-26T15:13:33.928Z",
+    "role": "phase2.unmapped / stale flow",
+    "expected": "过期授权事务不能建立MDM会话",
+    "actual": "真实旧授权登录后返回固定oidc_error=state错误，未进入应用",
+    "sha256": "79a25d041f74a4cf84dc3ddbd769f59e5d69a7ae0c9eda3f7af4d18622803c7e",
+    "bytes": 45826
+  },
+  {
+    "file": "screenshots/23-unmapped-identity-rejected.jpg",
+    "time_utc": "2026-10-26T15:14:03.302Z",
+    "role": "phase2.unmapped / no MDM mapping",
+    "expected": "Casdoor有效身份不得按名称或邮箱自动绑定",
+    "actual": "真实登录返回oidc_error=mapping，未建立MDM业务会话",
+    "sha256": "1b64854db7ec70097108931849bba5da3069ba42d066c139c7970dd4be15720d",
+    "bytes": 46216
+  },
+  {
+    "file": "screenshots/24-local-disabled-mdm-identity-rejected.jpg",
+    "time_utc": "2026-10-26T15:24:16.763Z",
+    "role": "phase2.disabled → MDM6 disabled",
+    "expected": "统一身份有效也不能登录本地禁用用户",
+    "actual": "真实回调拒绝并显示MDM用户禁用，未建业务会话",
+    "sha256": "c5fa4effd06685482bd7a2f663e940c474633b7ce402478bb55a709e22cc9768",
+    "bytes": 46576
+  },
+  {
+    "file": "screenshots/25-mapped-no-role-profile.jpg",
+    "time_utc": "2026-10-26T15:33:36.790Z",
+    "role": "phase2.noaccess → MDM7",
+    "expected": "映射不会自动授予任何业务角色",
+    "actual": "仅个人中心可见，角色未分配、权限无",
+    "sha256": "9773952c2efe60a087558194f5d9cdf345d1ff820159d87fa43dd63a4aaadf9d",
+    "bytes": 56512
+  },
+  {
+    "file": "screenshots/26-no-role-real-api-forbidden.jpg",
+    "time_utc": "2026-10-26T15:33:55.970Z",
+    "role": "phase2.noaccess → MDM7",
+    "expected": "后端业务权限独立执行",
+    "actual": "真实GET项目接口返回permission_denied/project:read，非前端隐藏代替鉴权",
+    "sha256": "052492c9dcdea1d591ef04235780db0cda916beb809ef9a6059d0d84ddeb8377",
+    "bytes": 27193
+  },
+  {
+    "file": "screenshots/27-local-logout-stable-after-fix.jpg",
+    "time_utc": "2026-10-26T15:37:08.222Z",
+    "role": "phase2.noaccess / MDM7 logged out",
+    "expected": "显式本地退出后不再自动SSO",
+    "actual": "稳定停在reason=logout登录页，需用户主动登录",
+    "sha256": "6c30093461815e7412a887d1c04590258db715604965129b036c1817bbf0d4be",
+    "bytes": 46068
+  },
+  {
+    "file": "screenshots/28-native-recovery-login-compatible.jpg",
+    "time_utc": "2026-10-26T15:38:45.667Z",
+    "role": "native admin / MDM1",
+    "expected": "启用SSO仍保留明确原生恢复路径",
+    "actual": "原MDM账号密码真实登录，页面标示原生登录，数字用户与原资料保留",
+    "sha256": "d8962d7263dbac328b59b90bb2ca1871a1dcbbb4cb4af474a0e48c15e4af32a8",
+    "bytes": 77689
+  },
+  {
+    "file": "screenshots/29-old-portal-session-requires-login.jpg",
+    "time_utc": "2026-10-26T15:58:28.818Z",
+    "role": "phase2.creator / old portal session",
+    "expected": "旧会话超过1小时后不能继续访问门户",
+    "actual": "刷新旧门户后显示登录页；到期时间与401由数据库/HTTP证据核对",
+    "sha256": "4471eb1119773aa89ffb7290224e4fd8cd386405d2b9624a43b975b401db00d5",
+    "bytes": 57935
+  },
+  {
+    "file": "screenshots/30-fixed-idp-portal-login.jpg",
+    "time_utc": "2026-10-26T15:59:34.231Z",
+    "role": "phase2.creator / official Casdoor3.154.4",
+    "expected": "在官方修复版上重新真实登录门户",
+    "actual": "重新截图画面与01字节相同；保留采集记录，排除其作为新版本/新时刻独立证据，将另取实际状态变化画面。",
+    "sha256": "5f0d32c9fb25a06a2e709237be5d25c4aaf3519e1d0cf0131a525f15da54ecd0",
+    "bytes": 52292,
+    "excluded_as_duplicate": true,
+    "duplicate_of": "screenshots/01-portal-creator-login.jpg"
+  },
+  {
+    "file": "screenshots/31-fixed-idp-live-portal-refresh.jpg",
+    "time_utc": "2026-10-26T16:01:02.632Z",
+    "role": "phase2.creator / official3.154.4",
+    "expected": "修复版真实门户登录后可执行身份刷新",
+    "actual": "门户显示登录身份已刷新；与旧截图不同，HTTP状态和运行版本由独立元数据支持",
+    "sha256": "5f94822c2138fe878a21a25d406450a5d1a7942c9321caaea38862aed7d12ed2",
+    "bytes": 58973
+  },
+  {
+    "file": "screenshots/32-fixed-idp-pm-live-session.jpg",
+    "time_utc": "2026-10-26T16:07:21.680Z",
+    "role": "creator/PM cmc_lead",
+    "expected": "官方修复版上PM独立会话可用",
+    "actual": "PM项目组合显示真实两个执行项目",
+    "sha256": "34bc4579488d1589e32da99480295f0a4f86cb769ae1b0bf96899707ebf78536",
+    "bytes": 66644
+  },
+  {
+    "file": "screenshots/33-fixed-idp-portal-mdm-sso.jpg",
+    "time_utc": "2026-10-26T16:08:42.277Z",
+    "role": "creator→MDM user_id=1",
+    "expected": "门户进入MDM免再次输入凭据且仍有两个登记项目",
+    "actual": "实际新标签进入MDM，Casdoor登录标识，A已立项/B已提议",
+    "sha256": "540b3ef524885158cc4979cf142e49fce8614bc3bf8dbd34451ba62593cebfa9",
+    "bytes": 72354
+  },
+  {
+    "file": "screenshots/34-fixed-idp-global-return-ux-red.jpg",
+    "time_utc": "2026-10-26T16:10:33.802Z",
+    "role": "creator/global logout",
+    "expected": "注销后回到应用登录页",
+    "actual": "服务端退出后的IdP GET显示JSON，登记为待修复UX失败",
+    "sha256": "9160fa7fb17016c623479be92c748d8f22dc26a20ef683f149d8d8a074e142a7",
+    "bytes": 18630
+  },
+  {
+    "file": "screenshots/35-fixed-global-portal-rejected.jpg",
+    "time_utc": "2026-10-26T16:10:52.578Z",
+    "role": "creator/previous portal session",
+    "expected": "统一退出后旧门户会话拒绝",
+    "actual": "刷新门户后实际转登录页，不保留工作台访问",
+    "sha256": "4471eb1119773aa89ffb7290224e4fd8cd386405d2b9624a43b975b401db00d5",
+    "bytes": 57935,
+    "excluded_as_duplicate": true,
+    "duplicate_of": "screenshots/29-old-portal-session-requires-login.jpg"
+  },
+  {
+    "file": "screenshots/36-fixed-global-pm-rejected.jpg",
+    "time_utc": "2026-10-26T16:11:19.089Z",
+    "role": "creator/previous PM session",
+    "expected": "旧PM会话不能访问dashboard",
+    "actual": "dashboard实际转PM登录项目管理页面",
+    "sha256": "c8706f236d82866d71e184f929ee45d1c60259ea116db7960bda56c277dcef32",
+    "bytes": 59420
+  },
+  {
+    "file": "screenshots/37-fixed-global-idp-reauth-required.jpg",
+    "time_utc": "2026-10-26T16:11:31.469Z",
+    "role": "creator/old MDM and IdP sessions",
+    "expected": "统一退出后MDM不能静默再登录",
+    "actual": "受保护项目转Casdoor空凭据登录表单，未自动恢复SSO",
+    "sha256": "a06d56979d81398a85bac31e4392cc99d5e5d9c07611611434c0285ca3dda018",
+    "bytes": 23318,
+    "excluded_as_duplicate": true,
+    "duplicate_of": "screenshots/21-global-logout-idp-needs-login.jpg"
+  },
+  {
+    "file": "screenshots/38-invalid-callback-controlled-error.jpg",
+    "time_utc": "2026-10-26T16:16:43.512Z",
+    "role": "invalid synthetic callback",
+    "expected": "无效code/state不能建立新会话",
+    "actual": "受控state错误；不显示code或令牌，不自动登录",
+    "sha256": "79a25d041f74a4cf84dc3ddbd769f59e5d69a7ae0c9eda3f7af4d18622803c7e",
+    "bytes": 45826,
+    "excluded_as_duplicate": true,
+    "duplicate_of": "screenshots/22-interrupted-expired-flow-rejected.jpg"
+  },
+  {
+    "file": "screenshots/39-casdoor-disabled-real-login-rejected.jpg",
+    "time_utc": "2026-10-26T16:19:27.181Z",
+    "role": "creator disabled at Casdoor",
+    "expected": "新认证必须拒绝，旧应用会话已失效",
+    "actual": "清空密码后的表单，仅证明返回认证输入；禁用错误提示见截图40与先前AX观察",
+    "sha256": "4b848649960f11415a5ebe87c77c60488701dedaad4e925c1f4867ae1ff48c06",
+    "bytes": 25195
+  },
+  {
+    "file": "screenshots/40-casdoor-disabled-toast.jpg",
+    "time_utc": "2026-10-26T16:20:12.647Z",
+    "role": "creator disabled at Casdoor",
+    "expected": "受禁用用户的新认证拒绝",
+    "actual": "实际禁用错误提示；密码字段仅掩码，无凭据值",
+    "sha256": "42007e8bd941d6c3dcbe50af7db0c29f1a0269522e5feb8cc82ea29cf7f43aca",
+    "bytes": 29769
+  },
+  {
+    "file": "screenshots/41-restored-account-old-session-still-rejected.jpg",
+    "time_utc": "2026-10-26T16:21:33.535Z",
+    "role": "creator restored/old MDM cookie",
+    "expected": "恢复身份不能复活旧会话",
+    "actual": "真实session接口token_invalid；req_685d5622f5e94a1a，HTTP状态另存",
+    "sha256": "900a9c2f60c278d6027ff6429685fb275eb0f6f8a792a7124bc9d3c85992bb86",
+    "bytes": 27297
+  },
+  {
+    "file": "screenshots/42-pmlead-mdm-readonly-api-denied.jpg",
+    "time_utc": "2026-10-26T16:22:07.410Z",
+    "role": "PM cmc_lead mapped MDM readonly user_id=5",
+    "expected": "PM负责人身份不能提升MDM业务写权限",
+    "actual": "真实PM owners接口缺少project:update拒绝，req_08c91704f4724e1b",
+    "sha256": "c703b3671333997e70eeca8554a04e1c932653a0849491b515c57afbe9b73767",
+    "bytes": 27230
+  },
+  {
+    "file": "screenshots/43-mdm-readonly-existing-link.jpg",
+    "time_utc": "2026-10-26T16:22:29.840Z",
+    "role": "PM cmc_lead→MDM readonly",
+    "expected": "保留一对一快照与读取能力；无MDM编辑/批准提权",
+    "actual": "已有PM关联显示，审批按钮禁用，未把缺委托称解除关联",
+    "sha256": "742d1b7d73f840be5edd214e0af40af9204c7d2c60b51e2890181bbb5e34466d",
+    "bytes": 108543
+  },
+  {
+    "file": "screenshots/44-pm-global-logout-revokes-mdm.jpg",
+    "time_utc": "2026-10-26T16:22:55.532Z",
+    "role": "pmlead/PM global logout",
+    "expected": "从PM退出后旧MDM会话拒绝",
+    "actual": "实际MDM session token_invalid，req_898d049c7fc5422a；PM返回本应用login",
+    "sha256": "533ee4c1640bc27ce26d39c41d52840993b14718bf7da62b4536cb8b5d2c68f3",
+    "bytes": 27326
+  },
+  {
+    "file": "screenshots/45-idp-outage-partial-logout-warning.jpg",
+    "time_utc": "2026-10-26T16:24:48.276Z",
+    "role": "creator/IdP container stopped",
+    "expected": "本地退出但远端失败不得宣称全局成功",
+    "actual": "明确提示MDM已退出、统一注销未确认、PM/门户可能仍有效",
+    "sha256": "7c480f0ce7ebf4dfd5fab8bf2103d41b5ef1562700b5139338b67ce870ce764c",
+    "bytes": 85714
+  },
+  {
+    "file": "screenshots/46-idp-outage-portal-fail-closed.jpg",
+    "time_utc": "2026-10-26T16:24:48.329Z",
+    "role": "creator/existing portal cookie",
+    "expected": "身份状态不可核实时业务访问拒绝",
+    "actual": "门户显示无法确认登录身份及状态服务暂不可用，无工作台",
+    "sha256": "6fb1e2274793f9a60320772c7dfec2884b9c5ffd421436f01ec353eff345239d",
+    "bytes": 13870
+  },
+  {
+    "file": "screenshots/47-final-runtime-existing-link-verified.jpg",
+    "time_utc": "2026-10-26T16:28:55.903Z",
+    "role": "creator with new independent PM delegation",
+    "expected": "最终源码仍可实时核验原关联且不重复创建",
+    "actual": "B同一PM ID、原建立时间、实时状态活跃；新授权后已核验",
+    "sha256": "c32d3b7a318c22f5492a11dbbebb2d039f4cc577510010952ba9af1949a6f8ac",
+    "bytes": 99020
+  },
+  {
+    "file": "screenshots/48-local-return-policy-ux-red.jpg",
+    "time_utc": "2026-10-26T16:30:23.567Z",
+    "role": "creator/global logout after backend return fix",
+    "expected": "精确本应用login URL无需警告",
+    "actual": "后端注销已完成，但前端仍只允许IdP/api/logout，误显示安全警告，作为red保留",
+    "sha256": "5c03f3e0952c6e785ee8a7c77ce4be5794ebda23fcf5d6999af0a5423f300bc8",
+    "bytes": 82650
+  },
+  {
+    "file": "screenshots/49-final-global-local-return-green.jpg",
+    "time_utc": "2026-10-26T16:36:50.903Z",
+    "role": "creator/final frontend 665c54a2",
+    "expected": "全局退出后安全回本应用，不误警告、不自动SSO",
+    "actual": "最终前端返回MDM登录页reason=logout，无安全误警告；服务端撤销单独核实",
+    "sha256": "6c30093461815e7412a887d1c04590258db715604965129b036c1817bbf0d4be",
+    "bytes": 46068,
+    "excluded_as_duplicate": true,
+    "duplicate_of": "screenshots/27-local-logout-stable-after-fix.jpg"
+  },
+  {
+    "file": "screenshots/50-final-global-mdm-session-rejected.jpg",
+    "time_utc": "2026-10-26T16:37:13.717Z",
+    "role": "creator/final global logout",
+    "expected": "最终全局退出后MDM无有效登录",
+    "actual": "真实session token_missing req_f34a6298971a4125；服务端状态另有断言",
+    "sha256": "593299032b949ed3612258d0ad4460b8fa0bcf333203caa36bcd1d03e839d814",
+    "bytes": 25901
+  }
+]

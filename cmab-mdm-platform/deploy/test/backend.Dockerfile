@@ -8,4 +8,4 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --extra dev --no-install-project
 ENV PATH="/opt/venv/bin:$PATH" PYTHONPATH=/app
 COPY . .
-CMD ["python", "scripts/run_phase1_tests.py"]
+CMD ["python", "scripts/run_phase2_tests.py"]

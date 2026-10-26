@@ -60,6 +60,21 @@ class Settings(BaseSettings):
     PM_PUBLIC_URL: str = ""
     PM_REFERENCE_API_URL: str = ""
     PM_REFERENCE_ACCESS_TOKEN: SecretStr | None = None
+    # Opt-in MDM-only OIDC. Secrets stay server-side; native recovery remains explicit.
+    MDM_OIDC_ENABLED: bool = False
+    MDM_NATIVE_LOGIN_ENABLED: bool = True
+    MDM_PUBLIC_URL: str = ""
+    MDM_OIDC_ISSUER_URL: str = ""
+    MDM_OIDC_INTERNAL_URL: str = ""
+    MDM_OIDC_ORGANIZATION: str = ""
+    MDM_OIDC_ACCOUNT_STATUS_VISIBLE: bool = False
+    MDM_OIDC_CLIENT_ID: str = ""
+    MDM_OIDC_CLIENT_SECRET: SecretStr | None = None
+    MDM_OIDC_PM_CLIENT_ID: str = ""
+    MDM_OIDC_PM_CLIENT_SECRET: SecretStr | None = None
+    MDM_OIDC_SESSION_MAX_SECONDS: int = Field(default=3600, ge=60, le=3600)
+    MDM_PM_API_URL: str = ""
+    MDM_PM_SOURCE_ID: str = "mdm"
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
 

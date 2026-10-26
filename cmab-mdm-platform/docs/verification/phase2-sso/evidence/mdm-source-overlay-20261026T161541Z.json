@@ -1,0 +1,39 @@
+{
+  "started_at_utc": "2026-10-26T16:15:41Z",
+  "container": "cmc-phase2-sso-mdm",
+  "stage": "healthy_and_source_hashes_verified",
+  "files": [
+    {
+      "relative_path": "api/v1/oidc.py",
+      "container_before_sha256": "ea79ec609f6b4d3b75b9f117ab8832f4bf2ad220ad2bf7dc6bef7fefa7d05d4a",
+      "source_sha256": "7f6629c699626dec40f651338868580e7a00ffef03659be0cf583753fbb5ab0e",
+      "container_after_sha256": "7f6629c699626dec40f651338868580e7a00ffef03659be0cf583753fbb5ab0e"
+    }
+  ],
+  "process_environment_additions": {
+    "MDM_OIDC_ORGANIZATION": "phase2-mdm-e2e",
+    "MDM_OIDC_ACCOUNT_STATUS_VISIBLE": "true"
+  },
+  "source_set": "logout-login-url",
+  "database_initialization_run": false,
+  "container_restarted": false,
+  "casdoor_restarted": false,
+  "log_mode": "append",
+  "base_image_id": "sha256:36542786a7819e985307225a4b2005d7109a928919e550f28db8fa59267f7b1c",
+  "old_uvicorn_pid": 231,
+  "old_cmdline": [
+    "/opt/venv/bin/python",
+    "/opt/venv/bin/uvicorn",
+    "app.main:app",
+    "--host",
+    "0.0.0.0",
+    "--port",
+    "8000"
+  ],
+  "stopped_pid": 231,
+  "started_pid": 278,
+  "source_hashes_match": true,
+  "health_http": 200,
+  "oidc_config_http": 200,
+  "completed_at_utc": "2026-10-26T16:15:51Z"
+}

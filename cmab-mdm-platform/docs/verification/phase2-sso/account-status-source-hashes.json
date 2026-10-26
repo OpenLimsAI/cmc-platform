@@ -1,0 +1,38 @@
+{
+  "recorded_at": "2026-10-26T14:58:05.6709224Z",
+  "purpose": "MDM self account status unit regression source snapshot; final acceptance uses final merged manifest",
+  "files": [
+    {
+      "path": "backend/app/core/config.py",
+      "sha256": "877c17d277dd1d6c8bb23c0b6c738fb4028ce6eae058236dfa533167549919dd"
+    },
+    {
+      "path": "backend/app/domains/auth/oidc/config.py",
+      "sha256": "78dbb9555bb272cb4786ac3d7e914f4c04955380f869e5d92854e0344ed5bb6f"
+    },
+    {
+      "path": "backend/app/domains/auth/oidc/provider.py",
+      "sha256": "c4107fcd7506549fd2818bcd42ca21b76b2d4b97ce773197bb3524694314af30"
+    },
+    {
+      "path": "backend/tests/test_oidc_provider.py",
+      "sha256": "ddef9bcc0c4e5e04b28418eb60166b73af6082937b2bac92e460b53b7f451570"
+    },
+    {
+      "path": "backend/tests/test_oidc_recovery_urls.py",
+      "sha256": "5671603d0ac616c9a7de8051e87660d66d5ef4788242572cbabc0933e0b9192d"
+    },
+    {
+      "path": "backend/tests/test_oidc_sessions.py",
+      "sha256": "081663cc149cae6fec0cd7f98d2a2570fda67f6effd0a227095138f051b9316b"
+    },
+    {
+      "path": ".env.example",
+      "sha256": "acab2586862df71af5fb482434d82a6c9e7ed1410a2e6c33e4e24af682552915"
+    },
+    {
+      "path": "deploy/docker-compose.dev.yml",
+      "sha256": "bdd894f22f9866a3a32490c0f6ad2283fb63c70a380f2f9d965a1d86721ce63a"
+    }
+  ]
+}

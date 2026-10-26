@@ -346,3 +346,35 @@ class ProjectRelationship(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     created_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class ProjectPMCreateRequest(Base):
+    """One immutable creation intent per registration; no credentials are persisted."""
+
+    __tablename__ = "project_pm_create_request"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_pm_create_project"),
+        CheckConstraint(
+            "status IN ('pending','in_progress','remote_created','retryable_error',"
+            "'linked','reconciliation_required')", name="ck_pm_create_status",
+        ),
+        CheckConstraint("attempts >= 0", name="ck_pm_create_attempts"),
+        {"schema": "prs"},
+    )
+
+    request_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("prs.project.project_id"), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    requested_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("auth.user.user_id"), nullable=False)
+    request_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    change_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_owner: Mapped[str | None] = mapped_column(String(36))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    remote_project_id: Mapped[str | None] = mapped_column(String(64))
+    remote_receipt: Mapped[dict | None] = mapped_column(JSONB)
+    last_error: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

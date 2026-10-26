@@ -52,6 +52,7 @@ export function StatusActionsBar({
   entityTypeLabel = '对象',
 }: Props) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const oidc = useAuthStore((s) => s.authMode === 'oidc');
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<StatusActionDef | null>(null);
   const [form] = Form.useForm<{
@@ -210,11 +211,11 @@ export function StatusActionsBar({
               </Form.Item>
               <Form.Item
                 name="password"
-                label="登录密码"
-                tooltip="重新输入当前登录密码以完成电子签名（21 CFR Part 11 §11.200）"
+                label={oidc ? 'MDM 签名密码（非 Casdoor 密码）' : '登录密码'}
+                tooltip={oidc ? 'SSO 不替代签名再次认证；请输入此数字用户原有的 MDM 密码。' : '重新输入当前登录密码以完成电子签名（21 CFR Part 11 §11.200）'}
                 rules={[{ required: true, message: '必须输入密码完成签名' }]}
               >
-                <Input.Password placeholder="重新输入您的登录密码" autoComplete="off" />
+                <Input.Password placeholder={oidc ? '重新输入 MDM 签名密码' : '重新输入您的登录密码'} autoComplete="off" />
               </Form.Item>
             </>
           )}

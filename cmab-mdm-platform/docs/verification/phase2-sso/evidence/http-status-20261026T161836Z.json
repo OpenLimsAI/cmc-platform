@@ -1,0 +1,3430 @@
+{
+  "captured_at_utc": "2026-10-26T16:18:35.804242+00:00",
+  "sources": {
+    "cmc-phase2-sso-mdm": {
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-link",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/pm-login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/pm-callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-link",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/integration/pm/owners",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-link",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-link",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/integration/pm-projects/p-mdm-13568efbecac46a7a007b73a",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001:approve",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001:approve",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 409
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 404
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/integration/pm/owners",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 500
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create/retry",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/logout",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/logout",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 403
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/logout",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/refresh",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/refresh",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "status": 204
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/logout",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/backchannel-logout",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/backchannel-logout",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/logout",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200
+        }
+      ],
+      "counts": [
+        {
+          "method": "GET",
+          "path": "/api/v1/health",
+          "status": 200,
+          "count": 219
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/config",
+          "status": 200,
+          "count": 28
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 401,
+          "count": 12
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/login",
+          "status": 303,
+          "count": 11
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/callback",
+          "status": 303,
+          "count": 11
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/session",
+          "status": 200,
+          "count": 176
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/session-policy",
+          "status": 200,
+          "count": 38
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200,
+          "count": 5
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects",
+          "status": 201,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001",
+          "status": 200,
+          "count": 5
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-link",
+          "status": 200,
+          "count": 4
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/pm-login",
+          "status": 303,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/oidc/pm-callback",
+          "status": 303,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-create",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/integration/pm/owners",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001/pm-create",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/integration/pm-projects/p-mdm-13568efbecac46a7a007b73a",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001:approve",
+          "status": 401,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0001:approve",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002",
+          "status": 200,
+          "count": 3
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 409,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-link",
+          "status": 404,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 200,
+          "count": 27
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create",
+          "status": 500,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/projects/CMAB-PRJ-2026-0002/pm-create/retry",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/logout",
+          "status": 200,
+          "count": 5
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200,
+          "count": 3
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 403,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/refresh",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/logout",
+          "status": 204,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/oidc/backchannel-logout",
+          "status": 200,
+          "count": 2
+        }
+      ]
+    },
+    "cmc-phase2-sso-pm": {
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/sub-projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/templates",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/task-dependencies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/tasks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/users",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/finances",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/baselines",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/applications/mdm/launch",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/backchannel-logout",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/backchannel-logout",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/config",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 401
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/portal/login/start",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/login",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/callback",
+          "status": 303
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/templates",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/tasks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/task-dependencies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/sub-projects",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/users",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/finances",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/baselines",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200
+        }
+      ],
+      "counts": [
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/login",
+          "status": 303,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/callback",
+          "status": 303,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/projects",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/sub-projects",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/templates",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/task-dependencies",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/tasks",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/users",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/finances",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/baselines",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/applications/mdm/launch",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/auth/backchannel-logout",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/me",
+          "status": 401,
+          "count": 4
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/config",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "status": 401,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/auth/config",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/portal/login/start",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/portal/callback",
+          "status": 303,
+          "count": 1
+        }
+      ]
+    }
+  }
+}

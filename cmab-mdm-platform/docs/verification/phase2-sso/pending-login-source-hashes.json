@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-10-26T15:22:23.5871334Z",
+  "purpose": "MDM current-browser pending-login cancellation tested source snapshot",
+  "files": [
+    {
+      "path": "backend/app/domains/auth/oidc/service.py",
+      "sha256": "700e0f8b3b0253df0c42509ef7649dc09e217af7c1bf6f97e75db1936165f1e8"
+    },
+    {
+      "path": "backend/app/api/v1/oidc.py",
+      "sha256": "ea79ec609f6b4d3b75b9f117ab8832f4bf2ad220ad2bf7dc6bef7fefa7d05d4a"
+    },
+    {
+      "path": "backend/app/api/v1/auth.py",
+      "sha256": "ed556c32fd37f9c7e9e67d08700e6eb7d0fe534d6a89f47154c3b04c668f598a"
+    },
+    {
+      "path": "backend/tests/test_oidc_sessions.py",
+      "sha256": "63723abc38d5577ab97a3973be848fb97344570f9eceb7e14d40bca576d2763e"
+    }
+  ]
+}

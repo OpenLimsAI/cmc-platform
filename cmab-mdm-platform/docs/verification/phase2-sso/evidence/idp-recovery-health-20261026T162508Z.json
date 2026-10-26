@@ -1,0 +1,21 @@
+{
+  "checked_at_utc": "2026-10-26 16:27:12 UTC",
+  "read_only": true,
+  "container": "cmc-phase2-sso-casdoor",
+  "container_id": "2a41700653faa21550d9c1e3fe476e224f83cefd525ad1571415b64b6784cccb",
+  "image_id": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+  "root_restart_started_at": "2026-10-26T16:25:08.234695688Z",
+  "running": true,
+  "restarting": false,
+  "exit_code": 0,
+  "oom_killed": false,
+  "health": {
+    "container_local_discovery_http": 200,
+    "host_direct_trust_env_false_discovery_http": 200,
+    "mdm_internal_discovery_http": 200,
+    "issuer_matches": true
+  },
+  "runtime_mutation_performed": false,
+  "raw_logs_or_environment_read": false,
+  "conclusion": "Same IdP is healthy from all three paths. Prior PowerShell 502 alone cannot distinguish a transient startup response from client proxy behavior."
+}

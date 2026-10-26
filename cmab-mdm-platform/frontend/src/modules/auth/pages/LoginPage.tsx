@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Form, Input, Button, Card, Typography, message, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -6,29 +6,16 @@ import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { APP_VERSION } from '@/shared/version';
 import { touchActivity } from '@/shared/sessionGuard';
+import { oidcLoginPath } from '@/api/oidc';
+import { oidcErrorNotice, safeAuthReturnTo, shouldAutoStartOidc } from '@/shared/oidcPolicy';
+import { withBase } from '@/shared/base';
 
 // 被会话守卫踢回登录页时的说明（?reason=idle|expired）
 const REASON_NOTICE: Record<string, string> = {
   idle: '长时间未操作，已自动退出登录，请重新登录',
   expired: '登录已过期，请重新登录',
+  logout: '已退出本应用。再次登录统一身份需由您主动发起。',
 };
-
-// 登录成功后不该跳过去的页面：改密页会让人"改完又回到改密页"，登录页会自己套自己
-const NO_REDIRECT_BACK = ['/login', '/profile/password'];
-
-function safeRedirect(raw: string | null): string | null {
-  if (!raw) return null;
-  let path: string;
-  try {
-    path = decodeURIComponent(raw);
-  } catch {
-    return null;
-  }
-  // 只接受站内相对路径，挡掉 //evil.com 与绝对 URL
-  if (!path.startsWith('/') || path.startsWith('//')) return null;
-  if (NO_REDIRECT_BACK.some((p) => path.startsWith(p))) return null;
-  return path;
-}
 
 const { Title, Text } = Typography;
 
@@ -36,12 +23,30 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const oidcEnabled = useAuthStore((s) => s.oidcEnabled);
+  const nativeEnabled = useAuthStore((s) => s.nativeLoginEnabled);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const started = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const reasonNotice =
     searchParams.get('changed') === '1'
       ? '密码已修改成功，请用新密码登录'
       : (REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null);
+  const native = searchParams.get('native') === '1' || !oidcEnabled;
+  const oidcError = searchParams.get('oidc_error');
+  const reason = searchParams.get('reason');
+  const returnTo = safeAuthReturnTo(searchParams.get('redirect')) ?? '/';
+
+  useEffect(() => {
+    // Return/error/logout pages are deliberately stable: no redirect loop or
+    // automatic sign-in immediately after an explicit sign-out.
+    if (shouldAutoStartOidc(oidcEnabled, native, reason, oidcError) && !reasonNotice && !started.current) {
+      started.current = true;
+      setRedirecting(true);
+      window.location.assign(oidcLoginPath(returnTo));
+    }
+  }, [native, oidcEnabled, oidcError, reason, reasonNotice, returnTo]);
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -58,7 +63,7 @@ export function LoginPage() {
       }
       message.success(`欢迎回来，${result.user.full_name}`);
       // '/' 按权限落到仪表盘 / 用户管理 / 个人中心；脏 redirect（改密页/登录页/站外）一律忽略
-      navigate(safeRedirect(searchParams.get('redirect')) ?? '/');
+      navigate(returnTo);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       setErrorMessage(err.response?.data?.message || '登录失败');
@@ -88,12 +93,18 @@ export function LoginPage() {
 
       <Card style={{ width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
         <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>
-          账号登录
+          {native ? 'MDM 账号登录' : '统一身份登录'}
         </Title>
 
         {reasonNotice && !errorMessage && (
           <Alert type="info" message={reasonNotice} showIcon style={{ marginBottom: 16 }} />
         )}
+        {oidcError && <Alert type="error" showIcon message={oidcErrorNotice(oidcError)} style={{ marginBottom: 16 }} />}
+        {oidcEnabled && <>
+          <Alert type="info" showIcon message="使用 Casdoor 统一身份，业务权限仍由 MDM 管理；电子签名仍需 MDM 密码再次认证。" style={{ marginBottom: 16 }} />
+          <Button type="primary" block loading={redirecting} href={oidcLoginPath(returnTo)} style={{ marginBottom: 16 }}>使用 Casdoor 统一身份登录</Button>
+          {nativeEnabled && !native && <Button block href={withBase(`/login?native=1&redirect=${encodeURIComponent(returnTo)}`)} style={{ marginBottom: 16 }}>使用 MDM 原生密码恢复登录</Button>}
+        </>}
 
         {errorMessage && (
           <Alert
@@ -106,7 +117,7 @@ export function LoginPage() {
           />
         )}
 
-        <Form name="login" onFinish={onFinish} autoComplete="off" size="large" layout="vertical">
+        {native && nativeEnabled && <Form name="login" onFinish={onFinish} autoComplete="off" size="large" layout="vertical">
           <Form.Item
             name="username"
             label="工号"
@@ -128,7 +139,8 @@ export function LoginPage() {
           <div style={{ textAlign: 'center', color: '#8c8c8c', fontSize: 13 }}>
             忘记密码？请联系系统管理员
           </div>
-        </Form>
+        </Form>}
+        {native && !nativeEnabled && <Alert type="warning" message="此环境未启用原生密码登录，请使用统一身份或联系管理员。" />}
       </Card>
 
       <div style={{ marginTop: 32, color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>

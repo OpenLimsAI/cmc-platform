@@ -1,0 +1,478 @@
+{
+  "prepared_at_utc": "2026-10-26T16:50:52Z",
+  "execution_performed": false,
+  "containers": [
+    {
+      "id": "2a41700653faa21550d9c1e3fe476e224f83cefd525ad1571415b64b6784cccb",
+      "name": "cmc-phase2-sso-casdoor",
+      "image": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+      "created": "2026-10-26T15:55:40.791190262Z",
+      "started": "2026-10-26T16:25:08.234695688Z",
+      "running": true,
+      "labels": {
+        "MAINTAINER": "https://casdoor.org/",
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [],
+      "tmpfs": {
+        "/conf": "uid=1000,gid=1000,mode=0700",
+        "/runtime": "uid=1000,gid=1000,mode=0700"
+      },
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8018"
+          }
+        ]
+      }
+    },
+    {
+      "id": "27dcbac2d4b7f6f926308320ff1935ce6b121279763c98a46a87e02d9e61935f",
+      "name": "cmc-phase2-sso-casdoor-before-31544-20261026t155536z",
+      "image": "sha256:3a3cbf1df236ed709428814250e1d0cd6fb0cbb59fb8f029d9bf646ccfba6ca2",
+      "created": "2026-10-26T13:49:06.227315539Z",
+      "started": "2026-10-26T13:49:06.448613207Z",
+      "running": false,
+      "labels": {
+        "MAINTAINER": "https://casdoor.org/",
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [],
+      "tmpfs": {
+        "/conf": "uid=1000,gid=1000,mode=0700",
+        "/runtime": "uid=1000,gid=1000,mode=0700"
+      },
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8018"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "name": "cmc-phase2-sso-mdm",
+      "image": "sha256:36542786a7819e985307225a4b2005d7109a928919e550f28db8fa59267f7b1c",
+      "created": "2026-10-26T14:29:04.194405957Z",
+      "started": "2026-10-26T14:29:04.369652545Z",
+      "running": true,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [],
+      "tmpfs": null,
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18088"
+          }
+        ],
+        "8088/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5189"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6f15d8567cb718a9672e7c3f0a8e1086fa972743d129a8d7f4588d74b16bc020",
+      "name": "cmc-phase2-sso-mdm-web",
+      "image": "sha256:665c54a2f8c1e7c9932bf91ba1fd5b72b9947ed0e6538118948704defe06227f",
+      "created": "2026-10-26T16:34:52.120619456Z",
+      "started": "2026-10-26T16:34:52.266063565Z",
+      "running": true,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [],
+      "tmpfs": null,
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {
+        "5173/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5188"
+          }
+        ]
+      }
+    },
+    {
+      "id": "23f0d0361d47b7661c6d21e059d80431fbf35b36b45ba91dc5e72e20b59a4225",
+      "name": "cmc-phase2-sso-mdm-web-before-local-return-v2-20261026t163450z",
+      "image": "sha256:4dd87fe9c4ee05f90ee57e30475e6292df299168da3d9bc80453dd28b4baa898",
+      "created": "2026-10-26T15:23:04.207983035Z",
+      "started": "2026-10-26T15:23:04.325785769Z",
+      "running": false,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [],
+      "tmpfs": null,
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {
+        "5173/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5188"
+          }
+        ]
+      }
+    },
+    {
+      "id": "4721538a169b5a297e79c4d6b57e736b797403420707868d0d5a036aeadddc9d",
+      "name": "cmc-phase2-sso-mdm-web-before-logout-race-20261026t152301z",
+      "image": "sha256:18781c4bacc8b1a40c26e47b0a2d60d09283179dc8c705a87140c1eacc325af1",
+      "created": "2026-10-26T14:34:19.645570081Z",
+      "started": "2026-10-26T14:34:19.767093354Z",
+      "running": false,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [],
+      "tmpfs": null,
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {
+        "5173/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5188"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ff40c6e6aba514924fb5bf8c746504a7f40f9943c0575eceaf7feb36e548b0e8",
+      "name": "cmc-phase2-sso-pm",
+      "image": "sha256:cb2aee79a87023e7c22a9e3e5303c65a39ec4dbb2a0a84dd90e92eba87f29124",
+      "created": "2026-10-26T16:19:10.332411116Z",
+      "started": "2026-10-26T16:19:10.437315008Z",
+      "running": true,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [
+        {
+          "Destination": "/code/alembic",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/code/alembic.ini",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic.ini",
+          "Type": "bind"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "container:ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "ports": {}
+    },
+    {
+      "id": "3a8566786689d7f2e32a09e25c8d687d2e2676cc7e344122cc1c99a8f01fb73d",
+      "name": "cmc-phase2-sso-pm-before-final-auth-20261026t155923z",
+      "image": "sha256:4e4c7846d036a3682138cb83e6c164062731ec5a819f45e6822bc16cc2cf620d",
+      "created": "2026-10-26T15:19:25.359899596Z",
+      "started": "2026-10-26T15:19:25.455660037Z",
+      "running": false,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [
+        {
+          "Destination": "/code/alembic",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/code/alembic.ini",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic.ini",
+          "Type": "bind"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "container:ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "ports": {}
+    },
+    {
+      "id": "bc9d16bcfe518c3a47519eea2af9d9a37ab9572629bca01631c2e044f9ff00d3",
+      "name": "cmc-phase2-sso-pm-before-login-url-20261026t161857z",
+      "image": "sha256:91ed81bc7c0176d73284798a1e6b972757171f23110b9d46c9a71a95bf3e7b5f",
+      "created": "2026-10-26T15:59:37.975131885Z",
+      "started": "2026-10-26T15:59:38.072251677Z",
+      "running": false,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [
+        {
+          "Destination": "/code/alembic",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/code/alembic.ini",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic.ini",
+          "Type": "bind"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "container:ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "ports": {}
+    },
+    {
+      "id": "ad91ba44a5aee3634fcc84a3c8c8d68925eb394ecbc8039f77d228ce13170323",
+      "name": "cmc-phase2-sso-pm-before-status-20261026t151912z",
+      "image": "sha256:0b9a71a44aad877048c20ba43f424badf7db2abeb6b95a17abd53f1d98f3aa93",
+      "created": "2026-10-26T14:34:16.99070725Z",
+      "started": "2026-10-26T14:34:17.087412973Z",
+      "running": false,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [
+        {
+          "Destination": "/code/alembic",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/code/alembic.ini",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "C:\\Users\\HE LE\\Project\\openlims\\mb-pm\\backend\\alembic.ini",
+          "Type": "bind"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "container:ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "ports": {}
+    },
+    {
+      "id": "9a09a05bf554af0f0bd09a317575353094a1e402cc2d3e051124b276c5958da3",
+      "name": "cmc-phase2-sso-postgres",
+      "image": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+      "created": "2026-10-26T13:49:02.961709038Z",
+      "started": "2026-10-26T13:49:03.06202855Z",
+      "running": true,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [
+        {
+          "Destination": "/var/lib/postgresql/data",
+          "Mode": "",
+          "Propagation": "",
+          "RW": true,
+          "Source": "",
+          "Type": "tmpfs"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {}
+    },
+    {
+      "id": "e8bee3af50b4bca67a2161c90e13987d95d2e2c5873ead9c1a3e65e8fbd20209",
+      "name": "cmc-phase2-sso-redis",
+      "image": "sha256:4df5c34dc41256fc4ed293482cb34281e17d133077e9aa3c6a87fda60a356c65",
+      "created": "2026-10-26T13:49:05.569683939Z",
+      "started": "2026-10-26T13:49:05.726991999Z",
+      "running": true,
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "mounts": [
+        {
+          "Destination": "/data",
+          "Driver": "local",
+          "Mode": "",
+          "Name": "2c9f7cd9df7bc0c3b526808cbdea7b1b22fb71af6ebc83a4cf9c0981244567a9",
+          "Propagation": "",
+          "RW": true,
+          "Source": "/var/lib/docker/volumes/2c9f7cd9df7bc0c3b526808cbdea7b1b22fb71af6ebc83a4cf9c0981244567a9/_data",
+          "Type": "volume"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "cmc-phase2-sso-net",
+      "ports": {}
+    }
+  ],
+  "units": [
+    {
+      "id": "6eacdd16d8f7f8b1a972d39603fd5386ca9b746cdd7062af8e51f2b5a0e5973c",
+      "name": "cmc-mdm-phase2-unit-backend",
+      "image": "sha256:d082fe3a2676639e63108acd857fb3919561318fca33a1978362b45175bb7eb0",
+      "created": "2026-10-26T13:22:11.452658645Z",
+      "started": "2026-10-26T13:22:11.561485856Z",
+      "running": true,
+      "labels": {
+        "com.docker.compose.config-hash": "94960ba8c39dbcf0e771edd00ae352d4f6d0ad062f3ba7272bad10dd902e39f8",
+        "com.docker.compose.depends_on": "postgres:service_healthy:false,redis:service_healthy:false",
+        "com.docker.compose.image": "sha256:d082fe3a2676639e63108acd857fb3919561318fca33a1978362b45175bb7eb0",
+        "com.docker.compose.oneoff": "True",
+        "com.docker.compose.project": "mdm-phase2-unit",
+        "com.docker.compose.project.config_files": "<workspace>\\cmab-mdm-platform\\deploy\\docker-compose.phase1-test.yml",
+        "com.docker.compose.project.working_dir": "<workspace>\\cmab-mdm-platform\\deploy",
+        "com.docker.compose.service": "tests",
+        "com.docker.compose.slug": "3e7c75ba8c8129b1addae7c2804a44e006d7304e893e5c78f13cf79b2993b6c2",
+        "com.docker.compose.version": "5.6.1"
+      },
+      "mounts": [
+        {
+          "Destination": "/app/alembic",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "<workspace>\\cmab-mdm-platform\\backend\\alembic",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/app/app",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "<workspace>\\cmab-mdm-platform\\backend\\app",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/app/scripts",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "<workspace>\\cmab-mdm-platform\\backend\\scripts",
+          "Type": "bind"
+        },
+        {
+          "Destination": "/app/tests",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "<workspace>\\cmab-mdm-platform\\backend\\tests",
+          "Type": "bind"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "mdm-phase2-unit_default",
+      "ports": {}
+    },
+    {
+      "id": "a0f6ddb00c51a90959f9be6a9662bd5c5e499398f5da5af2a4d273ae834facda",
+      "name": "mdm-phase2-unit-postgres-1",
+      "image": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+      "created": "2026-10-26T13:19:21.72877019Z",
+      "started": "2026-10-26T13:19:22.330492862Z",
+      "running": true,
+      "labels": {
+        "com.docker.compose.config-hash": "73e6b8c4e58dd607419b575567d74d006f9fa313cc75a72c04495a40f082abbb",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "",
+        "com.docker.compose.image": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "mdm-phase2-unit",
+        "com.docker.compose.project.config_files": "<workspace>\\cmab-mdm-platform\\deploy\\docker-compose.phase1-test.yml",
+        "com.docker.compose.project.working_dir": "<workspace>\\cmab-mdm-platform\\deploy",
+        "com.docker.compose.service": "postgres",
+        "com.docker.compose.version": "5.6.1"
+      },
+      "mounts": [
+        {
+          "Destination": "/docker-entrypoint-initdb.d/phase1.sql",
+          "Mode": "ro",
+          "Propagation": "rprivate",
+          "RW": false,
+          "Source": "<workspace>\\cmab-mdm-platform\\deploy\\test\\init.sql",
+          "Type": "bind"
+        }
+      ],
+      "tmpfs": {
+        "/var/lib/postgresql/data": ""
+      },
+      "network_mode": "mdm-phase2-unit_default",
+      "ports": {}
+    },
+    {
+      "id": "ae09b879f405388e83ef58f8cec8026beadacb89c48dfba4d21d51259602d80d",
+      "name": "mdm-phase2-unit-redis-1",
+      "image": "sha256:4df5c34dc41256fc4ed293482cb34281e17d133077e9aa3c6a87fda60a356c65",
+      "created": "2026-10-26T13:19:21.727165486Z",
+      "started": "2026-10-26T13:19:21.983262039Z",
+      "running": true,
+      "labels": {
+        "com.docker.compose.config-hash": "6b504b1a9260a08416bb489f7d8ec72f278aa2505b060c4fbafd92e78c147496",
+        "com.docker.compose.container-number": "1",
+        "com.docker.compose.depends_on": "",
+        "com.docker.compose.image": "sha256:4df5c34dc41256fc4ed293482cb34281e17d133077e9aa3c6a87fda60a356c65",
+        "com.docker.compose.oneoff": "False",
+        "com.docker.compose.project": "mdm-phase2-unit",
+        "com.docker.compose.project.config_files": "<workspace>\\cmab-mdm-platform\\deploy\\docker-compose.phase1-test.yml",
+        "com.docker.compose.project.working_dir": "<workspace>\\cmab-mdm-platform\\deploy",
+        "com.docker.compose.service": "redis",
+        "com.docker.compose.version": "5.6.1"
+      },
+      "mounts": [
+        {
+          "Destination": "/data",
+          "Driver": "local",
+          "Mode": "",
+          "Name": "eb41fa12d37a7a6309c4ca25077d2cfa62ecb8712aebd58141a71117799ea937",
+          "Propagation": "",
+          "RW": true,
+          "Source": "/var/lib/docker/volumes/eb41fa12d37a7a6309c4ca25077d2cfa62ecb8712aebd58141a71117799ea937/_data",
+          "Type": "volume"
+        }
+      ],
+      "tmpfs": null,
+      "network_mode": "mdm-phase2-unit_default",
+      "ports": {}
+    }
+  ],
+  "network": {
+    "id": "2ef0eff8478475cf8a666157b19774850a5c58236cd201f5fce4538ec7a1e7e7",
+    "created": "2026-10-26T13:49:02.744772319Z",
+    "labels": {
+      "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+    }
+  },
+  "unit_compose_source": "<workspace>\\cmab-mdm-platform\\deploy\\docker-compose.phase1-test.yml",
+  "unit_compose_source_sha256": "125e47f1be509b0db20401941c75a7c1d061f2ebc68841c55004876688e916de",
+  "irreversible_effect": "Stopping the original E2E Postgres destroys all three approved new synthetic test databases in tmpfs; unit tmpfs databases may also be lost.",
+  "preserved": "All images, anonymous/named volumes, host files, phase1, unrelated baseline/kind/managed-agent resources, and unit network",
+  "credentials": "No original secret/token/Env values are read or saved; Docker rm is used without -v.",
+  "stop_order": "frontend, PM and PM backups, MDM, IdP and IdP backup, Redis, unit backend/Redis/PG, E2E PG last",
+  "preconditions": [
+    "Parent confirms evidence complete",
+    "Five synthetic users disabled with management logout receipts",
+    "Final allowlisted snapshots/source hashes/audit stored",
+    "IDs/labels/times/networks revalidated"
+  ]
+}

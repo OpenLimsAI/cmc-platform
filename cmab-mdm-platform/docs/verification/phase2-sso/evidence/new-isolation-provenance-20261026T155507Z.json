@@ -1,0 +1,102 @@
+{
+  "checked_at_utc": "2026-10-26T15:55:07Z",
+  "read_only": true,
+  "resources": [
+    {
+      "name": "/cmc-phase2-sso-postgres",
+      "id": "9a09a05bf554af0f0bd09a317575353094a1e402cc2d3e051124b276c5958da3",
+      "created_at": "2026-10-26T13:49:02.961709038Z",
+      "image_id": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "network": "cmc-phase2-sso-net",
+      "published_ports": {},
+      "mounts": [
+        {
+          "type": "tmpfs",
+          "destination": "/var/lib/postgresql/data"
+        }
+      ],
+      "running": true
+    },
+    {
+      "name": "/cmc-phase2-sso-redis",
+      "id": "e8bee3af50b4bca67a2161c90e13987d95d2e2c5873ead9c1a3e65e8fbd20209",
+      "created_at": "2026-10-26T13:49:05.569683939Z",
+      "image_id": "sha256:4df5c34dc41256fc4ed293482cb34281e17d133077e9aa3c6a87fda60a356c65",
+      "labels": {
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "network": "cmc-phase2-sso-net",
+      "published_ports": {},
+      "mounts": [
+        {
+          "type": "volume",
+          "destination": "/data"
+        }
+      ],
+      "running": true
+    },
+    {
+      "name": "/cmc-phase2-sso-casdoor",
+      "id": "27dcbac2d4b7f6f926308320ff1935ce6b121279763c98a46a87e02d9e61935f",
+      "created_at": "2026-10-26T13:49:06.227315539Z",
+      "image_id": "sha256:3a3cbf1df236ed709428814250e1d0cd6fb0cbb59fb8f029d9bf646ccfba6ca2",
+      "labels": {
+        "MAINTAINER": "https://casdoor.org/",
+        "com.openlims.e2e.phase": "mdm-casdoor-phase2"
+      },
+      "network": "cmc-phase2-sso-net",
+      "published_ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8018"
+          }
+        ]
+      },
+      "mounts": [],
+      "running": true
+    }
+  ],
+  "actual_database_counts": {
+    "database": "casdoor_phase2_sso",
+    "total_user_count": 6,
+    "approved_user_count": 6,
+    "total_application_count": 5,
+    "integration_client_count": 4,
+    "initialization_app_count": 1,
+    "organization_owners": [
+      {
+        "name": "casdoor_phase2_sso",
+        "owner": "phase2_iam"
+      },
+      {
+        "name": "mdm_phase2_sso",
+        "owner": "cmab_app"
+      },
+      {
+        "name": "pm_phase2_sso",
+        "owner": "phase2_pm"
+      }
+    ]
+  },
+  "postgres_system_identifier": "7700973184583266339",
+  "same_new_postgres_as_initial_empty_database_verification": true,
+  "initial_empty_database_verification_file": "identity-verification.json",
+  "initial_empty_database_checked_at_utc": "2026-10-26T13:54:20Z",
+  "initial_empty_business_tables": {
+    "mdm_phase2_sso": 0,
+    "pm_phase2_sso": 0
+  },
+  "creation_script": "prepare_identity.py",
+  "creation_script_sha256": "68264e24771c7bfc333e1e1bbecb88741d8445dc5636709ec55d4c1c831467c1",
+  "explicit_create_database_source_statements": [
+    "CREATE DATABASE mdm_phase2_sso OWNER ",
+    "CREATE DATABASE pm_phase2_sso OWNER ",
+    "CREATE DATABASE casdoor_phase2_sso OWNER "
+  ],
+  "basis": "Actual new resource creation timestamps and ownership labels, private tmpfs PG with no host ports, unchanged system identifier from initial empty verification, and actual full-user/full-client allowlist counts; not names alone",
+  "secret_or_token_values_selected": false
+}

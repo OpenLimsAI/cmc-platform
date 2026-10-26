@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from typing import Any
 
@@ -27,6 +28,18 @@ from app.shared.audit_context import (
     audit_user_id,
     audit_username,
 )
+
+
+class OIDCCallbackFilter(logging.Filter):
+    """Authorization codes/state must never reach Uvicorn's request-line log."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple) and len(record.args) >= 3:
+            path = record.args[2]
+            if isinstance(path, str) and "/auth/oidc/" in path:
+                values = list(record.args)
+                values[2] = path.split("?", 1)[0]
+                record.args = tuple(values)
+        return True
 
 
 def _audit_patcher(record: dict[str, Any]) -> None:
@@ -69,6 +82,9 @@ def _json_sink(message: Any) -> None:
 def setup_logging() -> None:
     """初始化 loguru：清掉默认 handler，按 APP_LOG_FORMAT 装新 sink"""
     logger.remove()
+    access_logger = logging.getLogger("uvicorn.access")
+    if not any(isinstance(item, OIDCCallbackFilter) for item in access_logger.filters):
+        access_logger.addFilter(OIDCCallbackFilter())
 
     log_format = (settings.APP_LOG_FORMAT or "json").lower()
     level = (settings.APP_LOG_LEVEL or "INFO").upper()

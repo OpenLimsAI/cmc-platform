@@ -1,6 +1,8 @@
 """
 /api/v1/auth 路由
 """
+from urllib.parse import urlsplit
+
 from fastapi import APIRouter, Cookie, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +31,16 @@ REFRESH_COOKIE_NAME = "cmab_refresh_token"
 REFRESH_COOKIE_PATH = "/api/v1/auth"
 
 
+def _refresh_cookie_path():
+    if settings.MDM_OIDC_ENABLED and settings.MDM_PUBLIC_URL:
+        try:
+            return urlsplit(settings.MDM_PUBLIC_URL).path.rstrip("/") + REFRESH_COOKIE_PATH
+        except ValueError:
+            # A malformed optional SSO URL must not block explicit password recovery.
+            return REFRESH_COOKIE_PATH
+    return REFRESH_COOKIE_PATH
+
+
 def _set_refresh_cookie(response: Response, token: str, policy: SessionPolicy) -> None:
     """写入 HttpOnly Cookie。是否带 Secure 由 settings.cookie_secure 决定（内网 HTTP 须为 false）。
 
@@ -37,7 +49,7 @@ def _set_refresh_cookie(response: Response, token: str, policy: SessionPolicy) -
         key=REFRESH_COOKIE_NAME,
         value=token,
         max_age=policy.absolute_max_hours * 3600,
-        path=REFRESH_COOKIE_PATH,
+        path=_refresh_cookie_path(),
         httponly=True,
         secure=settings.cookie_secure,
         samesite="strict",
@@ -45,10 +57,8 @@ def _set_refresh_cookie(response: Response, token: str, policy: SessionPolicy) -
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(
-        key=REFRESH_COOKIE_NAME,
-        path=REFRESH_COOKIE_PATH,
-    )
+    for path in {REFRESH_COOKIE_PATH, _refresh_cookie_path()}:
+        response.delete_cookie(key=REFRESH_COOKIE_NAME, path=path)
 
 
 @router.post("/login", summary="用户登录")
@@ -59,6 +69,24 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    if not settings.MDM_NATIVE_LOGIN_ENABLED:
+        from app.core.exceptions import PermissionDeniedError
+        raise PermissionDeniedError("原生登录未启用，请使用统一身份登录")
+    oidc_config = None
+    if settings.MDM_OIDC_ENABLED:
+        from app.domains.auth.oidc.config import configured
+        from app.domains.auth.oidc.protocol import OIDCError
+        from app.domains.auth.oidc.service import require_origin
+        try:
+            oidc_config = configured()
+        except OIDCError:
+            # Explicit password recovery is independent of OIDC completeness.
+            origin = request.headers.get("origin")
+            if origin and origin not in settings.cors_origins_list:
+                from app.core.exceptions import PermissionDeniedError
+                raise PermissionDeniedError("请求来源不匹配") from None
+        else:
+            require_origin(request, oidc_config, allow_missing=True)
     service = AuthService(db)
     result, refresh_token, policy = await service.login(
         username=payload.username,
@@ -67,6 +95,22 @@ async def login(
         ua=getattr(request.state, "user_agent", None),
     )
     _set_refresh_cookie(response, refresh_token, policy)
+    from app.domains.auth.oidc.service import (
+        LOGIN_COOKIE,
+        SESSION_COOKIE,
+        cancel_login,
+        revoke_session,
+    )
+    if settings.MDM_OIDC_ENABLED or request.cookies.get(LOGIN_COOKIE) or request.cookies.get(SESSION_COOKIE):
+        from app.api.v1.oidc import clear_login_cookie, clear_session_cookie
+        await cancel_login(db, request.cookies.get(LOGIN_COOKIE))
+        await revoke_session(db, request.cookies.get(SESSION_COOKIE))
+        if oidc_config:
+            clear_session_cookie(response, oidc_config)
+            clear_login_cookie(response, oidc_config)
+        else:
+            response.delete_cookie(SESSION_COOKIE, path="/mdm/")
+            response.delete_cookie(LOGIN_COOKIE, path="/mdm/")
     return success(
         data=result.model_dump(),
         message="登录成功",

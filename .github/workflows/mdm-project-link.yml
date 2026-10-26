@@ -1,4 +1,4 @@
-name: MDM project link
+name: MDM identity and project integration
 on:
   pull_request:
     branches: [main]

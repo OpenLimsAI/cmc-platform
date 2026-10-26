@@ -1,9 +1,12 @@
-import { Layout, Avatar, Dropdown, Space, message, theme } from 'antd';
+import { Layout, Avatar, Dropdown, Space, message, theme, Modal, Tag } from 'antd';
 import { UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/auth';
 import { GlobalSearchBox } from '@/shared/components/GlobalSearchBox';
+import { oidcApi } from '@/api/oidc';
+import { completeOidcLogout } from '@/shared/oidcPolicy';
+import { withBase } from '@/shared/base';
 
 const { Header: AntHeader } = Layout;
 
@@ -11,16 +14,36 @@ export function Header() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const authMode = useAuthStore((s) => s.authMode);
   const { token } = theme.useToken();
 
-  const handleLogout = async () => {
+  const handleLogout = async (global = false) => {
+    const intentEpoch = useAuthStore.getState().beginLogout();
+    if (authMode === 'oidc') {
+      try {
+        const result = await oidcApi.logout(global);
+        if (useAuthStore.getState().authEpoch !== intentEpoch) return;
+        const handled = completeOidcLogout(result, global, new URL(withBase('/login?reason=logout'), window.location.origin).href, {
+          clearLocal: () => logout('logout'),
+          navigateLocal: () => navigate('/login?reason=logout'),
+          navigateProvider: (url) => window.location.assign(url),
+          warn: (text, acknowledge) => { Modal.warning({ title: global ? '统一身份注销结果提示' : '注销结果提示', content: text, keyboard: false, maskClosable: false, okText: '已知晓，继续退出', onOk: () => { if (useAuthStore.getState().authEpoch === intentEpoch) acknowledge(); } }); },
+        });
+        if (!handled) { useAuthStore.getState().cancelLogout(intentEpoch); message.error('无法确认 MDM 服务端注销，请重试。'); }
+      } catch {
+        useAuthStore.getState().cancelLogout(intentEpoch);
+        message.error('无法确认服务端注销，请重试。不会把清除前端状态视为统一退出。');
+      }
+      return;
+    }
     try {
       await authApi.logout();
     } catch {
       // 即使后端报错也要本地登出
     }
-    logout();
-    navigate('/login');
+    if (useAuthStore.getState().authEpoch !== intentEpoch) return;
+    logout('logout');
+    navigate('/login?reason=logout');
   };
 
   // V1.1 §3.2.3：用户菜单四项（个人中心 / 偏好设置 / 修改密码 / 退出）
@@ -49,9 +72,11 @@ export function Header() {
       {
         key: 'logout',
         icon: <LogoutOutlined />,
-        label: '退出登录',
-        onClick: handleLogout,
+        label: authMode === 'oidc' ? '仅退出 MDM' : '退出登录',
+        onClick: () => { void handleLogout(); },
       },
+      ...(authMode === 'oidc' ? [{ key: 'logout-global', icon: <LogoutOutlined />, label: '退出统一身份及各应用',
+        onClick: () => Modal.confirm({ title: '退出统一身份及已接入应用', content: '将注销 Casdoor，并通过受验证的回调令 MDM、PM、门户会话失效。原生密码登录和未接入应用不属于此统一注销范围。', okText: '统一退出', cancelText: '取消', onOk: () => handleLogout(true) }) }] : []),
     ],
   };
 
@@ -85,7 +110,8 @@ export function Header() {
 
       <Space size="large">
         <BellOutlined style={{ fontSize: 18, color: token.colorTextSecondary, cursor: 'pointer' }} />
-        <Dropdown menu={userMenu} placement="bottomRight">
+        <Tag>{authMode === 'oidc' ? 'Casdoor 登录' : '原生登录'}</Tag>
+        <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
           <Space style={{ cursor: 'pointer' }}>
             <Avatar size="small" icon={<UserOutlined />} style={{ background: token.colorPrimary }} />
             <span style={{ color: token.colorText }}>{user?.full_name || user?.username}</span>
