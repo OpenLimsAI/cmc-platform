@@ -1,0 +1,85 @@
+{
+ "cross_references": [],
+ "organism": "Homo sapiens",
+ "pref_name": "Receptor tyrosine-protein kinase erbB-2",
+ "species_group_flag": false,
+ "target_chembl_id": "CHEMBL1824",
+ "target_type": "SINGLE PROTEIN",
+ "tax_id": 9606,
+ "target_components": [
+  {
+   "accession": "P04626",
+   "component_type": "PROTEIN",
+   "component_description": "Receptor tyrosine-protein kinase erbB-2",
+   "relationship": "SINGLE PROTEIN",
+   "target_component_synonyms": [
+    {
+     "component_synonym": "CD_antigen=CD340",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "ERBB2",
+     "syn_type": "GENE_SYMBOL"
+    },
+    {
+     "component_synonym": "Metastatic lymph node gene 19 protein",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "MLN 19",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "p185erbB2",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "Proto-oncogene c-ErbB-2",
+     "syn_type": "UNIPROT"
+    }
+   ],
+   "target_component_xrefs": [
+    {
+     "xref_id": "HGNC:3430",
+     "xref_name": "ERBB2",
+     "xref_src_db": "HGNC"
+    },
+    {
+     "xref_id": "B2RZG3",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "B4DHN3",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "P04626",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q14256",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q6LDV1",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q9UMK4",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "X5D2V5",
+     "xref_name": "Receptor tyrosine-protein kinase erbB-2",
+     "xref_src_db": "UniProt"
+    }
+   ]
+  }
+ ]
+}

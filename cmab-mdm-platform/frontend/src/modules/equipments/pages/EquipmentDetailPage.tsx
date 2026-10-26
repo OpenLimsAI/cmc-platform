@@ -1,0 +1,208 @@
+import { useState } from 'react';
+import {
+  Breadcrumb,
+  Button,
+  Card,
+  Descriptions,
+  Input,
+  Modal,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { equipmentsApi } from '@/api/equipments';
+import { TimeDisplay } from '@/shared/components/TimeDisplay';
+import { PermissionGuard } from '@/shared/components/PermissionGuard';
+import {
+  EQUIPMENT_CATEGORY_OPTIONS,
+  EQUIPMENT_MASTER_STATUS_OPTIONS,
+  EQUIPMENT_STATUS_OPTIONS,
+  IT_CATEGORY,
+  WORKSTATION_FIELDS,
+  criticalityDef,
+} from '../constants';
+
+const { Title, Text } = Typography;
+
+export function EquipmentDetailPage() {
+  const { code = '' } = useParams<{ code: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const { data: eq, isLoading } = useQuery({
+    queryKey: ['equipment', code],
+    queryFn: () => equipmentsApi.get(code),
+    enabled: !!code,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => equipmentsApi.delete(code, reason),
+    onSuccess: () => {
+      message.success('设备已删除（软删除，审计可追溯）');
+      queryClient.invalidateQueries({ queryKey: ['equipments'] });
+      navigate('/equipments');
+    },
+  });
+
+  if (isLoading || !eq) {
+    return <Spin style={{ display: 'block', margin: '80px auto' }} />;
+  }
+
+  const categoryDef = EQUIPMENT_CATEGORY_OPTIONS.find((o) => o.value === eq.category);
+  const masterStatusDef = EQUIPMENT_MASTER_STATUS_OPTIONS.find((o) => o.value === eq.status);
+  const statusDef = EQUIPMENT_STATUS_OPTIONS.find((o) => o.value === eq.equipment_status);
+  const critDef = criticalityDef(eq.criticality);
+
+  return (
+    <div>
+      <Breadcrumb
+        style={{ marginBottom: 12 }}
+        items={[
+          { title: <Link to="/equipments">设备</Link> },
+          { title: eq.equipment_code },
+        ]}
+      />
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              {eq.equipment_code} — {eq.equipment_name}{' '}
+              <Tag color={categoryDef?.color}>{eq.category}</Tag>
+              <Tag color={statusDef?.color}>{statusDef?.label ?? eq.equipment_status}</Tag>
+              {eq.criticality && (
+                <Tag color={critDef?.color}>{critDef?.label ?? eq.criticality}</Tag>
+              )}
+            </Title>
+            <Text type="secondary">
+              全公司设备清单及设备状态由设备部维护；校准由计量专员、验证由验证部平台管理
+            </Text>
+          </div>
+          <Space>
+            <PermissionGuard permission="equipment:update">
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => navigate(`/equipments/${encodeURIComponent(code)}/edit`)}
+              >
+                编辑
+              </Button>
+              <Button danger icon={<DeleteOutlined />} onClick={() => setDeleteOpen(true)}>
+                删除
+              </Button>
+            </PermissionGuard>
+          </Space>
+        </div>
+      </Card>
+
+      <Card>
+        <Descriptions bordered size="small" column={2}>
+          <Descriptions.Item label="设备ID">{eq.equipment_code}</Descriptions.Item>
+          <Descriptions.Item label="设备分类">{eq.category}</Descriptions.Item>
+          <Descriptions.Item label="主数据状态">
+            <Tag color={masterStatusDef?.color}>{masterStatusDef?.label ?? eq.status}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="设备状态">
+            <Tag color={statusDef?.color}>{statusDef?.label ?? eq.equipment_status}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="设备编号">{eq.equipment_no ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="固资编号">{eq.fixed_asset_no ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="设备名称（中文）">{eq.equipment_name}</Descriptions.Item>
+          <Descriptions.Item label="设备名称（英文）">{eq.equipment_name_en ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="别名/曾用名">{eq.alias ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="型号规格">{eq.model ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="生产商">{eq.manufacturer ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="额定功率">{eq.rated_power ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="总重">
+            {eq.total_weight == null ? '—' : `${eq.total_weight} kg`}
+          </Descriptions.Item>
+          <Descriptions.Item label="产地">{eq.origin ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="序列号">{eq.serial_no ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="供应商">{eq.supplier ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="使用部门">{eq.department ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="存放位置">
+            {[eq.site, eq.room].filter(Boolean).join(' · ') || '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="设备分级">
+            {eq.criticality ? (
+              <Tag color={critDef?.color}>{critDef?.label ?? eq.criticality}</Tag>
+            ) : (
+              '—'
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="分级依据">{eq.criticality_basis ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="首次启用日期">{eq.commission_date ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="出厂日期">{eq.manufacture_date ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="资产价值(元)">{eq.asset_value ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="创建时间">
+            <TimeDisplay value={eq.created_at} />
+          </Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+            <TimeDisplay value={eq.updated_at} />
+          </Descriptions.Item>
+          <Descriptions.Item label="附带专用工作站">
+            {eq.category === IT_CATEGORY ? '—（设备本身即电脑）' : eq.has_workstation ? '是' : '否'}
+          </Descriptions.Item>
+          <Descriptions.Item label="主要性能参数描述" span={2}>
+            {eq.description ?? '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="备注" span={2}>
+            {eq.notes ?? '—'}
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+
+      {(() => {
+        const isIT = eq.category === IT_CATEGORY;
+        if (!isIT && !eq.has_workstation) return null;
+        const ws = eq.workstation_info ?? {};
+        const fields = WORKSTATION_FIELDS.filter((f) => (isIT ? f.group === 'spec' : true));
+        return (
+          <Card
+            title={isIT ? '本机硬件 / 系统配置' : '专用工作站配置'}
+            style={{ marginTop: 16 }}
+          >
+            <Descriptions bordered size="small" column={2}>
+              {fields.map((f) => (
+                <Descriptions.Item key={f.key} label={f.label}>
+                  {(ws as Record<string, string | null | undefined>)[f.key] ?? '—'}
+                </Descriptions.Item>
+              ))}
+            </Descriptions>
+          </Card>
+        );
+      })()}
+
+      <Modal
+        open={deleteOpen}
+        title={`删除设备: ${eq.equipment_code}`}
+        onCancel={() => setDeleteOpen(false)}
+        onOk={() => {
+          if (reason.trim().length < 5) {
+            message.warning('请填写删除原因（至少 5 个字符）');
+            return;
+          }
+          deleteMutation.mutate();
+        }}
+        confirmLoading={deleteMutation.isPending}
+        okButtonProps={{ danger: true }}
+        okText="确认删除"
+      >
+        <p>软删除：记录保留并可审计追溯。下游 LabOps 的领用、维护和维修记录不受影响。</p>
+        <Input.TextArea
+          rows={2}
+          placeholder="删除原因（必填，≥5 字符）"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          maxLength={2000}
+        />
+      </Modal>
+    </div>
+  );
+}

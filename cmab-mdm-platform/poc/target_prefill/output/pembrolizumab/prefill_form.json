@@ -1,0 +1,369 @@
+{
+  "_note": "预填表单：所有字段供人工审核；不自动落库。target_code=<NEW:...> 表示待编码服务分配。",
+  "molecule": {
+    "chembl_id": "CHEMBL3137343",
+    "pref_name": "PEMBROLIZUMAB",
+    "molecule_type": "Antibody",
+    "max_phase": "4.0",
+    "first_approval": 2014,
+    "usan_stem": "-mab; -mab",
+    "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+    "synonyms": [
+      [
+        "Pembrolizumab",
+        "ATC"
+      ],
+      [
+        "Pembrolizumab",
+        "BNF"
+      ],
+      [
+        "Pembrolizumab",
+        "EMA"
+      ],
+      [
+        "Pembrolizumab",
+        "FDA"
+      ],
+      [
+        "Pembrolizumab",
+        "INN"
+      ],
+      [
+        "Pembrolizumab",
+        "INN_FRENCH"
+      ],
+      [
+        "Pembrolizumab",
+        "INN_SPANISH"
+      ],
+      [
+        "Pembrolizumab",
+        "JAN"
+      ],
+      [
+        "Pembrolizumab",
+        "MERCK_INDEX"
+      ],
+      [
+        "Pembrolizumab",
+        "OTHER"
+      ],
+      [
+        "MK-3475",
+        "RESEARCH_CODE"
+      ],
+      [
+        "PEMBROLIZUMAB COMPONENT OF KEYLYNK-010",
+        "RESEARCH_CODE"
+      ],
+      [
+        "SCH-900475",
+        "RESEARCH_CODE"
+      ],
+      [
+        "Keytruda",
+        "TRADE_NAME"
+      ],
+      [
+        "Pembrolizumab component of mk 7684a",
+        "TRADE_NAME"
+      ],
+      [
+        "Pembrolizumab component of mk-1308a",
+        "TRADE_NAME"
+      ],
+      [
+        "Lambrolizumab",
+        "USAN"
+      ],
+      [
+        "Pembrolizumab",
+        "USAN"
+      ]
+    ],
+    "research_codes": [
+      "MK-3475",
+      "PEMBROLIZUMAB COMPONENT OF KEYLYNK-010",
+      "SCH-900475"
+    ],
+    "trade_names": [
+      "Keytruda",
+      "Pembrolizumab component of mk 7684a",
+      "Pembrolizumab component of mk-1308a"
+    ],
+    "molecule_hierarchy": {
+      "active_chembl_id": "CHEMBL3137343",
+      "molecule_chembl_id": "CHEMBL3137343",
+      "parent_chembl_id": "CHEMBL3137343"
+    },
+    "biotherapeutic": {
+      "helm_notation": null,
+      "description": "Pembrolizumab (humanized mab)",
+      "biocomponents": [
+        {
+          "component_id": 30039,
+          "component_type": "Protein",
+          "description": "Light chain",
+          "organism": null,
+          "sequence_len": 218
+        },
+        {
+          "component_id": 30038,
+          "component_type": "Protein",
+          "description": "Heavy chain",
+          "organism": null,
+          "sequence_len": 447
+        }
+      ]
+    },
+    "cross_references": [
+      [
+        "DailyMed",
+        "pembrolizumab"
+      ],
+      [
+        "EMA",
+        "human/EPAR/keytruda"
+      ]
+    ],
+    "atc_classifications": [
+      "L01FF02"
+    ],
+    "raw_refs": {
+      "chembl_molecule_raw_file": "output/pembrolizumab/01_chembl_molecule_search.json",
+      "fetched_at": "2026-08-17T13:30:58+00:00"
+    }
+  },
+  "targets_new": [
+    {
+      "target_code": "<NEW:Q15116>",
+      "target_name": "Programmed cell death protein 1",
+      "uniprot_id": "Q15116",
+      "target_type": "表面抗原",
+      "target_type_reason": "UniProt proteinDescription.cdAntigenNames=['CD279']",
+      "target_type_enum": [
+        "受体",
+        "配体·细胞因子",
+        "表面抗原",
+        "酶",
+        "其他"
+      ],
+      "target_location": "膜型",
+      "target_location_reason": "UniProt 定位含 membrane：Cell membrane [Single-pass type I membrane protein] | Cell membrane | Membrane",
+      "target_location_enum": [
+        "膜型",
+        "可溶型",
+        "两者都有",
+        "胞内"
+      ],
+      "gene_symbol": "PDCD1",
+      "organism": "Homo sapiens",
+      "aliases": [
+        "Protein PD-1",
+        "hPD-1"
+      ],
+      "chembl_target_id": "CHEMBL3307223",
+      "chembl_target_pref_name": "Programmed cell death protein 1",
+      "chembl_target_type": "SINGLE PROTEIN",
+      "uniprot_extract": {
+        "uniprot_id": "Q15116",
+        "uniprot_entry_name": "PDCD1_HUMAN",
+        "entry_type": "UniProtKB reviewed (Swiss-Prot)",
+        "secondary_accessions": [
+          "O00517",
+          "Q8IX89"
+        ],
+        "recommended_name": "Programmed cell death protein 1",
+        "short_names": [
+          "Protein PD-1",
+          "hPD-1"
+        ],
+        "alternative_names": [],
+        "gene_symbol": "PDCD1",
+        "gene_synonyms": [
+          "PD1"
+        ],
+        "organism": "Homo sapiens",
+        "tax_id": 9606,
+        "sequence_length": 288,
+        "mol_weight_da": 31647,
+        "function_text": "Inhibitory receptor on antigen activated T-cells that plays a critical role in induction and maintenance of immune tolerance to self (PubMed:21276005, PubMed:31754127, PubMed:32184441, PubMed:37208329). Delivers inhibitory signals upon binding to ligands CD274/PDCD1L1 and CD273/PDCD1LG2 (PubMed:21276005, PubMed:26602187). Following T-cell receptor (TCR) engagement, PDCD1 associates with TCR-CD3 in the immunological synapse and directly inhibits T-cell activation (PubMed:32184441). Suppresses T-cell activation through the recruitment of PTPN11/SHP-2: following ligand-binding, PDCD1 is phosphorylated within the ITSM motif, leading to the recruitment of the protein tyrosine phosphatase PTPN11/SHP-2 that mediates dephosphorylation of key TCR proximal signaling molecules, such as ZAP70, PRKCQ/PKCtheta and CD247/CD3zeta (PubMed:32184441)",
+        "keywords": [
+          [
+            "Technical term",
+            "3D-structure"
+          ],
+          [
+            "Biological process",
+            "Adaptive immunity"
+          ],
+          [
+            "Biological process",
+            "Apoptosis"
+          ],
+          [
+            "Cellular component",
+            "Cell membrane"
+          ],
+          [
+            "PTM",
+            "Disulfide bond"
+          ],
+          [
+            "PTM",
+            "Glycoprotein"
+          ],
+          [
+            "Biological process",
+            "Immunity"
+          ],
+          [
+            "Domain",
+            "Immunoglobulin domain"
+          ],
+          [
+            "PTM",
+            "Isopeptide bond"
+          ],
+          [
+            "Cellular component",
+            "Membrane"
+          ],
+          [
+            "PTM",
+            "Phosphoprotein"
+          ],
+          [
+            "Technical term",
+            "Proteomics identification"
+          ],
+          [
+            "Technical term",
+            "Reference proteome"
+          ],
+          [
+            "Domain",
+            "Signal"
+          ],
+          [
+            "Domain",
+            "Transmembrane"
+          ],
+          [
+            "Domain",
+            "Transmembrane helix"
+          ],
+          [
+            "PTM",
+            "Ubl conjugation"
+          ]
+        ],
+        "domains_and_regions": [
+          {
+            "type": "Signal",
+            "description": "",
+            "start": 1,
+            "end": 24
+          },
+          {
+            "type": "Chain",
+            "description": "Programmed cell death protein 1",
+            "start": 25,
+            "end": 288
+          },
+          {
+            "type": "Topological domain",
+            "description": "Extracellular",
+            "start": 25,
+            "end": 170
+          },
+          {
+            "type": "Transmembrane",
+            "description": "Helical",
+            "start": 171,
+            "end": 191
+          },
+          {
+            "type": "Topological domain",
+            "description": "Cytoplasmic",
+            "start": 192,
+            "end": 288
+          },
+          {
+            "type": "Domain",
+            "description": "Ig-like V-type",
+            "start": 35,
+            "end": 145
+          },
+          {
+            "type": "Region",
+            "description": "Nivolumab binding",
+            "start": 25,
+            "end": 34
+          },
+          {
+            "type": "Region",
+            "description": "Interaction with CD274/PDCD1L1",
+            "start": 70,
+            "end": 77
+          },
+          {
+            "type": "Region",
+            "description": "Pembrolizumab binding",
+            "start": 74,
+            "end": 99
+          },
+          {
+            "type": "Region",
+            "description": "Disordered",
+            "start": 254,
+            "end": 288
+          }
+        ],
+        "entry_audit": {
+          "firstPublicDate": "1997-11-01",
+          "lastAnnotationUpdateDate": "2026-06-10",
+          "lastSequenceUpdateDate": "2007-04-17",
+          "entryVersion": 207,
+          "sequenceVersion": 3
+        },
+        "suggested_target_type": "表面抗原",
+        "suggested_target_type_reason": "UniProt proteinDescription.cdAntigenNames=['CD279']",
+        "suggested_target_location": "膜型",
+        "suggested_target_location_reason": "UniProt 定位含 membrane：Cell membrane [Single-pass type I membrane protein] | Cell membrane | Membrane",
+        "_http_status": 200
+      },
+      "raw_refs": {
+        "uniprot_raw_file": "output/pembrolizumab/05_uniprot_Q15116.json",
+        "chembl_target_raw_file": "output/pembrolizumab/03_chembl_target_CHEMBL3307223.json",
+        "fetched_at": "2026-08-17T13:30:58+00:00"
+      },
+      "needs_manual_confirm": true,
+      "confirm_reason": "target_type / target_location 为启发式建议"
+    }
+  ],
+  "targets_existing_hit": [],
+  "bridge_molecule_target": [
+    {
+      "molecule_chembl_id": "CHEMBL3137343",
+      "molecule_inn": "pembrolizumab",
+      "target_code": "<NEW:Q15116>",
+      "uniprot_id": "Q15116",
+      "target_chembl_id": "CHEMBL3307223",
+      "target_pref_name_chembl": "Programmed cell death protein 1",
+      "component_description": "Programmed cell death protein 1",
+      "moa": "Programmed cell death protein 1 inhibitor",
+      "action_type": "INHIBITOR",
+      "binding_site_or_domain": null,
+      "direct_interaction": 1,
+      "dedup_action": "NEW_TARGET_PREFILLED_FROM_UNIPROT",
+      "binding_subunit_hint": null,
+      "adc_role_hint": null,
+      "needs_manual_confirm": false,
+      "confirm_reason": null,
+      "chembl_mechanism_raw_file": "output/pembrolizumab/02_chembl_mechanism.json",
+      "fetched_at": "2026-08-17T13:30:58+00:00"
+    }
+  ]
+}

@@ -1,0 +1,413 @@
+{
+ "primaryAccession": "P00742",
+ "secondaryAccessions": [
+  "Q14340"
+ ],
+ "uniProtkbId": "FA10_HUMAN",
+ "entryType": "UniProtKB reviewed (Swiss-Prot)",
+ "proteinDescription": {
+  "recommendedName": {
+   "fullName": {
+    "value": "Coagulation factor X"
+   },
+   "ecNumbers": [
+    {
+     "value": "3.4.21.6"
+    }
+   ]
+  },
+  "alternativeNames": [
+   {
+    "fullName": {
+     "value": "Stuart factor"
+    }
+   },
+   {
+    "fullName": {
+     "value": "Stuart-Prower factor"
+    }
+   }
+  ],
+  "contains": [
+   {
+    "recommendedName": {
+     "fullName": {
+      "value": "Factor X light chain"
+     }
+    }
+   },
+   {
+    "recommendedName": {
+     "fullName": {
+      "value": "Factor X heavy chain"
+     }
+    }
+   },
+   {
+    "recommendedName": {
+     "fullName": {
+      "value": "Activated factor Xa heavy chain"
+     }
+    }
+   }
+  ],
+  "flag": "Precursor"
+ },
+ "genes": [
+  {
+   "geneName": {
+    "value": "F10"
+   }
+  }
+ ],
+ "organism": {
+  "scientificName": "Homo sapiens",
+  "commonName": "Human",
+  "taxonId": 9606,
+  "lineage": [
+   "Eukaryota",
+   "Metazoa",
+   "Chordata",
+   "Craniata",
+   "Vertebrata",
+   "Euteleostomi",
+   "Mammalia",
+   "Eutheria",
+   "Euarchontoglires",
+   "Primates",
+   "Haplorrhini",
+   "Catarrhini",
+   "Hominidae",
+   "Homo"
+  ]
+ },
+ "keywords": [
+  {
+   "id": "KW-0002",
+   "category": "Technical term",
+   "name": "3D-structure"
+  },
+  {
+   "id": "KW-0094",
+   "category": "Biological process",
+   "name": "Blood coagulation"
+  },
+  {
+   "id": "KW-0106",
+   "category": "Ligand",
+   "name": "Calcium"
+  },
+  {
+   "id": "KW-0165",
+   "category": "PTM",
+   "name": "Cleavage on pair of basic residues"
+  },
+  {
+   "id": "KW-0903",
+   "category": "Technical term",
+   "name": "Direct protein sequencing"
+  },
+  {
+   "id": "KW-0225",
+   "category": "Disease",
+   "name": "Disease variant"
+  },
+  {
+   "id": "KW-1015",
+   "category": "PTM",
+   "name": "Disulfide bond"
+  },
+  {
+   "id": "KW-0245",
+   "category": "Domain",
+   "name": "EGF-like domain"
+  },
+  {
+   "id": "KW-0301",
+   "category": "PTM",
+   "name": "Gamma-carboxyglutamic acid"
+  },
+  {
+   "id": "KW-0325",
+   "category": "PTM",
+   "name": "Glycoprotein"
+  },
+  {
+   "id": "KW-0356",
+   "category": "Biological process",
+   "name": "Hemostasis"
+  },
+  {
+   "id": "KW-0378",
+   "category": "Molecular function",
+   "name": "Hydrolase"
+  },
+  {
+   "id": "KW-0379",
+   "category": "PTM",
+   "name": "Hydroxylation"
+  },
+  {
+   "id": "KW-0645",
+   "category": "Molecular function",
+   "name": "Protease"
+  },
+  {
+   "id": "KW-1267",
+   "category": "Technical term",
+   "name": "Proteomics identification"
+  },
+  {
+   "id": "KW-1185",
+   "category": "Technical term",
+   "name": "Reference proteome"
+  },
+  {
+   "id": "KW-0677",
+   "category": "Domain",
+   "name": "Repeat"
+  },
+  {
+   "id": "KW-0964",
+   "category": "Cellular component",
+   "name": "Secreted"
+  },
+  {
+   "id": "KW-0720",
+   "category": "Molecular function",
+   "name": "Serine protease"
+  },
+  {
+   "id": "KW-0732",
+   "category": "Domain",
+   "name": "Signal"
+  },
+  {
+   "id": "KW-0865",
+   "category": "PTM",
+   "name": "Zymogen"
+  }
+ ],
+ "comments": [
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "18202198"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "22409427"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "24041930"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "30568593"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "34831181"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "35738824"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "39880037"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "9780208"
+      }
+     ],
+     "value": "Factor Xa is a vitamin K-dependent glycoprotein that converts prothrombin to thrombin in the presence of factor Va, calcium and phospholipid during blood clotting (PubMed:22409427, PubMed:39880037). Factor Xa activates pro-inflammatory signaling pathways in a protease-activated receptor (PAR)-dependent manner (PubMed:24041930, PubMed:30568593, PubMed:34831181, PubMed:18202198). Up-regulates expression of protease-activated receptors (PARs) F2R, F2RL1 and F2RL2 in dermal microvascular endothelial cells (PubMed:35738824). Triggers the production of pro-inflammatory cytokines, such as MCP-1/CCL2 and IL6, in cardiac fibroblasts and umbilical vein endothelial cells in PAR-1/F2R-dependent manner (PubMed:30568593, PubMed:34831181). Triggers the production of pro-inflammatory cytokines, such as MCP-1/CCL2, IL6, TNF/TNF, IL-1beta/IL1B, IL8/CXCL8 and IL18, in endothelial cells and atrial tissues (PubMed:24041930, PubMed:35738824, PubMed:9780208). Induces expression of adhesion molecules, such as ICAM1, VCAM1 and SELE, in endothelial cells and atrial tissues (PubMed:24041930, PubMed:35738824, PubMed:9780208). Increases expression of phosphorylated ERK1/2 in dermal microvascular endothelial cells and atrial tissues (PubMed:24041930, PubMed:35738824). Triggers activation of the transcription factor NF-kappa-B in dermal microvascular endothelial cells and atrial tissues (PubMed:24041930, PubMed:35738824). Activates pro-inflammatory and pro-fibrotic responses in dermal fibroblasts and enhances wound healing probably via PAR-2/F2RL1-dependent mechanism (PubMed:18202198). Activates barrier protective signaling responses in endothelial cells in PAR-2/F2RL1-dependent manner; the activity depends on the cleavage of PAR-2/F2RL1 by factor Xa (PubMed:22409427). Up-regulates expression of plasminogen activator inhibitor 1 (SERPINE1) in atrial tissues (PubMed:24041930)"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "11986214"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "16807644"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "18042685"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "21673107"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "22383955"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "31133602"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "34502392"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "37469515"
+      }
+     ],
+     "value": "The two chains are formed from a single-chain precursor by the excision of two Arg residues and are held together by 1 or more disulfide bonds. Forms a heterodimer with SERPINA5. Interacts (inactive and activated) with ixolaris, an anticoagulant protein from Ixodes scapularis saliva (PubMed:11986214, PubMed:31133602, PubMed:18042685, PubMed:16807644). Interacts (activated) with iripin-8, a serine protease inhibitor from Ixodes ricinus saliva (PubMed:34502392). Interacts (activated) with FXa-directed anticoagulant from Aedes albopictus saliva (PubMed:21673107). Interacts (activated) with guianensin, an anticoagulant protein from Simulium guianense saliva (PubMed:37469515). Interacts (activated) with simukunin, an anticoagulant protein from Simulium vittatum saliva (PubMed:22383955)"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "39528527"
+      }
+     ],
+     "value": "(Microbial infection) Interacts (via Gla domain) with Human adenovirus C serotype 5 hexon protein; this interaction allows the virus to be shielded from its host immune system"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "subcellularLocations": [
+    {
+     "location": {
+      "value": "Secreted",
+      "id": "SL-0243"
+     }
+    }
+   ]
+  }
+ ],
+ "features": [
+  {
+   "type": "Signal",
+   "location": {
+    "start": {
+     "value": 1,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 31,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255"
+    }
+   ]
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 41,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 488,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Coagulation factor X",
+   "featureId": "PRO_0000027787"
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 41,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 179,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Factor X light chain",
+   "featureId": "PRO_0000027788"
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 183,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 488,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Factor X heavy chain",
+   "featureId": "PRO_0000027789"
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 235,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 488,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Activated factor Xa heavy chain",
+   "featureId": "PRO_0000027791"
+  }
+ ],
+ "sequence": {
+  "length": 488,
+  "molWeight": 54732,
+  "crc64": "F81D5746AF4797AF",
+  "md5": "14A1E956C20D36FFE9AE13C578B55D47"
+ },
+ "entryAudit": {
+  "firstPublicDate": "1986-07-21",
+  "lastAnnotationUpdateDate": "2026-06-10",
+  "lastSequenceUpdateDate": "1989-10-01",
+  "entryVersion": 288,
+  "sequenceVersion": 2
+ }
+}

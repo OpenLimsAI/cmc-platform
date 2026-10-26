@@ -1,0 +1,911 @@
+{
+  "inn": "emicizumab",
+  "fetched_at": "2026-08-17T13:31:06+00:00",
+  "steps": [
+    {
+      "step": "1_chembl_molecule_search",
+      "http_status": 200,
+      "total_count": 1,
+      "pick_reason": "pref_name 精确匹配 INN",
+      "candidates": [
+        {
+          "molecule_chembl_id": "CHEMBL3833393",
+          "pref_name": "EMICIZUMAB",
+          "molecule_type": "Antibody",
+          "max_phase": "4.0",
+          "score": 41.0,
+          "inn_synonym_hit": true,
+          "syn_type_of_hit": "USAN"
+        }
+      ]
+    },
+    {
+      "step": "2_chembl_mechanism",
+      "http_status": 200,
+      "mechanism_count": 1,
+      "mechanisms": [
+        {
+          "mec_id": 5971,
+          "mechanism_of_action": "Coagulation factor IX and X other",
+          "action_type": "OTHER",
+          "target_chembl_id": "CHEMBL2111424",
+          "binding_site_comment": null,
+          "direct_interaction": 1,
+          "molecular_mechanism": 1,
+          "disease_efficacy": 1,
+          "max_phase": 4
+        }
+      ]
+    },
+    {
+      "step": "3_chembl_target",
+      "targets": [
+        {
+          "target_chembl_id": "CHEMBL2111424",
+          "http_status": 200,
+          "pref_name": "Coagulation factor IX and X",
+          "target_type_chembl": "SELECTIVITY GROUP",
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "top_level_cross_references": [],
+          "components": [
+            {
+              "accession": "P00740",
+              "component_type": "PROTEIN",
+              "component_description": "Coagulation factor IX",
+              "relationship": "COMPARATIVE PROTEIN",
+              "gene_symbol": "F9",
+              "uniprot_xref": [
+                "A8K9N4",
+                "F2RM36",
+                "Q5FBE1",
+                "Q5JYJ8",
+                "P00740"
+              ]
+            },
+            {
+              "accession": "P00742",
+              "component_type": "PROTEIN",
+              "component_description": "Coagulation factor X",
+              "relationship": "COMPARATIVE PROTEIN",
+              "gene_symbol": "F10",
+              "uniprot_xref": [
+                "Q14340",
+                "P00742"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "4_dedup_dim_target",
+      "dedup": [
+        {
+          "uniprot_id": "P00740",
+          "hit": false
+        },
+        {
+          "uniprot_id": "P00742",
+          "hit": false
+        }
+      ]
+    },
+    {
+      "step": "5_uniprot",
+      "fetched": [
+        {
+          "uniprot_id": "P00740",
+          "http_status": 200,
+          "error": null
+        },
+        {
+          "uniprot_id": "P00742",
+          "http_status": 200,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "target CHEMBL2111424（Coagulation factor IX and X）为 SELECTIVITY GROUP（ChEMBL 把 2 个蛋白合并为一组，常见于双抗/多靶）；每个组分各建一条 bridge，请人工确认。"
+  ],
+  "outcome": "OK_NEW_TARGET_PREFILLED",
+  "molecule": {
+    "chembl_id": "CHEMBL3833393",
+    "pref_name": "EMICIZUMAB",
+    "molecule_type": "Antibody",
+    "max_phase": "4.0",
+    "first_approval": 2017,
+    "usan_stem": "-mab; -mab",
+    "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+    "synonyms": [
+      [
+        "Emicizumab",
+        "ATC"
+      ],
+      [
+        "Emicizumab",
+        "EMA"
+      ],
+      [
+        "Emicizumab",
+        "FDA"
+      ],
+      [
+        "Emicizumab",
+        "INN"
+      ],
+      [
+        "Emicizumab",
+        "MERCK_INDEX"
+      ],
+      [
+        "Emicizumab",
+        "OTHER"
+      ],
+      [
+        "Emicizumab kxwh",
+        "OTHER"
+      ],
+      [
+        "Emicizumab-kxwh",
+        "OTHER"
+      ],
+      [
+        "ACE-910",
+        "RESEARCH_CODE"
+      ],
+      [
+        "ACE910",
+        "RESEARCH_CODE"
+      ],
+      [
+        "Hemlibra",
+        "TRADE_NAME"
+      ],
+      [
+        "Emicizumab",
+        "USAN"
+      ]
+    ],
+    "research_codes": [
+      "ACE-910",
+      "ACE910"
+    ],
+    "trade_names": [
+      "Hemlibra"
+    ],
+    "molecule_hierarchy": {
+      "active_chembl_id": "CHEMBL3833393",
+      "molecule_chembl_id": "CHEMBL3833393",
+      "parent_chembl_id": "CHEMBL3833393"
+    },
+    "biotherapeutic": {
+      "helm_notation": null,
+      "description": null,
+      "biocomponents": [
+        {
+          "component_id": 29649,
+          "component_type": "Protein",
+          "description": "Light chain",
+          "organism": null,
+          "sequence_len": 214
+        },
+        {
+          "component_id": 29650,
+          "component_type": "Protein",
+          "description": "Heavy chain: anti-FX",
+          "organism": null,
+          "sequence_len": 444
+        },
+        {
+          "component_id": 29651,
+          "component_type": "Protein",
+          "description": "Heavy chain: anti-FIXa",
+          "organism": null,
+          "sequence_len": 448
+        },
+        {
+          "component_id": 29648,
+          "component_type": null,
+          "description": "Disulfide bridges location",
+          "organism": null,
+          "sequence_len": 188
+        }
+      ]
+    },
+    "cross_references": [
+      [
+        "DailyMed",
+        "emicizumab"
+      ],
+      [
+        "EMA",
+        "human/EPAR/hemlibra"
+      ]
+    ],
+    "atc_classifications": [
+      "B02BX06"
+    ]
+  },
+  "prefill_form": {
+    "_note": "预填表单：所有字段供人工审核；不自动落库。target_code=<NEW:...> 表示待编码服务分配。",
+    "molecule": {
+      "chembl_id": "CHEMBL3833393",
+      "pref_name": "EMICIZUMAB",
+      "molecule_type": "Antibody",
+      "max_phase": "4.0",
+      "first_approval": 2017,
+      "usan_stem": "-mab; -mab",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized",
+      "synonyms": [
+        [
+          "Emicizumab",
+          "ATC"
+        ],
+        [
+          "Emicizumab",
+          "EMA"
+        ],
+        [
+          "Emicizumab",
+          "FDA"
+        ],
+        [
+          "Emicizumab",
+          "INN"
+        ],
+        [
+          "Emicizumab",
+          "MERCK_INDEX"
+        ],
+        [
+          "Emicizumab",
+          "OTHER"
+        ],
+        [
+          "Emicizumab kxwh",
+          "OTHER"
+        ],
+        [
+          "Emicizumab-kxwh",
+          "OTHER"
+        ],
+        [
+          "ACE-910",
+          "RESEARCH_CODE"
+        ],
+        [
+          "ACE910",
+          "RESEARCH_CODE"
+        ],
+        [
+          "Hemlibra",
+          "TRADE_NAME"
+        ],
+        [
+          "Emicizumab",
+          "USAN"
+        ]
+      ],
+      "research_codes": [
+        "ACE-910",
+        "ACE910"
+      ],
+      "trade_names": [
+        "Hemlibra"
+      ],
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL3833393",
+        "molecule_chembl_id": "CHEMBL3833393",
+        "parent_chembl_id": "CHEMBL3833393"
+      },
+      "biotherapeutic": {
+        "helm_notation": null,
+        "description": null,
+        "biocomponents": [
+          {
+            "component_id": 29649,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence_len": 214
+          },
+          {
+            "component_id": 29650,
+            "component_type": "Protein",
+            "description": "Heavy chain: anti-FX",
+            "organism": null,
+            "sequence_len": 444
+          },
+          {
+            "component_id": 29651,
+            "component_type": "Protein",
+            "description": "Heavy chain: anti-FIXa",
+            "organism": null,
+            "sequence_len": 448
+          },
+          {
+            "component_id": 29648,
+            "component_type": null,
+            "description": "Disulfide bridges location",
+            "organism": null,
+            "sequence_len": 188
+          }
+        ]
+      },
+      "cross_references": [
+        [
+          "DailyMed",
+          "emicizumab"
+        ],
+        [
+          "EMA",
+          "human/EPAR/hemlibra"
+        ]
+      ],
+      "atc_classifications": [
+        "B02BX06"
+      ],
+      "raw_refs": {
+        "chembl_molecule_raw_file": "output/emicizumab/01_chembl_molecule_search.json",
+        "fetched_at": "2026-08-17T13:31:06+00:00"
+      }
+    },
+    "targets_new": [
+      {
+        "target_code": "<NEW:P00740>",
+        "target_name": "Coagulation factor IX",
+        "uniprot_id": "P00740",
+        "target_type": "酶",
+        "target_type_reason": "UniProt keyword ∈ ['Hydrolase', 'Protease', 'Serine protease'] 或 recommendedName 含 EC 号",
+        "target_type_enum": [
+          "受体",
+          "配体·细胞因子",
+          "表面抗原",
+          "酶",
+          "其他"
+        ],
+        "target_location": "可溶型",
+        "target_location_reason": "UniProt 定位含 Secreted/extracellular：Secreted | Secreted",
+        "target_location_enum": [
+          "膜型",
+          "可溶型",
+          "两者都有",
+          "胞内"
+        ],
+        "gene_symbol": "F9",
+        "organism": "Homo sapiens",
+        "aliases": [
+          "Christmas factor",
+          "Plasma thromboplastin component"
+        ],
+        "chembl_target_id": "CHEMBL2111424",
+        "chembl_target_pref_name": "Coagulation factor IX and X",
+        "chembl_target_type": "SELECTIVITY GROUP",
+        "uniprot_extract": {
+          "uniprot_id": "P00740",
+          "uniprot_entry_name": "FA9_HUMAN",
+          "entry_type": "UniProtKB reviewed (Swiss-Prot)",
+          "secondary_accessions": [
+            "A8K9N4",
+            "F2RM36",
+            "Q5FBE1",
+            "Q5JYJ8"
+          ],
+          "recommended_name": "Coagulation factor IX",
+          "short_names": [],
+          "alternative_names": [
+            "Christmas factor",
+            "Plasma thromboplastin component"
+          ],
+          "gene_symbol": "F9",
+          "gene_synonyms": [],
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "sequence_length": 461,
+          "mol_weight_da": 51778,
+          "function_text": "Factor IX is a vitamin K-dependent plasma protein that participates in the intrinsic pathway of blood coagulation by converting factor X to its active form in the presence of Ca(2+) ions, phospholipids, and factor VIIIa (PubMed:8295821, PubMed:2592373, PubMed:20121197, PubMed:20121198, PubMed:1730085, PubMed:19846852, PubMed:39880037)",
+          "keywords": [
+            [
+              "Technical term",
+              "3D-structure"
+            ],
+            [
+              "Coding sequence diversity",
+              "Alternative splicing"
+            ],
+            [
+              "Biological process",
+              "Blood coagulation"
+            ],
+            [
+              "Ligand",
+              "Calcium"
+            ],
+            [
+              "PTM",
+              "Cleavage on pair of basic residues"
+            ],
+            [
+              "Technical term",
+              "Direct protein sequencing"
+            ],
+            [
+              "Disease",
+              "Disease variant"
+            ],
+            [
+              "PTM",
+              "Disulfide bond"
+            ],
+            [
+              "Domain",
+              "EGF-like domain"
+            ],
+            [
+              "PTM",
+              "Gamma-carboxyglutamic acid"
+            ],
+            [
+              "PTM",
+              "Glycoprotein"
+            ],
+            [
+              "Disease",
+              "Hemophilia"
+            ],
+            [
+              "Biological process",
+              "Hemostasis"
+            ],
+            [
+              "Molecular function",
+              "Hydrolase"
+            ],
+            [
+              "PTM",
+              "Hydroxylation"
+            ],
+            [
+              "Ligand",
+              "Magnesium"
+            ],
+            [
+              "Ligand",
+              "Metal-binding"
+            ],
+            [
+              "Technical term",
+              "Pharmaceutical"
+            ],
+            [
+              "PTM",
+              "Phosphoprotein"
+            ],
+            [
+              "Molecular function",
+              "Protease"
+            ],
+            [
+              "Technical term",
+              "Proteomics identification"
+            ],
+            [
+              "Technical term",
+              "Reference proteome"
+            ],
+            [
+              "Domain",
+              "Repeat"
+            ],
+            [
+              "Cellular component",
+              "Secreted"
+            ],
+            [
+              "Molecular function",
+              "Serine protease"
+            ],
+            [
+              "Domain",
+              "Signal"
+            ],
+            [
+              "PTM",
+              "Sulfation"
+            ],
+            [
+              "Disease",
+              "Thrombophilia"
+            ],
+            [
+              "PTM",
+              "Zymogen"
+            ]
+          ],
+          "domains_and_regions": [
+            {
+              "type": "Signal",
+              "description": "",
+              "start": 1,
+              "end": 28
+            },
+            {
+              "type": "Chain",
+              "description": "Coagulation factor IX",
+              "start": 47,
+              "end": 461
+            },
+            {
+              "type": "Chain",
+              "description": "Coagulation factor IXa light chain",
+              "start": 47,
+              "end": 191
+            },
+            {
+              "type": "Chain",
+              "description": "Coagulation factor IXa heavy chain",
+              "start": 227,
+              "end": 461
+            },
+            {
+              "type": "Domain",
+              "description": "Gla",
+              "start": 47,
+              "end": 92
+            },
+            {
+              "type": "Domain",
+              "description": "EGF-like 1; calcium-binding",
+              "start": 93,
+              "end": 129
+            },
+            {
+              "type": "Domain",
+              "description": "EGF-like 2",
+              "start": 130,
+              "end": 171
+            },
+            {
+              "type": "Domain",
+              "description": "Peptidase S1",
+              "start": 227,
+              "end": 459
+            }
+          ],
+          "entry_audit": {
+            "firstPublicDate": "1986-07-21",
+            "lastAnnotationUpdateDate": "2026-06-10",
+            "lastSequenceUpdateDate": "2005-06-07",
+            "entryVersion": 288,
+            "sequenceVersion": 2
+          },
+          "suggested_target_type": "酶",
+          "suggested_target_type_reason": "UniProt keyword ∈ ['Hydrolase', 'Protease', 'Serine protease'] 或 recommendedName 含 EC 号",
+          "suggested_target_location": "可溶型",
+          "suggested_target_location_reason": "UniProt 定位含 Secreted/extracellular：Secreted | Secreted",
+          "_http_status": 200
+        },
+        "raw_refs": {
+          "uniprot_raw_file": "output/emicizumab/05_uniprot_P00740.json",
+          "chembl_target_raw_file": "output/emicizumab/03_chembl_target_CHEMBL2111424.json",
+          "fetched_at": "2026-08-17T13:31:06+00:00"
+        },
+        "needs_manual_confirm": true,
+        "confirm_reason": "target_type / target_location 为启发式建议"
+      },
+      {
+        "target_code": "<NEW:P00742>",
+        "target_name": "Coagulation factor X",
+        "uniprot_id": "P00742",
+        "target_type": "酶",
+        "target_type_reason": "UniProt keyword ∈ ['Hydrolase', 'Protease', 'Serine protease'] 或 recommendedName 含 EC 号",
+        "target_type_enum": [
+          "受体",
+          "配体·细胞因子",
+          "表面抗原",
+          "酶",
+          "其他"
+        ],
+        "target_location": "可溶型",
+        "target_location_reason": "UniProt 定位含 Secreted/extracellular：Secreted | Secreted",
+        "target_location_enum": [
+          "膜型",
+          "可溶型",
+          "两者都有",
+          "胞内"
+        ],
+        "gene_symbol": "F10",
+        "organism": "Homo sapiens",
+        "aliases": [
+          "Stuart factor",
+          "Stuart-Prower factor"
+        ],
+        "chembl_target_id": "CHEMBL2111424",
+        "chembl_target_pref_name": "Coagulation factor IX and X",
+        "chembl_target_type": "SELECTIVITY GROUP",
+        "uniprot_extract": {
+          "uniprot_id": "P00742",
+          "uniprot_entry_name": "FA10_HUMAN",
+          "entry_type": "UniProtKB reviewed (Swiss-Prot)",
+          "secondary_accessions": [
+            "Q14340"
+          ],
+          "recommended_name": "Coagulation factor X",
+          "short_names": [],
+          "alternative_names": [
+            "Stuart factor",
+            "Stuart-Prower factor"
+          ],
+          "gene_symbol": "F10",
+          "gene_synonyms": [],
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "sequence_length": 488,
+          "mol_weight_da": 54732,
+          "function_text": "Factor Xa is a vitamin K-dependent glycoprotein that converts prothrombin to thrombin in the presence of factor Va, calcium and phospholipid during blood clotting (PubMed:22409427, PubMed:39880037). Factor Xa activates pro-inflammatory signaling pathways in a protease-activated receptor (PAR)-dependent manner (PubMed:24041930, PubMed:30568593, PubMed:34831181, PubMed:18202198). Up-regulates expression of protease-activated receptors (PARs) F2R, F2RL1 and F2RL2 in dermal microvascular endothelial cells (PubMed:35738824). Triggers the production of pro-inflammatory cytokines, such as MCP-1/CCL2 and IL6, in cardiac fibroblasts and umbilical vein endothelial cells in PAR-1/F2R-dependent manner (PubMed:30568593, PubMed:34831181). Triggers the production of pro-inflammatory cytokines, such as MCP-1/CCL2, IL6, TNF/TNF, IL-1beta/IL1B, IL8/CXCL8 and IL18, in endothelial cells and atrial tissues (PubMed:24041930, PubMed:35738824, PubMed:9780208). Induces expression of adhesion molecules, such as",
+          "keywords": [
+            [
+              "Technical term",
+              "3D-structure"
+            ],
+            [
+              "Biological process",
+              "Blood coagulation"
+            ],
+            [
+              "Ligand",
+              "Calcium"
+            ],
+            [
+              "PTM",
+              "Cleavage on pair of basic residues"
+            ],
+            [
+              "Technical term",
+              "Direct protein sequencing"
+            ],
+            [
+              "Disease",
+              "Disease variant"
+            ],
+            [
+              "PTM",
+              "Disulfide bond"
+            ],
+            [
+              "Domain",
+              "EGF-like domain"
+            ],
+            [
+              "PTM",
+              "Gamma-carboxyglutamic acid"
+            ],
+            [
+              "PTM",
+              "Glycoprotein"
+            ],
+            [
+              "Biological process",
+              "Hemostasis"
+            ],
+            [
+              "Molecular function",
+              "Hydrolase"
+            ],
+            [
+              "PTM",
+              "Hydroxylation"
+            ],
+            [
+              "Molecular function",
+              "Protease"
+            ],
+            [
+              "Technical term",
+              "Proteomics identification"
+            ],
+            [
+              "Technical term",
+              "Reference proteome"
+            ],
+            [
+              "Domain",
+              "Repeat"
+            ],
+            [
+              "Cellular component",
+              "Secreted"
+            ],
+            [
+              "Molecular function",
+              "Serine protease"
+            ],
+            [
+              "Domain",
+              "Signal"
+            ],
+            [
+              "PTM",
+              "Zymogen"
+            ]
+          ],
+          "domains_and_regions": [
+            {
+              "type": "Signal",
+              "description": "",
+              "start": 1,
+              "end": 31
+            },
+            {
+              "type": "Chain",
+              "description": "Coagulation factor X",
+              "start": 41,
+              "end": 488
+            },
+            {
+              "type": "Chain",
+              "description": "Factor X light chain",
+              "start": 41,
+              "end": 179
+            },
+            {
+              "type": "Chain",
+              "description": "Factor X heavy chain",
+              "start": 183,
+              "end": 488
+            },
+            {
+              "type": "Chain",
+              "description": "Activated factor Xa heavy chain",
+              "start": 235,
+              "end": 488
+            },
+            {
+              "type": "Domain",
+              "description": "Gla",
+              "start": 41,
+              "end": 85
+            },
+            {
+              "type": "Domain",
+              "description": "EGF-like 1; calcium-binding",
+              "start": 86,
+              "end": 122
+            },
+            {
+              "type": "Domain",
+              "description": "EGF-like 2",
+              "start": 125,
+              "end": 165
+            },
+            {
+              "type": "Domain",
+              "description": "Peptidase S1",
+              "start": 235,
+              "end": 467
+            },
+            {
+              "type": "Region",
+              "description": "O-glycosylated at one site",
+              "start": 183,
+              "end": 203
+            },
+            {
+              "type": "Region",
+              "description": "O-glycosylated at one site",
+              "start": 476,
+              "end": 485
+            }
+          ],
+          "entry_audit": {
+            "firstPublicDate": "1986-07-21",
+            "lastAnnotationUpdateDate": "2026-06-10",
+            "lastSequenceUpdateDate": "1989-10-01",
+            "entryVersion": 288,
+            "sequenceVersion": 2
+          },
+          "suggested_target_type": "酶",
+          "suggested_target_type_reason": "UniProt keyword ∈ ['Hydrolase', 'Protease', 'Serine protease'] 或 recommendedName 含 EC 号",
+          "suggested_target_location": "可溶型",
+          "suggested_target_location_reason": "UniProt 定位含 Secreted/extracellular：Secreted | Secreted",
+          "_http_status": 200
+        },
+        "raw_refs": {
+          "uniprot_raw_file": "output/emicizumab/05_uniprot_P00742.json",
+          "chembl_target_raw_file": "output/emicizumab/03_chembl_target_CHEMBL2111424.json",
+          "fetched_at": "2026-08-17T13:31:06+00:00"
+        },
+        "needs_manual_confirm": true,
+        "confirm_reason": "target_type / target_location 为启发式建议"
+      }
+    ],
+    "targets_existing_hit": [],
+    "bridge_molecule_target": [
+      {
+        "molecule_chembl_id": "CHEMBL3833393",
+        "molecule_inn": "emicizumab",
+        "target_code": "<NEW:P00740>",
+        "uniprot_id": "P00740",
+        "target_chembl_id": "CHEMBL2111424",
+        "target_pref_name_chembl": "Coagulation factor IX and X",
+        "component_description": "Coagulation factor IX",
+        "moa": "Coagulation factor IX and X other",
+        "action_type": "OTHER",
+        "binding_site_or_domain": null,
+        "direct_interaction": 1,
+        "dedup_action": "NEW_TARGET_PREFILLED_FROM_UNIPROT",
+        "binding_subunit_hint": null,
+        "adc_role_hint": null,
+        "needs_manual_confirm": true,
+        "confirm_reason": "ChEMBL target 为 SELECTIVITY GROUP，含 2 个蛋白，双抗/多靶各建一条 bridge，需确认",
+        "chembl_mechanism_raw_file": "output/emicizumab/02_chembl_mechanism.json",
+        "fetched_at": "2026-08-17T13:31:06+00:00"
+      },
+      {
+        "molecule_chembl_id": "CHEMBL3833393",
+        "molecule_inn": "emicizumab",
+        "target_code": "<NEW:P00742>",
+        "uniprot_id": "P00742",
+        "target_chembl_id": "CHEMBL2111424",
+        "target_pref_name_chembl": "Coagulation factor IX and X",
+        "component_description": "Coagulation factor X",
+        "moa": "Coagulation factor IX and X other",
+        "action_type": "OTHER",
+        "binding_site_or_domain": null,
+        "direct_interaction": 1,
+        "dedup_action": "NEW_TARGET_PREFILLED_FROM_UNIPROT",
+        "binding_subunit_hint": null,
+        "adc_role_hint": null,
+        "needs_manual_confirm": true,
+        "confirm_reason": "ChEMBL target 为 SELECTIVITY GROUP，含 2 个蛋白，双抗/多靶各建一条 bridge，需确认",
+        "chembl_mechanism_raw_file": "output/emicizumab/02_chembl_mechanism.json",
+        "fetched_at": "2026-08-17T13:31:06+00:00"
+      }
+    ]
+  },
+  "http_calls": [
+    {
+      "step": "1_chembl_molecule_search",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=emicizumab&limit=20",
+      "http_status": 200,
+      "elapsed_s": 3.726,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "2_chembl_mechanism",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL3833393",
+      "http_status": 200,
+      "elapsed_s": 1.446,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "3_chembl_target",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL2111424.json",
+      "http_status": 200,
+      "elapsed_s": 1.622,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "5_uniprot_entry",
+      "url": "https://rest.uniprot.org/uniprotkb/P00740.json",
+      "http_status": 200,
+      "elapsed_s": 3.42,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "5_uniprot_entry",
+      "url": "https://rest.uniprot.org/uniprotkb/P00742.json",
+      "http_status": 200,
+      "elapsed_s": 2.706,
+      "attempt": 1,
+      "ok": true
+    }
+  ]
+}

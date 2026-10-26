@@ -1,0 +1,41 @@
+{
+ "mechanisms": [
+  {
+   "action_type": "OTHER",
+   "binding_site_comment": null,
+   "direct_interaction": 1,
+   "disease_efficacy": 1,
+   "max_phase": 4,
+   "mec_id": 5971,
+   "mechanism_comment": "Binds to and bridges activated factor IX (factor IXa) and factor X, thereby acting as a factor VIII–mimetic agent ",
+   "mechanism_of_action": "Coagulation factor IX and X other",
+   "mechanism_refs": [
+    {
+     "ref_id": "24738137",
+     "ref_type": "PubMed",
+     "ref_url": "http://europepmc.org/abstract/MED/24738137"
+    },
+    {
+     "ref_id": "27223146",
+     "ref_type": "PubMed",
+     "ref_url": "http://europepmc.org/abstract/MED/27223146"
+    }
+   ],
+   "molecular_mechanism": 1,
+   "molecule_chembl_id": "CHEMBL3833393",
+   "parent_molecule_chembl_id": "CHEMBL3833393",
+   "record_id": 2795537,
+   "selectivity_comment": "Very weak antigen-binding affinity",
+   "site_id": null,
+   "target_chembl_id": "CHEMBL2111424",
+   "variant_sequence": null
+  }
+ ],
+ "page_meta": {
+  "limit": 20,
+  "next": null,
+  "offset": 0,
+  "previous": null,
+  "total_count": 1
+ }
+}

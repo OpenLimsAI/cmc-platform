@@ -1,0 +1,173 @@
+"""
+Project 状态机 + status-history 测试（M2.2）
+"""
+import pytest
+
+
+async def _create_project(client, suffix: str, name_suffix: str = "") -> str:
+    resp = await client.post(
+        "/api/v1/projects",
+        json={
+            "project_name": f"pytest sm {suffix} {name_suffix}".strip(),
+            "project_type": "cmc",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["data"]["project_code"]
+
+
+# GxP 关键动作要求电子签名
+SIGNATURE_REQUIRED = {"approve", "complete", "terminate", "cancel"}
+ADMIN_PASSWORD = "__REDACTED_SEED_PASSWORD_1__"
+
+
+async def _state_post(client, code: str, action: str, reason: str):
+    body: dict = {"comment": reason}
+    if action in SIGNATURE_REQUIRED:
+        body["signature"] = {
+            "password": ADMIN_PASSWORD,
+            "reason": f"pytest 签名理由 - {action}",
+        }
+    return await client.post(f"/api/v1/projects/{code}:{action}", json=body)
+
+
+@pytest.mark.asyncio
+async def test_full_lifecycle(admin_client, unique_suffix):
+    """draft → planned → active → on_hold → active → completed"""
+    code = await _create_project(admin_client, unique_suffix, "lifecycle")
+
+    # M3.0.2：state 枚举对齐 §9.2，approve 后是 initiated 不是 planned
+    transitions = [
+        ("approve", "initiated"),
+        ("start", "active"),
+        ("hold", "on_hold"),
+        ("resume", "active"),
+        ("complete", "completed"),
+    ]
+    for action, expected in transitions:
+        resp = await _state_post(
+            admin_client, code, action, f"pytest 状态机 {action} 推进"
+        )
+        assert resp.status_code == 200, f"{action} 失败: {resp.text}"
+        assert resp.json()["data"]["new_status"] == expected, (
+            f"{action} 后预期 {expected}，实际 {resp.json()['data']['new_status']}"
+        )
+
+    detail = (await admin_client.get(f"/api/v1/projects/{code}")).json()["data"]
+    assert detail["status"] == "completed"
+    # M3.0.2 移除 approved_at/by 字段（§9.2 不含），审批时间从 status_history 推断
+    assert detail["actual_start_date"] is not None, "start 应回填 actual_start_date"
+    assert detail["actual_end_date"] is not None, "complete 应回填 actual_end_date"
+
+
+@pytest.mark.asyncio
+async def test_terminate_from_any_open_state(admin_client, unique_suffix):
+    """terminate 应允许从 proposed / initiated / active / on_hold 四个状态进入"""
+    for from_status, prep_actions in [
+        ("proposed", []),
+        ("initiated", ["approve"]),
+        ("active", ["approve", "start"]),
+        ("on_hold", ["approve", "start", "hold"]),
+    ]:
+        code = await _create_project(admin_client, unique_suffix, from_status)
+        for act in prep_actions:
+            await _state_post(admin_client, code, act, f"pytest prep {act}")
+        resp = await _state_post(
+            admin_client, code, "terminate", f"pytest terminate from {from_status}"
+        )
+        assert resp.status_code == 200, (
+            f"terminate from {from_status} 失败: {resp.text}"
+        )
+        assert resp.json()["data"]["new_status"] == "terminated"
+
+
+@pytest.mark.asyncio
+async def test_cancel_only_before_start(admin_client, unique_suffix):
+    """SMP V2.1 §11.3：cancel 仅允许 proposed / initiated（未启动）"""
+    # proposed → cancelled
+    code = await _create_project(admin_client, unique_suffix, "cancel_proposed")
+    resp = await _state_post(admin_client, code, "cancel", "pytest cancel from proposed")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["new_status"] == "cancelled"
+
+    # initiated → cancelled
+    code2 = await _create_project(admin_client, unique_suffix, "cancel_initiated")
+    await _state_post(admin_client, code2, "approve", "pytest approve")
+    resp2 = await _state_post(admin_client, code2, "cancel", "pytest cancel from initiated")
+    assert resp2.status_code == 200, resp2.text
+    assert resp2.json()["data"]["new_status"] == "cancelled"
+
+    # active 状态不能 cancel（应走 terminate）
+    code3 = await _create_project(admin_client, unique_suffix, "cancel_active")
+    await _state_post(admin_client, code3, "approve", "pytest approve")
+    await _state_post(admin_client, code3, "start", "pytest start")
+    resp3 = await _state_post(admin_client, code3, "cancel", "pytest cancel from active")
+    assert resp3.status_code == 422
+    assert resp3.json()["meta"]["error"]["type"] == "state_invalid"
+
+
+@pytest.mark.asyncio
+async def test_project_code_has_cmab_prefix(admin_client, unique_suffix):
+    """SMP V2.1 §7.1：新项目编号为 CMAB-PRJ-YYYY-NNNN"""
+    code = await _create_project(admin_client, unique_suffix, "code_fmt")
+    assert code.startswith("CMAB-PRJ-"), f"编号应带 CMAB 前缀，实际 {code}"
+
+
+@pytest.mark.asyncio
+async def test_invalid_transition_rejected(admin_client, unique_suffix):
+    """proposed 状态不能直接 start（需先 approve 到 initiated）"""
+    code = await _create_project(admin_client, unique_suffix, "invalid")
+    resp = await admin_client.post(
+        f"/api/v1/projects/{code}:start",
+        json={"comment": "pytest 应拒绝"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["meta"]["error"]["type"] == "state_invalid"
+
+
+@pytest.mark.asyncio
+async def test_reason_too_short(admin_client, unique_suffix):
+    code = await _create_project(admin_client, unique_suffix, "short")
+    resp = await admin_client.post(
+        f"/api/v1/projects/{code}:approve", json={"comment": "no"}
+    )
+    # Pydantic min_length 校验 → V1.1 §4.1 validation_failed → 400
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_status_history_recorded(admin_client, unique_suffix):
+    """status-history 端点返回完整状态轨迹（最新在前）"""
+    code = await _create_project(admin_client, unique_suffix, "history")
+    for action in ["approve", "start", "hold"]:
+        await _state_post(admin_client, code, action, f"pytest {action}")
+
+    resp = await admin_client.get(f"/api/v1/projects/{code}/status-history")
+    assert resp.status_code == 200
+    items = resp.json()["data"]
+    assert len(items) == 3
+    # 最新在前
+    assert items[0]["new_status"] == "on_hold"
+    assert items[0]["old_status"] == "active"
+    assert items[-1]["new_status"] == "initiated"  # §9.2 approve → initiated
+    assert items[-1]["old_status"] == "proposed"
+    assert "pytest hold" in items[0]["change_reason"]
+    # P1（DEV-MDM-001 V1.2 / migration 0029）：触发器只写占位 'status changed'，
+    # service 后置 UPDATE 回填实际 reason — 与 V1.1 §9.5 注释一致
+    for item in items:
+        assert item["change_reason"] != "status changed", (
+            "service 应已把触发器写入的占位 'status changed' 改为实际 reason"
+        )
+
+
+@pytest.mark.asyncio
+async def test_state_change_requires_approve_permission(
+    admin_client, readonly_client, unique_suffix
+):
+    """READ_ONLY_USER 没 project:approve，应 403"""
+    code = await _create_project(admin_client, unique_suffix, "perm")
+    resp = await readonly_client.post(
+        f"/api/v1/projects/{code}:approve",
+        json={"comment": "pytest 应拒绝"},
+    )
+    assert resp.status_code == 403

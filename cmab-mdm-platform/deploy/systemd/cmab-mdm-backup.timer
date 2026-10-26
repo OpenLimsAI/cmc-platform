@@ -1,0 +1,11 @@
+# 每天 02:00（Asia/Shanghai）跑一次全库备份；关机错过的开机后补跑
+[Unit]
+Description=每天 02:00 备份 CMAB MDM 数据库
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

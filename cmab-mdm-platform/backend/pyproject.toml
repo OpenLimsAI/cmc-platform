@@ -1,0 +1,115 @@
+[project]
+name = "cmab-mdm-backend"
+version = "0.1.0"
+description = "CMAB MDM Portal Backend"
+requires-python = ">=3.12"
+authors = [
+    { name = "CMAB CMC IT" }
+]
+
+dependencies = [
+    # Web 框架
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+
+    # 数据库 ORM
+    "sqlalchemy[asyncio]>=2.0.27",
+    "asyncpg>=0.29.0",
+    "psycopg2-binary>=2.9.9",       # Alembic 用同步驱动
+    "alembic>=1.13.0",
+
+    # 数据校验与序列化
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "email-validator>=2.1.0",
+
+    # 认证与安全
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt==4.0.1",                  # 锁定版本兼容 passlib
+
+    # 缓存
+    "redis>=5.0.0",
+
+    # 工具
+    "python-dotenv>=1.0.0",
+    "loguru>=0.7.0",
+    "httpx>=0.27.0",
+    "tenacity>=8.2.0",                # 重试装饰器
+
+    # 可观测性（P4.B Prometheus 指标）
+    "prometheus-fastapi-instrumentator>=7.0.0",
+
+    # 限流（P4.B ARCH11，依赖 Redis storage）
+    "slowapi>=0.1.9",
+
+    # Excel 台账导入脚本（app/scripts/import_*_excel.py）用它读 xlsx。
+    # 2026-09-11：此前漏声明，Mac 容器里碰巧有、Linux 正式环境没有，
+    # 导致设备台账导入脚本在服务器上直接 ModuleNotFoundError 跑不起来。
+    "openpyxl>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.27.0",
+    "faker>=24.0.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "types-passlib",
+    "types-redis",
+]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+# ============== ruff ==============
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # function calls in defaults (FastAPI Depends)
+    "N805",  # first arg of method (Pydantic validators)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*" = ["E501", "F401"]
+
+# ============== mypy ==============
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+# ============== pytest ==============
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --tb=short"

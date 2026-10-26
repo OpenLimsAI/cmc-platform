@@ -1,0 +1,83 @@
+{
+ "cross_references": [],
+ "organism": "Homo sapiens",
+ "pref_name": "DNA topoisomerase 1",
+ "species_group_flag": false,
+ "target_chembl_id": "CHEMBL1781",
+ "target_type": "SINGLE PROTEIN",
+ "tax_id": 9606,
+ "target_components": [
+  {
+   "accession": "P11387",
+   "component_type": "PROTEIN",
+   "component_description": "DNA topoisomerase 1",
+   "relationship": "SINGLE PROTEIN",
+   "target_component_synonyms": [
+    {
+     "component_synonym": "DNA topoisomerase 1",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "DNA topoisomerase I",
+     "syn_type": "UNIPROT"
+    },
+    {
+     "component_synonym": "TOP1",
+     "syn_type": "GENE_SYMBOL"
+    }
+   ],
+   "target_component_xrefs": [
+    {
+     "xref_id": "HGNC:11986",
+     "xref_name": "TOP1",
+     "xref_src_db": "HGNC"
+    },
+    {
+     "xref_id": "A8KA78",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "E1P5W3",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "O43256",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "P11387",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q12855",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q12856",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q15610",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q5TFY3",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    },
+    {
+     "xref_id": "Q9UJN0",
+     "xref_name": "DNA topoisomerase 1",
+     "xref_src_db": "UniProt"
+    }
+   ]
+  }
+ ]
+}

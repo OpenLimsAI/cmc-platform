@@ -1,0 +1,1043 @@
+{
+  "inn": "trastuzumab deruxtecan",
+  "fetched_at": "2026-08-17T13:31:19+00:00",
+  "steps": [
+    {
+      "step": "1_chembl_molecule_search",
+      "http_status": 200,
+      "total_count": 18,
+      "pick_reason": "pref_name 精确匹配 INN",
+      "candidates": [
+        {
+          "molecule_chembl_id": "CHEMBL4297844",
+          "pref_name": "TRASTUZUMAB DERUXTECAN",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "4.0",
+          "score": 74.0,
+          "inn_synonym_hit": true,
+          "syn_type_of_hit": "USAN"
+        },
+        {
+          "molecule_chembl_id": "CHEMBL1201585",
+          "pref_name": "TRASTUZUMAB",
+          "molecule_type": "Antibody",
+          "max_phase": "4.0",
+          "score": 37.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL4297939",
+          "pref_name": "DATOPOTAMAB DERUXTECAN",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "3.0",
+          "score": 37.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL1743082",
+          "pref_name": "TRASTUZUMAB EMTANSINE",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "4.0",
+          "score": 35.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL4298178",
+          "pref_name": "TRASTUZUMAB DUOCARMAZINE",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "3.0",
+          "score": 34.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL4594611",
+          "pref_name": "PATRITUMAB DERUXTECAN",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "3.0",
+          "score": 34.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL6068184",
+          "pref_name": "TRASTUZUMAB ENVEDOTIN",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "3.0",
+          "score": 33.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL5095315",
+          "pref_name": "TRASTUZUMAB IMBOTOLIMOD",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "2.0",
+          "score": 32.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL5095329",
+          "pref_name": "RALUDOTATUG DERUXTECAN",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "2.0",
+          "score": 32.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        },
+        {
+          "molecule_chembl_id": "CHEMBL5095331",
+          "pref_name": "IFINATAMAB DERUXTECAN",
+          "molecule_type": "Antibody drug conjugate",
+          "max_phase": "3.0",
+          "score": 32.0,
+          "inn_synonym_hit": false,
+          "syn_type_of_hit": null
+        }
+      ]
+    },
+    {
+      "step": "2_chembl_mechanism",
+      "http_status": 200,
+      "mechanism_count": 2,
+      "mechanisms": [
+        {
+          "mec_id": 7490,
+          "mechanism_of_action": "Receptor protein-tyrosine kinase erbB-2 binding agent",
+          "action_type": "BINDING AGENT",
+          "target_chembl_id": "CHEMBL1824",
+          "binding_site_comment": null,
+          "direct_interaction": 1,
+          "molecular_mechanism": 1,
+          "disease_efficacy": 1,
+          "max_phase": 4
+        },
+        {
+          "mec_id": 7491,
+          "mechanism_of_action": "DNA topoisomerase I inhibitor",
+          "action_type": "INHIBITOR",
+          "target_chembl_id": "CHEMBL1781",
+          "binding_site_comment": null,
+          "direct_interaction": 1,
+          "molecular_mechanism": 1,
+          "disease_efficacy": 1,
+          "max_phase": 4
+        }
+      ]
+    },
+    {
+      "step": "3_chembl_target",
+      "targets": [
+        {
+          "target_chembl_id": "CHEMBL1824",
+          "http_status": 200,
+          "pref_name": "Receptor tyrosine-protein kinase erbB-2",
+          "target_type_chembl": "SINGLE PROTEIN",
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "top_level_cross_references": [],
+          "components": [
+            {
+              "accession": "P04626",
+              "component_type": "PROTEIN",
+              "component_description": "Receptor tyrosine-protein kinase erbB-2",
+              "relationship": "SINGLE PROTEIN",
+              "gene_symbol": "ERBB2",
+              "uniprot_xref": [
+                "B2RZG3",
+                "B4DHN3",
+                "P04626",
+                "Q14256",
+                "Q6LDV1",
+                "Q9UMK4",
+                "X5D2V5"
+              ]
+            }
+          ]
+        },
+        {
+          "target_chembl_id": "CHEMBL1781",
+          "http_status": 200,
+          "pref_name": "DNA topoisomerase 1",
+          "target_type_chembl": "SINGLE PROTEIN",
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "top_level_cross_references": [],
+          "components": [
+            {
+              "accession": "P11387",
+              "component_type": "PROTEIN",
+              "component_description": "DNA topoisomerase 1",
+              "relationship": "SINGLE PROTEIN",
+              "gene_symbol": "TOP1",
+              "uniprot_xref": [
+                "A8KA78",
+                "E1P5W3",
+                "O43256",
+                "P11387",
+                "Q12855",
+                "Q12856",
+                "Q15610",
+                "Q5TFY3",
+                "Q9UJN0"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": "4_dedup_dim_target",
+      "dedup": [
+        {
+          "uniprot_id": "P04626",
+          "hit": false
+        },
+        {
+          "uniprot_id": "P11387",
+          "hit": false
+        }
+      ]
+    },
+    {
+      "step": "5_uniprot",
+      "fetched": [
+        {
+          "uniprot_id": "P04626",
+          "http_status": 200,
+          "error": null
+        },
+        {
+          "uniprot_id": "P11387",
+          "http_status": 200,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "该分子有 2 条 mechanism 记录（多靶点/双特异性），每条靶点关联均需人工确认。"
+  ],
+  "outcome": "OK_NEW_TARGET_PREFILLED",
+  "molecule": {
+    "chembl_id": "CHEMBL4297844",
+    "pref_name": "TRASTUZUMAB DERUXTECAN",
+    "molecule_type": "Antibody drug conjugate",
+    "max_phase": "4.0",
+    "first_approval": 2019,
+    "usan_stem": "-mab; -mab; -tecan",
+    "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; antineoplastics (camptothecin derivatives)",
+    "synonyms": [
+      [
+        "Trastuzumab deruxtecan",
+        "ATC"
+      ],
+      [
+        "Trastuzumab deruxtecan",
+        "EMA"
+      ],
+      [
+        "Fam-trastuzumab deruxtecan-nxki",
+        "FDA"
+      ],
+      [
+        "Trastuzumab deruxtecan",
+        "INN"
+      ],
+      [
+        "Ds-8201a",
+        "OTHER"
+      ],
+      [
+        "Trastuzumab deruxtecan",
+        "OTHER"
+      ],
+      [
+        "Trastuzumab deruxtecan nxki",
+        "OTHER"
+      ],
+      [
+        "Trastuzumab deruxtecan-nxki",
+        "OTHER"
+      ],
+      [
+        "DS-8201",
+        "RESEARCH_CODE"
+      ],
+      [
+        "DS-8201a",
+        "RESEARCH_CODE"
+      ],
+      [
+        "Enhertu",
+        "TRADE_NAME"
+      ],
+      [
+        "Trastuzumab deruxtecan",
+        "USAN"
+      ]
+    ],
+    "research_codes": [
+      "DS-8201",
+      "DS-8201a"
+    ],
+    "trade_names": [
+      "Enhertu"
+    ],
+    "molecule_hierarchy": {
+      "active_chembl_id": "CHEMBL4297844",
+      "molecule_chembl_id": "CHEMBL4297844",
+      "parent_chembl_id": "CHEMBL4297844"
+    },
+    "biotherapeutic": {
+      "helm_notation": null,
+      "description": null,
+      "biocomponents": [
+        {
+          "component_id": 30655,
+          "component_type": null,
+          "description": "Disulfide bridges",
+          "organism": null,
+          "sequence_len": 191
+        },
+        {
+          "component_id": 31030,
+          "component_type": "Protein",
+          "description": "Light chain",
+          "organism": null,
+          "sequence_len": 214
+        },
+        {
+          "component_id": 29675,
+          "component_type": null,
+          "description": "Glycosylation sites (N)",
+          "organism": null,
+          "sequence_len": 21
+        },
+        {
+          "component_id": 31318,
+          "component_type": null,
+          "description": "Glycosylation sites (N)",
+          "organism": null,
+          "sequence_len": 19
+        },
+        {
+          "component_id": 29667,
+          "component_type": null,
+          "description": "Modified residues",
+          "organism": null,
+          "sequence_len": 180
+        },
+        {
+          "component_id": 30446,
+          "component_type": "Protein",
+          "description": "Heavy chain",
+          "organism": null,
+          "sequence_len": 450
+        }
+      ]
+    },
+    "cross_references": [
+      [
+        "EMA",
+        "human/EPAR/enhertu"
+      ],
+      [
+        "USAN",
+        "TRASTUZUMAB%20DERUXTECAN"
+      ],
+      [
+        "DailyMed",
+        "fam-trastuzumab%20deruxtecan-nxki"
+      ]
+    ],
+    "atc_classifications": [
+      "L01FD04"
+    ]
+  },
+  "prefill_form": {
+    "_note": "预填表单：所有字段供人工审核；不自动落库。target_code=<NEW:...> 表示待编码服务分配。",
+    "molecule": {
+      "chembl_id": "CHEMBL4297844",
+      "pref_name": "TRASTUZUMAB DERUXTECAN",
+      "molecule_type": "Antibody drug conjugate",
+      "max_phase": "4.0",
+      "first_approval": 2019,
+      "usan_stem": "-mab; -mab; -tecan",
+      "usan_stem_definition": "monoclonal antibodies: fully human; monoclonal antibodies: humanized; antineoplastics (camptothecin derivatives)",
+      "synonyms": [
+        [
+          "Trastuzumab deruxtecan",
+          "ATC"
+        ],
+        [
+          "Trastuzumab deruxtecan",
+          "EMA"
+        ],
+        [
+          "Fam-trastuzumab deruxtecan-nxki",
+          "FDA"
+        ],
+        [
+          "Trastuzumab deruxtecan",
+          "INN"
+        ],
+        [
+          "Ds-8201a",
+          "OTHER"
+        ],
+        [
+          "Trastuzumab deruxtecan",
+          "OTHER"
+        ],
+        [
+          "Trastuzumab deruxtecan nxki",
+          "OTHER"
+        ],
+        [
+          "Trastuzumab deruxtecan-nxki",
+          "OTHER"
+        ],
+        [
+          "DS-8201",
+          "RESEARCH_CODE"
+        ],
+        [
+          "DS-8201a",
+          "RESEARCH_CODE"
+        ],
+        [
+          "Enhertu",
+          "TRADE_NAME"
+        ],
+        [
+          "Trastuzumab deruxtecan",
+          "USAN"
+        ]
+      ],
+      "research_codes": [
+        "DS-8201",
+        "DS-8201a"
+      ],
+      "trade_names": [
+        "Enhertu"
+      ],
+      "molecule_hierarchy": {
+        "active_chembl_id": "CHEMBL4297844",
+        "molecule_chembl_id": "CHEMBL4297844",
+        "parent_chembl_id": "CHEMBL4297844"
+      },
+      "biotherapeutic": {
+        "helm_notation": null,
+        "description": null,
+        "biocomponents": [
+          {
+            "component_id": 30655,
+            "component_type": null,
+            "description": "Disulfide bridges",
+            "organism": null,
+            "sequence_len": 191
+          },
+          {
+            "component_id": 31030,
+            "component_type": "Protein",
+            "description": "Light chain",
+            "organism": null,
+            "sequence_len": 214
+          },
+          {
+            "component_id": 29675,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence_len": 21
+          },
+          {
+            "component_id": 31318,
+            "component_type": null,
+            "description": "Glycosylation sites (N)",
+            "organism": null,
+            "sequence_len": 19
+          },
+          {
+            "component_id": 29667,
+            "component_type": null,
+            "description": "Modified residues",
+            "organism": null,
+            "sequence_len": 180
+          },
+          {
+            "component_id": 30446,
+            "component_type": "Protein",
+            "description": "Heavy chain",
+            "organism": null,
+            "sequence_len": 450
+          }
+        ]
+      },
+      "cross_references": [
+        [
+          "EMA",
+          "human/EPAR/enhertu"
+        ],
+        [
+          "USAN",
+          "TRASTUZUMAB%20DERUXTECAN"
+        ],
+        [
+          "DailyMed",
+          "fam-trastuzumab%20deruxtecan-nxki"
+        ]
+      ],
+      "atc_classifications": [
+        "L01FD04"
+      ],
+      "raw_refs": {
+        "chembl_molecule_raw_file": "output/trastuzumab_deruxtecan/01_chembl_molecule_search.json",
+        "fetched_at": "2026-08-17T13:31:19+00:00"
+      }
+    },
+    "targets_new": [
+      {
+        "target_code": "<NEW:P04626>",
+        "target_name": "Receptor tyrosine-protein kinase erbB-2",
+        "uniprot_id": "P04626",
+        "target_type": "受体",
+        "target_type_reason": "UniProt keyword(Molecular function) ∈ ['Receptor']",
+        "target_type_enum": [
+          "受体",
+          "配体·细胞因子",
+          "表面抗原",
+          "酶",
+          "其他"
+        ],
+        "target_location": "膜型",
+        "target_location_reason": "UniProt 定位含 membrane：Cell membrane [Single-pass type I membrane protein] | Cell projection, ruffle membrane [Single-pass type I membrane protein] | Cell membrane [Single-pass type I membrane protein] | Early endosome | Cytoplasm, perinuclear region | Nucleus | Cytoplasm | Nucleus | Cytoplasm | Nucleus | Cell membrane | Cell projection | Cytoplasm | Endosome | Membrane | Nucleus",
+        "target_location_enum": [
+          "膜型",
+          "可溶型",
+          "两者都有",
+          "胞内"
+        ],
+        "gene_symbol": "ERBB2",
+        "organism": "Homo sapiens",
+        "aliases": [
+          "Metastatic lymph node gene 19 protein",
+          "Proto-oncogene Neu",
+          "Proto-oncogene c-ErbB-2",
+          "Tyrosine kinase-type cell surface receptor HER2",
+          "p185erbB2"
+        ],
+        "chembl_target_id": "CHEMBL1824",
+        "chembl_target_pref_name": "Receptor tyrosine-protein kinase erbB-2",
+        "chembl_target_type": "SINGLE PROTEIN",
+        "uniprot_extract": {
+          "uniprot_id": "P04626",
+          "uniprot_entry_name": "ERBB2_HUMAN",
+          "entry_type": "UniProtKB reviewed (Swiss-Prot)",
+          "secondary_accessions": [
+            "B2RZG3",
+            "B4DHN3",
+            "Q14256",
+            "Q6LDV1",
+            "Q9UMK4",
+            "X5D2V5"
+          ],
+          "recommended_name": "Receptor tyrosine-protein kinase erbB-2",
+          "short_names": [],
+          "alternative_names": [
+            "Metastatic lymph node gene 19 protein",
+            "Proto-oncogene Neu",
+            "Proto-oncogene c-ErbB-2",
+            "Tyrosine kinase-type cell surface receptor HER2",
+            "p185erbB2"
+          ],
+          "gene_symbol": "ERBB2",
+          "gene_synonyms": [
+            "HER2",
+            "MLN19",
+            "NEU",
+            "NGL"
+          ],
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "sequence_length": 1255,
+          "mol_weight_da": 137910,
+          "function_text": "Protein tyrosine kinase that is part of several cell surface receptor complexes, but that apparently needs a coreceptor for ligand binding. Essential component of a neuregulin-receptor complex, although neuregulins do not interact with it alone. GP30 is a potential ligand for this receptor. Regulates outgrowth and stabilization of peripheral microtubules (MTs). Upon ERBB2 activation, the MEMO1-RHOA-DIAPH1 signaling pathway elicits the phosphorylation and thus the inhibition of GSK3B at cell membrane. This prevents the phosphorylation of APC and CLASP2, allowing its association with the cell membrane. In turn, membrane-bound APC allows the localization of MACF1 to the cell membrane, which is required for microtubule capture and stabilization",
+          "keywords": [
+            [
+              "Technical term",
+              "3D-structure"
+            ],
+            [
+              "Molecular function",
+              "Activator"
+            ],
+            [
+              "Coding sequence diversity",
+              "Alternative initiation"
+            ],
+            [
+              "Coding sequence diversity",
+              "Alternative splicing"
+            ],
+            [
+              "Ligand",
+              "ATP-binding"
+            ],
+            [
+              "Cellular component",
+              "Cell membrane"
+            ],
+            [
+              "Cellular component",
+              "Cell projection"
+            ],
+            [
+              "Coding sequence diversity",
+              "Chromosomal rearrangement"
+            ],
+            [
+              "Cellular component",
+              "Cytoplasm"
+            ],
+            [
+              "Disease",
+              "Disease variant"
+            ],
+            [
+              "PTM",
+              "Disulfide bond"
+            ],
+            [
+              "Cellular component",
+              "Endosome"
+            ],
+            [
+              "PTM",
+              "Glycoprotein"
+            ],
+            [
+              "Molecular function",
+              "Kinase"
+            ],
+            [
+              "Cellular component",
+              "Membrane"
+            ],
+            [
+              "Ligand",
+              "Nucleotide-binding"
+            ],
+            [
+              "Cellular component",
+              "Nucleus"
+            ],
+            [
+              "PTM",
+              "Phosphoprotein"
+            ],
+            [
+              "Technical term",
+              "Proteomics identification"
+            ],
+            [
+              "Molecular function",
+              "Receptor"
+            ],
+            [
+              "Technical term",
+              "Reference proteome"
+            ],
+            [
+              "Domain",
+              "Signal"
+            ],
+            [
+              "Biological process",
+              "Transcription"
+            ],
+            [
+              "Biological process",
+              "Transcription regulation"
+            ],
+            [
+              "Molecular function",
+              "Transferase"
+            ],
+            [
+              "Domain",
+              "Transmembrane"
+            ],
+            [
+              "Domain",
+              "Transmembrane helix"
+            ],
+            [
+              "Molecular function",
+              "Tyrosine-protein kinase"
+            ]
+          ],
+          "domains_and_regions": [
+            {
+              "type": "Signal",
+              "description": "",
+              "start": 1,
+              "end": 22
+            },
+            {
+              "type": "Chain",
+              "description": "Receptor tyrosine-protein kinase erbB-2",
+              "start": 23,
+              "end": 1255
+            },
+            {
+              "type": "Topological domain",
+              "description": "Extracellular",
+              "start": 23,
+              "end": 652
+            },
+            {
+              "type": "Transmembrane",
+              "description": "Helical",
+              "start": 653,
+              "end": 675
+            },
+            {
+              "type": "Topological domain",
+              "description": "Cytoplasmic",
+              "start": 676,
+              "end": 1255
+            },
+            {
+              "type": "Domain",
+              "description": "Protein kinase",
+              "start": 720,
+              "end": 987
+            },
+            {
+              "type": "Region",
+              "description": "Required for interaction with KPNB1 and EEA1",
+              "start": 676,
+              "end": 689
+            },
+            {
+              "type": "Region",
+              "description": "Disordered",
+              "start": 1035,
+              "end": 1179
+            },
+            {
+              "type": "Region",
+              "description": "Interaction with PIK3C2B",
+              "start": 1195,
+              "end": 1197
+            },
+            {
+              "type": "Region",
+              "description": "Disordered",
+              "start": 1196,
+              "end": 1255
+            }
+          ],
+          "entry_audit": {
+            "firstPublicDate": "1987-08-13",
+            "lastAnnotationUpdateDate": "2026-06-10",
+            "lastSequenceUpdateDate": "1987-08-13",
+            "entryVersion": 282,
+            "sequenceVersion": 1
+          },
+          "suggested_target_type": "受体",
+          "suggested_target_type_reason": "UniProt keyword(Molecular function) ∈ ['Receptor']",
+          "suggested_target_location": "膜型",
+          "suggested_target_location_reason": "UniProt 定位含 membrane：Cell membrane [Single-pass type I membrane protein] | Cell projection, ruffle membrane [Single-pass type I membrane protein] | Cell membrane [Single-pass type I membrane protein] | Early endosome | Cytoplasm, perinuclear region | Nucleus | Cytoplasm | Nucleus | Cytoplasm | Nucleus | Cell membrane | Cell projection | Cytoplasm | Endosome | Membrane | Nucleus",
+          "_http_status": 200
+        },
+        "raw_refs": {
+          "uniprot_raw_file": "output/trastuzumab_deruxtecan/05_uniprot_P04626.json",
+          "chembl_target_raw_file": "output/trastuzumab_deruxtecan/03_chembl_target_CHEMBL1824.json",
+          "fetched_at": "2026-08-17T13:31:19+00:00"
+        },
+        "needs_manual_confirm": true,
+        "confirm_reason": "target_type / target_location 为启发式建议"
+      },
+      {
+        "target_code": "<NEW:P11387>",
+        "target_name": "DNA topoisomerase 1",
+        "uniprot_id": "P11387",
+        "target_type": "酶",
+        "target_type_reason": "UniProt keyword ∈ ['Isomerase'] 或 recommendedName 含 EC 号",
+        "target_type_enum": [
+          "受体",
+          "配体·细胞因子",
+          "表面抗原",
+          "酶",
+          "其他"
+        ],
+        "target_location": "胞内",
+        "target_location_reason": "UniProt 定位仅胞内：Nucleus, nucleolus | Nucleus, nucleoplasm | Nucleus",
+        "target_location_enum": [
+          "膜型",
+          "可溶型",
+          "两者都有",
+          "胞内"
+        ],
+        "gene_symbol": "TOP1",
+        "organism": "Homo sapiens",
+        "aliases": [
+          "DNA topoisomerase I"
+        ],
+        "chembl_target_id": "CHEMBL1781",
+        "chembl_target_pref_name": "DNA topoisomerase 1",
+        "chembl_target_type": "SINGLE PROTEIN",
+        "uniprot_extract": {
+          "uniprot_id": "P11387",
+          "uniprot_entry_name": "TOP1_HUMAN",
+          "entry_type": "UniProtKB reviewed (Swiss-Prot)",
+          "secondary_accessions": [
+            "A8KA78",
+            "E1P5W3",
+            "O43256",
+            "Q12855",
+            "Q12856",
+            "Q15610",
+            "Q5TFY3",
+            "Q9UJN0"
+          ],
+          "recommended_name": "DNA topoisomerase 1",
+          "short_names": [],
+          "alternative_names": [
+            "DNA topoisomerase I"
+          ],
+          "gene_symbol": "TOP1",
+          "gene_synonyms": [],
+          "organism": "Homo sapiens",
+          "tax_id": 9606,
+          "sequence_length": 765,
+          "mol_weight_da": 90726,
+          "function_text": "Releases the supercoiling and torsional tension of DNA introduced during the DNA replication and transcription by transiently cleaving and rejoining one strand of the DNA duplex. Introduces a single-strand break via transesterification at a target site in duplex DNA. The scissile phosphodiester is attacked by the catalytic tyrosine of the enzyme, resulting in the formation of a DNA-(3'-phosphotyrosyl)-enzyme intermediate and the expulsion of a 5'-OH DNA strand. The free DNA strand then rotates around the intact phosphodiester bond on the opposing strand, thus removing DNA supercoils. Finally, in the religation step, the DNA 5'-OH attacks the covalent intermediate to expel the active-site tyrosine and restore the DNA phosphodiester backbone (By similarity). Regulates the alternative splicing of tissue factor (F3) pre-mRNA in endothelial cells. Involved in the circadian transcription of the core circadian clock component BMAL1 by altering the chromatin structure around the ROR response e",
+          "keywords": [
+            [
+              "Technical term",
+              "3D-structure"
+            ],
+            [
+              "PTM",
+              "Acetylation"
+            ],
+            [
+              "Biological process",
+              "Biological rhythms"
+            ],
+            [
+              "Coding sequence diversity",
+              "Chromosomal rearrangement"
+            ],
+            [
+              "Technical term",
+              "Direct protein sequencing"
+            ],
+            [
+              "Molecular function",
+              "DNA-binding"
+            ],
+            [
+              "Biological process",
+              "Host-virus interaction"
+            ],
+            [
+              "Molecular function",
+              "Isomerase"
+            ],
+            [
+              "PTM",
+              "Isopeptide bond"
+            ],
+            [
+              "Cellular component",
+              "Nucleus"
+            ],
+            [
+              "PTM",
+              "Phosphoprotein"
+            ],
+            [
+              "Technical term",
+              "Proteomics identification"
+            ],
+            [
+              "Disease",
+              "Proto-oncogene"
+            ],
+            [
+              "Technical term",
+              "Reference proteome"
+            ],
+            [
+              "Molecular function",
+              "Topoisomerase"
+            ],
+            [
+              "PTM",
+              "Ubl conjugation"
+            ]
+          ],
+          "domains_and_regions": [
+            {
+              "type": "Chain",
+              "description": "DNA topoisomerase 1",
+              "start": 2,
+              "end": 765
+            },
+            {
+              "type": "Domain",
+              "description": "Topo IB-type catalytic",
+              "start": 432,
+              "end": 765
+            },
+            {
+              "type": "Region",
+              "description": "Disordered",
+              "start": 1,
+              "end": 199
+            },
+            {
+              "type": "Region",
+              "description": "Interaction with DNA",
+              "start": 425,
+              "end": 426
+            },
+            {
+              "type": "Region",
+              "description": "Interaction with DNA",
+              "start": 488,
+              "end": 493
+            },
+            {
+              "type": "Region",
+              "description": "Interaction with DNA",
+              "start": 585,
+              "end": 587
+            }
+          ],
+          "entry_audit": {
+            "firstPublicDate": "1989-07-01",
+            "lastAnnotationUpdateDate": "2026-06-10",
+            "lastSequenceUpdateDate": "2000-12-01",
+            "entryVersion": 255,
+            "sequenceVersion": 2
+          },
+          "suggested_target_type": "酶",
+          "suggested_target_type_reason": "UniProt keyword ∈ ['Isomerase'] 或 recommendedName 含 EC 号",
+          "suggested_target_location": "胞内",
+          "suggested_target_location_reason": "UniProt 定位仅胞内：Nucleus, nucleolus | Nucleus, nucleoplasm | Nucleus",
+          "_http_status": 200
+        },
+        "raw_refs": {
+          "uniprot_raw_file": "output/trastuzumab_deruxtecan/05_uniprot_P11387.json",
+          "chembl_target_raw_file": "output/trastuzumab_deruxtecan/03_chembl_target_CHEMBL1781.json",
+          "fetched_at": "2026-08-17T13:31:19+00:00"
+        },
+        "needs_manual_confirm": true,
+        "confirm_reason": "target_type / target_location 为启发式建议"
+      }
+    ],
+    "targets_existing_hit": [],
+    "bridge_molecule_target": [
+      {
+        "molecule_chembl_id": "CHEMBL4297844",
+        "molecule_inn": "trastuzumab deruxtecan",
+        "target_code": "<NEW:P04626>",
+        "uniprot_id": "P04626",
+        "target_chembl_id": "CHEMBL1824",
+        "target_pref_name_chembl": "Receptor tyrosine-protein kinase erbB-2",
+        "component_description": "Receptor tyrosine-protein kinase erbB-2",
+        "moa": "Receptor protein-tyrosine kinase erbB-2 binding agent",
+        "action_type": "BINDING AGENT",
+        "binding_site_or_domain": null,
+        "direct_interaction": 1,
+        "dedup_action": "NEW_TARGET_PREFILLED_FROM_UNIPROT",
+        "binding_subunit_hint": null,
+        "adc_role_hint": "ANTIBODY_TARGET(抗体结合靶点)",
+        "needs_manual_confirm": true,
+        "confirm_reason": "分子有多条 mechanism（多靶/双抗/ADC）",
+        "chembl_mechanism_raw_file": "output/trastuzumab_deruxtecan/02_chembl_mechanism.json",
+        "fetched_at": "2026-08-17T13:31:19+00:00"
+      },
+      {
+        "molecule_chembl_id": "CHEMBL4297844",
+        "molecule_inn": "trastuzumab deruxtecan",
+        "target_code": "<NEW:P11387>",
+        "uniprot_id": "P11387",
+        "target_chembl_id": "CHEMBL1781",
+        "target_pref_name_chembl": "DNA topoisomerase 1",
+        "component_description": "DNA topoisomerase 1",
+        "moa": "DNA topoisomerase I inhibitor",
+        "action_type": "INHIBITOR",
+        "binding_site_or_domain": null,
+        "direct_interaction": 1,
+        "dedup_action": "NEW_TARGET_PREFILLED_FROM_UNIPROT",
+        "binding_subunit_hint": null,
+        "adc_role_hint": "PAYLOAD_TARGET(载荷靶点，通常不建抗体-靶点关联)",
+        "needs_manual_confirm": true,
+        "confirm_reason": "分子有多条 mechanism（多靶/双抗/ADC）；ADC 载荷（payload）作用靶点，是否录入 bridge 需业务确定",
+        "chembl_mechanism_raw_file": "output/trastuzumab_deruxtecan/02_chembl_mechanism.json",
+        "fetched_at": "2026-08-17T13:31:19+00:00"
+      }
+    ]
+  },
+  "http_calls": [
+    {
+      "step": "1_chembl_molecule_search",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/molecule/search.json?q=trastuzumab+deruxtecan&limit=20",
+      "http_status": 200,
+      "elapsed_s": 3.539,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "2_chembl_mechanism",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=CHEMBL4297844",
+      "http_status": 200,
+      "elapsed_s": 3.281,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "3_chembl_target",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL1824.json",
+      "http_status": 200,
+      "elapsed_s": 1.881,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "3_chembl_target",
+      "url": "https://www.ebi.ac.uk/chembl/api/data/target/CHEMBL1781.json",
+      "http_status": 200,
+      "elapsed_s": 3.854,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "5_uniprot_entry",
+      "url": "https://rest.uniprot.org/uniprotkb/P04626.json",
+      "http_status": 200,
+      "elapsed_s": 3.654,
+      "attempt": 1,
+      "ok": true
+    },
+    {
+      "step": "5_uniprot_entry",
+      "url": "https://rest.uniprot.org/uniprotkb/P11387.json",
+      "http_status": 200,
+      "elapsed_s": 4.783,
+      "attempt": 1,
+      "ok": true
+    }
+  ]
+}

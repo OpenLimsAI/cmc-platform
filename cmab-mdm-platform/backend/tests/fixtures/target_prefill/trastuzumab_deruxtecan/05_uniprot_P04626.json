@@ -1,0 +1,669 @@
+{
+ "primaryAccession": "P04626",
+ "secondaryAccessions": [
+  "B2RZG3",
+  "B4DHN3",
+  "Q14256",
+  "Q6LDV1",
+  "Q9UMK4",
+  "X5D2V5"
+ ],
+ "uniProtkbId": "ERBB2_HUMAN",
+ "entryType": "UniProtKB reviewed (Swiss-Prot)",
+ "proteinDescription": {
+  "recommendedName": {
+   "fullName": {
+    "value": "Receptor tyrosine-protein kinase erbB-2"
+   },
+   "ecNumbers": [
+    {
+     "value": "2.7.10.1"
+    }
+   ]
+  },
+  "alternativeNames": [
+   {
+    "fullName": {
+     "value": "Metastatic lymph node gene 19 protein"
+    },
+    "shortNames": [
+     {
+      "value": "MLN 19"
+     }
+    ]
+   },
+   {
+    "fullName": {
+     "value": "Proto-oncogene Neu"
+    }
+   },
+   {
+    "fullName": {
+     "value": "Proto-oncogene c-ErbB-2"
+    }
+   },
+   {
+    "fullName": {
+     "value": "Tyrosine kinase-type cell surface receptor HER2"
+    }
+   },
+   {
+    "fullName": {
+     "value": "p185erbB2"
+    }
+   }
+  ],
+  "cdAntigenNames": [
+   {
+    "value": "CD340"
+   }
+  ],
+  "flag": "Precursor"
+ },
+ "genes": [
+  {
+   "geneName": {
+    "value": "ERBB2"
+   },
+   "synonyms": [
+    {
+     "value": "HER2"
+    },
+    {
+     "value": "MLN19"
+    },
+    {
+     "value": "NEU"
+    },
+    {
+     "value": "NGL"
+    }
+   ]
+  }
+ ],
+ "organism": {
+  "scientificName": "Homo sapiens",
+  "commonName": "Human",
+  "taxonId": 9606,
+  "lineage": [
+   "Eukaryota",
+   "Metazoa",
+   "Chordata",
+   "Craniata",
+   "Vertebrata",
+   "Euteleostomi",
+   "Mammalia",
+   "Eutheria",
+   "Euarchontoglires",
+   "Primates",
+   "Haplorrhini",
+   "Catarrhini",
+   "Hominidae",
+   "Homo"
+  ]
+ },
+ "keywords": [
+  {
+   "id": "KW-0002",
+   "category": "Technical term",
+   "name": "3D-structure"
+  },
+  {
+   "id": "KW-0010",
+   "category": "Molecular function",
+   "name": "Activator"
+  },
+  {
+   "id": "KW-0024",
+   "category": "Coding sequence diversity",
+   "name": "Alternative initiation"
+  },
+  {
+   "id": "KW-0025",
+   "category": "Coding sequence diversity",
+   "name": "Alternative splicing"
+  },
+  {
+   "id": "KW-0067",
+   "category": "Ligand",
+   "name": "ATP-binding"
+  },
+  {
+   "id": "KW-1003",
+   "category": "Cellular component",
+   "name": "Cell membrane"
+  },
+  {
+   "id": "KW-0966",
+   "category": "Cellular component",
+   "name": "Cell projection"
+  },
+  {
+   "id": "KW-0160",
+   "category": "Coding sequence diversity",
+   "name": "Chromosomal rearrangement"
+  },
+  {
+   "id": "KW-0963",
+   "category": "Cellular component",
+   "name": "Cytoplasm"
+  },
+  {
+   "id": "KW-0225",
+   "category": "Disease",
+   "name": "Disease variant"
+  },
+  {
+   "id": "KW-1015",
+   "category": "PTM",
+   "name": "Disulfide bond"
+  },
+  {
+   "id": "KW-0967",
+   "category": "Cellular component",
+   "name": "Endosome"
+  },
+  {
+   "id": "KW-0325",
+   "category": "PTM",
+   "name": "Glycoprotein"
+  },
+  {
+   "id": "KW-0418",
+   "category": "Molecular function",
+   "name": "Kinase"
+  },
+  {
+   "id": "KW-0472",
+   "category": "Cellular component",
+   "name": "Membrane"
+  },
+  {
+   "id": "KW-0547",
+   "category": "Ligand",
+   "name": "Nucleotide-binding"
+  },
+  {
+   "id": "KW-0539",
+   "category": "Cellular component",
+   "name": "Nucleus"
+  },
+  {
+   "id": "KW-0597",
+   "category": "PTM",
+   "name": "Phosphoprotein"
+  },
+  {
+   "id": "KW-1267",
+   "category": "Technical term",
+   "name": "Proteomics identification"
+  },
+  {
+   "id": "KW-0675",
+   "category": "Molecular function",
+   "name": "Receptor"
+  },
+  {
+   "id": "KW-1185",
+   "category": "Technical term",
+   "name": "Reference proteome"
+  },
+  {
+   "id": "KW-0732",
+   "category": "Domain",
+   "name": "Signal"
+  },
+  {
+   "id": "KW-0804",
+   "category": "Biological process",
+   "name": "Transcription"
+  },
+  {
+   "id": "KW-0805",
+   "category": "Biological process",
+   "name": "Transcription regulation"
+  },
+  {
+   "id": "KW-0808",
+   "category": "Molecular function",
+   "name": "Transferase"
+  },
+  {
+   "id": "KW-0812",
+   "category": "Domain",
+   "name": "Transmembrane"
+  },
+  {
+   "id": "KW-1133",
+   "category": "Domain",
+   "name": "Transmembrane helix"
+  },
+  {
+   "id": "KW-0829",
+   "category": "Molecular function",
+   "name": "Tyrosine-protein kinase"
+  }
+ ],
+ "comments": [
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000305"
+      }
+     ],
+     "value": "Protein tyrosine kinase that is part of several cell surface receptor complexes, but that apparently needs a coreceptor for ligand binding. Essential component of a neuregulin-receptor complex, although neuregulins do not interact with it alone. GP30 is a potential ligand for this receptor. Regulates outgrowth and stabilization of peripheral microtubules (MTs). Upon ERBB2 activation, the MEMO1-RHOA-DIAPH1 signaling pathway elicits the phosphorylation and thus the inhibition of GSK3B at cell membrane. This prevents the phosphorylation of APC and CLASP2, allowing its association with the cell membrane. In turn, membrane-bound APC allows the localization of MACF1 to the cell membrane, which is required for microtubule capture and stabilization"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "10358079"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "15380516"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "21555369"
+      }
+     ],
+     "value": "In the nucleus is involved in transcriptional regulation. Associates with the 5'-TCAAATTC-3' sequence in the PTGS2/COX-2 promoter and activates its transcription. Implicated in transcriptional activation of CDKN1A; the function involves STAT3 and SRC. Involved in the transcription of rRNA genes by RNA Pol I and enhances protein synthesis and cell growth"
+    }
+   ],
+   "commentType": "FUNCTION"
+  },
+  {
+   "texts": [
+    {
+     "evidences": [
+      {
+       "evidenceCode": "ECO:0000250",
+       "source": "UniProtKB",
+       "id": "P70424"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "10358079"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "10805725"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "12939402"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "12975581"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "15093539"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "15156151"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "15210733"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "16314522"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "16978839"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "18719096"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "20010870"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "21190959"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "21454582"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "21555369"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "26517842"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "31138794"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "32381043"
+      },
+      {
+       "evidenceCode": "ECO:0000269",
+       "source": "PubMed",
+       "id": "36949068"
+      }
+     ],
+     "value": "Homodimer (PubMed:21454582). Heterodimer with EGFR, ERBB3 and ERBB4 (PubMed:10358079, PubMed:15093539, PubMed:16978839, PubMed:21190959). Part of a complex with EGFR and either PIK3C2A or PIK3C2B. May interact with PIK3C2B when phosphorylated on Tyr-1196 (PubMed:10805725). Interacts with PLXNB1 (PubMed:15210733). Interacts (when phosphorylated on Tyr-1248) with MEMO1 (PubMed:15156151). Interacts with MUC1; the interaction is enhanced by heregulin (HRG) (PubMed:12939402). Interacts (when phosphorylated on Tyr-1139) with GRB7 (via SH2 domain) (PubMed:12975581). Interacts (when phosphorylated on Tyr-1248) with ERBIN (PubMed:12444095). Interacts with KPNB1, RANBP2, EEA1, CRM1 and CLTC (PubMed:16314522). Interacts with PTK6 (PubMed:18719096). Interacts with RPA194 and ACTB (PubMed:21555369). Interacts with PRKCABP, SRC and MYOC (By similarity). Interacts (preferentially with the tyrosine phosphorylated form) with CPNE3; this interaction occurs at the cell membrane and is increased in a growth factor heregulin-dependent manner (PubMed:20010870). Interacts with HSP90AA1 and HSP90AB1 in an ATP-dependent manner; the interaction suppresses ERBB2 kinase activity (PubMed:26517842). Interacts with SORL1; this interaction regulates ERBB2 subcellular distribution by promoting its recycling after internalization from endosomes back to the plasma membrane, hence stimulates ERBB2-mediated signaling (PubMed:31138794). Interacts with SH3BGRL (PubMed:32381043). Interacts with ROR1 (PubMed:36949068)"
+    }
+   ],
+   "commentType": "SUBUNIT"
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "note": {
+    "texts": [
+     {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "32381043"
+       }
+      ],
+      "value": "Internalized from the cell membrane in response to EGF stimulation"
+     }
+    ]
+   },
+   "subcellularLocations": [
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "32381043"
+       }
+      ],
+      "value": "Cell membrane",
+      "id": "SL-0039"
+     },
+     "topology": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000255"
+       }
+      ],
+      "value": "Single-pass type I membrane protein",
+      "id": "SL-9905"
+     }
+    },
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "34380438"
+       }
+      ],
+      "value": "Cell projection, ruffle membrane",
+      "id": "SL-0301"
+     },
+     "topology": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000255"
+       }
+      ],
+      "value": "Single-pass type I membrane protein",
+      "id": "SL-9905"
+     }
+    }
+   ]
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "molecule": "Isoform 1",
+   "note": {
+    "texts": [
+     {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "31138794"
+       }
+      ],
+      "value": "Translocation to the nucleus requires endocytosis, probably endosomal sorting and is mediated by importin beta-1/KPNB1. Also detected in VPS35-positive endosome-to-TGN retrograde vesicles (PubMed:31138794)"
+     }
+    ]
+   },
+   "subcellularLocations": [
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "31138794"
+       },
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "33497358"
+       }
+      ],
+      "value": "Cell membrane",
+      "id": "SL-0039"
+     },
+     "topology": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000255"
+       }
+      ],
+      "value": "Single-pass type I membrane protein",
+      "id": "SL-9905"
+     }
+    },
+    {
+     "location": {
+      "evidences": [
+       {
+        "evidenceCode": "ECO:0000269",
+        "source": "PubMed",
+        "id": "31138794"
+       }
+      ],
+      "value": "Early endosome",
+      "id": "SL-0094"
+     }
+    },
+    {
+     "location": {
+      "value": "Cytoplasm, perinuclear region",
+      "id": "SL-0198"
+     }
+    },
+    {
+     "location": {
+      "value": "Nucleus",
+      "id": "SL-0191"
+     }
+    }
+   ]
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "molecule": "Isoform 2",
+   "subcellularLocations": [
+    {
+     "location": {
+      "value": "Cytoplasm",
+      "id": "SL-0086"
+     }
+    },
+    {
+     "location": {
+      "value": "Nucleus",
+      "id": "SL-0191"
+     }
+    }
+   ]
+  },
+  {
+   "commentType": "SUBCELLULAR LOCATION",
+   "molecule": "Isoform 3",
+   "subcellularLocations": [
+    {
+     "location": {
+      "value": "Cytoplasm",
+      "id": "SL-0086"
+     }
+    },
+    {
+     "location": {
+      "value": "Nucleus",
+      "id": "SL-0191"
+     }
+    }
+   ]
+  }
+ ],
+ "features": [
+  {
+   "type": "Signal",
+   "location": {
+    "start": {
+     "value": 1,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 22,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255"
+    }
+   ]
+  },
+  {
+   "type": "Chain",
+   "location": {
+    "start": {
+     "value": 23,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 1255,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Receptor tyrosine-protein kinase erbB-2",
+   "featureId": "PRO_0000016669"
+  },
+  {
+   "type": "Topological domain",
+   "location": {
+    "start": {
+     "value": 23,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 652,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Extracellular",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255"
+    }
+   ]
+  },
+  {
+   "type": "Transmembrane",
+   "location": {
+    "start": {
+     "value": 653,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 675,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Helical",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255"
+    }
+   ]
+  },
+  {
+   "type": "Topological domain",
+   "location": {
+    "start": {
+     "value": 676,
+     "modifier": "EXACT"
+    },
+    "end": {
+     "value": 1255,
+     "modifier": "EXACT"
+    }
+   },
+   "description": "Cytoplasmic",
+   "evidences": [
+    {
+     "evidenceCode": "ECO:0000255"
+    }
+   ]
+  }
+ ],
+ "sequence": {
+  "length": 1255,
+  "molWeight": 137910,
+  "crc64": "39E9DFDA04DCF962",
+  "md5": "D89A90920775435179A0D5281A800F78"
+ },
+ "entryAudit": {
+  "firstPublicDate": "1987-08-13",
+  "lastAnnotationUpdateDate": "2026-06-10",
+  "lastSequenceUpdateDate": "1987-08-13",
+  "entryVersion": 282,
+  "sequenceVersion": 1
+ }
+}

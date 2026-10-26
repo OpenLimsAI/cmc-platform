@@ -1,0 +1,7 @@
+[Unit]
+Description=Process newly completed MDM backup verification requests
+[Path]
+PathExistsGlob=/var/lib/cmab-mdm-backup-verify/requests/*.json
+Unit=cmab-mdm-backup-verify.service
+[Install]
+WantedBy=multi-user.target

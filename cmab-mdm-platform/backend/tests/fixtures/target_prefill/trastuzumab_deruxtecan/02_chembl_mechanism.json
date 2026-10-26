@@ -1,0 +1,61 @@
+{
+ "mechanisms": [
+  {
+   "action_type": "BINDING AGENT",
+   "binding_site_comment": null,
+   "direct_interaction": 1,
+   "disease_efficacy": 1,
+   "max_phase": 4,
+   "mec_id": 7490,
+   "mechanism_comment": "The antibody binds to HER2-expressing tumor cells, is internalised and the small molecule DXd is released. DXd causes DNA damage and apoptotic cell death. Approval based on tumor response rate and duration of response.",
+   "mechanism_of_action": "Receptor protein-tyrosine kinase erbB-2 binding agent",
+   "mechanism_refs": [
+    {
+     "ref_id": "label/2019/761139s000lbl.pdf",
+     "ref_type": "FDA",
+     "ref_url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/761139s000lbl.pdf"
+    }
+   ],
+   "molecular_mechanism": 1,
+   "molecule_chembl_id": "CHEMBL4297844",
+   "parent_molecule_chembl_id": "CHEMBL4297844",
+   "record_id": 3133480,
+   "selectivity_comment": null,
+   "site_id": null,
+   "target_chembl_id": "CHEMBL1824",
+   "variant_sequence": null
+  },
+  {
+   "action_type": "INHIBITOR",
+   "binding_site_comment": null,
+   "direct_interaction": 1,
+   "disease_efficacy": 1,
+   "max_phase": 4,
+   "mec_id": 7491,
+   "mechanism_comment": "The antibody binds to HER2-expressing tumor cells, is internalised and the small molecule DXd is released. DXd causes DNA damage and apoptotic cell death. Approval based on tumor response rate and duration of response.",
+   "mechanism_of_action": "DNA topoisomerase I inhibitor",
+   "mechanism_refs": [
+    {
+     "ref_id": "label/2019/761139s000lbl.pdf",
+     "ref_type": "FDA",
+     "ref_url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2019/761139s000lbl.pdf"
+    }
+   ],
+   "molecular_mechanism": 1,
+   "molecule_chembl_id": "CHEMBL4297844",
+   "parent_molecule_chembl_id": "CHEMBL4297844",
+   "record_id": 3133480,
+   "selectivity_comment": null,
+   "site_id": null,
+   "target_chembl_id": "CHEMBL1781",
+   "variant_sequence": null
+  }
+ ],
+ "page_meta": {
+  "limit": 20,
+  "next": null,
+  "offset": 0,
+  "previous": null,
+  "total_count": 2
+ }
+}

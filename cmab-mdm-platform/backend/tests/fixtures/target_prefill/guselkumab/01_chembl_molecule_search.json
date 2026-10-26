@@ -1,0 +1,114 @@
+{
+ "page_meta": {
+  "limit": 20,
+  "next": null,
+  "offset": 0,
+  "previous": null,
+  "total_count": 1
+ },
+ "molecules": [
+  {
+   "molecule_chembl_id": "CHEMBL2364648",
+   "pref_name": "GUSELKUMAB",
+   "molecule_type": "Antibody",
+   "max_phase": "4.0",
+   "first_approval": 2017,
+   "usan_stem": "-mab",
+   "usan_stem_definition": "monoclonal antibodies: fully human",
+   "molecule_synonyms": [
+    {
+     "molecule_synonym": "CNTO 1959",
+     "syn_type": "RESEARCH_CODE",
+     "synonyms": "CNTO 1959"
+    },
+    {
+     "molecule_synonym": "CNTO-1959",
+     "syn_type": "RESEARCH_CODE",
+     "synonyms": "CNTO-1959"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "ATC",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "BNF",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "EMA",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "FDA",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "INN",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "MERCK_INDEX",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "OTHER",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Guselkumab",
+     "syn_type": "USAN",
+     "synonyms": "GUSELKUMAB"
+    },
+    {
+     "molecule_synonym": "Tremfya",
+     "syn_type": "TRADE_NAME",
+     "synonyms": "Tremfya"
+    }
+   ],
+   "molecule_hierarchy": {
+    "active_chembl_id": "CHEMBL2364648",
+    "molecule_chembl_id": "CHEMBL2364648",
+    "parent_chembl_id": "CHEMBL2364648"
+   },
+   "cross_references": [
+    {
+     "xref_id": "guselkumab",
+     "xref_name": "guselkumab",
+     "xref_src": "DailyMed"
+    },
+    {
+     "xref_id": "human/EPAR/tremfya",
+     "xref_name": "tremfya",
+     "xref_src": "EMA"
+    }
+   ],
+   "atc_classifications": [
+    "L04AC16"
+   ],
+   "biotherapeutic": {
+    "description": "Guselkumab (human mab)",
+    "biocomponents": [
+     {
+      "component_id": 29801,
+      "component_type": "Protein",
+      "description": "Heavy chain",
+      "sequence": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+     },
+     {
+      "component_id": 29748,
+      "component_type": "Protein",
+      "description": "Light chain",
+      "sequence": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+     }
+    ]
+   }
+  }
+ ]
+}
