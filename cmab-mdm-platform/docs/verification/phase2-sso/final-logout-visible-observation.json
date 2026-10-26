@@ -1,0 +1,8 @@
+{
+  "observed_at_utc": "2026-10-26T16:37:13.859Z",
+  "mdm_url": "http://127.0.0.1:5188/mdm/login?reason=logout&redirect=%2Fdashboard",
+  "mdm_notice": "已退出本应用。再次登录统一身份需由您主动发起。",
+  "pm_url": "http://127.0.0.1:5189/login",
+  "frontend_image": "sha256:665c54a2f8c1e7c9932bf91ba1fd5b72b9947ed0e6538118948704defe06227f",
+  "no_warning_modal": true
+}

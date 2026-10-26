@@ -1,0 +1,426 @@
+{
+  "label": "idp-outage-partial-logout",
+  "checked_at_utc": "2026-10-26T16:24:29Z",
+  "read_only": true,
+  "mdm": {
+    "migration_head": "0068_pm_create_request",
+    "users": [
+      {
+        "user_id": 1,
+        "username": "admin",
+        "status": "active"
+      },
+      {
+        "user_id": 2,
+        "username": "qingcheng",
+        "status": "active"
+      },
+      {
+        "user_id": 3,
+        "username": "researcher",
+        "status": "active"
+      },
+      {
+        "user_id": 4,
+        "username": "qa_reviewer",
+        "status": "active"
+      },
+      {
+        "user_id": 5,
+        "username": "readonly",
+        "status": "active"
+      },
+      {
+        "user_id": 6,
+        "username": "phase2.disabled",
+        "status": "disabled"
+      },
+      {
+        "user_id": 7,
+        "username": "phase2.noaccess",
+        "status": "active"
+      }
+    ],
+    "mappings": [
+      {
+        "identity_id": 1,
+        "subject": "2675b2ff-3d44-4f7b-9989-c81296f92833",
+        "user_id": 1,
+        "active": true
+      },
+      {
+        "identity_id": 2,
+        "subject": "2035cdec-a2ad-499b-839e-a06db74c02dc",
+        "user_id": 5,
+        "active": true
+      },
+      {
+        "identity_id": 3,
+        "subject": "23bb4e54-c214-414f-b16e-32bab0ce59a9",
+        "user_id": 6,
+        "active": true
+      },
+      {
+        "identity_id": 4,
+        "subject": "f39b04d2-7f93-4001-b602-d483bf40b5ed",
+        "user_id": 7,
+        "active": true
+      }
+    ],
+    "session_counts": {
+      "total": 8,
+      "revoked": 8,
+      "not_expired_not_revoked": 0
+    },
+    "logout_event_count": 4,
+    "projects": [
+      {
+        "project_id": 1,
+        "project_code": "CMAB-PRJ-2026-0001",
+        "project_name": "Phase2 隔离统一身份与执行项目 A",
+        "status": "initiated"
+      },
+      {
+        "project_id": 2,
+        "project_code": "CMAB-PRJ-2026-0002",
+        "project_name": "Phase2 隔离冲突与恢复项目 B",
+        "status": "proposed"
+      }
+    ],
+    "links": [
+      {
+        "link_id": 1,
+        "project_id": 1,
+        "pm_project_id": "p-mdm-13568efbecac46a7a007b73a",
+        "pm_project_code": "P2-E2E-A"
+      },
+      {
+        "link_id": 3,
+        "project_id": 2,
+        "pm_project_id": "p-mdm-08c126be2db140338fabc3b2",
+        "pm_project_code": "P2-E2E-B"
+      }
+    ],
+    "creation_operations": [
+      {
+        "request_id": "75eb120b-1f24-4302-bdbe-ef0e2d07a88d",
+        "project_id": 1,
+        "source_id": "mdm",
+        "status": "linked",
+        "attempts": 1,
+        "remote_project_id": "p-mdm-13568efbecac46a7a007b73a",
+        "last_error": null
+      },
+      {
+        "request_id": "db33555b-41f7-4844-97ca-2e1b47d92b89",
+        "project_id": 2,
+        "source_id": "mdm",
+        "status": "linked",
+        "attempts": 2,
+        "remote_project_id": "p-mdm-08c126be2db140338fabc3b2",
+        "last_error": null
+      }
+    ],
+    "audit_actions": [
+      {
+        "action": "CREATE",
+        "entity_table": "oidc_identity",
+        "count": 4
+      },
+      {
+        "action": "CREATE",
+        "entity_table": "project",
+        "count": 2
+      },
+      {
+        "action": "CREATE",
+        "entity_table": "project_pm_link",
+        "count": 2
+      },
+      {
+        "action": "CREATE",
+        "entity_table": "substance",
+        "count": 4
+      },
+      {
+        "action": "CREATE",
+        "entity_table": "substance_protein",
+        "count": 2
+      },
+      {
+        "action": "CREATE",
+        "entity_table": "substance_xref",
+        "count": 3
+      },
+      {
+        "action": "LOGIN",
+        "entity_table": "user",
+        "count": 1
+      },
+      {
+        "action": "LOGIN",
+        "entity_table": null,
+        "count": 9
+      },
+      {
+        "action": "LOGIN_FAILED",
+        "entity_table": null,
+        "count": 5
+      },
+      {
+        "action": "LOGOUT",
+        "entity_table": "oidc_session",
+        "count": 6
+      },
+      {
+        "action": "LOGOUT",
+        "entity_table": null,
+        "count": 1
+      },
+      {
+        "action": "SIGN",
+        "entity_table": "project",
+        "count": 1
+      },
+      {
+        "action": "UPDATE",
+        "entity_table": "project",
+        "count": 1
+      },
+      {
+        "action": "UPDATE",
+        "entity_table": "system_config",
+        "count": 1
+      }
+    ],
+    "pre_mapping_synthetic_history": {
+      "log_id": 11,
+      "user_id": 1,
+      "username": "admin",
+      "action": "LOGIN",
+      "entity_table": "user",
+      "entity_id": 1,
+      "timestamp": "2026-10-26T14:29:21.618367+00:00"
+    },
+    "signatures": [
+      {
+        "signature_id": 1,
+        "user_id": 1,
+        "username": "admin",
+        "entity_table": "project",
+        "entity_id": 1,
+        "signature_meaning": "approve",
+        "signed_at": "2026-10-26T14:49:48.707663+00:00"
+      }
+    ]
+  },
+  "pm": {
+    "migration_head": "007",
+    "users": [
+      {
+        "id": "u-08bd1a023c",
+        "username": "phase2.creator",
+        "display_name": "隔离创建验收负责人",
+        "role": "cmc_lead",
+        "is_active": true
+      },
+      {
+        "id": "u-220b7e99b5",
+        "username": "phase2.pmlead",
+        "display_name": "隔离PM管理员MDM只读",
+        "role": "cmc_lead",
+        "is_active": true
+      }
+    ],
+    "projects": [
+      {
+        "id": "p-mdm-08c126be2db140338fabc3b2",
+        "code": "P2-E2E-B",
+        "name": "Phase2 真实故障恢复项目 B",
+        "status": "活跃",
+        "owner_id": "u-08bd1a023c"
+      },
+      {
+        "id": "p-mdm-13568efbecac46a7a007b73a",
+        "code": "P2-E2E-A",
+        "name": "Phase2 真实执行项目 A",
+        "status": "活跃",
+        "owner_id": "u-08bd1a023c"
+      }
+    ],
+    "task_count": 0,
+    "receipts": [
+      {
+        "request_id": "75eb120b-1f24-4302-bdbe-ef0e2d07a88d",
+        "source_id": "mdm",
+        "source_project_id": "1",
+        "project_id": "p-mdm-13568efbecac46a7a007b73a",
+        "created_by": "u-08bd1a023c"
+      },
+      {
+        "request_id": "db33555b-41f7-4844-97ca-2e1b47d92b89",
+        "source_id": "mdm",
+        "source_project_id": "2",
+        "project_id": "p-mdm-08c126be2db140338fabc3b2",
+        "created_by": "u-08bd1a023c"
+      }
+    ],
+    "iam_session_counts": {
+      "total": 0,
+      "unexpired": 0
+    },
+    "portal_session_counts": {
+      "total": 1,
+      "unexpired": 1
+    },
+    "revocation_count": 4,
+    "logout_replay_count": 3
+  },
+  "casdoor_business_users": [
+    {
+      "name": "phase2.creator",
+      "is_forbidden": false,
+      "is_admin": false
+    },
+    {
+      "name": "phase2.disabled",
+      "is_forbidden": false,
+      "is_admin": false
+    },
+    {
+      "name": "phase2.noaccess",
+      "is_forbidden": false,
+      "is_admin": false
+    },
+    {
+      "name": "phase2.pmlead",
+      "is_forbidden": false,
+      "is_admin": false
+    },
+    {
+      "name": "phase2.unmapped",
+      "is_forbidden": false,
+      "is_admin": false
+    }
+  ],
+  "containers": [
+    {
+      "name": "cmc-phase2-sso-postgres",
+      "image_id": "sha256:de3a4eab8fdfa507ea92aac488b916b08089e515db49b055fe71dfa271ba3a28",
+      "running": true,
+      "started_at": "2026-10-26T13:49:03.06202855Z",
+      "published_ports": {}
+    },
+    {
+      "name": "cmc-phase2-sso-redis",
+      "image_id": "sha256:4df5c34dc41256fc4ed293482cb34281e17d133077e9aa3c6a87fda60a356c65",
+      "running": true,
+      "started_at": "2026-10-26T13:49:05.726991999Z",
+      "published_ports": {}
+    },
+    {
+      "name": "cmc-phase2-sso-casdoor",
+      "image_id": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+      "running": false,
+      "started_at": "2026-10-26T15:55:40.960446019Z",
+      "published_ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8018"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cmc-phase2-sso-mdm",
+      "image_id": "sha256:36542786a7819e985307225a4b2005d7109a928919e550f28db8fa59267f7b1c",
+      "running": true,
+      "started_at": "2026-10-26T14:29:04.369652545Z",
+      "published_ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18088"
+          }
+        ],
+        "8088/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5189"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cmc-phase2-sso-pm",
+      "image_id": "sha256:cb2aee79a87023e7c22a9e3e5303c65a39ec4dbb2a0a84dd90e92eba87f29124",
+      "running": true,
+      "started_at": "2026-10-26T16:19:10.437315008Z",
+      "published_ports": {}
+    },
+    {
+      "name": "cmc-phase2-sso-mdm-web",
+      "image_id": "sha256:4dd87fe9c4ee05f90ee57e30475e6292df299168da3d9bc80453dd28b4baa898",
+      "running": true,
+      "started_at": "2026-10-26T15:23:04.325785769Z",
+      "published_ports": {
+        "5173/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5188"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cmc-phase2-sso-pm-before-status-20261026t151912z",
+      "image_id": "sha256:0b9a71a44aad877048c20ba43f424badf7db2abeb6b95a17abd53f1d98f3aa93",
+      "running": false,
+      "started_at": "2026-10-26T14:34:17.087412973Z",
+      "published_ports": {}
+    },
+    {
+      "name": "cmc-phase2-sso-mdm-web-before-logout-race-20261026t152301z",
+      "image_id": "sha256:18781c4bacc8b1a40c26e47b0a2d60d09283179dc8c705a87140c1eacc325af1",
+      "running": false,
+      "started_at": "2026-10-26T14:34:19.767093354Z",
+      "published_ports": {
+        "5173/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5188"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cmc-phase2-sso-casdoor-before-31544-20261026t155536z",
+      "image_id": "sha256:3a3cbf1df236ed709428814250e1d0cd6fb0cbb59fb8f029d9bf646ccfba6ca2",
+      "running": false,
+      "started_at": "2026-10-26T13:49:06.448613207Z",
+      "published_ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "8018"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cmc-phase2-sso-pm-before-final-auth-20261026t155923z",
+      "image_id": "sha256:4e4c7846d036a3682138cb83e6c164062731ec5a819f45e6822bc16cc2cf620d",
+      "running": false,
+      "started_at": "2026-10-26T15:19:25.455660037Z",
+      "published_ports": {}
+    },
+    {
+      "name": "cmc-phase2-sso-pm-before-login-url-20261026t161857z",
+      "image_id": "sha256:91ed81bc7c0176d73284798a1e6b972757171f23110b9d46c9a71a95bf3e7b5f",
+      "running": false,
+      "started_at": "2026-10-26T15:59:38.072251677Z",
+      "published_ports": {}
+    }
+  ]
+}

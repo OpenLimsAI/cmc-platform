@@ -1,0 +1,15 @@
+{
+  "started_at_utc": "2026-10-26T16:18:57Z",
+  "stage": "healthy_environment_and_database_preservation_verified",
+  "container": "cmc-phase2-sso-pm",
+  "backup_container": "cmc-phase2-sso-pm-before-login-url-20261026t161857z",
+  "new_image_id": "sha256:cb2aee79a87023e7c22a9e3e5303c65a39ec4dbb2a0a84dd90e92eba87f29124",
+  "old_image_id": "sha256:91ed81bc7c0176d73284798a1e6b972757171f23110b9d46c9a71a95bf3e7b5f",
+  "new_container_id": "ff40c6e6aba514924fb5bf8c746504a7f40f9943c0575eceaf7feb36e548b0e8",
+  "all_original_environment_preserved": true,
+  "health_checks": {
+    "http://127.0.0.1:5189/health": 200,
+    "http://127.0.0.1:5189/login": 200
+  },
+  "completed_at_utc": "2026-10-26T16:19:13Z"
+}

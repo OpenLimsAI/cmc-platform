@@ -1,0 +1,46 @@
+{
+  "checked_at_utc": "2026-10-26T16:39:01.879289+00:00",
+  "action": "disable",
+  "target": "phase2.disabled",
+  "status": "ok",
+  "identity_write_attempted": true,
+  "write_outcome_uncertain": false,
+  "logout": {
+    "attempted": true,
+    "confirmed": true
+  },
+  "environment": {
+    "verified": true,
+    "origin": "http://127.0.0.1:8018",
+    "image_id": "sha256:137025739838fc019817ccd8845ea19929015d14f18bb1709ff8423d98aafa50",
+    "official_repo_digest": "casbin/casdoor@sha256:95c7be68fb98daf2ec74a10c9f785af1ef75e8fef6dd4aad455a899e651e87e2",
+    "postgres_id": "9a09a05bf554af0f0bd09a317575353094a1e402cc2d3e051124b276c5958da3",
+    "provenance_sha256": "fc93b679f12c4a6d830f884c55458fc95ff15dd1b15fa39bc1c1b3d540f4cb9d"
+  },
+  "before": {
+    "id": "23bb4e54-c214-414f-b16e-32bab0ce59a9",
+    "owner": "phase2-mdm-e2e",
+    "name": "phase2.disabled",
+    "is_forbidden": false,
+    "is_deleted": false,
+    "roles": {
+      "count": 1,
+      "ids": [
+        "phase2-mdm-e2e/rd"
+      ]
+    }
+  },
+  "after": {
+    "id": "23bb4e54-c214-414f-b16e-32bab0ce59a9",
+    "owner": "phase2-mdm-e2e",
+    "name": "phase2.disabled",
+    "is_forbidden": true,
+    "is_deleted": false,
+    "roles": {
+      "count": 1,
+      "ids": [
+        "phase2-mdm-e2e/rd"
+      ]
+    }
+  }
+}

@@ -1,0 +1,402 @@
+[
+  {
+    "file": "screenshots/01-portal-creator-login.jpg",
+    "sha256": "5f0d32c9fb25a06a2e709237be5d25c4aaf3519e1d0cf0131a525f15da54ecd0",
+    "bytes": 52292,
+    "width": 1265,
+    "height": 712,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/02-pm-session-before-mdm.jpg",
+    "sha256": "ece0c722d8efb9ad6dcb952034a3f9ed00c523d51de434bf89e194d9e93a1609",
+    "bytes": 66783,
+    "width": 1280,
+    "height": 720,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/03-portal-to-mdm-sso.jpg",
+    "sha256": "e20f12c03852a3d9041218ffc69e574061a908f0e5b0054eb190cdba16098d60",
+    "bytes": 60353,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/04-mdm-registration-created.jpg",
+    "sha256": "a53f691014b236454c6122fafd75637c5a674e78ae4115fd6ffe1dc7b793a7b4",
+    "bytes": 104209,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/05-pm-explicit-create-input.jpg",
+    "sha256": "b9e3dc863fd92ce59a99fa9c02a3b7809d4a161273c2e9f8500a05ee4d99dbbb",
+    "bytes": 106951,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/06-pm-date-input-complete.jpg",
+    "sha256": "e78a5c652128163eeb645692b6d9baf6d65eca3b7269868e41830d4df02cc1d4",
+    "bytes": 107069,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/07-real-create-and-link-A.jpg",
+    "sha256": "508dac3aa2ed27ca532da4d3a65195fcac9dc2d86874f706ad0e2cc905de0efb",
+    "bytes": 99203,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/08-link-survives-refresh-A.jpg",
+    "sha256": "25e44614d1d166488af50dcca23f9aa6daae6187c9986f23b39616ec4270833f",
+    "bytes": 99207,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/09-mdm-to-correct-pm-A.jpg",
+    "sha256": "12c00a4ad678ce11fedc25173f18cde9f52895e709284ea4c84d6248b0b18fa6",
+    "bytes": 92067,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/10-pm-to-original-mdm-A.jpg",
+    "sha256": "98970c49e4ef435fe74a6922d8c28114046f33d5053bca645ad04e2a0276b9f7",
+    "bytes": 104218,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/11-sso-still-needs-native-signature.jpg",
+    "sha256": "3cfcb0719e43ca053c2165dbb1c5805aa5c99e67cfcc96824d09c2a35c03d2d5",
+    "bytes": 99027,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/12-wrong-signature-keeps-proposed.jpg",
+    "sha256": "290e0c83984414d2f98805c0cf013047603ae1ad252395ad7359c73d89e6d0e6",
+    "bytes": 103436,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/13-native-signature-approved-under-sso.jpg",
+    "sha256": "c75afff69d3645f80e61177d1db40ec9dc107489a4374201d267adc92facb569",
+    "bytes": 104665,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/14-one-to-one-conflict-rejected.jpg",
+    "sha256": "94e7825ea9476acfa4ea3f26b4b83522b49f0214757359fe52a968db2a13d526",
+    "bytes": 100964,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/15-missing-pm-reference-rejected.jpg",
+    "sha256": "95a6f97c56e330906a2088226c3dfcc75e50812842e7949444039c3b8d07f14e",
+    "bytes": 99344,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/16-recovery-B-explicit-input.jpg",
+    "sha256": "5088f5cce342ded907d5bc9029a3ce7d63cf4789c523776128bde313ed84d06c",
+    "bytes": 104428,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/17-remote-created-local-failed-B.jpg",
+    "sha256": "3ceaca840ffeb6adeda29dd52967dc438aa9c3cb1ec0aa0a81fda33525c897dd",
+    "bytes": 96914,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/18-same-request-recovered-B.jpg",
+    "sha256": "71c645b8888217937293f5059ae7250d19ff1e98989b1fd7bb008ff46517430b",
+    "bytes": 99015,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/19-local-logout-auto-sso-regression.jpg",
+    "sha256": "47b19c907c3e92a47d9892ac3b319c16dcc5fc5e6731f672e18b85ab90356b39",
+    "bytes": 102667,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/20-global-logout-scope-prompt.jpg",
+    "sha256": "9f2e74bfc3b594a10f45fdf8f41c0ebaca1466b061a5638b53302a9bdb844762",
+    "bytes": 87010,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/21-global-logout-idp-needs-login.jpg",
+    "sha256": "a06d56979d81398a85bac31e4392cc99d5e5d9c07611611434c0285ca3dda018",
+    "bytes": 23318,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/22-interrupted-expired-flow-rejected.jpg",
+    "sha256": "79a25d041f74a4cf84dc3ddbd769f59e5d69a7ae0c9eda3f7af4d18622803c7e",
+    "bytes": 45826,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/23-unmapped-identity-rejected.jpg",
+    "sha256": "1b64854db7ec70097108931849bba5da3069ba42d066c139c7970dd4be15720d",
+    "bytes": 46216,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/24-local-disabled-mdm-identity-rejected.jpg",
+    "sha256": "c5fa4effd06685482bd7a2f663e940c474633b7ce402478bb55a709e22cc9768",
+    "bytes": 46576,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/25-mapped-no-role-profile.jpg",
+    "sha256": "9773952c2efe60a087558194f5d9cdf345d1ff820159d87fa43dd63a4aaadf9d",
+    "bytes": 56512,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/26-no-role-real-api-forbidden.jpg",
+    "sha256": "052492c9dcdea1d591ef04235780db0cda916beb809ef9a6059d0d84ddeb8377",
+    "bytes": 27193,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/27-local-logout-stable-after-fix.jpg",
+    "sha256": "6c30093461815e7412a887d1c04590258db715604965129b036c1817bbf0d4be",
+    "bytes": 46068,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/28-native-recovery-login-compatible.jpg",
+    "sha256": "d8962d7263dbac328b59b90bb2ca1871a1dcbbb4cb4af474a0e48c15e4af32a8",
+    "bytes": 77689,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/29-old-portal-session-requires-login.jpg",
+    "sha256": "4471eb1119773aa89ffb7290224e4fd8cd386405d2b9624a43b975b401db00d5",
+    "bytes": 57935,
+    "width": 1265,
+    "height": 712,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/30-fixed-idp-portal-login.jpg",
+    "sha256": "5f0d32c9fb25a06a2e709237be5d25c4aaf3519e1d0cf0131a525f15da54ecd0",
+    "bytes": 52292,
+    "width": 1265,
+    "height": 712,
+    "excluded_as_duplicate": true
+  },
+  {
+    "file": "screenshots/31-fixed-idp-live-portal-refresh.jpg",
+    "sha256": "5f94822c2138fe878a21a25d406450a5d1a7942c9321caaea38862aed7d12ed2",
+    "bytes": 58973,
+    "width": 1265,
+    "height": 712,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/32-fixed-idp-pm-live-session.jpg",
+    "sha256": "34bc4579488d1589e32da99480295f0a4f86cb769ae1b0bf96899707ebf78536",
+    "bytes": 66644,
+    "width": 1280,
+    "height": 720,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/33-fixed-idp-portal-mdm-sso.jpg",
+    "sha256": "540b3ef524885158cc4979cf142e49fce8614bc3bf8dbd34451ba62593cebfa9",
+    "bytes": 72354,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/34-fixed-idp-global-return-ux-red.jpg",
+    "sha256": "9160fa7fb17016c623479be92c748d8f22dc26a20ef683f149d8d8a074e142a7",
+    "bytes": 18630,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/35-fixed-global-portal-rejected.jpg",
+    "sha256": "4471eb1119773aa89ffb7290224e4fd8cd386405d2b9624a43b975b401db00d5",
+    "bytes": 57935,
+    "width": 1265,
+    "height": 712,
+    "excluded_as_duplicate": true
+  },
+  {
+    "file": "screenshots/36-fixed-global-pm-rejected.jpg",
+    "sha256": "c8706f236d82866d71e184f929ee45d1c60259ea116db7960bda56c277dcef32",
+    "bytes": 59420,
+    "width": 1265,
+    "height": 712,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/37-fixed-global-idp-reauth-required.jpg",
+    "sha256": "a06d56979d81398a85bac31e4392cc99d5e5d9c07611611434c0285ca3dda018",
+    "bytes": 23318,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": true
+  },
+  {
+    "file": "screenshots/38-invalid-callback-controlled-error.jpg",
+    "sha256": "79a25d041f74a4cf84dc3ddbd769f59e5d69a7ae0c9eda3f7af4d18622803c7e",
+    "bytes": 45826,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": true
+  },
+  {
+    "file": "screenshots/39-casdoor-disabled-real-login-rejected.jpg",
+    "sha256": "4b848649960f11415a5ebe87c77c60488701dedaad4e925c1f4867ae1ff48c06",
+    "bytes": 25195,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/40-casdoor-disabled-toast.jpg",
+    "sha256": "42007e8bd941d6c3dcbe50af7db0c29f1a0269522e5feb8cc82ea29cf7f43aca",
+    "bytes": 29769,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/41-restored-account-old-session-still-rejected.jpg",
+    "sha256": "900a9c2f60c278d6027ff6429685fb275eb0f6f8a792a7124bc9d3c85992bb86",
+    "bytes": 27297,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/42-pmlead-mdm-readonly-api-denied.jpg",
+    "sha256": "c703b3671333997e70eeca8554a04e1c932653a0849491b515c57afbe9b73767",
+    "bytes": 27230,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/43-mdm-readonly-existing-link.jpg",
+    "sha256": "742d1b7d73f840be5edd214e0af40af9204c7d2c60b51e2890181bbb5e34466d",
+    "bytes": 108543,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/44-pm-global-logout-revokes-mdm.jpg",
+    "sha256": "533ee4c1640bc27ce26d39c41d52840993b14718bf7da62b4536cb8b5d2c68f3",
+    "bytes": 27326,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/45-idp-outage-partial-logout-warning.jpg",
+    "sha256": "7c480f0ce7ebf4dfd5fab8bf2103d41b5ef1562700b5139338b67ce870ce764c",
+    "bytes": 85714,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/46-idp-outage-portal-fail-closed.jpg",
+    "sha256": "6fb1e2274793f9a60320772c7dfec2884b9c5ffd421436f01ec353eff345239d",
+    "bytes": 13870,
+    "width": 1280,
+    "height": 720,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/47-final-runtime-existing-link-verified.jpg",
+    "sha256": "c32d3b7a318c22f5492a11dbbebb2d039f4cc577510010952ba9af1949a6f8ac",
+    "bytes": 99020,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/48-local-return-policy-ux-red.jpg",
+    "sha256": "5c03f3e0952c6e785ee8a7c77ce4be5794ebda23fcf5d6999af0a5423f300bc8",
+    "bytes": 82650,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  },
+  {
+    "file": "screenshots/49-final-global-local-return-green.jpg",
+    "sha256": "6c30093461815e7412a887d1c04590258db715604965129b036c1817bbf0d4be",
+    "bytes": 46068,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": true
+  },
+  {
+    "file": "screenshots/50-final-global-mdm-session-rejected.jpg",
+    "sha256": "593299032b949ed3612258d0ad4460b8fa0bcf333203caa36bcd1d03e839d814",
+    "bytes": 25901,
+    "width": 1550,
+    "height": 1244,
+    "excluded_as_duplicate": false
+  }
+]

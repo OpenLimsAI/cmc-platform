@@ -1,0 +1,8 @@
+{
+  "action": "disarm",
+  "target_database": "mdm_phase2_sso",
+  "synthetic_project_id": 2,
+  "temporary_trigger": "prs.phase2_synthetic_link_fault",
+  "time_utc": "2026-10-26T15:01:19.592370+00:00",
+  "sql_sha256": "b2634b48bd8ad47efa6bc9ddcf9041638dc07e1a5ccfa1038fc9962a1e0dd73e"
+}

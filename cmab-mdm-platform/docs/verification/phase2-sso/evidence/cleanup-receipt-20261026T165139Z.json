@@ -1,0 +1,207 @@
+{
+  "started_at_utc": "2026-10-26T16:51:34Z",
+  "manifest": "cleanup-allowlist-20261026T165052Z.json",
+  "events": [
+    {
+      "name": "cmc-phase2-sso-mdm-web",
+      "id": "6f15d8567cb718a9672e7c3f0a8e1086fa972743d129a8d7f4588d74b16bc020",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:51:40Z"
+    },
+    {
+      "name": "cmc-phase2-sso-mdm-web-before-local-return-v2-20261026t163450z",
+      "id": "23f0d0361d47b7661c6d21e059d80431fbf35b36b45ba91dc5e72e20b59a4225",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:51:41Z"
+    },
+    {
+      "name": "cmc-phase2-sso-mdm-web-before-logout-race-20261026t152301z",
+      "id": "4721538a169b5a297e79c4d6b57e736b797403420707868d0d5a036aeadddc9d",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:51:41Z"
+    },
+    {
+      "name": "cmc-phase2-sso-pm",
+      "id": "ff40c6e6aba514924fb5bf8c746504a7f40f9943c0575eceaf7feb36e548b0e8",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:02Z"
+    },
+    {
+      "name": "cmc-phase2-sso-pm-before-final-auth-20261026t155923z",
+      "id": "3a8566786689d7f2e32a09e25c8d687d2e2676cc7e344122cc1c99a8f01fb73d",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:03Z"
+    },
+    {
+      "name": "cmc-phase2-sso-pm-before-login-url-20261026t161857z",
+      "id": "bc9d16bcfe518c3a47519eea2af9d9a37ab9572629bca01631c2e044f9ff00d3",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:04Z"
+    },
+    {
+      "name": "cmc-phase2-sso-pm-before-status-20261026t151912z",
+      "id": "ad91ba44a5aee3634fcc84a3c8c8d68925eb394ecbc8039f77d228ce13170323",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:04Z"
+    },
+    {
+      "name": "cmc-phase2-sso-mdm",
+      "id": "ba9a58118b43c4a158ff3f5adcba5747d589d8f4d2e2c57fd1f819c5347ac198",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:25Z"
+    },
+    {
+      "name": "cmc-phase2-sso-casdoor",
+      "id": "2a41700653faa21550d9c1e3fe476e224f83cefd525ad1571415b64b6784cccb",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:27Z"
+    },
+    {
+      "name": "cmc-phase2-sso-casdoor-before-31544-20261026t155536z",
+      "id": "27dcbac2d4b7f6f926308320ff1935ce6b121279763c98a46a87e02d9e61935f",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:27Z"
+    },
+    {
+      "name": "cmc-phase2-sso-redis",
+      "id": "e8bee3af50b4bca67a2161c90e13987d95d2e2c5873ead9c1a3e65e8fbd20209",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:28Z"
+    },
+    {
+      "name": "cmc-mdm-phase2-unit-backend",
+      "id": "6eacdd16d8f7f8b1a972d39603fd5386ca9b746cdd7062af8e51f2b5a0e5973c",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:49Z"
+    },
+    {
+      "name": "mdm-phase2-unit-redis-1",
+      "id": "ae09b879f405388e83ef58f8cec8026beadacb89c48dfba4d21d51259602d80d",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:50Z"
+    },
+    {
+      "name": "mdm-phase2-unit-postgres-1",
+      "id": "a0f6ddb00c51a90959f9be6a9662bd5c5e499398f5da5af2a4d273ae834facda",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:51Z"
+    },
+    {
+      "name": "cmc-phase2-sso-postgres",
+      "id": "9a09a05bf554af0f0bd09a317575353094a1e402cc2d3e051124b276c5958da3",
+      "state": "stopped_then_removed",
+      "at": "2026-10-26T16:52:52Z"
+    }
+  ],
+  "final_evidence": {
+    "users": [
+      {
+        "name": "phase2.creator",
+        "subject": "2675b2ff-3d44-4f7b-9989-c81296f92833",
+        "is_forbidden": true
+      },
+      {
+        "name": "phase2.disabled",
+        "subject": "23bb4e54-c214-414f-b16e-32bab0ce59a9",
+        "is_forbidden": true
+      },
+      {
+        "name": "phase2.noaccess",
+        "subject": "f39b04d2-7f93-4001-b602-d483bf40b5ed",
+        "is_forbidden": true
+      },
+      {
+        "name": "phase2.pmlead",
+        "subject": "2035cdec-a2ad-499b-839e-a06db74c02dc",
+        "is_forbidden": true
+      },
+      {
+        "name": "phase2.unmapped",
+        "subject": "c784d1e8-cf76-4ed4-850e-9d14a84ad680",
+        "is_forbidden": true
+      }
+    ],
+    "audit": [
+      {
+        "action": "login",
+        "status_code": 200,
+        "event_count": 22,
+        "first_at": "2026-10-26T14:34:44Z",
+        "last_at": "2026-10-26T16:39:06Z"
+      },
+      {
+        "action": "logout",
+        "status_code": 200,
+        "event_count": 12,
+        "first_at": "2026-10-26T15:04:56Z",
+        "last_at": "2026-10-26T16:39:06Z"
+      },
+      {
+        "action": "sso-logout",
+        "status_code": 200,
+        "event_count": 5,
+        "first_at": "2026-10-26T15:04:56Z",
+        "last_at": "2026-10-26T16:36:22Z"
+      },
+      {
+        "action": "update-user",
+        "status_code": 200,
+        "event_count": 7,
+        "first_at": "2026-10-26T16:18:41Z",
+        "last_at": "2026-10-26T16:39:06Z"
+      }
+    ],
+    "client_count": 4,
+    "management_logout_receipts": {
+      "phase2.creator": "manage-identity-20261026T163859Z-6df1406d.json",
+      "phase2.pmlead": "manage-identity-20261026T163901Z-e45acb1f.json",
+      "phase2.disabled": "manage-identity-20261026T163902Z-1b45160f.json",
+      "phase2.noaccess": "manage-identity-20261026T163904Z-8b7a393c.json",
+      "phase2.unmapped": "manage-identity-20261026T163905Z-5c69ed2e.json"
+    },
+    "http_evidence.py": {
+      "file": "<workspace>\\.local-runtime\\phase2-e2e\\http-status-20261026T165135Z.json",
+      "request_counts": {
+        "cmc-phase2-sso-mdm": 709,
+        "cmc-phase2-sso-pm": 71
+      }
+    },
+    "snapshot_assertions.py": {
+      "snapshot": "<workspace>\\.local-runtime\\phase2-e2e\\snapshot-20261026T165138Z-pre-cleanup.json",
+      "read_only": true,
+      "mdm_projects": 2,
+      "links": 2,
+      "operations": 2,
+      "pm_projects": 2,
+      "pm_receipts": 2
+    },
+    "mdm_runtime_source_sha256": {
+      "core/config.py": "877c17d277dd1d6c8bb23c0b6c738fb4028ce6eae058236dfa533167549919dd",
+      "domains/auth/oidc/config.py": "78dbb9555bb272cb4786ac3d7e914f4c04955380f869e5d92854e0344ed5bb6f",
+      "domains/auth/oidc/provider.py": "750fa6cf4a7e2252b73f0386f67c1c7e3575b3de20cd9636218216e2d84465c5",
+      "domains/auth/oidc/service.py": "700e0f8b3b0253df0c42509ef7649dc09e217af7c1bf6f97e75db1936165f1e8",
+      "api/v1/oidc.py": "7f6629c699626dec40f651338868580e7a00ffef03659be0cf583753fbb5ab0e",
+      "api/v1/auth.py": "ed556c32fd37f9c7e9e67d08700e6eb7d0fe534d6a89f47154c3b04c668f598a"
+    },
+    "text_artifact_scan": {
+      "scope": "Only local runtime JSON/Markdown generated evidence; no original secret values, Env, proc or raw logs accessed",
+      "files_scanned": 76,
+      "private_key_jwt_database_credential_pattern_matches": 0,
+      "not_a_whole_machine_or_forensic_erasure_claim": true
+    }
+  },
+  "images_and_volumes_preserved": true,
+  "unit_network_preserved": true,
+  "admin_or_client_iam_write": false,
+  "network_removed": "2ef0eff8478475cf8a666157b19774850a5c58236cd201f5fce4538ec7a1e7e7",
+  "tmpfs_test_databases_destroyed_after_evidence": true,
+  "remaining_allowed_container_ids": [],
+  "loopback_ports_closed": {
+    "5188": true,
+    "5189": true,
+    "8018": true,
+    "18088": true
+  },
+  "completed_at_utc": "2026-10-26T16:52:55Z",
+  "state": "completed"
+}

@@ -1,0 +1,54 @@
+{
+  "started_at_utc": "2026-10-26T15:07:38Z",
+  "organization": "admin/phase2-mdm-e2e",
+  "state": "committed and verified in transaction",
+  "completed_at_utc": "2026-10-26T15:07:38Z",
+  "change_method": "Single-row locked PostgreSQL transaction in fresh test DB",
+  "management_api_not_used_reason": "Official update API changes empty balanceCurrency to USD",
+  "changed_items": [
+    {
+      "name": "Is forbidden",
+      "before": {
+        "tab": "",
+        "name": "Is forbidden",
+        "regex": "",
+        "visible": true,
+        "viewRule": "Admin",
+        "modifyRule": "Admin"
+      },
+      "after": {
+        "tab": "",
+        "name": "Is forbidden",
+        "regex": "",
+        "visible": true,
+        "viewRule": "Self",
+        "modifyRule": "Admin"
+      }
+    },
+    {
+      "name": "Is deleted",
+      "before": {
+        "tab": "",
+        "name": "Is deleted",
+        "regex": "",
+        "visible": true,
+        "viewRule": "Admin",
+        "modifyRule": "Admin"
+      },
+      "after": {
+        "tab": "",
+        "name": "Is deleted",
+        "regex": "",
+        "visible": true,
+        "viewRule": "Self",
+        "modifyRule": "Admin"
+      }
+    }
+  ],
+  "account_items_before_sha256": "ae6bcd9bd5c534cf63b6fef38b19ff46b607c81cb0f5571358e4a4e9d920f689",
+  "account_items_after_sha256": "d2542388d89713788bc1bb96bb6658b8fae2007897a3f08cd7cbb92eed07b383",
+  "all_other_account_items_unchanged": true,
+  "all_other_org_columns_unchanged": true,
+  "other_columns_before_md5": "71e36f77d23e68d18958d762c0dff16f",
+  "other_columns_after_md5": "71e36f77d23e68d18958d762c0dff16f"
+}

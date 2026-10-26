@@ -1,0 +1,544 @@
+{
+  "files": [
+    {
+      "path": "account-status-source-hashes.json",
+      "bytes": 1393,
+      "sha256": "7cac8cbb0def43eca4ba92e9b21baa75f0dd4e94811bd8a8c6832e1ec4429e7b"
+    },
+    {
+      "path": "account-status-tdd.md",
+      "bytes": 3727,
+      "sha256": "933b65a20c1d99f0512b2017ca11eed2f4a0f053a00c4c4a39021320014cff2b"
+    },
+    {
+      "path": "backend-create-source-hashes.json",
+      "bytes": 1004,
+      "sha256": "51a8079d0e4b5c24744a1455b0b1d030b8f2e6684751c6593b9cbfc04c9c751f"
+    },
+    {
+      "path": "backend-create-tdd.md",
+      "bytes": 3153,
+      "sha256": "44031dad5647364fb89ffd40970a97e8140050d45dffa3adfda5fbe01ec07e21"
+    },
+    {
+      "path": "browser-evidence.json",
+      "bytes": 21542,
+      "sha256": "5085bf7e04bae911b6476093b59aae908d3c8d375a860af9163d1e8c6c3c41ca"
+    },
+    {
+      "path": "evidence/account-items-self-change.json",
+      "bytes": 1666,
+      "sha256": "a2b40a0e8e146c5ba34343d203a6ff31ecd82ecb53d4079fdfa3489ed6054886"
+    },
+    {
+      "path": "evidence/cleanup-allowlist-20261026T165052Z.json",
+      "bytes": 17937,
+      "sha256": "3b192280103821a6c76923938e545949c95a25c2302beb71c193e1a6c32e7b9b"
+    },
+    {
+      "path": "evidence/cleanup-receipt-20261026T165139Z.json",
+      "bytes": 7508,
+      "sha256": "6796d9ff79f40ed632d3ea552c9e149aa188ddfdd7785d63808aadc81225ea81"
+    },
+    {
+      "path": "evidence/functional-versions.json",
+      "bytes": 9149,
+      "sha256": "03acf005cc72edb42420ff5160ade033131c193778bad5aada7f41073119e350"
+    },
+    {
+      "path": "evidence/http-status-20261026T145552Z.json",
+      "bytes": 34244,
+      "sha256": "2b2642006dad248ebdbe477c67b2c9b2bd446ed950a99cd0ac86d16bda5dd5be"
+    },
+    {
+      "path": "evidence/http-status-20261026T151735Z.json",
+      "bytes": 57011,
+      "sha256": "5f6d960d149bf0749f98fe469d5c2484749c668a94832a318aa6cecb3fda618f"
+    },
+    {
+      "path": "evidence/http-status-20261026T161148Z.json",
+      "bytes": 75117,
+      "sha256": "1e30f29904afee853b4649fdc239697df91882cef7b1cc1890a38c4b039b42dd"
+    },
+    {
+      "path": "evidence/http-status-20261026T161836Z.json",
+      "bytes": 83137,
+      "sha256": "f56763c643344e08d6a25518612edde7d5707e7fe6cf248825221ff49e646ac3"
+    },
+    {
+      "path": "evidence/http-status-20261026T162045Z.json",
+      "bytes": 75776,
+      "sha256": "303c31d1ce72093a23a7818b62405a3bf9964e9dea1a09a5c313f49b59f0bc6f"
+    },
+    {
+      "path": "evidence/http-status-20261026T162509Z.json",
+      "bytes": 88263,
+      "sha256": "d46b3ad6cdb2369b66ea0bc693c66b63573e19722680af78871ca5ea3ab27b69"
+    },
+    {
+      "path": "evidence/http-status-20261026T163734Z.json",
+      "bytes": 103180,
+      "sha256": "9a064af052a27d81cd52f551801cd4155bf9c471ea4e51a0aa60510c728558a4"
+    },
+    {
+      "path": "evidence/idp-recovery-health-20261026T162508Z.json",
+      "bytes": 880,
+      "sha256": "2013a3025dc4047d664db78313f0ee315bdca0b409ba8416285bd9167f841ee7"
+    },
+    {
+      "path": "evidence/local-commit-fault-arm.json",
+      "bytes": 288,
+      "sha256": "a0458c49eea2ccf6ff8ab07bf2d3b849fd7d982fd9bb607a8ef1b8a65c9b3d8f"
+    },
+    {
+      "path": "evidence/local-commit-fault-disarm.json",
+      "bytes": 291,
+      "sha256": "10d7fc74a409f2faf2a6765e3840f6569051ad7afa5f73ecbf691c7e953d3fd4"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T160739Z-5c6436d6.json",
+      "bytes": 808,
+      "sha256": "9accd10c4706f72b6ebb3a81db67a45d3bf37a1263890a1641da39c2d16fed1c"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T161812Z-5e0fd5e4.json",
+      "bytes": 1338,
+      "sha256": "f0ab05b7806161444c9ef8c0902a4d4a81dfb6318acd9d41d26ea2b967a61892"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T161841Z-6eb3aa4f.json",
+      "bytes": 1337,
+      "sha256": "451d4d8c52045c12ddc1110cf1386e436419ceb49fb5fc760236ecc608c9d4d0"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T162046Z-07374803.json",
+      "bytes": 1336,
+      "sha256": "335071b1fb907c9eae4ceebb57509bb93026bcb354b6d5dbca6f038ce80bce93"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T163859Z-6df1406d.json",
+      "bytes": 1337,
+      "sha256": "b4676dafff2b4ebf6125ea2e23f1b4532bc918170af059fe568c66c25410c861"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T163901Z-e45acb1f.json",
+      "bytes": 1334,
+      "sha256": "9571b2d44ef7aa28a701e42ecf6e63ada8d20df213a2cb3d94c129208655ddd3"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T163902Z-1b45160f.json",
+      "bytes": 1328,
+      "sha256": "71effb7c84278eef844b70377910b4589180dbb7d71d553b56e668f9ad6c15a5"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T163904Z-8b7a393c.json",
+      "bytes": 1328,
+      "sha256": "b6f00ca4127e5ad718e106d14a94017a217cfdacd9578a0f2a63881e23383373"
+    },
+    {
+      "path": "evidence/manage-identity-20261026T163905Z-5c69ed2e.json",
+      "bytes": 1328,
+      "sha256": "b7a3f3bc45d330789baea3e14402b50281b206a23c983c0ca845078c0136c466"
+    },
+    {
+      "path": "evidence/mdm-source-overlay-20261026T155827Z.json",
+      "bytes": 2350,
+      "sha256": "deeeda46941ccd8dc702727bde8fabdffbd363f3d59ac551f3ed31b4936e2a94"
+    },
+    {
+      "path": "evidence/mdm-source-overlay-20261026T161541Z.json",
+      "bytes": 1274,
+      "sha256": "6c4332b1562a1e6934d4b9b3e5daa7c02eff413f9d443edea701f734e9c9e4e7"
+    },
+    {
+      "path": "evidence/mdm-web-replacement-20261026T163450Z.json",
+      "bytes": 4853,
+      "sha256": "958b66f4b40d232ae7046ec5301f6f5272aaddfd9ddcf950d33a3a6e6447529d"
+    },
+    {
+      "path": "evidence/new-isolation-provenance-20261026T155507Z.json",
+      "bytes": 3460,
+      "sha256": "fc93b679f12c4a6d830f884c55458fc95ff15dd1b15fa39bc1c1b3d540f4cb9d"
+    },
+    {
+      "path": "evidence/official-casdoor-replacement.json",
+      "bytes": 1701,
+      "sha256": "bae7563292f2d9436e9f3d4962cdffefb84909047f34320865113b51ae41fa57"
+    },
+    {
+      "path": "evidence/pm-final-runtime-replacement.json",
+      "bytes": 716,
+      "sha256": "13b02497c75183a9460208d960a61d2eebd0ef17dd8c258202a039d87b9fe44c"
+    },
+    {
+      "path": "evidence/snapshot-20261026T143742Z-runtime-ready.json",
+      "bytes": 6338,
+      "sha256": "70e7631a2ab7d615d690030414ede56617987568af378d3765cf11990a103de7"
+    },
+    {
+      "path": "evidence/snapshot-20261026T144208Z-created-A.json",
+      "bytes": 7366,
+      "sha256": "f275cc1eced2d318b1b086ba3d1379203fad59b2ececa9b3527848da7ed3be44"
+    },
+    {
+      "path": "evidence/snapshot-20261026T145555Z-signature-A.json",
+      "bytes": 7839,
+      "sha256": "eac7577b5b9490e856938d365b0048da28305db5883be619b4aac93465d06851"
+    },
+    {
+      "path": "evidence/snapshot-20261026T150118Z-remote-created-B.json",
+      "bytes": 8778,
+      "sha256": "3a522adcdbdaa3c183fb23c50baf13a48679f723d7095226aa71a3ef29940c01"
+    },
+    {
+      "path": "evidence/snapshot-20261026T150222Z-recovered-B.json",
+      "bytes": 8932,
+      "sha256": "fab398bccf8e1cd7a49243203c5181597e91ef9f9dc85241e5241d1636c28b16"
+    },
+    {
+      "path": "evidence/snapshot-20261026T160904Z-before-fixed-global-logout.json",
+      "bytes": 10690,
+      "sha256": "2ec1b218c23aef51da6e8f4b53807926fe2cb3d6fc495e3740b32ed6b14cf89d"
+    },
+    {
+      "path": "evidence/snapshot-20261026T160936Z-after-fixed-global-logout.json",
+      "bytes": 10689,
+      "sha256": "17bc723a516d82621268a6aff8e0a6d1d473183def6328590e2aa81bc36c1b70"
+    },
+    {
+      "path": "evidence/snapshot-20261026T161839Z-before-creator-disable.json",
+      "bytes": 10686,
+      "sha256": "15b2a9324b446e4d27a42e7c53697a921a9a70506eb7ef10313284af7425404d"
+    },
+    {
+      "path": "evidence/snapshot-20261026T162044Z-creator-disabled-old-sessions.json",
+      "bytes": 10980,
+      "sha256": "cc77aa19f38917b0e3bc82ad027059b0fc00c574606322bf5f73e1f4b2410330"
+    },
+    {
+      "path": "evidence/snapshot-20261026T162429Z-idp-outage-partial-logout.json",
+      "bytes": 11177,
+      "sha256": "8fe886fa41f287f705d33ce8a7c9ed3dba6b5d37edcb9b07049ba6a8b4f1358e"
+    },
+    {
+      "path": "evidence/snapshot-20261026T163642Z-accepted-final-global-logout.json",
+      "bytes": 11617,
+      "sha256": "0ec23af216d959759d0c06a2c15e67d4e3129ab6d27b973e06034c6e0c931632"
+    },
+    {
+      "path": "evidence/snapshot-20261026T163909Z-all-five-identities-disabled.json",
+      "bytes": 11613,
+      "sha256": "968ef7517402e4b2f80751178736028c623f110e00f990c29fcee3bf38dc9ae7"
+    },
+    {
+      "path": "final-logout-visible-observation.json",
+      "bytes": 390,
+      "sha256": "3c9c62ad2557061109f14680a46048f495b3a15383b0e4e8672adefff682346f"
+    },
+    {
+      "path": "global-logout-tdd.md",
+      "bytes": 1503,
+      "sha256": "f2581cbc658bb25da6b8c27c60d42893cce30a7d72b371df5bfd1f48d8711ffc"
+    },
+    {
+      "path": "logout-return-source-hashes.json",
+      "bytes": 458,
+      "sha256": "eb2acfddf11e6a8e036fa9d19eb729378c0ed2603ced2eacc6426c0c3924df9d"
+    },
+    {
+      "path": "logout-return-tdd.md",
+      "bytes": 3220,
+      "sha256": "7032c72e7f99b21747069a713d3c8fc9decd04b52a9a0114522a2cd33767d081"
+    },
+    {
+      "path": "pending-login-source-hashes.json",
+      "bytes": 760,
+      "sha256": "a1dc53d253131131bc13aa562d9fdeb7cc8989d476bde0dbe3e70e8707edf28a"
+    },
+    {
+      "path": "pending-login-tdd.md",
+      "bytes": 3528,
+      "sha256": "3092881fa5a73b1e5830b71c985095e5dddfeeadefd7ce053b4c803d6f9089ca"
+    },
+    {
+      "path": "pm-global-logout-visible-state.txt",
+      "bytes": 2041,
+      "sha256": "ff9a16a447e84af9859647dc85eaaa07bea9496c300b31d07ec666a9b9af02ea"
+    },
+    {
+      "path": "provider-compatibility.md",
+      "bytes": 3848,
+      "sha256": "e8ae7e380741187ed5aec2494ccc34c931e5a207125fbb9a4094bdaad54d288e"
+    },
+    {
+      "path": "recovery-url-tdd.md",
+      "bytes": 3201,
+      "sha256": "eab52a6a4fab083dd75a33b4dc54b6776aa4357d985d20cb88f59e90bf5e96ee"
+    },
+    {
+      "path": "report.md",
+      "bytes": 14378,
+      "sha256": "569081179b1b6b15bb10f6b239678bc7419577c436d9ae0d1cea65651be60336"
+    },
+    {
+      "path": "screenshot-validation.json",
+      "bytes": 12789,
+      "sha256": "d2aa80dd96254fca102f0732a6a452fa15ff2e21d96b883c2b2f48e358d78fe6"
+    },
+    {
+      "path": "screenshots/01-portal-creator-login.jpg",
+      "bytes": 52292,
+      "sha256": "5f0d32c9fb25a06a2e709237be5d25c4aaf3519e1d0cf0131a525f15da54ecd0"
+    },
+    {
+      "path": "screenshots/02-pm-session-before-mdm.jpg",
+      "bytes": 66783,
+      "sha256": "ece0c722d8efb9ad6dcb952034a3f9ed00c523d51de434bf89e194d9e93a1609"
+    },
+    {
+      "path": "screenshots/03-portal-to-mdm-sso.jpg",
+      "bytes": 60353,
+      "sha256": "e20f12c03852a3d9041218ffc69e574061a908f0e5b0054eb190cdba16098d60"
+    },
+    {
+      "path": "screenshots/04-mdm-registration-created.jpg",
+      "bytes": 104209,
+      "sha256": "a53f691014b236454c6122fafd75637c5a674e78ae4115fd6ffe1dc7b793a7b4"
+    },
+    {
+      "path": "screenshots/05-pm-explicit-create-input.jpg",
+      "bytes": 106951,
+      "sha256": "b9e3dc863fd92ce59a99fa9c02a3b7809d4a161273c2e9f8500a05ee4d99dbbb"
+    },
+    {
+      "path": "screenshots/06-pm-date-input-complete.jpg",
+      "bytes": 107069,
+      "sha256": "e78a5c652128163eeb645692b6d9baf6d65eca3b7269868e41830d4df02cc1d4"
+    },
+    {
+      "path": "screenshots/07-real-create-and-link-A.jpg",
+      "bytes": 99203,
+      "sha256": "508dac3aa2ed27ca532da4d3a65195fcac9dc2d86874f706ad0e2cc905de0efb"
+    },
+    {
+      "path": "screenshots/08-link-survives-refresh-A.jpg",
+      "bytes": 99207,
+      "sha256": "25e44614d1d166488af50dcca23f9aa6daae6187c9986f23b39616ec4270833f"
+    },
+    {
+      "path": "screenshots/09-mdm-to-correct-pm-A.jpg",
+      "bytes": 92067,
+      "sha256": "12c00a4ad678ce11fedc25173f18cde9f52895e709284ea4c84d6248b0b18fa6"
+    },
+    {
+      "path": "screenshots/10-pm-to-original-mdm-A.jpg",
+      "bytes": 104218,
+      "sha256": "98970c49e4ef435fe74a6922d8c28114046f33d5053bca645ad04e2a0276b9f7"
+    },
+    {
+      "path": "screenshots/11-sso-still-needs-native-signature.jpg",
+      "bytes": 99027,
+      "sha256": "3cfcb0719e43ca053c2165dbb1c5805aa5c99e67cfcc96824d09c2a35c03d2d5"
+    },
+    {
+      "path": "screenshots/12-wrong-signature-keeps-proposed.jpg",
+      "bytes": 103436,
+      "sha256": "290e0c83984414d2f98805c0cf013047603ae1ad252395ad7359c73d89e6d0e6"
+    },
+    {
+      "path": "screenshots/13-native-signature-approved-under-sso.jpg",
+      "bytes": 104665,
+      "sha256": "c75afff69d3645f80e61177d1db40ec9dc107489a4374201d267adc92facb569"
+    },
+    {
+      "path": "screenshots/14-one-to-one-conflict-rejected.jpg",
+      "bytes": 100964,
+      "sha256": "94e7825ea9476acfa4ea3f26b4b83522b49f0214757359fe52a968db2a13d526"
+    },
+    {
+      "path": "screenshots/15-missing-pm-reference-rejected.jpg",
+      "bytes": 99344,
+      "sha256": "95a6f97c56e330906a2088226c3dfcc75e50812842e7949444039c3b8d07f14e"
+    },
+    {
+      "path": "screenshots/16-recovery-B-explicit-input.jpg",
+      "bytes": 104428,
+      "sha256": "5088f5cce342ded907d5bc9029a3ce7d63cf4789c523776128bde313ed84d06c"
+    },
+    {
+      "path": "screenshots/17-remote-created-local-failed-B.jpg",
+      "bytes": 96914,
+      "sha256": "3ceaca840ffeb6adeda29dd52967dc438aa9c3cb1ec0aa0a81fda33525c897dd"
+    },
+    {
+      "path": "screenshots/18-same-request-recovered-B.jpg",
+      "bytes": 99015,
+      "sha256": "71c645b8888217937293f5059ae7250d19ff1e98989b1fd7bb008ff46517430b"
+    },
+    {
+      "path": "screenshots/19-local-logout-auto-sso-regression.jpg",
+      "bytes": 102667,
+      "sha256": "47b19c907c3e92a47d9892ac3b319c16dcc5fc5e6731f672e18b85ab90356b39"
+    },
+    {
+      "path": "screenshots/20-global-logout-scope-prompt.jpg",
+      "bytes": 87010,
+      "sha256": "9f2e74bfc3b594a10f45fdf8f41c0ebaca1466b061a5638b53302a9bdb844762"
+    },
+    {
+      "path": "screenshots/21-global-logout-idp-needs-login.jpg",
+      "bytes": 23318,
+      "sha256": "a06d56979d81398a85bac31e4392cc99d5e5d9c07611611434c0285ca3dda018"
+    },
+    {
+      "path": "screenshots/22-interrupted-expired-flow-rejected.jpg",
+      "bytes": 45826,
+      "sha256": "79a25d041f74a4cf84dc3ddbd769f59e5d69a7ae0c9eda3f7af4d18622803c7e"
+    },
+    {
+      "path": "screenshots/23-unmapped-identity-rejected.jpg",
+      "bytes": 46216,
+      "sha256": "1b64854db7ec70097108931849bba5da3069ba42d066c139c7970dd4be15720d"
+    },
+    {
+      "path": "screenshots/24-local-disabled-mdm-identity-rejected.jpg",
+      "bytes": 46576,
+      "sha256": "c5fa4effd06685482bd7a2f663e940c474633b7ce402478bb55a709e22cc9768"
+    },
+    {
+      "path": "screenshots/25-mapped-no-role-profile.jpg",
+      "bytes": 56512,
+      "sha256": "9773952c2efe60a087558194f5d9cdf345d1ff820159d87fa43dd63a4aaadf9d"
+    },
+    {
+      "path": "screenshots/26-no-role-real-api-forbidden.jpg",
+      "bytes": 27193,
+      "sha256": "052492c9dcdea1d591ef04235780db0cda916beb809ef9a6059d0d84ddeb8377"
+    },
+    {
+      "path": "screenshots/27-local-logout-stable-after-fix.jpg",
+      "bytes": 46068,
+      "sha256": "6c30093461815e7412a887d1c04590258db715604965129b036c1817bbf0d4be"
+    },
+    {
+      "path": "screenshots/28-native-recovery-login-compatible.jpg",
+      "bytes": 77689,
+      "sha256": "d8962d7263dbac328b59b90bb2ca1871a1dcbbb4cb4af474a0e48c15e4af32a8"
+    },
+    {
+      "path": "screenshots/29-old-portal-session-requires-login.jpg",
+      "bytes": 57935,
+      "sha256": "4471eb1119773aa89ffb7290224e4fd8cd386405d2b9624a43b975b401db00d5"
+    },
+    {
+      "path": "screenshots/30-fixed-idp-portal-login.jpg",
+      "bytes": 52292,
+      "sha256": "5f0d32c9fb25a06a2e709237be5d25c4aaf3519e1d0cf0131a525f15da54ecd0"
+    },
+    {
+      "path": "screenshots/31-fixed-idp-live-portal-refresh.jpg",
+      "bytes": 58973,
+      "sha256": "5f94822c2138fe878a21a25d406450a5d1a7942c9321caaea38862aed7d12ed2"
+    },
+    {
+      "path": "screenshots/32-fixed-idp-pm-live-session.jpg",
+      "bytes": 66644,
+      "sha256": "34bc4579488d1589e32da99480295f0a4f86cb769ae1b0bf96899707ebf78536"
+    },
+    {
+      "path": "screenshots/33-fixed-idp-portal-mdm-sso.jpg",
+      "bytes": 72354,
+      "sha256": "540b3ef524885158cc4979cf142e49fce8614bc3bf8dbd34451ba62593cebfa9"
+    },
+    {
+      "path": "screenshots/34-fixed-idp-global-return-ux-red.jpg",
+      "bytes": 18630,
+      "sha256": "9160fa7fb17016c623479be92c748d8f22dc26a20ef683f149d8d8a074e142a7"
+    },
+    {
+      "path": "screenshots/35-fixed-global-portal-rejected.jpg",
+      "bytes": 57935,
+      "sha256": "4471eb1119773aa89ffb7290224e4fd8cd386405d2b9624a43b975b401db00d5"
+    },
+    {
+      "path": "screenshots/36-fixed-global-pm-rejected.jpg",
+      "bytes": 59420,
+      "sha256": "c8706f236d82866d71e184f929ee45d1c60259ea116db7960bda56c277dcef32"
+    },
+    {
+      "path": "screenshots/37-fixed-global-idp-reauth-required.jpg",
+      "bytes": 23318,
+      "sha256": "a06d56979d81398a85bac31e4392cc99d5e5d9c07611611434c0285ca3dda018"
+    },
+    {
+      "path": "screenshots/38-invalid-callback-controlled-error.jpg",
+      "bytes": 45826,
+      "sha256": "79a25d041f74a4cf84dc3ddbd769f59e5d69a7ae0c9eda3f7af4d18622803c7e"
+    },
+    {
+      "path": "screenshots/39-casdoor-disabled-real-login-rejected.jpg",
+      "bytes": 25195,
+      "sha256": "4b848649960f11415a5ebe87c77c60488701dedaad4e925c1f4867ae1ff48c06"
+    },
+    {
+      "path": "screenshots/40-casdoor-disabled-toast.jpg",
+      "bytes": 29769,
+      "sha256": "42007e8bd941d6c3dcbe50af7db0c29f1a0269522e5feb8cc82ea29cf7f43aca"
+    },
+    {
+      "path": "screenshots/41-restored-account-old-session-still-rejected.jpg",
+      "bytes": 27297,
+      "sha256": "900a9c2f60c278d6027ff6429685fb275eb0f6f8a792a7124bc9d3c85992bb86"
+    },
+    {
+      "path": "screenshots/42-pmlead-mdm-readonly-api-denied.jpg",
+      "bytes": 27230,
+      "sha256": "c703b3671333997e70eeca8554a04e1c932653a0849491b515c57afbe9b73767"
+    },
+    {
+      "path": "screenshots/43-mdm-readonly-existing-link.jpg",
+      "bytes": 108543,
+      "sha256": "742d1b7d73f840be5edd214e0af40af9204c7d2c60b51e2890181bbb5e34466d"
+    },
+    {
+      "path": "screenshots/44-pm-global-logout-revokes-mdm.jpg",
+      "bytes": 27326,
+      "sha256": "533ee4c1640bc27ce26d39c41d52840993b14718bf7da62b4536cb8b5d2c68f3"
+    },
+    {
+      "path": "screenshots/45-idp-outage-partial-logout-warning.jpg",
+      "bytes": 85714,
+      "sha256": "7c480f0ce7ebf4dfd5fab8bf2103d41b5ef1562700b5139338b67ce870ce764c"
+    },
+    {
+      "path": "screenshots/46-idp-outage-portal-fail-closed.jpg",
+      "bytes": 13870,
+      "sha256": "6fb1e2274793f9a60320772c7dfec2884b9c5ffd421436f01ec353eff345239d"
+    },
+    {
+      "path": "screenshots/47-final-runtime-existing-link-verified.jpg",
+      "bytes": 99020,
+      "sha256": "c32d3b7a318c22f5492a11dbbebb2d039f4cc577510010952ba9af1949a6f8ac"
+    },
+    {
+      "path": "screenshots/48-local-return-policy-ux-red.jpg",
+      "bytes": 82650,
+      "sha256": "5c03f3e0952c6e785ee8a7c77ce4be5794ebda23fcf5d6999af0a5423f300bc8"
+    },
+    {
+      "path": "screenshots/49-final-global-local-return-green.jpg",
+      "bytes": 46068,
+      "sha256": "6c30093461815e7412a887d1c04590258db715604965129b036c1817bbf0d4be"
+    },
+    {
+      "path": "screenshots/50-final-global-mdm-session-rejected.jpg",
+      "bytes": 25901,
+      "sha256": "593299032b949ed3612258d0ad4460b8fa0bcf333203caa36bcd1d03e839d814"
+    }
+  ],
+  "screenshot_count": 50,
+  "unique_screenshot_content_count": 45,
+  "excluded_duplicate_count": 5,
+  "privacy_validation": "no JWT/private-key material or credential value fields detected; screenshots manually inspected",
+  "raw_env_private_logs_browser_session_data_included": false
+}

@@ -1,0 +1,208 @@
+{
+  "cmc_functional_head": "143d6d69a625843cfd4e3ad3b98d3d210a17ff69",
+  "pm_functional_head": "6c9dd426cb3984ef0ce319b4c4f2a11b62ac3267",
+  "cmc_collected_head": "143d6d69a625843cfd4e3ad3b98d3d210a17ff69",
+  "pm_collected_head": "3fda921b60ad4dd13ace9a3f38d084125171b28b",
+  "source_hashes": [
+    {
+      "path": "cmab-mdm-platform/backend/alembic/versions/2026_10_26_2030_0068_pm_create_request.py",
+      "sha256": "0695e4b4a4d3103fcfbf5c743a96d98ab6a69a9f3a213606da4150c65d5558df"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/alembic/versions/2026_10_26_2100_0067_oidc_identity.py",
+      "sha256": "9c2b80bfe292dd99301b641f489b8a28aeedfcb847d0d6f4aef7ca89c0deb400"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/api/v1/__init__.py",
+      "sha256": "eab8bad81bf91f5bc2b84ba134df64050f8ea9e9f6aeddf5ada6e1e81071eaf4"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/api/v1/auth.py",
+      "sha256": "ed556c32fd37f9c7e9e67d08700e6eb7d0fe534d6a89f47154c3b04c668f598a"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/api/v1/oidc.py",
+      "sha256": "7f6629c699626dec40f651338868580e7a00ffef03659be0cf583753fbb5ab0e"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/api/v1/pm_links.py",
+      "sha256": "ff9f54975ad2f6b7dbb90a641d6ad5b9b2ae23e3798db590a0560244b19ddc59"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/core/config.py",
+      "sha256": "877c17d277dd1d6c8bb23c0b6c738fb4028ce6eae058236dfa533167549919dd"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/core/logging.py",
+      "sha256": "46c48d6bcec18dc402d4cf5e97df9f79eb9ed3b71ae7639cf088874e9520fef6"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/auth/oidc/__init__.py",
+      "sha256": "36f63b4f6b1e7a44765de2f76d19bf2b4b8a0809bec81d104cccfb8474f31c08"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/auth/oidc/config.py",
+      "sha256": "78dbb9555bb272cb4786ac3d7e914f4c04955380f869e5d92854e0344ed5bb6f"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/auth/oidc/models.py",
+      "sha256": "ac2e6222da1abcf52da2f3df2220a7aa8b8be6c5566c5aa6ddaae98b2f39fb4c"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/auth/oidc/protocol.py",
+      "sha256": "8821ac4658c73929e21316d21550652d83230b74c00dcfdfc63e29b0636aa538"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/auth/oidc/provider.py",
+      "sha256": "750fa6cf4a7e2252b73f0386f67c1c7e3575b3de20cd9636218216e2d84465c5"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/auth/oidc/service.py",
+      "sha256": "700e0f8b3b0253df0c42509ef7649dc09e217af7c1bf6f97e75db1936165f1e8"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/prs/models.py",
+      "sha256": "1d265098ac5ddc47d6568e8bf1822bde9c8d6ca8143a36ffb93815c6ac9d86d7"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/prs/pm_create.py",
+      "sha256": "06568538f30beac1d6b12bcb4e54ed2814a49e1e9f8fe7a8fbeb4a7e027421be"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/prs/pm_links.py",
+      "sha256": "a6440349ea320174bb248f4a9aad715f546227f63cbe74276c45fdab2e72bc32"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/main.py",
+      "sha256": "e8f16ae27a5bab854ac89a78853a5aa8277e3173926c155b0ea07bd4fe3abb8a"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/scripts/oidc_identity.py",
+      "sha256": "7bd622ae7b73900e53c5b7456db71f89017643d770e9066d87067b2d09d5bcdc"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/shared/permissions.py",
+      "sha256": "f714e1dcae74eff615db356692b41cefc9021b7ec851bcd4543c3e68e19b9592"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/scripts/run_phase2_tests.py",
+      "sha256": "e5d8d0a78129cbfbcbe5635843f9f66bd4e39c51cfb0d796d119ace9f457876e"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_oidc_endpoints.py",
+      "sha256": "fbf81c6692943e20f21481fd8811f1eef9ce5960477de0a52c5bcc2611434657"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_oidc_logout.py",
+      "sha256": "8b0b77c251ec6ef04d07eb3a1a6a639e1e18b0530e9ca307fc2af05ee907e223"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_oidc_protocol.py",
+      "sha256": "79ce7bd1636a78431f59c68fa1e4b94b1f80d9c71d569ae4b55ac64fc2dec2f9"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_oidc_provider.py",
+      "sha256": "d9fc87a3f221a1f24dfd739fa9b7af2359d4699631dbc34e722b3914cbc62e10"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_oidc_recovery_urls.py",
+      "sha256": "5671603d0ac616c9a7de8051e87660d66d5ef4788242572cbabc0933e0b9192d"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_oidc_sessions.py",
+      "sha256": "c384e777543769160ca7e99b0f19cd252227f03897db27b1b31d7db6af39c0fd"
+    },
+    {
+      "path": "cmab-mdm-platform/backend/tests/test_pm_create.py",
+      "sha256": "8b1d8d1baa0034fde6fe159641a2ec7ae97163952716efaba1e06609e7f8253f"
+    },
+    {
+      "path": "cmab-mdm-platform/deploy/docker-compose.dev.yml",
+      "sha256": "bdd894f22f9866a3a32490c0f6ad2283fb63c70a380f2f9d965a1d86721ce63a"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/App.tsx",
+      "sha256": "edeb409f401414e971985f2f748f1e7c25608b95873e359ff028beca9cf9cecd"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/api/client.ts",
+      "sha256": "8e32d1cd66da6368ecee59524610c10b4fc8b1e7f87446088c9e02aad13a63cd"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/api/oidc.ts",
+      "sha256": "d37bfd3f3b0c82ac1bdeebd3bb9b3d144f641a142e03cc03e4dab7a741bcaf03"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/api/pmCreate.ts",
+      "sha256": "3ffb966ac85774d5ac4b74197a4daada169672a80e68035df7a25bd77c442e63"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/modules/auth/pages/AuthCompletePage.tsx",
+      "sha256": "98bce27c0a3f62c8cc82ecd3722d93d239d094431c05802ea85787be93f424c7"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/modules/auth/pages/LoginPage.tsx",
+      "sha256": "5a5398eeda12e95edcc566e6e900e83dbc170842c29f6783aab14f02b70b7855"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/modules/projects/components/ProjectPMCreateForm.tsx",
+      "sha256": "ffa2410c03e9f9f17e2cae73a9cf6ebf35ced0ff7c94726e7e96d7783f6df0e1"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/modules/projects/components/ProjectPMLinkTab.tsx",
+      "sha256": "dddc716281d5cd4630f6097e159b5c1d4e2ea08db6c55c1bc3802a1885328915"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/routes/ProtectedRoute.tsx",
+      "sha256": "18617a27e95f07adcafe1a0d494a32027fa323362139461440a97c1baf40413e"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/appUpdate.tsx",
+      "sha256": "b446d389f50ae368e0562d910b82eef3b0efb64312e7d96b9d43bb1dae204981"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/components/AuthBootstrap.tsx",
+      "sha256": "f14eb0518ffb60e677523f9a1c928f55e863b67515145aed61ddef5c325da5e9"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/components/StatusActionsBar.tsx",
+      "sha256": "a65c08c43f1a152bb52252f3eb8e997af8c763192f40bf8e38fb03fff7661b75"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/layouts/Header.tsx",
+      "sha256": "b0e88fcfed7c93e0bce72c5005f619fd35cc5fc5f87ee3ca20b9306c2fec7522"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/oidcBootstrap.ts",
+      "sha256": "8238bd485cd6b8085bb988e7a198c35d577a5b760004f4aabf848e153ad7f307"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/oidcPolicy.ts",
+      "sha256": "b543538902710e9725bc2717680dd70637a33238b0893a78e279ffb6b905c303"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/oidcTypes.ts",
+      "sha256": "a8db531e19c8d08b8352cc02dd360065b47a1859a1c906f5c20bceb239519fb8"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/shared/useSessionGuard.ts",
+      "sha256": "0454ef378042ad691d23dc3f512ca0b757cd298643e5411a8597ebebf3f137fc"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/src/stores/authStore.ts",
+      "sha256": "a5f558b18822ab00f51a5d83da93379d40c2f97278bcdad1344787d7a9e7629f"
+    },
+    {
+      "path": "cmab-mdm-platform/frontend/tests/phase2-auth.test.mjs",
+      "sha256": "9e73be492f49d01d70f729c7f43848f2121f83ceeaaf0bb55d8263d52470cc74"
+    }
+  ],
+  "runtime_mdm_base_image": "sha256:36542786a7819e985307225a4b2005d7109a928919e550f28db8fa59267f7b1c",
+  "runtime_mdm_overlays": [
+    "mdm-source-overlay-20261026T155827Z.json",
+    "mdm-source-overlay-20261026T161541Z.json"
+  ],
+  "runtime_mdm_frontend_image": "sha256:665c54a2f8c1e7c9932bf91ba1fd5b72b9947ed0e6538118948704defe06227f",
+  "runtime_pm_image": "sha256:cb2aee79a87023e7c22a9e3e5303c65a39ec4dbb2a0a84dd90e92eba87f29124",
+  "runtime_casdoor_digest": "sha256:95c7be68fb98daf2ec74a10c9f785af1ef75e8fef6dd4aad455a899e651e87e2"
+}

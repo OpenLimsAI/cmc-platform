@@ -1,0 +1,45 @@
+Browser tab: 6, Title: "迈博药业 · 员工应用门户", URL: "http://127.0.0.1:5189/login".
+1 AXWebArea 迈博药业 · 员工应用门户, URL: 127.0.0.1:5189/login
+	2 container root
+		3 container
+			4 link Description: 迈博药业员工应用门户, Value: 127.0.0.1:5189/
+			5 text 统一身份 · 协同工作
+		6 container
+			7 container 连接团队， 让工作更专注。
+				8 container
+					9 text MAIBO WORKSPACE
+					10 heading 连接团队， 让工作更专注。, Value: 1, ID: mb-login-intro-title
+						11 text 连接团队，
+						12 text 让工作更专注。
+					13 text 一个工作入口，连接项目与知识。
+					14 text 使用迈博账号登录，开启您的工作空间。
+					15 container 工作应用
+						16 heading 项目管理, Value: 2
+							17 text 项目管理
+						18 text 统筹研发进度，协同推进项目
+						19 heading 知识库, Value: 2
+							20 text 知识库
+						21 text 沉淀团队知识，连接经验与实践
+					22 text 迈博药业 · 数字化工作空间
+			23 container 登录，开启今天的工作
+				24 text 欢迎使用迈博工作空间
+				25 heading 登录，开启今天的工作, Value: 2, ID: mb-login-title
+					26 text 登录，开启今天的工作
+				27 text 登录后进入项目管理，继续您的工作。
+				28 container
+					29 text 迈博统一身份登录 · 使用迈博员工账号
+					30 text 用户名
+					31 text field (settable) 用户名
+					32 text 密码
+					33 text field (settable) 密码
+					34 checkbox Description: 显示密码, Value: 0
+					35 checkbox (settable, integer) Description: 下次自动登录, Value: 1
+					36 text 忘记密码请联系系统管理员
+					37 button 登录项目管理
+				38 container
+					39 text 如需开通账号、重置密码或调整权限，请联系系统管理员。
+					40 link Description: 查看使用帮助, Value: 127.0.0.1:5189/help
+		41 container
+			42 text 迈博药业 项目协同 · 知识共享
+
+The focused UI element is 31 text field (settable) 用户名
