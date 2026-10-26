@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-10-26T16:14:53.0621488Z",
+  "purpose": "MDM confirmed global logout fixed local return tested source snapshot",
+  "files": [
+    {
+      "path": "backend/app/api/v1/oidc.py",
+      "sha256": "7f6629c699626dec40f651338868580e7a00ffef03659be0cf583753fbb5ab0e"
+    },
+    {
+      "path": "backend/tests/test_oidc_sessions.py",
+      "sha256": "c384e777543769160ca7e99b0f19cd252227f03897db27b1b31d7db6af39c0fd"
+    }
+  ]
+}

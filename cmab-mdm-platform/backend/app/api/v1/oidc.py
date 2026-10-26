@@ -169,10 +169,11 @@ async def oidc_logout(payload: LogoutRequest, request: Request, db: AsyncSession
             data["warning"] = "MDM 已退出，但统一身份注销未确认；门户或 PM 会话可能仍有效。"
     data["global_logout"] = global_ok
     if global_ok:
-        # No id_token_hint/access token in URL. Provider browser logout clears its
-        # own cookie and only uses the client's explicitly registered local return.
-        data["logout_url"] = service.config.issuer + "/api/logout?" + urlencode({
-            "client_id": service.config.client_id, "post_logout_redirect_uri": data["login_url"]})
+        # logoutAll plus post-introspection has confirmed server-side revocation.
+        # The IdP browser cookie may physically remain, but refers to no live
+        # session. Its unauthenticated GET /api/logout can return JSON instead
+        # of redirecting, so return only to our configured fixed login page.
+        data["logout_url"] = data["login_url"]
     response = JSONResponse(success(data=data), headers=HEADERS)
     clear_session_cookie(response, service.config)
     clear_login_cookie(response, service.config)

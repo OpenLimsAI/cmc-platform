@@ -297,6 +297,67 @@ async def test_browser_logout_or_native_login_cancels_its_pending_callback(db, m
             await asyncio.gather(callback, return_exceptions=True)
 
 
+@pytest.mark.parametrize("confirmation", ["inactive", "still_active", "unavailable"])
+async def test_confirmed_global_logout_returns_only_fixed_local_login(db, monkeypatch, confirmation):
+    import json
+    from http.cookies import SimpleCookie
+
+    import app.api.v1.oidc as oidc_api
+    from app.domains.auth.oidc.protocol import OIDCError
+    from app.domains.auth.oidc.provider import OIDCProvider
+    from app.domains.auth.oidc.service import LOGIN_COOKIE, SESSION_COOKIE
+    from starlette.requests import Request
+
+    admin, readonly = await actors(db)
+    cfg = config()
+    subject = "return-" + uuid4().hex
+    class Provider(OIDCProvider):
+        introspections = 0
+        async def is_active(self, access, *, subject):
+            return True
+        async def discovery(self):
+            return {"introspection_endpoint": cfg.issuer + "/api/login/oauth/introspect"}
+        async def request(self, method, url, **kwargs):
+            assert method == "POST"
+            if url.endswith("/api/sso-logout"):
+                assert kwargs["params"] == {"logoutAll": "true"}
+                return {"status": "ok"}
+            self.introspections += 1
+            if self.introspections == 1:
+                return {"active": True, "client_id": cfg.client_id, "sub": subject}
+            if confirmation == "unavailable":
+                raise OIDCError("Synthetic confirmation unavailable")
+            return {"active": confirmation != "inactive"}
+    provider = Provider(cfg)
+    service = OIDCService(db, config=cfg, provider=provider)
+    await service.bind_identity(subject, readonly.user_id, actor=admin, reason="隔离统一退出固定返回地址")
+    raw, _ = await service.issue_session(claims(subject), {"access_token": "synthetic-global-access"})
+    monkeypatch.setattr(oidc_api, "OIDCService", lambda connection: service)
+    request = Request({"type": "http", "method": "POST", "path": "/api/v1/auth/oidc/logout",
+        "headers": [(b"origin", cfg.origin.encode()), (b"cookie", (SESSION_COOKIE + "=" + raw).encode())],
+        "client": ("127.0.0.1", 12345)})
+    response = await oidc_api.oidc_logout(oidc_api.LogoutRequest(**{"global": True}), request, db)
+    body = json.loads(response.body)["data"]
+    assert body["local_logout"] is True
+    assert provider.introspections == 2
+    if confirmation == "inactive":
+        assert body["global_logout"] is True and "warning" not in body
+        assert body["logout_url"] == body["login_url"] == cfg.public_url + "/login?reason=logout"
+    else:
+        assert body["global_logout"] is False and body["warning"]
+        assert "logout_url" not in body
+    assert "synthetic-global-access" not in response.body.decode()
+    cleared = set()
+    for header in response.headers.getlist("set-cookie"):
+        cookie = SimpleCookie(header)
+        for name in (LOGIN_COOKIE, SESSION_COOKIE):
+            if name in cookie and cookie[name]["max-age"] == "0" and cookie[name]["path"] == cfg.cookie_path:
+                cleared.add(name)
+    assert cleared == {LOGIN_COOKIE, SESSION_COOKIE}
+    with pytest.raises(TokenInvalidError):
+        await service.current_session(raw)
+
+
 async def test_cookie_auth_uses_live_mdm_user_and_rejects_cross_origin_write(db, monkeypatch):
     from app.shared.permissions import get_current_user
     from pydantic import SecretStr
