@@ -78,6 +78,16 @@ app.add_middleware(
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(AuditContextMiddleware)
 
+
+@app.middleware("http")
+async def private_oidc_responses(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/v1/auth/oidc") or "mdm_oidc_session" in request.cookies:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
 # P4.B 限流：默认 300/min/user（已认证）或 300/min/IP（未认证）
 # /auth/login + /auth/refresh 在路由层用装饰器单独覆写到 10/min/IP
 # /health + /metrics 路径白名单，在 RateLimitExceeded handler 里宽放（slowapi 暴露

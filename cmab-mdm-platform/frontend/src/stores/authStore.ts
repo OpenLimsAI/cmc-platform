@@ -91,12 +91,22 @@ function computeUserAdminScope(user: LoginResponseUser | null): UserAdminScope {
 
 interface AuthState {
   token: string | null;
+  authMode: 'native' | 'oidc' | null;
+  oidcExpiresAt: string | null;
+  pmDelegated: boolean;
+  oidcEnabled: boolean;
+  nativeLoginEnabled: boolean;
+  bootstrapPending: boolean;
+  bootstrapError: string | null;
   user: LoginResponseUser | null;
   permissions: Set<string>;
   isAdmin: boolean;
   userAdminScope: UserAdminScope;
 
   setAuth: (token: string, user: LoginResponseUser) => void;
+  setOidcSession: (user: LoginResponseUser, expiresAt: string, pmDelegated: boolean) => void;
+  setOidcConfig: (enabled: boolean, nativeEnabled: boolean) => void;
+  finishBootstrap: (error?: string) => void;
   updateToken: (token: string) => void;
   logout: () => void;
   hasPermission: (perm: string) => boolean;
@@ -111,20 +121,46 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       token: null,
+      authMode: null,
+      oidcExpiresAt: null,
+      pmDelegated: false,
+      oidcEnabled: false,
+      nativeLoginEnabled: true,
+      bootstrapPending: true,
+      bootstrapError: null,
       user: null,
       permissions: new Set(),
       isAdmin: false,
       userAdminScope: null,
 
       setAuth: (token, user) => {
+        if (get().user?.user_id !== user.user_id || get().authMode !== 'native') queryClient.clear();
         set({
           token,
+          authMode: 'native',
+          oidcExpiresAt: null,
+          pmDelegated: false,
           user,
           permissions: new Set(user.permissions),
           isAdmin: user.roles.includes('SYS_ADMIN'),
           userAdminScope: computeUserAdminScope(user),
+          hasPermission: (perm) => get().isAdmin || get().permissions.has(perm),
         });
       },
+
+      // OIDC credentials remain in the HttpOnly cookie/server session. Persist's
+      // native-token adapter removes legacy bearer state instead of storing this user.
+      setOidcSession: (user, expiresAt, pmDelegated) => {
+        if (get().user?.user_id !== user.user_id || get().authMode !== 'oidc') queryClient.clear();
+        set({ token: null, authMode: 'oidc', user, oidcExpiresAt: expiresAt, pmDelegated,
+          permissions: new Set(user.permissions), isAdmin: user.roles.includes('SYS_ADMIN'),
+          userAdminScope: computeUserAdminScope(user),
+          // Existing guards select this function. A new reference also notifies
+          // those guards when a non-admin's permission set changes in-session.
+          hasPermission: (perm) => get().isAdmin || get().permissions.has(perm) });
+      },
+      setOidcConfig: (enabled, nativeEnabled) => set({ oidcEnabled: enabled, nativeLoginEnabled: nativeEnabled }),
+      finishBootstrap: (error) => set({ bootstrapPending: false, bootstrapError: error ?? null }),
 
       // 换证可能恰好跨越密码到期日；同步服务端声明，权限仍沿用现有用户资料。
       updateToken: (token) => {
@@ -148,6 +184,9 @@ export const useAuthStore = create<AuthState>()(
         queryClient.clear();
         set({
           token: null,
+          authMode: null,
+          oidcExpiresAt: null,
+          pmDelegated: false,
           user: null,
           permissions: new Set(),
           isAdmin: false,
@@ -183,6 +222,7 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         // 恢复时重建 Set
         if (state?.user) {
+          state.authMode = state.token ? 'native' : null;
           state.permissions = new Set(state.user.permissions);
           state.isAdmin = state.user.roles.includes('SYS_ADMIN');
           state.userAdminScope = computeUserAdminScope(state.user);

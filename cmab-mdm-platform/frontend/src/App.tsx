@@ -11,6 +11,8 @@ import { FullAdminRoute } from './routes/FullAdminRoute';
 import { HomeRedirect } from './routes/HomeRedirect';
 import { PMProjectContextPage } from './modules/projects/pages/PMProjectContextPage';
 import { NotFoundPage } from './modules/common/NotFoundPage';
+import { AuthBootstrap } from './shared/components/AuthBootstrap';
+import { AuthCompletePage } from './modules/auth/pages/AuthCompletePage';
 
 // 路由级懒加载：每个页面打成独立 chunk，按需下载（命名导出→default 适配）
 const DashboardPage = lazy(() =>
@@ -161,13 +163,14 @@ export default function App() {
   // key=路径：换页时错误边界自动复位，不会一处出错后整站一直显示错误卡片
   const location = useLocation();
   return (
-    <>
+    <AuthBootstrap>
       {/* 必须放在 keyed 边界之外：key 变化会重挂组件，「已知过期→下次换页刷新」就永远不触发 */}
       <AppUpdateWatcher />
       <AppErrorBoundary key={location.pathname}>
         <Suspense fallback={PageFallback}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth-complete" element={<AuthCompletePage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
@@ -236,6 +239,6 @@ export default function App() {
           </Routes>
         </Suspense>
       </AppErrorBoundary>
-    </>
+    </AuthBootstrap>
   );
 }

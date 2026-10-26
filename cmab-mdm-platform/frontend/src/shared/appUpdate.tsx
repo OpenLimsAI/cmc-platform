@@ -12,6 +12,8 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button, notification } from 'antd';
+import { useAuthStore } from '@/stores/authStore';
+import { hasUiSession } from './oidcPolicy';
 
 declare const __APP_BUILD_ID__: string;
 
@@ -48,8 +50,9 @@ export function AppUpdateWatcher() {
       if (disposed || !server || server === BUILD_ID) return;
       stale.current = true;
       const onLoginPage = window.location.pathname.startsWith(`${BASE}login`);
-      const hasToken = !!localStorage.getItem(TOKEN_KEY);
-      if (reason === 'storage' || onLoginPage || !hasToken) {
+      const auth = useAuthStore.getState();
+      const authenticated = hasUiSession(auth.token, auth.authMode, !!auth.user);
+      if (reason === 'storage' || onLoginPage || !authenticated) {
         reload();
         return;
       }

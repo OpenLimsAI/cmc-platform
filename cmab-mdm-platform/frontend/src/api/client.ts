@@ -99,6 +99,7 @@ api.interceptors.response.use(
     // 排除：refresh 端点自身、已重试过的请求、电子签名 401（业务身份再验证）
     const isAuthRefreshUrl = originalConfig?.url?.includes('/auth/refresh');
     const canTryRefresh =
+      useAuthStore.getState().authMode !== 'oidc' &&
       status === 401 &&
       errorType === 'token_expired' &&
       !!originalConfig &&
@@ -117,7 +118,7 @@ api.interceptors.response.use(
       } catch {
         // refresh 失败 → 清状态跳登录
         const authStore = useAuthStore.getState();
-        if (authStore.token) {
+        if (authStore.token || authStore.authMode === 'oidc') {
           antdMessage.warning('登录已过期，请重新登录');
           authStore.logout();
         }
@@ -133,7 +134,7 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
       const authStore = useAuthStore.getState();
-      if (authStore.token) {
+      if (authStore.token || authStore.authMode === 'oidc') {
         // refresh 端点自身的 401 带后端原话（「长时间未操作」/「已满 N 小时」），照抄给用户
         antdMessage.warning(
           isAuthRefreshUrl && errorType === 'token_expired' ? errorMessage : '登录已过期，请重新登录',
