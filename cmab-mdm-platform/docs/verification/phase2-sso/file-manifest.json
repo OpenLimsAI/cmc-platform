@@ -37,13 +37,13 @@
     },
     {
       "path": "evidence/cleanup-receipt-20261026T165139Z.json",
-      "bytes": 7508,
-      "sha256": "6796d9ff79f40ed632d3ea552c9e149aa188ddfdd7785d63808aadc81225ea81"
+      "bytes": 9608,
+      "sha256": "446809c6ec443b799a2d8f34c01432bda83959c83906e310bc547a4b50a04a4b"
     },
     {
       "path": "evidence/functional-versions.json",
       "bytes": 9149,
-      "sha256": "03acf005cc72edb42420ff5160ade033131c193778bad5aada7f41073119e350"
+      "sha256": "b383cd951ff75d3b5f6eb6b04f227df83078d5fe2ae283b0f96883968d99ae01"
     },
     {
       "path": "evidence/http-status-20261026T145552Z.json",
@@ -79,6 +79,11 @@
       "path": "evidence/http-status-20261026T163734Z.json",
       "bytes": 103180,
       "sha256": "9a064af052a27d81cd52f551801cd4155bf9c471ea4e51a0aa60510c728558a4"
+    },
+    {
+      "path": "evidence/http-status-20261026T165135Z.json",
+      "bytes": 103851,
+      "sha256": "186ff30266233746a5b6fd2b1c2f3664a7a076d355e942481cf621e86957b6b9"
     },
     {
       "path": "evidence/idp-recovery-health-20261026T162508Z.json",
@@ -231,6 +236,11 @@
       "sha256": "968ef7517402e4b2f80751178736028c623f110e00f990c29fcee3bf38dc9ae7"
     },
     {
+      "path": "evidence/snapshot-20261026T165138Z-pre-cleanup.json",
+      "bytes": 11596,
+      "sha256": "08d846ed58df6bf6a1ee0ed6fdac0ba2d587ff8682d63e76300acee36c6e7f2c"
+    },
+    {
       "path": "final-logout-visible-observation.json",
       "bytes": 390,
       "sha256": "3c9c62ad2557061109f14680a46048f495b3a15383b0e4e8672adefff682346f"
@@ -277,8 +287,8 @@
     },
     {
       "path": "report.md",
-      "bytes": 14378,
-      "sha256": "569081179b1b6b15bb10f6b239678bc7419577c436d9ae0d1cea65651be60336"
+      "bytes": 14348,
+      "sha256": "a1a6d9bf0875c956ce7ae12c6e8c85ae748b8d6d8eed1e5d95507e64c6c9e367"
     },
     {
       "path": "screenshot-validation.json",
