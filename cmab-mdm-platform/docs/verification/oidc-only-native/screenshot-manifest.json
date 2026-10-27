@@ -1,5 +1,6 @@
 {
-  "source_commit": "83eb477cf357a83683376722e1b80f08913b2bda",
+  "initial_source_commit": "83eb477cf357a83683376722e1b80f08913b2bda",
+  "replay_source_commit": "d8838e00be554b83bfaaddc8d5cf7ee9695628cc",
   "files": [
     {
       "file": "screenshots/01-native-compatible.jpg",
@@ -78,6 +79,54 @@
       "bytes": 38310,
       "sha256": "37a01e718eff4f4e8ae6a83ceeb7d373a050ed6ffc710f689ce4fbd9873d0e50",
       "captured_file_utc": "2026-10-27T15:31:32.470198+00:00"
+    },
+    {
+      "file": "screenshots/14-noaccess-authenticated-profile.jpg",
+      "bytes": 51117,
+      "sha256": "2fa8da37ae468d5f0b937bfd1a0dd084de4a25156d1e5617d45c087f349e6730",
+      "captured_file_utc": "2026-10-27T17:37:31.111755+00:00"
+    },
+    {
+      "file": "screenshots/15-noaccess-project-read-denied.jpg",
+      "bytes": 48893,
+      "sha256": "955a4a9a8e6d76804316328ee8d6ac0a2e4d93de855aac726004eaa9ea4c06fe",
+      "captured_file_utc": "2026-10-27T17:37:59.053107+00:00"
+    },
+    {
+      "file": "screenshots/16-noaccess-real-api-response.jpg",
+      "bytes": 24648,
+      "sha256": "fd166f7fe038310a1d14deb3887b52384ff9a27f9b8d0191eb40976e2f4e34a3",
+      "captured_file_utc": "2026-10-27T17:38:18.812672+00:00"
+    },
+    {
+      "file": "screenshots/17-before-idp-outage.jpg",
+      "bytes": 53193,
+      "sha256": "e06cc7402f5949c1a10088ea67ad9cbfa4f7db21d3c7eb5672abb2d2432661dc",
+      "captured_file_utc": "2026-10-27T17:39:12.677237+00:00"
+    },
+    {
+      "file": "screenshots/18-idp-outage-fail-closed.jpg",
+      "bytes": 13592,
+      "sha256": "5c8fc16cfc3a036c50c550536c983137f21935c0a50baa236fa55124afb01ef0",
+      "captured_file_utc": "2026-10-27T17:39:50.654994+00:00"
+    },
+    {
+      "file": "screenshots/19-idp-outage-real-api-response.jpg",
+      "bytes": 25963,
+      "sha256": "08fe1412d94d25ac9878cf0407662def9833396538118b50af861e88e80cf41f",
+      "captured_file_utc": "2026-10-27T17:40:21.393715+00:00"
+    },
+    {
+      "file": "screenshots/20-idp-recovery-session-rechecked.jpg",
+      "bytes": 53208,
+      "sha256": "57975bac1ff4bef4be9628ddb5151a9940cf93e225e1f875dc2a5c31a2a610c6",
+      "captured_file_utc": "2026-10-27T17:40:52.781340+00:00"
+    },
+    {
+      "file": "screenshots/21-idp-recovery-real-api-response.jpg",
+      "bytes": 23217,
+      "sha256": "577958124f1d4a4564969487e0a643bba567e500851ec5857d67845b9395648d",
+      "captured_file_utc": "2026-10-27T17:41:16.212999+00:00"
     }
   ],
   "duplicate_groups": [
@@ -95,6 +144,6 @@
       "07-portal-survives-mdm-local-logout.jpg"
     ]
   ],
-  "distinct_images": 9,
+  "distinct_images": 17,
   "no_independent_timepoint_claim_for_duplicates": true
 }
