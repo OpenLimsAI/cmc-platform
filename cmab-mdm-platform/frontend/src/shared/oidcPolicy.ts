@@ -30,6 +30,10 @@ export function shouldAutoStartOidc(enabled: boolean, native: boolean, reason: s
   return enabled && !native && !reason && !error;
 }
 
+export function nativeLoginSelected(oidcEnabled: boolean, nativeEnabled: boolean, requested: boolean): boolean {
+  return nativeEnabled && (requested || !oidcEnabled);
+}
+
 export function authFailureLoginPath(path: string, search: string, reason: AuthExitReason): string {
   const params = new URLSearchParams({ reason: reason ?? 'expired' });
   const target = safeAuthReturnTo(path + search);

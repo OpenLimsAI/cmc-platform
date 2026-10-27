@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.auth_mode import require_native_auth_enabled
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import (
@@ -49,6 +50,7 @@ async def get_current_user(
     from app.domains.auth.oidc.service import SESSION_COOKIE, OIDCService, require_origin
     opaque = request.cookies.get(SESSION_COOKIE) if settings.MDM_OIDC_ENABLED else None
     if authorization:
+        require_native_auth_enabled()
         if opaque:
             raise TokenInvalidError("不能混用原生令牌和统一登录会话，请重新选择登录方式")
         parts = authorization.split()

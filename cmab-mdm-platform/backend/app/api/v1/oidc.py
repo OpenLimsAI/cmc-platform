@@ -37,7 +37,10 @@ HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache", "Referrer-Policy":
 
 
 def _unavailable():
-    return JSONResponse(status_code=503, content={"code": 50311, "message": "统一登录未启用或配置不可用，可使用已允许的原生恢复入口", "data": None}, headers=HEADERS)
+    message = "统一登录未启用或配置不可用，请稍后重试或联系管理员"
+    if settings.MDM_NATIVE_LOGIN_ENABLED:
+        message += "，可使用已允许的原生恢复入口"
+    return JSONResponse(status_code=503, content={"code": 50311, "message": message, "data": None}, headers=HEADERS)
 
 
 def clear_session_cookie(response, config):

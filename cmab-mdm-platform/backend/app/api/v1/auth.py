@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Cookie, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth_mode import require_native_auth_enabled
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.responses import Pagination, success
@@ -69,9 +70,7 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    if not settings.MDM_NATIVE_LOGIN_ENABLED:
-        from app.core.exceptions import PermissionDeniedError
-        raise PermissionDeniedError("原生登录未启用，请使用统一身份登录")
+    require_native_auth_enabled()
     oidc_config = None
     if settings.MDM_OIDC_ENABLED:
         from app.domains.auth.oidc.config import configured
@@ -126,6 +125,7 @@ async def refresh(
     cmab_refresh_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
 ):
+    require_native_auth_enabled()
     service = AuthService(db)
     if not cmab_refresh_token:
         # 没有 cookie 直接 401 — 让前端跳登录

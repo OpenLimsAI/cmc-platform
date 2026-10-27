@@ -1,0 +1,49 @@
+{
+  "created_at": "2026-10-27T14:35:40.305189+00:00",
+  "kind": "automated_tests_not_browser_e2e",
+  "files": [
+    {
+      "name": "backend-red.txt",
+      "bytes": 6771,
+      "sha256": "615c4cb99a1cce250193a52058fbcb6170ac9805ee1090f56aca907ce197a108",
+      "original_runtime_file": "native-policy-red.txt",
+      "original_sha256": "839fd1fbdbcb8cb481cecaa19307fbc0804b0ff09af9368abd02f0044ba6629d"
+    },
+    {
+      "name": "backend-green.txt",
+      "bytes": 1944,
+      "sha256": "3257de8f303fad62c27d1efb0469ef5141d71f839fdb00d6917f2dc6b1ffac40",
+      "original_runtime_file": "native-policy-green.txt",
+      "original_sha256": "822ff137e19b3fe7db9b71dbbfc8a450abd29d84d13672f363669b07da110625"
+    },
+    {
+      "name": "backend-ci.txt",
+      "bytes": 30176,
+      "sha256": "c523d229f1f6f5649ce18bceb786f820b94961b45ecdc12ef6035c31e6aed445",
+      "original_runtime_file": "native-policy-ci.txt",
+      "original_sha256": "5e0ab6f9db160780ebcba700aa1748d885610cd4fa41be5327f4da683aa88c6d"
+    },
+    {
+      "name": "frontend-red.txt",
+      "bytes": 8747,
+      "sha256": "2bd15cec8330474714c24d122e08f390c74d41ab51a79edc264d148e85ac1b54",
+      "original_runtime_file": "native-frontend-red.txt",
+      "original_sha256": "44073c7a2c8e75234c5f48560503d4e0cf6ede07f3e571cc4df52ffe612c6b13"
+    },
+    {
+      "name": "frontend-presentation-red.txt",
+      "bytes": 7219,
+      "sha256": "a549cf3e0f49487145410efe33073dc03984cc9cb12e7d93612c92361606dc98",
+      "original_runtime_file": "native-frontend-presentation-red.txt",
+      "original_sha256": "6a67fbd6bf02d8766329e2cbb65ac63d7dc09b99cf16e65a314dd2df820c7b99"
+    },
+    {
+      "name": "frontend-final.txt",
+      "bytes": 14207,
+      "sha256": "a8e72181c08cf81451f9b8b738d7d4e55aa9bd1de6731ff13c7d49c6e174e90a",
+      "original_runtime_file": "native-frontend-final-validation.txt",
+      "original_sha256": "a460ab987b609c59ca5080b30b11e7150afbc7b50d1f0f4ad92987a167128203"
+    }
+  ],
+  "repository_copy_transform": "UTF-8 without BOM; LF; trim trailing horizontal whitespace only. Raw runtime files remain unchanged."
+}

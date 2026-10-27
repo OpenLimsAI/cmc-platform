@@ -17,7 +17,68 @@ const items = new Map();
 globalThis.localStorage = { getItem: (key) => items.get(key) ?? null, setItem: (key, value) => items.set(key, value), removeItem: (key) => items.delete(key) };
 const { useAuthStore } = await bundle('stores/authStore.ts', 'auth-store');
 const user = { user_id: 29, username: 'isolated-reader', full_name: '隔离只读用户', roles: [], permissions: ['project:read'] };
-beforeEach(() => { useAuthStore.getState().logout(); items.clear(); });
+beforeEach(() => { useAuthStore.getState().logout(); useAuthStore.getState().setOidcConfig(false, true); items.clear(); });
+
+test('SSO-only configuration discards legacy native identity and persisted credentials', () => {
+  useAuthStore.getState().setAuth('synthetic-native-token', { ...user, roles: ['SYS_ADMIN'] });
+  useAuthStore.getState().setOidcConfig(true, false);
+  const state = useAuthStore.getState();
+  assert.equal(state.token, null);
+  assert.equal(state.authMode, null);
+  assert.equal(state.user, null);
+  assert.equal(state.hasPermission('project:read'), false);
+  assert.equal(state.isAdmin, false);
+  assert.equal(items.has('cmab_access_token'), false);
+  assert.equal(items.has('cmab_user'), false);
+});
+
+test('SSO-only cannot be bypassed by a late native login or refresh result', () => {
+  useAuthStore.getState().setOidcConfig(true, false);
+  useAuthStore.getState().setAuth('synthetic-late-native', user);
+  useAuthStore.getState().updateToken('synthetic-late-refresh');
+  assert.equal(useAuthStore.getState().authMode, null);
+  assert.equal(useAuthStore.getState().token, null);
+  assert.equal(items.has('cmab_access_token'), false);
+});
+
+test('SSO-only ignores the native query override and restores the real cookie identity', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'oidc-only-bootstrap');
+  let reads = 0;
+  await restoreOidcAuth(async () => ({ enabled: true, native_login_enabled: false }), async () => {
+    reads += 1;
+    return { mode: 'oidc', user, expires_at: '2030-01-01T00:00:00Z', pm_delegated: true };
+  }, useAuthStore.getState(), true);
+  assert.equal(reads, 1);
+  assert.equal(useAuthStore.getState().authMode, 'oidc');
+});
+
+test('SSO-only bootstraps a verified cookie after clearing an old native account', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'oidc-only-restore');
+  useAuthStore.getState().setAuth('synthetic-native-token', { ...user, user_id: 99 });
+  await restoreOidcAuth(async () => ({ enabled: true, native_login_enabled: false }), async () => (
+    { mode: 'oidc', user, expires_at: '2030-01-01T00:00:00Z', pm_delegated: false }
+  ), useAuthStore.getState());
+  assert.equal(useAuthStore.getState().authMode, 'oidc');
+  assert.equal(useAuthStore.getState().user.user_id, 29);
+  assert.equal(useAuthStore.getState().token, null);
+});
+
+test('unavailable SSO never falls back to a cached local account', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'oidc-only-unavailable');
+  useAuthStore.getState().setAuth('synthetic-native-token', user);
+  await restoreOidcAuth(async () => ({ enabled: false, native_login_enabled: false }), async () => null, useAuthStore.getState());
+  assert.equal(useAuthStore.getState().authMode, null);
+  assert.equal(useAuthStore.getState().token, null);
+});
+
+test('native login presentation requires explicit deployment permission', async () => {
+  const { nativeLoginSelected } = await bundle('shared/oidcPolicy.ts', 'native-presentation-policy');
+  assert.equal(nativeLoginSelected(true, false, true), false);
+  assert.equal(nativeLoginSelected(false, false, false), false);
+  assert.equal(nativeLoginSelected(false, true, false), true);
+  assert.equal(nativeLoginSelected(true, true, true), true);
+  assert.equal(nativeLoginSelected(true, true, false), false);
+});
 
 test('OIDC establishes cookie mode without a fake token or persisted identity', () => {
   useAuthStore.getState().setAuth('synthetic-native-token', user);

@@ -1,0 +1,227 @@
+TAP version 13
+# Subtest: SSO-only configuration discards legacy native identity and persisted credentials
+not ok 1 - SSO-only configuration discards legacy native identity and persisted credentials
+  ---
+  duration_ms: 4.134617
+  location: '/app/tests/phase2-auth.test.mjs:22:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'synthetic-native-token'
+    - null
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'synthetic-native-token'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///app/tests/phase2-auth.test.mjs:26:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: SSO-only cannot be bypassed by a late native login or refresh result
+not ok 2 - SSO-only cannot be bypassed by a late native login or refresh result
+  ---
+  duration_ms: 0.871764
+  location: '/app/tests/phase2-auth.test.mjs:35:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    'native' !== null
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'native'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///app/tests/phase2-auth.test.mjs:39:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: SSO-only ignores the native query override and restores the real cookie identity
+not ok 3 - SSO-only ignores the native query override and restores the real cookie identity
+  ---
+  duration_ms: 23.482035
+  location: '/app/tests/phase2-auth.test.mjs:44:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    0 !== 1
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///app/tests/phase2-auth.test.mjs:51:10)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: SSO-only bootstraps a verified cookie after clearing an old native account
+ok 4 - SSO-only bootstraps a verified cookie after clearing an old native account
+  ---
+  duration_ms: 14.98125
+  ...
+# Subtest: unavailable SSO never falls back to a cached local account
+not ok 5 - unavailable SSO never falls back to a cached local account
+  ---
+  duration_ms: 15.726782
+  location: '/app/tests/phase2-auth.test.mjs:66:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    'native' !== null
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'native'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///app/tests/phase2-auth.test.mjs:70:10)
+    async Test.run (node:internal/test_runner/test:797:9)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: OIDC establishes cookie mode without a fake token or persisted identity
+ok 6 - OIDC establishes cookie mode without a fake token or persisted identity
+  ---
+  duration_ms: 1.987518
+  ...
+# Subtest: server permission updates replace the OIDC UI authority immediately
+ok 7 - server permission updates replace the OIDC UI authority immediately
+  ---
+  duration_ms: 0.58366
+  ...
+# Subtest: explicit native login retains legacy storage compatibility and clears cookie-mode metadata
+ok 8 - explicit native login retains legacy storage compatibility and clears cookie-mode metadata
+  ---
+  duration_ms: 0.435051
+  ...
+# Subtest: logout clears both auth modes and role-derived UI state
+ok 9 - logout clears both auth modes and role-derived UI state
+  ---
+  duration_ms: 0.58894
+  ...
+# Subtest: return paths preserve a project context but reject credentials and external navigation
+ok 10 - return paths preserve a project context but reject credentials and external navigation
+  ---
+  duration_ms: 16.856271
+  ...
+# Subtest: creation retry identity reuses an existing request instead of making a new project
+ok 11 - creation retry identity reuses an existing request instead of making a new project
+  ---
+  duration_ms: 12.044278
+  ...
+# Subtest: feature-off bootstrap preserves native mode without querying an OIDC session
+ok 12 - feature-off bootstrap preserves native mode without querying an OIDC session
+  ---
+  duration_ms: 14.87929
+  ...
+# Subtest: bootstrap restores only server-verified cookie identity and delegation status
+ok 13 - bootstrap restores only server-verified cookie identity and delegation status
+  ---
+  duration_ms: 25.661622
+  ...
+# Subtest: bootstrap network failure stays explicit instead of guessing native recovery is enabled
+ok 14 - bootstrap network failure stays explicit instead of guessing native recovery is enabled
+  ---
+  duration_ms: 14.009282
+  ...
+# Subtest: native recovery remains reachable even if a stale OIDC cookie cannot be restored
+ok 15 - native recovery remains reachable even if a stale OIDC cookie cannot be restored
+  ---
+  duration_ms: 10.955329
+  ...
+# Subtest: cookie mode counts as authenticated for routing and safe app-update prompts
+ok 16 - cookie mode counts as authenticated for routing and safe app-update prompts
+  ---
+  duration_ms: 12.331516
+  ...
+# Subtest: live non-admin permission changes notify existing permission-function selectors
+ok 17 - live non-admin permission changes notify existing permission-function selectors
+  ---
+  duration_ms: 0.68349
+  ...
+# Subtest: provider browser logout is followed only for confirmed requested global logout
+ok 18 - provider browser logout is followed only for confirmed requested global logout
+  ---
+  duration_ms: 11.580605
+  ...
+# Subtest: confirmed global logout may return exactly to the fixed local login without a warning or external navigation
+ok 19 - confirmed global logout may return exactly to the fixed local login without a warning or external navigation
+  ---
+  duration_ms: 14.294716
+  ...
+# Subtest: local logout return requires byte-exact fixed URL and rejects extra, duplicate, credential and alternate destinations
+ok 20 - local logout return requires byte-exact fixed URL and rejects extra, duplicate, credential and alternate destinations
+  ---
+  duration_ms: 10.236083
+  ...
+# Subtest: a fixed local logout return still displays an existing partial warning before navigation
+ok 21 - a fixed local logout return still displays an existing partial warning before navigation
+  ---
+  duration_ms: 9.984758
+  ...
+# Subtest: provider logout URL cannot carry credentials or change the local return destination
+ok 22 - provider logout URL cannot carry credentials or change the local return destination
+  ---
+  duration_ms: 10.556481
+  ...
+# Subtest: partial logout warning is displayed and acknowledged before clearing local state or navigating
+ok 23 - partial logout warning is displayed and acknowledged before clearing local state or navigating
+  ---
+  duration_ms: 11.018582
+  ...
+# Subtest: successful browser logout with a server warning waits for acknowledgement too
+ok 24 - successful browser logout with a server warning waits for acknowledgement too
+  ---
+  duration_ms: 11.518162
+  ...
+# Subtest: an unconfirmed local logout does not clear or navigate
+ok 25 - an unconfirmed local logout does not clear or navigate
+  ---
+  duration_ms: 11.222516
+  ...
+# Subtest: a session response started before explicit logout cannot restore the old user
+ok 26 - a session response started before explicit logout cannot restore the old user
+  ---
+  duration_ms: 0.966732
+  ...
+# Subtest: late 401 routing preserves an explicit logout and never creates an automatic SSO entry
+ok 27 - late 401 routing preserves an explicit logout and never creates an automatic SSO entry
+  ---
+  duration_ms: 13.362057
+  ...
+# Subtest: starting logout invalidates old responses while retaining the warning acknowledgement view
+ok 28 - starting logout invalidates old responses while retaining the warning acknowledgement view
+  ---
+  duration_ms: 11.741801
+  ...
+# Subtest: only native mode may attempt native JWT refresh after an authentication failure
+ok 29 - only native mode may attempt native JWT refresh after an authentication failure
+  ---
+  duration_ms: 11.382972
+  ...
+# Subtest: OIDC mapping, account and disabled-config errors have distinct safe explanations
+ok 30 - OIDC mapping, account and disabled-config errors have distinct safe explanations
+  ---
+  duration_ms: 10.696759
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 26
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 572.482708
