@@ -108,7 +108,7 @@ interface AuthState {
 
   setAuth: (token: string, user: LoginResponseUser) => void;
   setOidcSession: (user: LoginResponseUser, expiresAt: string, pmDelegated: boolean, expectedEpoch?: number) => void;
-  setOidcConfig: (enabled: boolean, nativeEnabled: boolean) => void;
+  setOidcConfig: (enabled: boolean, nativeEnabled: boolean) => number;
   finishBootstrap: (error?: string) => void;
   updateToken: (token: string) => void;
   beginLogout: () => number;
@@ -141,6 +141,7 @@ export const useAuthStore = create<AuthState>()(
       userAdminScope: null,
 
       setAuth: (token, user) => {
+        if (!get().nativeLoginEnabled) return;
         if (get().user?.user_id !== user.user_id || get().authMode !== 'native') queryClient.clear();
         set({
           token,
@@ -171,11 +172,16 @@ export const useAuthStore = create<AuthState>()(
           // those guards when a non-admin's permission set changes in-session.
           hasPermission: (perm) => get().isAdmin || get().permissions.has(perm) });
       },
-      setOidcConfig: (enabled, nativeEnabled) => set({ oidcEnabled: enabled, nativeLoginEnabled: nativeEnabled }),
+      setOidcConfig: (enabled, nativeEnabled) => {
+        if (!nativeEnabled && (get().authMode === 'native' || get().token)) get().logout();
+        set({ oidcEnabled: enabled, nativeLoginEnabled: nativeEnabled });
+        return get().authEpoch;
+      },
       finishBootstrap: (error) => set({ bootstrapPending: false, bootstrapError: error ?? null }),
 
       // 换证可能恰好跨越密码到期日；同步服务端声明，权限仍沿用现有用户资料。
       updateToken: (token) => {
+        if (!get().nativeLoginEnabled) return;
         let mustChange: boolean | undefined;
         try {
           const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');

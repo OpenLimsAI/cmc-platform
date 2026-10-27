@@ -1,0 +1,11 @@
+{
+  "mode": "oidc-only",
+  "oidc_enabled": true,
+  "native_login_enabled": false,
+  "native_login": 403,
+  "old_bearer": 403,
+  "old_refresh": 403,
+  "refresh_cookie_rotated": false,
+  "credentials_source": "own normal pre-switch login, tmpfs only",
+  "setup_harness_exception": "wrong public config assertion key corrected; service already switched, no repeated mutation"
+}

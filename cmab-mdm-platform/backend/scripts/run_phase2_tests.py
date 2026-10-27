@@ -8,9 +8,11 @@ if os.environ.get("TEST_DB") != "cmab_test" or os.environ.get("TEST_DB_HOST") !=
     raise SystemExit("Refusing unknown database; use disposable verification Compose")
 os.environ.update(LOGURU_LEVEL="WARNING", APP_LOG_LEVEL="WARNING")
 sources = ["app/domains/auth/oidc", "app/api/v1/oidc.py", "app/api/v1/auth.py", "app/shared/permissions.py",
+           "app/core/auth_mode.py", "app/domains/auth/services.py",
            "app/core/config.py", "app/core/logging.py", "app/main.py", "app/domains/prs/pm_create.py",
            "app/domains/prs/pm_links.py", "app/api/v1/pm_links.py", "app/scripts/oidc_identity.py"]
-tests = ["tests/test_oidc_protocol.py", "tests/test_oidc_provider.py", "tests/test_oidc_logout.py",
+tests = ["tests/test_oidc_only_native_rejection.py", "tests/test_oidc_only_http_rejection.py",
+         "tests/test_oidc_protocol.py", "tests/test_oidc_provider.py", "tests/test_oidc_logout.py",
          "tests/test_oidc_sessions.py", "tests/test_oidc_endpoints.py", "tests/test_oidc_recovery_urls.py", "tests/test_pm_create.py"]
 subprocess.run(["ruff", "check", "--no-cache", *sources, *tests], check=True)
 subprocess.run(["mypy", "--cache-dir=/tmp/mypy-phase2", "--follow-imports=silent",

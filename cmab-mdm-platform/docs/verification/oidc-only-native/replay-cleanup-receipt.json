@@ -1,0 +1,45 @@
+{
+  "scope": "mdm-nativefix-replay-20261027",
+  "started_at": "2026-10-27T17:42:21.978352+00:00",
+  "containers": [
+    {
+      "name": "mdm-nativefix-replay-20261027-web",
+      "id": "09427664bfdf12127ac278b9cc29f9d8b4246e079f8cb3e34cbbeac77a5b1202",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-replay-20261027-portal",
+      "id": "87788127c35a4e33064a4b3bccbec84b67f31714914186627828534270fae035",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-replay-20261027-mdm",
+      "id": "d71643a97d9a1def7d884e97f37d83d0745c8d00b7810230a6feb4d5177b69e3",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-replay-20261027-casdoor",
+      "id": "bed31d26e6407b316f250b585b6acaff3619a05c9c14ef74c365dc417daa9449",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-replay-20261027-redis",
+      "id": "83399434a950f4477eafd5aa4f1e1983eb7a918bfd937d648cf9eb96f9164330",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-replay-20261027-postgres",
+      "id": "bd29ab8ad5ca3ef006408c1050b5c157a1c100ccaa21786e3234ee91f14fb85d",
+      "removed": true
+    }
+  ],
+  "data": "only fresh synthetic tmpfs databases; no existing/maibo data",
+  "revocation_method": "previous user logout plus removal of all owned temporary runtime/identity databases; not claiming individual disable API calls",
+  "completed_at": "2026-10-27T17:42:40.585701+00:00",
+  "network_removed": true,
+  "temporary_secrets_destroyed_with_containers": true,
+  "other_container_ids_and_names_unchanged": true,
+  "browser_controller": "Close-tab request timed out; controller kernel reset cleared ephemeral memory. Exact number of closed tabs not verified.",
+  "status": "completed",
+  "cleanup_scope_completed": true
+}

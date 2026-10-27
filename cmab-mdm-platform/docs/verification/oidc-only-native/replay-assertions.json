@@ -1,0 +1,87 @@
+{
+  "source_commit": "d8838e00be554b83bfaaddc8d5cf7ee9695628cc",
+  "scope": "mdm-nativefix-replay-20261027",
+  "verified_at_utc": "2026-10-27T17:42:09.299061+00:00",
+  "database": {
+    "users": [
+      {
+        "user_id": 3,
+        "username": "nativefix.disabled",
+        "status": "disabled",
+        "roles": 0
+      },
+      {
+        "user_id": 2,
+        "username": "nativefix.noaccess",
+        "status": "active",
+        "roles": 0
+      },
+      {
+        "user_id": 1,
+        "username": "nativefix.reader",
+        "status": "active",
+        "roles": 1
+      }
+    ],
+    "sessions": [
+      {
+        "user_id": 1,
+        "issued_at": "2026-10-27T17:38:59.239422+00:00",
+        "expires_at": "2026-10-27T18:38:59+00:00",
+        "revoked": true
+      },
+      {
+        "user_id": 2,
+        "issued_at": "2026-10-27T17:37:19.183488+00:00",
+        "expires_at": "2026-10-27T18:37:19+00:00",
+        "revoked": true
+      }
+    ],
+    "project_count": 0,
+    "login_history": [
+      {
+        "user_id": 2,
+        "success": true,
+        "login_at": "2026-10-27T17:37:19.166885+00:00"
+      },
+      {
+        "user_id": 1,
+        "success": true,
+        "login_at": "2026-10-27T17:38:59.23454+00:00"
+      }
+    ]
+  },
+  "browser_observations": {
+    "noaccess_project_api": {
+      "code": 40301,
+      "data": null,
+      "request_id": "req_6c9ba93d026c46eb"
+    },
+    "idp_outage_project_api": {
+      "code": 50312,
+      "data": null,
+      "request_id": "req_a9cef2ba2a6642ab"
+    },
+    "idp_recovery_project_api": {
+      "code": 0,
+      "data": [],
+      "request_id": "req_5f69fb6a809448e1"
+    },
+    "protocol_http_status_not_captured": true,
+    "noaccess_project_shell_rendered": true,
+    "noaccess_business_data_denied": true,
+    "native_fallback_offered": false,
+    "recovery_used_existing_unexpired_session_with_live_verification": true
+  },
+  "outage": {
+    "container_id": "bed31d26e6407b316f250b585b6acaff3619a05c9c14ef74c365dc417daa9449",
+    "target": "mdm-nativefix-replay-20261027-casdoor",
+    "action": "pause only this new synthetic IdP",
+    "paused_at_utc": "2026-10-27T17:39:23.819017+00:00",
+    "paused_verified": true,
+    "other_services_touched": false,
+    "restored_at_utc": "2026-10-27T17:40:37.926369+00:00",
+    "same_container_unpaused": true,
+    "identity_restart_or_reseed": false
+  }
+}

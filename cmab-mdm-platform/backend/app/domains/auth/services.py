@@ -10,6 +10,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.auth_mode import require_native_auth_enabled
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.exceptions import (
@@ -203,6 +204,7 @@ class AuthService:
         self, username: str, password: str, ip: str | None, ua: str | None
     ) -> tuple[LoginResponse, str, SessionPolicy]:
         """返回 (LoginResponse, refresh_token, 生效的会话策略)。refresh 由路由层写 HttpOnly Cookie。"""
+        require_native_auth_enabled()
         result = await self.db.execute(
             select(User)
             .options(selectinload(User.roles))
@@ -432,6 +434,7 @@ class AuthService:
         到期判断以 DB 为准（JWT exp 与 DB expires_at 同值，但只有 DB 能区分两种到期原因），
         故解码时跳过 exp 校验，签名仍校验。
         """
+        require_native_auth_enabled()
         payload = decode_token(refresh_token, verify_exp=False)  # 签名无效会抛
         if payload.get("type") != "refresh":
             raise TokenInvalidError("token_type 不是 refresh")

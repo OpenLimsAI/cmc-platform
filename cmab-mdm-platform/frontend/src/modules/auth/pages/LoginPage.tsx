@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { APP_VERSION } from '@/shared/version';
 import { touchActivity } from '@/shared/sessionGuard';
 import { oidcLoginPath } from '@/api/oidc';
-import { oidcErrorNotice, safeAuthReturnTo, shouldAutoStartOidc } from '@/shared/oidcPolicy';
+import { nativeLoginSelected, oidcErrorNotice, safeAuthReturnTo, shouldAutoStartOidc } from '@/shared/oidcPolicy';
 import { withBase } from '@/shared/base';
 
 // 被会话守卫踢回登录页时的说明（?reason=idle|expired）
@@ -33,7 +33,7 @@ export function LoginPage() {
     searchParams.get('changed') === '1'
       ? '密码已修改成功，请用新密码登录'
       : (REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null);
-  const native = searchParams.get('native') === '1' || !oidcEnabled;
+  const native = nativeLoginSelected(oidcEnabled, nativeEnabled, searchParams.get('native') === '1');
   const oidcError = searchParams.get('oidc_error');
   const reason = searchParams.get('reason');
   const returnTo = safeAuthReturnTo(searchParams.get('redirect')) ?? '/';
@@ -140,7 +140,7 @@ export function LoginPage() {
             忘记密码？请联系系统管理员
           </div>
         </Form>}
-        {native && !nativeEnabled && <Alert type="warning" message="此环境未启用原生密码登录，请使用统一身份或联系管理员。" />}
+        {!oidcEnabled && !nativeEnabled && <Alert type="warning" message="统一身份暂不可用，请联系管理员；此环境未启用其他登录方式。" />}
       </Card>
 
       <div style={{ marginTop: 32, color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
