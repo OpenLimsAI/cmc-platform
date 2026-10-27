@@ -1,0 +1,44 @@
+{
+  "scope": "mdm-nativefix-e2e-20261027",
+  "started_at": "2026-10-27T17:26:55.016242+00:00",
+  "containers": [
+    {
+      "name": "mdm-nativefix-e2e-20261027-web",
+      "id": "35b435b7764df98dc1089cf6aeb0393817d780c107d9b0c77cd9ea088e59a41d",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-e2e-20261027-portal",
+      "id": "83b74ff4a78b6967854f5e50a3f7fdf17c639503038c84eb516f0ce095bedc75",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-e2e-20261027-mdm",
+      "id": "73ee1d0c476cd95964876e96c57dfa8cf8a49146ce3c91e1e081a8b3d1c9252c",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-e2e-20261027-casdoor",
+      "id": "c8efcd5899706c86518b523c6cba36b11436d80a2431bd5807bc15d3e02ee692",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-e2e-20261027-redis",
+      "id": "db1cbb42ca6351450ff581a27fa5671321bdc879187a337210c285969ac7bbc6",
+      "removed": true
+    },
+    {
+      "name": "mdm-nativefix-e2e-20261027-postgres",
+      "id": "8cb284420059b81a366964356f5a48f3fa29df2cd41de303e69433e94d258d87",
+      "removed": true
+    }
+  ],
+  "data": "only fresh synthetic tmpfs databases; no existing/maibo data",
+  "revocation_method": "previous user logout plus removal of all owned temporary runtime/identity databases; not claiming individual disable API calls",
+  "completed_at": "2026-10-27T17:27:12.519674+00:00",
+  "network_removed": true,
+  "temporary_secrets_destroyed_with_containers": true,
+  "other_container_ids_and_names_unchanged": true,
+  "browser_controller": "interrupted and kernel reset; no active controller credential retained",
+  "status": "completed"
+}

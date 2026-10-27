@@ -1,0 +1,72 @@
+{
+  "mdm": {
+    "users": [
+      {
+        "user_id": 2,
+        "username": "nativefix.noaccess",
+        "status": "active"
+      },
+      {
+        "user_id": 3,
+        "username": "nativefix.disabled",
+        "status": "disabled"
+      },
+      {
+        "user_id": 1,
+        "username": "nativefix.reader",
+        "status": "active"
+      }
+    ],
+    "oidc_sessions": [
+      {
+        "user_id": 1,
+        "issued_at": "2026-10-27T15:28:49.20838+00:00",
+        "expires_at": "2026-10-27T16:28:49+00:00",
+        "revoked": true
+      },
+      {
+        "user_id": 1,
+        "issued_at": "2026-10-27T15:29:50.367263+00:00",
+        "expires_at": "2026-10-27T16:29:50+00:00",
+        "revoked": true
+      }
+    ],
+    "login_successes": [
+      {
+        "user_id": 1,
+        "success": true,
+        "login_at": "2026-10-27T15:23:28.841642+00:00"
+      },
+      {
+        "user_id": 1,
+        "success": true,
+        "login_at": "2026-10-27T15:24:15.082628+00:00"
+      },
+      {
+        "user_id": 1,
+        "success": true,
+        "login_at": "2026-10-27T15:28:49.191459+00:00"
+      },
+      {
+        "user_id": 1,
+        "success": true,
+        "login_at": "2026-10-27T15:29:50.362757+00:00"
+      },
+      {
+        "user_id": null,
+        "success": false,
+        "login_at": "2026-10-27T15:30:52.341026+00:00"
+      },
+      {
+        "user_id": null,
+        "success": false,
+        "login_at": "2026-10-27T15:31:25.150294+00:00"
+      }
+    ],
+    "projects": 0
+  },
+  "portal": {
+    "portal_sessions": 2,
+    "backchannel_replays": 3
+  }
+}

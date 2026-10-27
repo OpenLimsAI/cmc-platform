@@ -1,0 +1,100 @@
+{
+  "source_commit": "83eb477cf357a83683376722e1b80f08913b2bda",
+  "files": [
+    {
+      "file": "screenshots/01-native-compatible.jpg",
+      "bytes": 51084,
+      "sha256": "1d2cd5e16abc060dd9339b7873d9e0e0b4f4457bbc45355c58f5474cbdc37cf2",
+      "captured_file_utc": "2026-10-27T15:23:39.338455+00:00"
+    },
+    {
+      "file": "screenshots/02-old-native-browser-challenged.jpg",
+      "bytes": 16743,
+      "sha256": "eaf5225ccadc38dfd065246a0013f166239b04ae4f8fba11656e3a074df1d09f",
+      "captured_file_utc": "2026-10-27T15:25:30.652873+00:00"
+    },
+    {
+      "file": "screenshots/03-native-query-ignored.jpg",
+      "bytes": 37787,
+      "sha256": "f26d6f2c4e251015cea5a2b83c6176b3d446a146aa7033fb77d392c3bf61b24d",
+      "captured_file_utc": "2026-10-27T15:25:38.680514+00:00"
+    },
+    {
+      "file": "screenshots/04-portal-authenticated.jpg",
+      "bytes": 47169,
+      "sha256": "1ded175a532702329fd598e9a1ceec90644189f22b6698fe25a7ebd30b2dc08b",
+      "captured_file_utc": "2026-10-27T15:25:56.198771+00:00"
+    },
+    {
+      "file": "screenshots/05-portal-to-mdm-sso.jpg",
+      "bytes": 53192,
+      "sha256": "dc570d6fd5be2adca3f92601b405df942d8f510acf95de781258a7dc49163cd2",
+      "captured_file_utc": "2026-10-27T15:29:04.071826+00:00"
+    },
+    {
+      "file": "screenshots/06-mdm-local-logout.jpg",
+      "bytes": 37787,
+      "sha256": "f26d6f2c4e251015cea5a2b83c6176b3d446a146aa7033fb77d392c3bf61b24d",
+      "captured_file_utc": "2026-10-27T15:29:42.438798+00:00"
+    },
+    {
+      "file": "screenshots/07-portal-survives-mdm-local-logout.jpg",
+      "bytes": 47169,
+      "sha256": "1ded175a532702329fd598e9a1ceec90644189f22b6698fe25a7ebd30b2dc08b",
+      "captured_file_utc": "2026-10-27T15:29:50.234178+00:00"
+    },
+    {
+      "file": "screenshots/08-global-logout-scope.jpg",
+      "bytes": 52174,
+      "sha256": "e8f9f4971d32e7c897e50ff0c3972c1c0f52e92aee7f505407b091dc96da1215",
+      "captured_file_utc": "2026-10-27T15:30:06.014728+00:00"
+    },
+    {
+      "file": "screenshots/09-global-logout-portal-expired.jpg",
+      "bytes": 54983,
+      "sha256": "4c8f9e7f56f142ef97e4a8bb14d8ff234fb99c051803c9052eac57dc066d490d",
+      "captured_file_utc": "2026-10-27T15:30:15.984113+00:00"
+    },
+    {
+      "file": "screenshots/10-global-logout-mdm-expired.jpg",
+      "bytes": 37787,
+      "sha256": "f26d6f2c4e251015cea5a2b83c6176b3d446a146aa7033fb77d392c3bf61b24d",
+      "captured_file_utc": "2026-10-27T15:30:16.066429+00:00"
+    },
+    {
+      "file": "screenshots/11-global-logout-idp-challenge.jpg",
+      "bytes": 16743,
+      "sha256": "eaf5225ccadc38dfd065246a0013f166239b04ae4f8fba11656e3a074df1d09f",
+      "captured_file_utc": "2026-10-27T15:30:52.060729+00:00"
+    },
+    {
+      "file": "screenshots/12-unmapped-identity-rejected.jpg",
+      "bytes": 39815,
+      "sha256": "a81947f8c26bb47002f0287a787f55f63a36e6a2e1ebbaad51dfc481a9a632df",
+      "captured_file_utc": "2026-10-27T15:30:58.444977+00:00"
+    },
+    {
+      "file": "screenshots/13-disabled-mdm-user-rejected.jpg",
+      "bytes": 38310,
+      "sha256": "37a01e718eff4f4e8ae6a83ceeb7d373a050ed6ffc710f689ce4fbd9873d0e50",
+      "captured_file_utc": "2026-10-27T15:31:32.470198+00:00"
+    }
+  ],
+  "duplicate_groups": [
+    [
+      "02-old-native-browser-challenged.jpg",
+      "11-global-logout-idp-challenge.jpg"
+    ],
+    [
+      "03-native-query-ignored.jpg",
+      "06-mdm-local-logout.jpg",
+      "10-global-logout-mdm-expired.jpg"
+    ],
+    [
+      "04-portal-authenticated.jpg",
+      "07-portal-survives-mdm-local-logout.jpg"
+    ]
+  ],
+  "distinct_images": 9,
+  "no_independent_timepoint_claim_for_duplicates": true
+}
