@@ -1,0 +1,16 @@
+[
+  {
+    "original_filename": "01-portal-authenticated.png",
+    "filename": "01-portal-authenticated.jpg",
+    "actual_format": "JPEG",
+    "pixel_or_byte_edit": false,
+    "sha256": "1303fb1e665128695b4fcc3c22fc926a6f7f133e962813900710702f440a17f7"
+  },
+  {
+    "original_filename": "02-sso-forced-signature-change.png",
+    "filename": "02-sso-forced-signature-change.jpg",
+    "actual_format": "JPEG",
+    "pixel_or_byte_edit": false,
+    "sha256": "8604d67a79b650bf57d2849c9c95bc3407665738c9c458b1e8c113777c5c4445"
+  }
+]

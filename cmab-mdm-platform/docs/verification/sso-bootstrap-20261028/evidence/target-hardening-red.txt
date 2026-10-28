@@ -1,0 +1,65 @@
+
+▶ 5/5 pytest（打 :8001）
+============================= test session starts ==============================
+platform linux -- Python 3.12.15, pytest-9.0.3, pluggy-1.6.0 -- /opt/venv/bin/python
+rootdir: /app
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.13.0, asyncio-1.4.0, Faker-40.21.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 21 items
+
+tests/test_sso_bootstrap.py::test_accepts_explicit_target_without_fetching_or_matching_external_profiles PASSED [  4%]
+tests/test_sso_bootstrap.py::test_rejects_duplicate_identity_name_or_contact[subject-explicit-subject-one] PASSED [  9%]
+tests/test_sso_bootstrap.py::test_rejects_duplicate_identity_name_or_contact[username-ISOLATED.ONE] PASSED [ 14%]
+tests/test_sso_bootstrap.py::test_rejects_duplicate_identity_name_or_contact[email-ONE@example.com] PASSED [ 19%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change0] PASSED [ 23%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change1] PASSED [ 28%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change2] PASSED [ 33%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change3] PASSED [ 38%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change4] FAILED [ 42%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change5] FAILED [ 47%]
+tests/test_sso_bootstrap.py::test_requires_real_contact_instead_of_inventing_placeholder PASSED [ 52%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime0] PASSED [ 57%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime1] PASSED [ 61%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime2] PASSED [ 66%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime3] PASSED [ 71%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime4] PASSED [ 76%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime5] PASSED [ 80%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime6] PASSED [ 85%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime7] FAILED [ 90%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime8] FAILED [ 95%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime9] FAILED [100%]
+
+=================================== FAILURES ===================================
+______________ test_rejects_ambiguous_or_broadened_plan[change4] _______________
+tests/test_sso_bootstrap.py:54: in test_rejects_ambiguous_or_broadened_plan
+    with pytest.raises(ValidationError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pydantic_core._pydantic_core.ValidationError'>
+______________ test_rejects_ambiguous_or_broadened_plan[change5] _______________
+tests/test_sso_bootstrap.py:54: in test_rejects_ambiguous_or_broadened_plan
+    with pytest.raises(ValidationError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pydantic_core._pydantic_core.ValidationError'>
+____________ test_refuses_wrong_target_or_native_fallback[runtime7] ____________
+tests/test_sso_bootstrap.py:76: in test_refuses_wrong_target_or_native_fallback
+    with pytest.raises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+____________ test_refuses_wrong_target_or_native_fallback[runtime8] ____________
+tests/test_sso_bootstrap.py:76: in test_refuses_wrong_target_or_native_fallback
+    with pytest.raises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+____________ test_refuses_wrong_target_or_native_fallback[runtime9] ____________
+tests/test_sso_bootstrap.py:76: in test_refuses_wrong_target_or_native_fallback
+    with pytest.raises(ValueError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'ValueError'>
+=========================== short test summary info ============================
+FAILED tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change4]
+FAILED tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change5]
+FAILED tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime7]
+FAILED tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime8]
+FAILED tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime9]
+========================= 5 failed, 16 passed in 0.88s =========================

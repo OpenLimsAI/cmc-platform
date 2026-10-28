@@ -1,0 +1,25 @@
+
+▶ 5/5 pytest（打 :8001）
+============================= test session starts ==============================
+platform linux -- Python 3.12.15, pytest-9.0.3, pluggy-1.6.0 -- /opt/venv/bin/python
+rootdir: /app
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.13.0, asyncio-1.4.0, Faker-40.21.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_sso_bootstrap.py _________________
+ImportError while importing test module '/app/tests/test_sso_bootstrap.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/local/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_sso_bootstrap.py:7: in <module>
+    from app.scripts.sso_bootstrap import BootstrapPlan, ensure_runtime_target
+E   ModuleNotFoundError: No module named 'app.scripts.sso_bootstrap'
+=========================== short test summary info ============================
+ERROR tests/test_sso_bootstrap.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.38s ===============================

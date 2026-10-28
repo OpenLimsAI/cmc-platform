@@ -1,0 +1,28 @@
+
+▶ 5/5 pytest（打 :8001）
+============================= test session starts ==============================
+platform linux -- Python 3.12.15, pytest-9.0.3, pluggy-1.6.0 -- /opt/venv/bin/python
+rootdir: /app
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.13.0, asyncio-1.4.0, Faker-40.21.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 16 items
+
+tests/test_sso_bootstrap.py::test_accepts_explicit_target_without_fetching_or_matching_external_profiles PASSED [  6%]
+tests/test_sso_bootstrap.py::test_rejects_duplicate_identity_name_or_contact[subject-explicit-subject-one] PASSED [ 12%]
+tests/test_sso_bootstrap.py::test_rejects_duplicate_identity_name_or_contact[username-ISOLATED.ONE] PASSED [ 18%]
+tests/test_sso_bootstrap.py::test_rejects_duplicate_identity_name_or_contact[email-ONE@example.com] PASSED [ 25%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change0] PASSED [ 31%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change1] PASSED [ 37%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change2] PASSED [ 43%]
+tests/test_sso_bootstrap.py::test_rejects_ambiguous_or_broadened_plan[change3] PASSED [ 50%]
+tests/test_sso_bootstrap.py::test_requires_real_contact_instead_of_inventing_placeholder PASSED [ 56%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime0] PASSED [ 62%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime1] PASSED [ 68%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime2] PASSED [ 75%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime3] PASSED [ 81%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime4] PASSED [ 87%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime5] PASSED [ 93%]
+tests/test_sso_bootstrap.py::test_refuses_wrong_target_or_native_fallback[runtime6] PASSED [100%]
+
+============================== 16 passed in 1.36s ==============================

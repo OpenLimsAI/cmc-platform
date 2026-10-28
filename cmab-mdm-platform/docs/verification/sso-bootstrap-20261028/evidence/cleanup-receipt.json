@@ -1,0 +1,66 @@
+{
+  "started_at": "2026-10-28T05:35:14.705501+00:00",
+  "containers": [
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-web",
+      "id": "1b9617b4c7788327dc0b29ffee17652d1af074b8c98184610836e63fad12aa81",
+      "removed": true
+    },
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-portal",
+      "id": "9e38b7f0400d805fe393aa3dca01e5aba4b820ad3d591b2a61d655adbc10d1be",
+      "removed": true
+    },
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-mdm",
+      "id": "4cb1ca62313bf467abce7e3d450dbe8f5ea34652c5281233b45768f73ec5bcba",
+      "removed": true
+    },
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-casdoor",
+      "id": "88f47039c1ecb2f1a94df6c9b6e9509816267908d4fa9e28b4e79164639ddf93",
+      "removed": true
+    },
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-redis",
+      "id": "7098533ab1bc116e68785270aa07388ab7704d317af75d5d49ea362060883528",
+      "removed": true
+    },
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-postgres",
+      "id": "f120c4427dcd0affc7e9795edab2aaf0e3edfbe6f070c5e35613c65b02041914",
+      "removed": true
+    },
+    {
+      "name": "mdm-sso-bootstrap-unit-20261028-backend",
+      "id": "97193b8798ef1d2732f395671b03fa30e7656cfc2dc15c43396ecd477046feaa",
+      "removed": true
+    },
+    {
+      "name": "mdm-sso-bootstrap-unit-20261028-redis",
+      "id": "90f60b224a0961e93b436015010792d0cb0f0ea1595220e64f31cf6ea4d464e3",
+      "removed": true
+    },
+    {
+      "name": "mdm-sso-bootstrap-unit-20261028-postgres",
+      "id": "fb0294217544308697e3a4886c3779b4b0a60d82086e45c9aaae73a1e2dca7c3",
+      "removed": true
+    }
+  ],
+  "networks": [
+    {
+      "name": "mdm-ssobootstrap-e2e-20261028-net",
+      "removed": true
+    },
+    {
+      "name": "mdm-sso-bootstrap-unit-20261028-net",
+      "removed": true
+    }
+  ],
+  "status": "completed",
+  "revocation_method": "expired MDM sessions verified; destroy all owned synthetic identity/database/runtime keys; no claim of individual disable API calls",
+  "real_server_or_user_changes": false,
+  "completed_at": "2026-10-28T05:35:38.887204+00:00",
+  "other_container_ids_and_names_unchanged": true,
+  "temporary_secrets_destroyed_with_containers": true
+}

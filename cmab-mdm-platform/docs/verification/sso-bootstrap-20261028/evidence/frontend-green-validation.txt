@@ -1,0 +1,268 @@
+
+> cmab-mdm-frontend@0.1.0 test:phase2 /app
+> node --test tests/phase2-auth.test.mjs
+
+TAP version 13
+# Subtest: SSO-only password change clearly separates signing credential from Casdoor login
+ok 1 - SSO-only password change clearly separates signing credential from Casdoor login
+  ---
+  duration_ms: 67.901313
+  ...
+# Subtest: native and opt-in compatible deployments retain truthful password wording
+ok 2 - native and opt-in compatible deployments retain truthful password wording
+  ---
+  duration_ms: 36.956092
+  ...
+# Subtest: SSO-only configuration discards legacy native identity and persisted credentials
+ok 3 - SSO-only configuration discards legacy native identity and persisted credentials
+  ---
+  duration_ms: 2.346936
+  ...
+# Subtest: SSO-only cannot be bypassed by a late native login or refresh result
+ok 4 - SSO-only cannot be bypassed by a late native login or refresh result
+  ---
+  duration_ms: 1.199331
+  ...
+# Subtest: SSO-only ignores the native query override and restores the real cookie identity
+ok 5 - SSO-only ignores the native query override and restores the real cookie identity
+  ---
+  duration_ms: 49.974985
+  ...
+# Subtest: SSO-only bootstraps a verified cookie after clearing an old native account
+ok 6 - SSO-only bootstraps a verified cookie after clearing an old native account
+  ---
+  duration_ms: 45.264982
+  ...
+# Subtest: unavailable SSO never falls back to a cached local account
+ok 7 - unavailable SSO never falls back to a cached local account
+  ---
+  duration_ms: 39.062138
+  ...
+# Subtest: native login presentation requires explicit deployment permission
+ok 8 - native login presentation requires explicit deployment permission
+  ---
+  duration_ms: 39.339509
+  ...
+# Subtest: OIDC establishes cookie mode without a fake token or persisted identity
+ok 9 - OIDC establishes cookie mode without a fake token or persisted identity
+  ---
+  duration_ms: 2.146851
+  ...
+# Subtest: server permission updates replace the OIDC UI authority immediately
+ok 10 - server permission updates replace the OIDC UI authority immediately
+  ---
+  duration_ms: 1.131425
+  ...
+# Subtest: explicit native login retains legacy storage compatibility and clears cookie-mode metadata
+ok 11 - explicit native login retains legacy storage compatibility and clears cookie-mode metadata
+  ---
+  duration_ms: 2.278773
+  ...
+# Subtest: logout clears both auth modes and role-derived UI state
+ok 12 - logout clears both auth modes and role-derived UI state
+  ---
+  duration_ms: 2.962224
+  ...
+# Subtest: return paths preserve a project context but reject credentials and external navigation
+ok 13 - return paths preserve a project context but reject credentials and external navigation
+  ---
+  duration_ms: 59.706377
+  ...
+# Subtest: creation retry identity reuses an existing request instead of making a new project
+ok 14 - creation retry identity reuses an existing request instead of making a new project
+  ---
+  duration_ms: 30.635935
+  ...
+# Subtest: feature-off bootstrap preserves native mode without querying an OIDC session
+ok 15 - feature-off bootstrap preserves native mode without querying an OIDC session
+  ---
+  duration_ms: 39.668353
+  ...
+# Subtest: bootstrap restores only server-verified cookie identity and delegation status
+ok 16 - bootstrap restores only server-verified cookie identity and delegation status
+  ---
+  duration_ms: 31.050469
+  ...
+# Subtest: bootstrap network failure stays explicit instead of guessing native recovery is enabled
+ok 17 - bootstrap network failure stays explicit instead of guessing native recovery is enabled
+  ---
+  duration_ms: 30.667428
+  ...
+# Subtest: native recovery remains reachable even if a stale OIDC cookie cannot be restored
+ok 18 - native recovery remains reachable even if a stale OIDC cookie cannot be restored
+  ---
+  duration_ms: 24.321975
+  ...
+# Subtest: cookie mode counts as authenticated for routing and safe app-update prompts
+ok 19 - cookie mode counts as authenticated for routing and safe app-update prompts
+  ---
+  duration_ms: 27.489538
+  ...
+# Subtest: live non-admin permission changes notify existing permission-function selectors
+ok 20 - live non-admin permission changes notify existing permission-function selectors
+  ---
+  duration_ms: 0.7155
+  ...
+# Subtest: provider browser logout is followed only for confirmed requested global logout
+ok 21 - provider browser logout is followed only for confirmed requested global logout
+  ---
+  duration_ms: 31.208965
+  ...
+# Subtest: confirmed global logout may return exactly to the fixed local login without a warning or external navigation
+ok 22 - confirmed global logout may return exactly to the fixed local login without a warning or external navigation
+  ---
+  duration_ms: 29.175281
+  ...
+# Subtest: local logout return requires byte-exact fixed URL and rejects extra, duplicate, credential and alternate destinations
+ok 23 - local logout return requires byte-exact fixed URL and rejects extra, duplicate, credential and alternate destinations
+  ---
+  duration_ms: 28.814356
+  ...
+# Subtest: a fixed local logout return still displays an existing partial warning before navigation
+ok 24 - a fixed local logout return still displays an existing partial warning before navigation
+  ---
+  duration_ms: 26.596358
+  ...
+# Subtest: provider logout URL cannot carry credentials or change the local return destination
+ok 25 - provider logout URL cannot carry credentials or change the local return destination
+  ---
+  duration_ms: 31.814605
+  ...
+# Subtest: partial logout warning is displayed and acknowledged before clearing local state or navigating
+ok 26 - partial logout warning is displayed and acknowledged before clearing local state or navigating
+  ---
+  duration_ms: 28.589867
+  ...
+# Subtest: successful browser logout with a server warning waits for acknowledgement too
+ok 27 - successful browser logout with a server warning waits for acknowledgement too
+  ---
+  duration_ms: 30.910555
+  ...
+# Subtest: an unconfirmed local logout does not clear or navigate
+ok 28 - an unconfirmed local logout does not clear or navigate
+  ---
+  duration_ms: 30.388839
+  ...
+# Subtest: a session response started before explicit logout cannot restore the old user
+ok 29 - a session response started before explicit logout cannot restore the old user
+  ---
+  duration_ms: 0.586492
+  ...
+# Subtest: late 401 routing preserves an explicit logout and never creates an automatic SSO entry
+ok 30 - late 401 routing preserves an explicit logout and never creates an automatic SSO entry
+  ---
+  duration_ms: 28.417839
+  ...
+# Subtest: starting logout invalidates old responses while retaining the warning acknowledgement view
+ok 31 - starting logout invalidates old responses while retaining the warning acknowledgement view
+  ---
+  duration_ms: 27.530684
+  ...
+# Subtest: only native mode may attempt native JWT refresh after an authentication failure
+ok 32 - only native mode may attempt native JWT refresh after an authentication failure
+  ---
+  duration_ms: 25.927207
+  ...
+# Subtest: OIDC mapping, account and disabled-config errors have distinct safe explanations
+ok 33 - OIDC mapping, account and disabled-config errors have distinct safe explanations
+  ---
+  duration_ms: 32.283247
+  ...
+1..33
+# tests 33
+# suites 0
+# pass 33
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1570.712452
+
+> cmab-mdm-frontend@0.1.0 type-check /app
+> tsc --noEmit
+
+
+> cmab-mdm-frontend@0.1.0 lint /app
+> eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+
+
+> cmab-mdm-frontend@0.1.0 build /app
+> tsc -b && vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 5615 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                  0.67 kB │ gzip:   0.36 kB
+dist/assets/index-DOuScYsg.css                   1.59 kB │ gzip:   0.61 kB
+dist/assets/passwordRules-DUNvvixe.js            0.35 kB │ gzip:   0.38 kB │ map:     0.90 kB
+dist/assets/useEditSnapshot-DJ0YlSj7.js          0.39 kB │ gzip:   0.29 kB │ map:     1.58 kB
+dist/assets/PermissionGuard-CAHH80p3.js          0.39 kB │ gzip:   0.29 kB │ map:     1.61 kB
+dist/assets/equipments-XPZRSfym.js               0.47 kB │ gzip:   0.29 kB │ map:     5.39 kB
+dist/assets/SubstanceTypeTag-CkmcDFNg.js         0.53 kB │ gzip:   0.41 kB │ map:     1.35 kB
+dist/assets/formErrors-DDWGOzMX.js               0.65 kB │ gzip:   0.50 kB │ map:     3.15 kB
+dist/assets/EditConflictAlert-D2I6PRmy.js        0.70 kB │ gzip:   0.68 kB │ map:     1.79 kB
+dist/assets/materials-Bo5VQDa8.js                0.88 kB │ gzip:   0.37 kB │ map:     3.49 kB
+dist/assets/useIdempotentCreate-DBAz84dS.js      1.01 kB │ gzip:   0.70 kB │ map:     3.71 kB
+dist/assets/constants-ZQZO1H8O.js                1.21 kB │ gzip:   0.64 kB │ map:     3.72 kB
+dist/assets/substances-L0XGvg_s.js               1.25 kB │ gzip:   0.47 kB │ map:     5.12 kB
+dist/assets/constants-DwOnkzRH.js                1.33 kB │ gzip:   0.77 kB │ map:     4.05 kB
+dist/assets/constants-i1ERWcDt.js                1.42 kB │ gzip:   0.92 kB │ map:     3.85 kB
+dist/assets/StatusHistoryPanel-7zM7pQlO.js       1.43 kB │ gzip:   0.92 kB │ map:     4.75 kB
+dist/assets/EntityCodeLink-BNKc57dq.js           1.56 kB │ gzip:   0.84 kB │ map:     4.85 kB
+dist/assets/targets-AlAF2V59.js                  1.60 kB │ gzip:   0.55 kB │ map:    14.64 kB
+dist/assets/assets-DrVbldBf.js                   1.69 kB │ gzip:   0.51 kB │ map:     6.57 kB
+dist/assets/constants-Cc8dlMCT.js                1.83 kB │ gzip:   1.36 kB │ map:     5.75 kB
+dist/assets/TimeDisplay-D2u4HgnA.js              1.88 kB │ gzip:   1.01 kB │ map:     5.20 kB
+dist/assets/constants-B_83ySqN.js                1.91 kB │ gzip:   1.01 kB │ map:     5.83 kB
+dist/assets/constants-Ie9hb42i.js                1.97 kB │ gzip:   0.95 kB │ map:     6.64 kB
+dist/assets/PermissionListPage-Bxz48tW2.js       1.98 kB │ gzip:   1.19 kB │ map:     5.99 kB
+dist/assets/projects-BiCEqBbM.js                 2.29 kB │ gzip:   0.59 kB │ map:     8.74 kB
+dist/assets/AdminTabs-CIYku13q.js                2.30 kB │ gzip:   1.06 kB │ map:     8.42 kB
+dist/assets/TargetFormFields-2KS0jn0S.js         2.34 kB │ gzip:   1.52 kB │ map:     7.26 kB
+dist/assets/GovernanceFields-Ci0m8rgT.js         2.49 kB │ gzip:   1.33 kB │ map:     8.74 kB
+dist/assets/TargetEditPage-CuowidWV.js           2.87 kB │ gzip:   1.68 kB │ map:     7.86 kB
+dist/assets/AuditLogPanel-Ch2sb-qr.js            2.98 kB │ gzip:   1.74 kB │ map:    10.06 kB
+dist/assets/ChangePasswordPage-Bdbdo2YT.js       2.99 kB │ gzip:   1.67 kB │ map:     9.64 kB
+dist/assets/useMutation-BuWBwu7n.js              3.19 kB │ gzip:   1.33 kB │ map:     9.76 kB
+dist/assets/SessionPolicyPage-MVpS6NUE.js        3.21 kB │ gzip:   2.32 kB │ map:     9.54 kB
+dist/assets/AssetCreatePage-Ddx934q9.js          3.29 kB │ gzip:   1.58 kB │ map:     9.44 kB
+dist/assets/AssetListPage-CTER0a2a.js            3.43 kB │ gzip:   1.65 kB │ map:    11.30 kB
+dist/assets/constants-Ckhca2xc.js                3.43 kB │ gzip:   1.56 kB │ map:    10.93 kB
+dist/assets/StatusActionsBar-C5q_2ozU.js         3.47 kB │ gzip:   2.15 kB │ map:    11.66 kB
+dist/assets/DeptAdminPolicyPage-6c1iKRAX.js      3.68 kB │ gzip:   2.49 kB │ map:    11.57 kB
+dist/assets/TargetCreatePage-IU0qBHp0.js         3.71 kB │ gzip:   2.19 kB │ map:     9.85 kB
+dist/assets/MaterialListPage-imPz-LLy.js         3.74 kB │ gzip:   1.81 kB │ map:    12.39 kB
+dist/assets/ProjectListPage-CYFB54Dg.js          4.41 kB │ gzip:   1.81 kB │ map:    15.44 kB
+dist/assets/SubstanceListPage-CC7o5EDg.js        4.58 kB │ gzip:   2.18 kB │ map:    15.25 kB
+dist/assets/AssetEditPage-C6-ze92y.js            4.67 kB │ gzip:   2.15 kB │ map:    13.74 kB
+dist/assets/UniprotInfoPanel-E9Ct9sk1.js         4.68 kB │ gzip:   2.31 kB │ map:    14.71 kB
+dist/assets/TargetListPage-C6X6H1Xw.js           4.74 kB │ gzip:   2.21 kB │ map:    15.22 kB
+dist/assets/AuditLogPage-DzRtS9iy.js             4.91 kB │ gzip:   2.42 kB │ map:    15.99 kB
+dist/assets/EquipmentDetailPage-IjBVNpk2.js      4.93 kB │ gzip:   2.43 kB │ map:    14.66 kB
+dist/assets/SignatureListPage-BzJbBsm6.js        5.12 kB │ gzip:   2.19 kB │ map:    16.75 kB
+dist/assets/EquipmentCreatePage-CloG_PHb.js      5.39 kB │ gzip:   2.52 kB │ map:    15.09 kB
+dist/assets/MaterialCreatePage-BB1iGwpq.js       5.48 kB │ gzip:   2.20 kB │ map:    17.66 kB
+dist/assets/ProfilePage-CctmixZX.js              5.60 kB │ gzip:   2.34 kB │ map:    17.84 kB
+dist/assets/TargetDetailPage-DQ5VqP54.js         5.75 kB │ gzip:   2.95 kB │ map:    16.87 kB
+dist/assets/ProjectCreatePage-D_PJiVWf.js        5.77 kB │ gzip:   2.63 kB │ map:    17.01 kB
+dist/assets/RoleListPage-C__dgGJA.js             5.81 kB │ gzip:   2.98 kB │ map:    20.23 kB
+dist/assets/MaterialEditPage-dDtGpLyB.js         6.51 kB │ gzip:   2.48 kB │ map:    20.28 kB
+dist/assets/EquipmentEditPage-o3GYtPlw.js        6.75 kB │ gzip:   2.96 kB │ map:    19.61 kB
+dist/assets/EquipmentListPage-CqPPWMJL.js        7.11 kB │ gzip:   3.17 kB │ map:    26.74 kB
+dist/assets/ProjectEditPage-dQn9D1W1.js          7.99 kB │ gzip:   3.13 kB │ map:    23.08 kB
+dist/assets/SubstanceEditPage-CBR2gSWu.js        8.67 kB │ gzip:   3.48 kB │ map:    23.87 kB
+dist/assets/DashboardPage-C0p7UX_w.js           10.54 kB │ gzip:   4.09 kB │ map:    38.53 kB
+dist/assets/UserListPage-BAyARjYX.js            10.95 kB │ gzip:   5.22 kB │ map:    42.41 kB
+dist/assets/MaterialDetailPage-BtfYSb5O.js      11.60 kB │ gzip:   4.18 kB │ map:    38.32 kB
+dist/assets/MoleculeTargetPanel-LLxMZAPc.js     13.72 kB │ gzip:   5.72 kB │ map:    41.26 kB
+dist/assets/SubstanceDetailPage-DFLWZkCt.js     16.70 kB │ gzip:   6.03 kB │ map:    53.94 kB
+dist/assets/SubstanceCreatePage-DgmF1iwN.js     19.44 kB │ gzip:   8.17 kB │ map:    58.27 kB
+dist/assets/AssetDetailPage-BcRD-rjf.js         21.26 kB │ gzip:   6.44 kB │ map:    70.36 kB
+dist/assets/ProjectDetailPage-CucNuchL.js       38.53 kB │ gzip:  11.82 kB │ map:   124.19 kB
+dist/assets/index-Bb7TBHeV.js                  143.83 kB │ gzip:  52.53 kB │ map:   571.07 kB
+dist/assets/react-vendor-CoeK0IR7.js           163.37 kB │ gzip:  53.39 kB │ map:   706.40 kB
+dist/assets/echarts-vendor-Dk4bA5fw.js       1,136.78 kB │ gzip: 378.52 kB │ map: 6,429.29 kB
+dist/assets/antd-vendor-Becj0yMW.js          1,193.26 kB │ gzip: 371.18 kB │ map: 5,242.67 kB
+✓ built in 17.51s

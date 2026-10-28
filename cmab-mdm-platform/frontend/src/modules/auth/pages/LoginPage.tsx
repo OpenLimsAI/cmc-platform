@@ -9,6 +9,7 @@ import { touchActivity } from '@/shared/sessionGuard';
 import { oidcLoginPath } from '@/api/oidc';
 import { nativeLoginSelected, oidcErrorNotice, safeAuthReturnTo, shouldAutoStartOidc } from '@/shared/oidcPolicy';
 import { withBase } from '@/shared/base';
+import { passwordChangeText } from '@/shared/passwordChangeText';
 
 // 被会话守卫踢回登录页时的说明（?reason=idle|expired）
 const REASON_NOTICE: Record<string, string> = {
@@ -31,7 +32,7 @@ export function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const reasonNotice =
     searchParams.get('changed') === '1'
-      ? '密码已修改成功，请用新密码登录'
+      ? passwordChangeText(nativeEnabled ? 'native' : 'oidc', nativeEnabled).loginNotice
       : (REASON_NOTICE[searchParams.get('reason') ?? ''] ?? null);
   const native = nativeLoginSelected(oidcEnabled, nativeEnabled, searchParams.get('native') === '1');
   const oidcError = searchParams.get('oidc_error');

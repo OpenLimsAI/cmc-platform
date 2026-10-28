@@ -1,0 +1,18 @@
+{
+  "users": 1,
+  "forced_change_users": 1,
+  "initial_password_still_unexpired": 1,
+  "mappings": 1,
+  "sys_admin_assignments": 1,
+  "password_history": 1,
+  "login_history": 1,
+  "active_mdm_sessions": 0,
+  "signature_count": 0,
+  "project_count": 0,
+  "cli_audit": 1,
+  "force_change_approved_role": true,
+  "observed_at": "2026-10-28T05:35:14.704855+00:00",
+  "target": "only approved synthetic tmpfs mdm_ssobootstrap_e2e",
+  "password_change_completed": false,
+  "real_user_accounts_created": false
+}
