@@ -19,6 +19,27 @@ const { useAuthStore } = await bundle('stores/authStore.ts', 'auth-store');
 const user = { user_id: 29, username: 'isolated-reader', full_name: '隔离只读用户', roles: [], permissions: ['project:read'] };
 beforeEach(() => { useAuthStore.getState().logout(); useAuthStore.getState().setOidcConfig(false, true); items.clear(); });
 
+test('SSO-only password change clearly separates signing credential from Casdoor login', async () => {
+  const { passwordChangeText } = await bundle('shared/passwordChangeText.ts', 'password-change-sso');
+  const text = passwordChangeText('oidc', false);
+  assert.match(text.heading, /签名/);
+  assert.match(text.description, /不能用于登录/);
+  assert.match(text.description, /Casdoor/);
+  assert.match(text.success, /Casdoor/);
+  assert.doesNotMatch(text.success, /用新密码重新登录/);
+  assert.match(text.loginNotice, /Casdoor/);
+});
+
+test('native and opt-in compatible deployments retain truthful password wording', async () => {
+  const { passwordChangeText } = await bundle('shared/passwordChangeText.ts', 'password-change-compatible');
+  const native = passwordChangeText('native', true);
+  assert.equal(native.heading, '修改密码');
+  assert.match(native.success, /用新密码重新登录/);
+  const compatible = passwordChangeText('oidc', true);
+  assert.doesNotMatch(compatible.description, /不能用于登录/);
+  assert.match(compatible.success, /Casdoor/);
+});
+
 test('SSO-only configuration discards legacy native identity and persisted credentials', () => {
   useAuthStore.getState().setAuth('synthetic-native-token', { ...user, roles: ['SYS_ADMIN'] });
   useAuthStore.getState().setOidcConfig(true, false);

@@ -1,0 +1,29 @@
+{
+  "real_browser_password_change_completed": false,
+  "steps": [
+    {
+      "screenshot": "screenshots/01-portal-authenticated.jpg",
+      "role": "synthetic Casdoor employee; MDM explicit SYS_ADMIN",
+      "result": "actual portal login succeeded; MDM launch available",
+      "file_written_at_utc": "2026-10-28T03:07:02.377099+00:00"
+    },
+    {
+      "screenshot": "screenshots/02-sso-forced-signature-change.jpg",
+      "role": "same explicitly bootstrapped synthetic MDM user_id=1",
+      "result": "portal to MDM SSO without credential prompt; signing-only wording and forced change visible",
+      "file_written_at_utc": "2026-10-28T03:07:24.032570+00:00"
+    },
+    {
+      "screenshot": null,
+      "result": "actual project menu click returned to forced password-change route; AX observation only"
+    },
+    {
+      "screenshot": null,
+      "result": "CDP GET projects response not returned; Transport closed; status unknown, not passed"
+    },
+    {
+      "screenshot": null,
+      "result": "new signing password never entered; browser tool requires user handoff"
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "base_commit": "c81dbe85c85dce885eb79296bfdfb838644773cf",
+  "created_at": "2026-10-28T05:39:05.149260+00:00",
+  "hash_basis": "text: CRLF normalized to LF; JPEG: original unchanged bytes",
+  "browser_e2e_complete": false,
+  "files": [
+    {
+      "path": "evidence/backend-ci-green322.txt",
+      "canonical_bytes": 33126,
+      "sha256": "7b1ef0b7df9bbb0357a53dfe96afa0745f8b106c7846ec6b0aef2affb793abf6"
+    },
+    {
+      "path": "evidence/browser-database-assertions.json",
+      "canonical_bytes": 505,
+      "sha256": "847d879c75252a1af206e2f1d07129b5ae06e8259e7d948c4643d29f4361fcdd"
+    },
+    {
+      "path": "evidence/browser-step-index.json",
+      "canonical_bytes": 1092,
+      "sha256": "eca1cb25381aa59076adc44b61a761fad4b78942137a2a45bcf02cee1cf5ddb4"
+    },
+    {
+      "path": "evidence/cleanup-receipt.json",
+      "canonical_bytes": 2178,
+      "sha256": "728265cab133674b422c78206cf8743ce806f362c5ad01fc53fde106a22c8577"
+    },
+    {
+      "path": "evidence/cli-green20.txt",
+      "canonical_bytes": 3043,
+      "sha256": "96d3ff4f2edba381c6fba61c2101fd56353ed409d1ece04dcc8f5eefe5661b89"
+    },
+    {
+      "path": "evidence/cli-red.txt",
+      "canonical_bytes": 4955,
+      "sha256": "b59b2551b572281e747ff2be84186a3c642514f4b50d082b98c404f8d7f230e3"
+    },
+    {
+      "path": "evidence/contract-green16.txt",
+      "canonical_bytes": 2180,
+      "sha256": "992fe24c5a594bba256a5b8b5012eb2a142e8dc9becc50e71e2afc93671af182"
+    },
+    {
+      "path": "evidence/contract-red.txt",
+      "canonical_bytes": 1460,
+      "sha256": "1b827c56c25cfbfe483538f7602927a18edfeb47549a58dad83e23e14237984e"
+    },
+    {
+      "path": "evidence/frontend-green-validation.txt",
+      "canonical_bytes": 14632,
+      "sha256": "95a98310924bbab3a4e190998dce99b5c35e63b799488c0bbd35297854063530"
+    },
+    {
+      "path": "evidence/frontend-red.txt",
+      "canonical_bytes": 9473,
+      "sha256": "d41a41b2fce7d2ebe38f65d809929c18af0ba3c57247441fe0213dbb80ac96d6"
+    },
+    {
+      "path": "evidence/screenshot-format.json",
+      "canonical_bytes": 526,
+      "sha256": "88e09f4b5d0bda5f998b4f8a1cdfb1fff7609f2a303673e98922b8e31a93d73b"
+    },
+    {
+      "path": "evidence/single-admin-red.txt",
+      "canonical_bytes": 5652,
+      "sha256": "b6f45734932004f1478ab75edf23eb0fde615ae174961d32304fdf58d87b4a99"
+    },
+    {
+      "path": "evidence/target-hardening-red.txt",
+      "canonical_bytes": 4742,
+      "sha256": "f864a1f96e10d184756ab4641a0525333a9590df507ac0c77045d5c756082ad7"
+    },
+    {
+      "path": "report.md",
+      "canonical_bytes": 6515,
+      "sha256": "e0a249c18137e0e36b29313172bea6fabcca0fad2fb765f37b0488686621987b"
+    },
+    {
+      "path": "screenshots/01-portal-authenticated.jpg",
+      "canonical_bytes": 50328,
+      "sha256": "1303fb1e665128695b4fcc3c22fc926a6f7f133e962813900710702f440a17f7"
+    },
+    {
+      "path": "screenshots/02-sso-forced-signature-change.jpg",
+      "canonical_bytes": 64625,
+      "sha256": "8604d67a79b650bf57d2849c9c95bc3407665738c9c458b1e8c113777c5c4445"
+    }
+  ],
+  "candidate_sources": [
+    {
+      "path": "backend/app/scripts/sso_bootstrap.py",
+      "canonical_bytes": 14148,
+      "sha256": "54153083ff918b04b68a05743adc2ee3d195c2c153fa67a85a3cc89a9b7437a9"
+    },
+    {
+      "path": "backend/tests/test_sso_bootstrap.py",
+      "canonical_bytes": 3704,
+      "sha256": "858ce6562399f85c96f2ecf464b0b93df7d292051bb9f66c78156abb1590b43a"
+    },
+    {
+      "path": "backend/tests/test_sso_bootstrap_cli.py",
+      "canonical_bytes": 7359,
+      "sha256": "1d87359e152e6a36d12792730e6a11b08901230a28e9df6eae4508bc78436151"
+    },
+    {
+      "path": "backend/scripts/run_phase2_tests.py",
+      "canonical_bytes": 2408,
+      "sha256": "b85655f1a17e212b83d0925ece1c28c090a6f370ba977aceeb243bc59c7a9d60"
+    },
+    {
+      "path": "frontend/src/modules/auth/pages/ChangePasswordPage.tsx",
+      "canonical_bytes": 6076,
+      "sha256": "5d42ae570f8c6d884df8f048db090e3b1987ec993a70d96240c1c6162230ca77"
+    },
+    {
+      "path": "frontend/src/modules/auth/pages/LoginPage.tsx",
+      "canonical_bytes": 6908,
+      "sha256": "a073097c7d5e154c9e723c13c43b863cec35b3621495dccd5c53fd2b6a699cc3"
+    },
+    {
+      "path": "frontend/src/shared/passwordChangeText.ts",
+      "canonical_bytes": 1201,
+      "sha256": "8e5f205292c7ee302a5313c321afeee50e65b22aa47925c45544a6f70097e978"
+    },
+    {
+      "path": "frontend/tests/phase2-auth.test.mjs",
+      "canonical_bytes": 22038,
+      "sha256": "009cc2cf7d4cb4fef426b60481aa94d2b0eb78168ba53a0ccd02c36f997f00b8"
+    }
+  ],
+  "updated_at": "2026-10-28T06:03:12.648825+00:00"
+}

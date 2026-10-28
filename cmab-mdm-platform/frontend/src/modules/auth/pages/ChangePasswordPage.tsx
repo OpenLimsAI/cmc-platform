@@ -15,6 +15,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { passwordRules } from '@/shared/utils/passwordRules';
+import { passwordChangeText } from '@/shared/passwordChangeText';
 
 const { Title, Text } = Typography;
 
@@ -30,6 +31,9 @@ export function ChangePasswordPage() {
   const logout = useAuthStore((s) => s.logout);
   const clearMustChangePassword = useAuthStore((s) => s.clearMustChangePassword);
   const mustChangePassword = useAuthStore((s) => s.user?.must_change_password ?? false);
+  const authMode = useAuthStore((s) => s.authMode);
+  const nativeAllowed = useAuthStore((s) => s.nativeLoginEnabled);
+  const copy = passwordChangeText(authMode, nativeAllowed);
   const [form] = Form.useForm<FormValues>();
   const isForced = mustChangePassword || searchParams.get('required') === '1';
 
@@ -37,7 +41,7 @@ export function ChangePasswordPage() {
     mutationFn: (payload: { old_password: string; new_password: string }) =>
       authApi.changePassword(payload),
     onSuccess: () => {
-      message.success('密码已修改，3 秒后将自动退出登录。请用新密码重新登录。');
+      message.success(copy.success);
       // 先清强制改密标记：否则这 3 秒内任何跳转都会被 ProtectedRoute 弹回本页
       clearMustChangePassword();
       // 后端 password_changed_at 更新后，旧 token 立即失效（M2.5.2）。
@@ -77,8 +81,9 @@ export function ChangePasswordPage() {
 
       <Card style={{ maxWidth: 560 }}>
         <Title level={3} style={{ marginTop: 0 }}>
-          修改密码
+          {copy.heading}
         </Title>
+        <p><Text type="secondary">{copy.description}</Text></p>
 
         {isForced && (
           <Alert
@@ -105,7 +110,7 @@ export function ChangePasswordPage() {
           autoComplete="off"
         >
           <Form.Item
-            label="当前密码"
+            label={copy.currentLabel}
             name="old_password"
             rules={[{ required: true, message: '请输入当前密码' }]}
           >
@@ -113,7 +118,7 @@ export function ChangePasswordPage() {
           </Form.Item>
 
           <Form.Item
-            label="新密码"
+            label={copy.newLabel}
             name="new_password"
             tooltip="至少 8 位，须包含大写、小写、数字和符号"
             rules={[
@@ -131,7 +136,7 @@ export function ChangePasswordPage() {
           </Form.Item>
 
           <Form.Item
-            label="确认新密码"
+            label={copy.confirmLabel}
             name="confirm_password"
             dependencies={['new_password']}
             rules={[
