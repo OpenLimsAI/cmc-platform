@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "name": "actual-error-before-fix.jpg",
+      "bytes_hashed": 19620,
+      "sha256": "6d7138c6311465bb4686db94563cd34506a734a1ff1d3a1ab8314d33ead1c75f",
+      "mode": "binary"
+    },
+    {
+      "name": "browser-response-summary.json",
+      "bytes_hashed": 1163,
+      "sha256": "6b8f3e8790539b2c6d862e7f766706a6b10d08ae5d12e5c85060bb6e064b92ac",
+      "mode": "utf8_lf"
+    },
+    {
+      "name": "report.md",
+      "bytes_hashed": 5298,
+      "sha256": "0d048d9490e7b18a1b27512f2c45a99d7ba88d1b93d2e7a43d95f4b7eb629d1a",
+      "mode": "utf8_lf"
+    }
+  ]
+}

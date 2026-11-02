@@ -185,6 +185,64 @@ test('bootstrap network failure stays explicit instead of guessing native recove
   assert.equal(useAuthStore.getState().authMode, null);
 });
 
+test('expired SSO signing bootstrap explains the real 40308 refusal without granting a session', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'expired-signing-bootstrap');
+  useAuthStore.getState().setAuth('synthetic-old-native', { ...user, roles: ['SYS_ADMIN'] });
+  await restoreOidcAuth(async () => ({ enabled: true, native_login_enabled: false }), async () => {
+    throw { response: { status: 403, data: { code: 40308, message: 'untrusted server wording' } } };
+  }, useAuthStore.getState());
+  const state = useAuthStore.getState();
+  assert.equal(state.bootstrapPending, false);
+  assert.match(state.bootstrapError, /签名密码已过期/);
+  assert.match(state.bootstrapError, /安全渠道/);
+  assert.doesNotMatch(state.bootstrapError, /untrusted server wording|无法确认当前登录配置/);
+  assert.equal(state.authMode, null);
+  assert.equal(state.user, null);
+  assert.equal(state.isAdmin, false);
+  assert.equal(state.nativeLoginEnabled, false);
+  assert.equal(items.has('cmab_access_token'), false);
+});
+
+test('compatible OIDC deployment describes its expired MDM password without claiming signing-only use', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'expired-compatible-bootstrap');
+  await restoreOidcAuth(async () => ({ enabled: true, native_login_enabled: true }), async () => {
+    throw { response: { status: 403, data: { code: 40308 } } };
+  }, useAuthStore.getState());
+  assert.match(useAuthStore.getState().bootstrapError, /MDM 临时密码已过期/);
+  assert.doesNotMatch(useAuthStore.getState().bootstrapError, /签名密码|不能用于登录/);
+  assert.equal(useAuthStore.getState().authMode, null);
+});
+
+test('configuration errors cannot be mislabelled as an expired authenticated signing bootstrap', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'config-error-not-expiry');
+  let sessionReads = 0;
+  await restoreOidcAuth(async () => {
+    throw { response: { status: 403, data: { code: 40308 } } };
+  }, async () => { sessionReads += 1; return null; }, useAuthStore.getState());
+  assert.equal(sessionReads, 0);
+  assert.match(useAuthStore.getState().bootstrapError, /无法确认当前登录配置或会话/);
+  assert.equal(useAuthStore.getState().authMode, null);
+});
+
+test('other session failures and lookalike expiry responses retain the fail-closed generic notice', async () => {
+  const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'unknown-session-errors');
+  for (const error of [
+    { response: { status: 403, data: { code: 40307 } } },
+    { response: { status: 500, data: { code: 40308 } } },
+    { response: { status: 403, data: { code: '40308' } } },
+    new Error('temporary_password_expired'),
+    null,
+  ]) {
+    await restoreOidcAuth(async () => ({ enabled: true, native_login_enabled: false }), async () => {
+      throw error;
+    }, useAuthStore.getState());
+    assert.match(useAuthStore.getState().bootstrapError, /无法确认当前登录配置或会话/);
+    assert.equal(useAuthStore.getState().authMode, null);
+    assert.equal(useAuthStore.getState().user, null);
+    assert.equal(useAuthStore.getState().nativeLoginEnabled, false);
+  }
+});
+
 test('native recovery remains reachable even if a stale OIDC cookie cannot be restored', async () => {
   const { restoreOidcAuth } = await bundle('shared/oidcBootstrap.ts', 'oidc-bootstrap');
   let reads = 0;
