@@ -51,4 +51,6 @@ overview/detail可带snapshot_id；缺省为当前视图，积压/应更新后�
 
 ## D17设备归档兼容字段
 
+2026-11-04兼容增补：Observation增加可空的upstream_risk，包含task_key（本设备归档）、archive_start（原风险批次时间）、past（当时风险说明）与current（截至当前视图的归档说明）。无风险及旧快照默认null；reasons仍保留ETL自身提醒。当前视图按归档采集新鲜度更新current/label，指定snapshot_id仍保持原观测，不补入未来证据。复用JSONB，无结构迁移；新前端兼容字段缺失。
+
 公开任务新增archive_device=vicell/flex2/null；设备Run增加archive_mode=day/night/null及parent_run_id，restore=not_applicable只用于文件归档，不改变MDM验证语义。overview/tasks隐藏内部父来源，公开仍16项；内部父记录可按原key读取，仅SYS_ADMIN。旧snapshot未包含新增设备任务时明确410要求更新，不返回500或拼入未来证据；原结束事件key/UID授权不变。

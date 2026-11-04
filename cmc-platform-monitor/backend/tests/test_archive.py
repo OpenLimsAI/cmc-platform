@@ -2,7 +2,7 @@ from datetime import datetime,timedelta
 import json
 import pytest
 from app.archive import lifecycle,device_runs,checked_report
-from app.domain import Task,Run,Snapshot,SH,assess
+from app.domain import Task,Run,Snapshot,SH,assess,current_view
 from app.sources import Reader,evidence
 from app.api import public_snapshot
 from app.engine import Engine
@@ -164,3 +164,124 @@ def test_old_snapshot_has_legacy_history_but_no_invented_device_result():
 
 def test_malformed_checksum_header_is_not_no_changes():
  with pytest.raises(ValueError):checked_report('')
+
+
+async def upstream_snapshot(tmp_path,monkeypatch,latest='recovered',etl_status='success'):
+ """Reproduce the Nov 3 ETL followed by the Nov 4 archive in isolated storage."""
+ now=datetime(2026,11,4,8,1,tzinfo=SH)
+ class Clock(datetime):
+  @classmethod
+  def now(cls,tz=None):return now.astimezone(tz)
+ monkeypatch.setattr('app.engine.datetime',Clock)
+ failed=parent(vicell='failed',at=datetime(2026,11,3,16,tzinfo=SH))
+ failed.id='ingest-day:unit:previous'
+ later=parent(vicell='failed' if latest=='failed' else 'success',mode='night',at=now.replace(hour=2,minute=0))
+ later.id='ingest-night:unit:latest'
+ for r in (failed,later):
+  report(tmp_path,r,'flex2')
+  if r is later and latest not in ('missing','failed'):
+   report(tmp_path,r,'vicell',content='' if latest=='empty' else None)
+  Reader(config()).instrument_evidence(r,tmp_path)
+ etl_start=datetime(2026,11,3,16,20,tzinfo=SH)
+ etls=[Task(key=k,name=k,kind='etl',project='test',adapter='systemd',times=['12:05','16:20'],timeout_minutes=15) for k in ('vicell','nova')]
+ class Source:
+  async def read(self,t,*args):
+   if t.key=='ingest-day':return [failed],[]
+   if t.key=='ingest-night':return [later],['读取失败'] if latest=='unavailable' else []
+   return [Run(id=t.key,task_key=t.key,start=etl_start,finish=etl_start+timedelta(seconds=15),
+               status=etl_status if t.key=='vicell' else 'success')],[]
+ parents=[Task(key='ingest-'+m,name=m,kind='backup',project='test',adapter='systemd',visible=False) for m in ('day','night')]
+ s=await Engine(config(),[*parents,device('flex2'),device('vicell'),*etls],MemoryStore(),Source()).collect()
+ s.mode='production'
+ return s,{o.task.key:o for o in s.tasks}
+
+
+@pytest.mark.parametrize('latest',['recovered','empty'])
+async def test_upstream_recovery_keeps_etl_risk_and_identifies_both_batches(tmp_path,monkeypatch,latest):
+ s,items=await upstream_snapshot(tmp_path,monkeypatch,latest)
+ o=items['vicell']
+ assert o.state=='warning' and o.last_run.status=='success'
+ assert o.label=='上次 ETL 有风险，上游已恢复'
+ assert '2026-11-03 16:20 ETL' in o.upstream_risk.past
+ assert '2026-11-03 16:00 归档批次执行失败' in o.upstream_risk.past
+ assert '2026-11-04 02:00 归档批次' in o.upstream_risk.current
+ assert '待下一次完整 ETL 确认' in o.upstream_risk.current
+ assert items['nova'].state=='success' and items['nova'].upstream_risk is None
+ assert current_view(s,s.collected_at).tasks==s.tasks
+
+
+@pytest.mark.parametrize('latest,label',[('failed','上游风险仍在'),('missing','上游待核实'),('unavailable','上游待核实')])
+async def test_latest_failure_or_missing_evidence_cannot_claim_recovery(tmp_path,monkeypatch,latest,label):
+ _,items=await upstream_snapshot(tmp_path,monkeypatch,latest)
+ o=items['vicell']
+ assert label in o.label and '已恢复' not in o.upstream_risk.current
+ assert '2026-11-04 02:00' in o.upstream_risk.current
+ assert o.state=='warning'
+
+
+async def test_recovery_is_withdrawn_when_archive_view_expires(tmp_path,monkeypatch):
+ s,items=await upstream_snapshot(tmp_path,monkeypatch)
+ # Archive 11:45 has no new evidence after its 12:05 deadline; ETL is still within its window.
+ now=datetime(2026,11,4,12,6,tzinfo=SH)
+ view=current_view(s,now)
+ o=next(o for o in view.tasks if o.task.key=='vicell')
+ assert o.state=='warning' and o.label=='上次 ETL 有风险，上游待核实'
+ assert '已恢复' not in o.upstream_risk.current
+ assert o.upstream_risk.past==items['vicell'].upstream_risk.past
+ assert '已恢复' in items['vicell'].upstream_risk.current  # historical snapshot unchanged
+ assert current_view(view,now)==view
+ expired=current_view(s,datetime(2026,11,4,12,26,tzinfo=SH))
+ o=next(o for o in expired.tasks if o.task.key=='vicell')
+ assert o.state=='unknown' and o.label=='更新逾期，当前未核实'
+
+
+@pytest.mark.parametrize('case',['running','future_finish','old_batch','scope_warning'])
+async def test_current_upstream_recovery_requires_complete_fresh_same_device(tmp_path,monkeypatch,case):
+ s,items=await upstream_snapshot(tmp_path,monkeypatch)
+ archive=items['ingest-vicell']
+ if case=='running':archive.state='unknown';archive.last_run.status='running';archive.last_run.finish=None
+ if case=='future_finish':archive.last_run.finish=s.collected_at+timedelta(minutes=1)
+ if case=='old_batch':archive.last_run.start=datetime(2026,11,2,16,tzinfo=SH)
+ if case=='scope_warning':archive.state='warning';archive.label='归档完成，有提醒'
+ o=next(o for o in current_view(s,s.collected_at).tasks if o.task.key=='vicell')
+ assert '已恢复' not in o.upstream_risk.current and o.state=='warning'
+
+
+async def test_etl_own_warnings_and_legacy_snapshots_are_preserved(tmp_path,monkeypatch):
+ s,items=await upstream_snapshot(tmp_path,monkeypatch,etl_status='partial_failed')
+ assert '部分步骤或记录失败' in items['vicell'].reasons
+ old=s.model_dump(mode='json')
+ for o in old['tasks']:o.pop('upstream_risk',None)
+ parsed=Snapshot.model_validate(old)
+ assert all(o.upstream_risk is None for o in current_view(parsed,s.collected_at).tasks)
+
+
+async def test_pending_api_update_withdraws_recovery_but_preserves_historical_view(tmp_path,monkeypatch):
+ s,_=await upstream_snapshot(tmp_path,monkeypatch)
+ class Clock(datetime):
+  @classmethod
+  def now(cls,tz=None):return s.collected_at.astimezone(tz)
+ monkeypatch.setattr('app.api.datetime',Clock)
+ store=MemoryStore();store.snapshots[s.id]=s
+ await store.enqueue({'trigger':'manual'})
+ with TestClient(create_app(config(),store)) as c:
+  headers={'Authorization':'Bearer '+token()}
+  current=c.get('/api/v1/overview',headers=headers).json()
+  o=next(o for o in current['tasks'] if o['task']['key']=='vicell')
+  assert o['label']=='更新待完成，当前未核实' and '已恢复' not in o['upstream_risk']['current']
+  historical=c.get('/api/v1/overview',params={'snapshot_id':s.id},headers=headers).json()
+  o=next(o for o in historical['tasks'] if o['task']['key']=='vicell')
+  assert '已恢复' in o['upstream_risk']['current']
+
+
+@pytest.mark.parametrize('status,finish,integrity,expected',[
+ ('failed',10,None,'执行失败'),('partial_failed',10,None,'部分执行失败'),
+ ('running',None,None,'尚未完成'),('success',40,'scope_verified','晚于ETL开始'),
+ ('success',10,'failed','校验未通过'),('success',10,None,'校验证据不足'),
+ ('unknown',10,None,'结束或校验证据不足'),
+])
+def test_historical_upstream_message_names_actual_risk(status,finish,integrity,expected):
+ from app.domain import archive_issue
+ r=Run(id='archive',task_key='ingest-vicell',start=AT,status=status,
+       finish=AT+timedelta(seconds=finish) if finish else None,integrity=integrity)
+ assert expected in archive_issue(r,AT+timedelta(seconds=30))

@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from .config import Settings
-from .domain import UTC, Snapshot, assess, current_view
+from .domain import UTC, Snapshot, assess, current_view, describe_current_upstream
 from .inventory import load_tasks
 from .security import authenticate
 from .store import MemoryStore,PostgresStore
@@ -84,6 +84,9 @@ def create_app(settings=None,store=None):
                     item.state='unknown';item.label='更新待完成，当前未核实';item.collection_status='stale'
                     item.reasons=['更新请求尚未完成证据核对']
                     if item.last_run and item.last_run.status=='failed':item.reasons.insert(0,'最后已知失败，当前未核实')
+            archives={item.task.key:item for item in view.tasks}
+            for item in view.tasks:
+                if item.upstream_risk:describe_current_upstream(item,archives.get(item.upstream_risk.task_key))
         return view
     @app.get('/api/v1/health')
     async def health():return {'alive':True}
