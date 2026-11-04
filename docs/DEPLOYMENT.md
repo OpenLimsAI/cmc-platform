@@ -16,6 +16,12 @@
 
 ## 固定版本发布步骤
 
+### 2026-11-04总仓库内开发、独立目录发布
+
+本地权威工作副本已迁入`OpenLimsAI/cmc-platform`的`cmc-platform-monitor/`；Linux本次实查仍为原独立Git仓库和既有`/opt/cmc-platform-monitor`路径。本次保留运行路径、origin及服务配置：先将本项目显式文件清单提交/push至总仓库，再以该提交的监控子目录完整Git tree、Linux当前提交为父，建立`codex/monitor-upstream-release-20261104`发布分支并push至同一总仓库。Linux从该分支fetch并快进到核实的完整发布SHA，再运行现有monitor专项发布脚本。
+
+这是本次明确授权的定向发布，不建立向旧仓库的自动同步、不发布其他子项目、不切换整体运行目录。发布提交与总仓库提交因目录布局不同而SHA不同，必须核对`总仓库提交:cmc-platform-monitor`与`发布提交^{tree}`相等，记录两者完整SHA；Linux HEAD须与GitHub发布分支完全相同。回退使用本次发布前Linux SHA和原构建，保留监控历史。下方旧独立仓库/多仓流程保留其原适用阶段。
+
 执行前复查目标主机、dirty工作区、端口、依赖版本及迁移revision；不覆盖未提交文件。所有代码按Mac验证→对应GitHub提交/push→Linux相同完整SHA，禁止手工复制或直接改服务器业务代码。培训专用分支与正式批号仓分别记录，不擅自改为pull main。
 
 本项目 `scripts/deploy_linux.py <phase> <完整SHA>` 在服务器通过已授权sudo按阶段执行，校验本项目HEAD；版本锁见deploy/linux/release-20261010.json。现有阶段不是每次更新都重复运行，后续按变化选择必要阶段：

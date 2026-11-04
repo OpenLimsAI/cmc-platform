@@ -75,6 +75,13 @@ class Run(BaseModel):
         if value.tzinfo is None:raise ValueError('运行时间必须带已核实的时区')
         return value.astimezone(UTC)
 
+class UpstreamRisk(BaseModel):
+    task_key: str
+    archive_start: datetime
+    past: str
+    current: str = ''
+
+
 class Observation(BaseModel):
     task: Task
     observed_at: datetime
@@ -85,6 +92,7 @@ class Observation(BaseModel):
     last_run: Run | None = None
     next_at: datetime | None = None
     gaps: list[str] = []
+    upstream_risk: UpstreamRisk | None = None
 
 class Snapshot(BaseModel):
     id: str
@@ -93,7 +101,7 @@ class Snapshot(BaseModel):
     tasks: list[Observation]
     mode: str = 'production'
     inventory_version: str = '2026-10-12'
-    rule_version: str = 'v2-file-archive'
+    rule_version: str = 'v3-upstream-context'
     gaps: list[str] = []
 
 class Event(BaseModel):
@@ -182,6 +190,47 @@ def assess(task: Task, runs: list[Run], now: datetime, gaps: list[str] | None = 
     return o
 
 
+def batch_time(value: datetime) -> str:
+    return value.astimezone(SH).strftime('%Y-%m-%d %H:%M')
+
+
+def archive_issue(run: Run, etl_start: datetime) -> str:
+    if run.source_kind == 'schedule': return '未按计划启动'
+    if run.status == 'failed': return '执行失败'
+    if run.status == 'partial_failed': return '部分执行失败'
+    if run.status == 'unknown': return '结束或校验证据不足'
+    if not run.finish or run.status == 'running': return '在ETL开始时尚未完成'
+    if run.finish > etl_start: return '晚于ETL开始才结束'
+    if run.integrity == 'failed': return '校验未通过'
+    return '校验证据不足'
+
+
+def describe_current_upstream(item: Observation, archive: Observation | None) -> None:
+    """Keep the historical risk; recovery describes this snapshot's archive only."""
+    risk = item.upstream_risk
+    if risk is None: return
+    original_label = item.label
+    latest = archive.last_run if archive else None
+    batch = f'{batch_time(latest.start)} 归档批次' if latest else '最近归档'
+    # Fail closed on stale collection, missing/future terminal evidence or older results.
+    if (archive is None or archive.collection_status != 'ok' or archive.gaps or latest is None
+            or archive.state in ('unknown', 'disabled') or latest.start < risk.archive_start
+            or latest.start > archive.observed_at
+            or (latest.finish is not None and latest.finish > archive.observed_at)):
+        item.label = '上次 ETL 有风险，上游待核实'
+        risk.current = f'当前：{batch}的最新状态未核实；采集过期、失败或证据不足。'
+    elif (archive.state == 'success' and latest.status == 'success'
+          and latest.integrity in ('scope_verified', 'no_changed_files')
+          and latest.finish is not None and latest.finish >= latest.start):
+        item.label = '上次 ETL 有风险，上游已恢复'
+        risk.current = (f'当前：{batch}已于 {batch_time(latest.finish)} 正常结束；'
+                        '上游已恢复，待下一次完整 ETL 确认。')
+    else:
+        item.label = '上次 ETL 完成，上游风险仍在'
+        risk.current = f'当前：{batch}仍需关注：{archive.label}。'
+    if item.state not in ('success', 'warning'): item.label = original_label
+
+
 def current_view(snapshot: Snapshot, now: datetime) -> Snapshot:
     """Overdue updates become unknown even when the collector itself has disappeared."""
     if snapshot.mode=='demo' or snapshot.trigger=='none':return snapshot
@@ -209,4 +258,8 @@ def current_view(snapshot: Snapshot, now: datetime) -> Snapshot:
             item.state='unknown';item.label='更新逾期，当前未核实';item.collection_status='stale'
             item.reasons=['上次观测之后缺少应有更新，不能确认当前执行结果']
             if item.last_run and item.last_run.status=='failed':item.reasons.insert(0,'最后已知失败，当前未核实')
+    archives = {item.task.key: item for item in copy.tasks}
+    for item in copy.tasks:
+        if item.upstream_risk:
+            describe_current_upstream(item, archives.get(item.upstream_risk.task_key))
     return copy

@@ -4,7 +4,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 from uuid import uuid4
-from .domain import UTC, SH, Snapshot, Run, assess
+from .domain import UTC, SH, Snapshot, Run, UpstreamRisk, assess, archive_issue, batch_time, describe_current_upstream
 from .archive import device_runs,PARENTS
 
 class WorkerReader:
@@ -87,7 +87,11 @@ class Engine:
                 upstream=[r for r in all_runs if r.task_key==archive_key and r.start<=obs.last_run.start]
                 parent=max(upstream,key=lambda r:r.start,default=None)
                 if parent and (parent.status!='success' or parent.integrity not in ('scope_verified','no_changed_files') or not parent.finish or parent.finish>obs.last_run.start):
-                    obs.state='warning';obs.label='执行完成，上游归档有风险';obs.reasons.append('本次ETL之前最近归档失败、未结束或证据不足；ETL成功不证明已取得新文件')
+                    obs.state='warning'
+                    obs.upstream_risk=UpstreamRisk(task_key=archive_key,archive_start=parent.start,
+                        past=(f'当时：{batch_time(obs.last_run.start)} ETL 开始前，'
+                              f'{batch_time(parent.start)} 归档批次{archive_issue(parent,obs.last_run.start)}。'))
+                    describe_current_upstream(obs,next((o for o in observations if o.task.key==archive_key),None))
             snap=Snapshot(id=str(uuid4()),collected_at=datetime.now(UTC),trigger=trigger,tasks=observations,mode=self.settings.mode,
                           gaps=['外部来源未全部接入；覆盖以登记清单及各源截至时间为准'])
             await self.store.publish(snap,all_runs,ids or [])
