@@ -79,6 +79,32 @@ class ESignatureService:
             signed_content_hash, user.user_id, signed_at, ip, meaning, reason
         )
 
+        # One success audit per new signature, in the same transaction as the
+        # signature, consumed proof and business transition. Never backfill old
+        # signatures or commit this success record independently.
+        success_audit = AuditLog(
+            user_id=user.user_id,
+            username=user.username,
+            action="SIGN",
+            entity_schema=entity_schema,
+            entity_table=entity_table,
+            entity_id=entity_id,
+            entity_code=entity_code,
+            change_summary=f"电子签名确认（{meaning}）",
+            reason=reason,
+            ip_address=ip,
+            request_id=audit_request_id.get(),
+            timestamp=signed_at,
+            extra={
+                "outcome": "success",
+                "signature_meaning": meaning,
+                "signed_content_hash": signed_content_hash,
+                "signature_hash": signature_hash,
+                "authentication_method": "oidc_fresh" if proof is not None else "local_password",
+            },
+        )
+        self.db.add(success_audit)
+        await self.db.flush()
         sig = ESignature(
             user_id=user.user_id,
             username=user.username,
@@ -93,6 +119,7 @@ class ESignatureService:
             signature_hash=signature_hash,
             ip_address=ip,
             signed_at=signed_at,
+            audit_log_id=success_audit.log_id,
         )
         self.db.add(sig)
         await self.db.flush()

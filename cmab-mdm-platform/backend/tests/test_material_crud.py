@@ -402,6 +402,7 @@ async def test_material_with_substance_ref(admin_client, unique_suffix):
     list_resp = await admin_client.get(
         "/api/v1/materials", params={"substance_code": sub_code, "page_size": 50}
     )
+    assert list_resp.status_code == 200, list_resp.text
     items = list_resp.json()["data"]
     codes = [it["material_code"] for it in items]
     assert mat["material_code"] in codes

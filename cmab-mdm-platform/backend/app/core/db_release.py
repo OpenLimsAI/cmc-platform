@@ -3,8 +3,10 @@
 This module never migrates or stamps a database. Deployment runs migrations with
 explicit authority; application startup and health checks only verify readiness.
 """
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -51,7 +53,7 @@ def revision_status(current: list[str], scripts: ScriptDirectory) -> tuple[str, 
     return "invalid_revision", expected
 
 
-def equipment_column_issues(columns: list[dict]) -> list[str]:
+def equipment_column_issues(columns: Sequence[Mapping[str, Any]]) -> list[str]:
     actual = {column["name"]: column for column in columns}
     issues = []
     for name, (column_type, nullable) in EQUIPMENT_COLUMNS.items():

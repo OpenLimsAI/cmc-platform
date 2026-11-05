@@ -10,9 +10,10 @@ Phase 5.A / M5.2：角色 & 权限管理服务
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 from loguru import logger
-from sqlalchemy import func, select
+from sqlalchemy import Table, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -211,7 +212,7 @@ class RoleAdminService:
         if payload.permission_codes is not None:
             perm_ids = await self._resolve_permission_ids(payload.permission_codes)
             await self.db.execute(
-                RolePermission.__table__.delete().where(
+                cast(Table, RolePermission.__table__).delete().where(
                     RolePermission.role_id == role.role_id
                 )
             )
@@ -255,7 +256,7 @@ class RoleAdminService:
 
         # 先删 role_permission 行，再软删 role
         await self.db.execute(
-            RolePermission.__table__.delete().where(
+            cast(Table, RolePermission.__table__).delete().where(
                 RolePermission.role_id == role.role_id
             )
         )

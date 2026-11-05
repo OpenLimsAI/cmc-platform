@@ -24,10 +24,7 @@ from app.domains.target.models import Target
 
 async def _group_count(db: AsyncSession, table, col, *, where=None) -> list[dict]:
     stmt = select(col, func.count()).group_by(col)
-    if where is not None:
-        stmt = stmt.where(where)
-    else:
-        stmt = stmt.where(table.deleted_at.is_(None))
+    stmt = stmt.where(where) if where is not None else stmt.where(table.deleted_at.is_(None))
     result = await db.execute(stmt)
     return [{"key": k, "count": c} for k, c in result.all()]
 
@@ -75,7 +72,7 @@ class DashboardService:
         """domains：本次要统计的域（按调用方权限裁剪；None = 全部）。
         返回体只包含可见域的 totals / distributions / trend_30d，并带 visible_domains。"""
         visible = [d for d in DOMAINS if domains is None or d in domains]
-        tables = {
+        tables: dict[str, type[Substance] | type[Project] | type[Asset] | type[Material] | type[Equipment] | type[Target]] = {
             "substance": Substance, "project": Project, "asset": Asset,
             "material": Material, "equipment": Equipment, "target": Target,
         }

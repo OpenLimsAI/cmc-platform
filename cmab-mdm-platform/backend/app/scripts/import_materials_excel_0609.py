@@ -30,6 +30,7 @@ import csv
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypedDict
 
 import openpyxl
 from loguru import logger
@@ -172,8 +173,19 @@ def read_excel(path: Path) -> list[ParsedRow]:
     return out
 
 
-async def import_rows(rows: list[ParsedRow], dry_run: bool) -> dict:
-    stats = {
+class ImportStats(TypedDict):
+    total: int
+    skipped_by_reason: dict[str, int]
+    duplicated_code: int
+    to_insert: int
+    type_dist: dict[str, int]
+    category_dist: dict[str, int]
+    column_overwrite: int
+    inserted: int
+
+
+async def import_rows(rows: list[ParsedRow], dry_run: bool) -> ImportStats:
+    stats: ImportStats = {
         "total": len(rows),
         "skipped_by_reason": {},
         "duplicated_code": 0,
@@ -191,6 +203,7 @@ async def import_rows(rows: list[ParsedRow], dry_run: bool) -> dict:
                 stats["skipped_by_reason"].get(pr.skip_reason, 0) + 1
             )
             continue
+        assert pr.code is not None, "parse_row must reject missing material codes"
         if pr.code in by_code:
             pr.skip_reason = "inner_dup_code"
             stats["skipped_by_reason"]["inner_dup_code"] = (
@@ -219,6 +232,7 @@ async def import_rows(rows: list[ParsedRow], dry_run: bool) -> dict:
                     pr.skip_reason = "db_dup_code"
                     continue
                 to_insert.append(pr)
+                assert pr.material_type is not None and pr.category is not None, "parse_row must resolve valid material types/categories"
                 stats["type_dist"][pr.material_type] = (
                     stats["type_dist"].get(pr.material_type, 0) + 1
                 )
@@ -282,7 +296,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
             ])
 
 
-def print_stats(stats: dict) -> None:
+def print_stats(stats: ImportStats) -> None:
     print("=" * 60)
     print(f"Excel 总行:   {stats['total']}")
     print(f"待插入:       {stats['to_insert']}")

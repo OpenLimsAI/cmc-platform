@@ -61,7 +61,6 @@ dev = [
     "ruff>=0.3.0",
     "mypy>=1.9.0",
     "types-passlib",
-    "types-redis",
 ]
 
 [build-system]
@@ -100,12 +99,16 @@ ignore = [
 
 # ============== mypy ==============
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.12"
 strict = false
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_typed = true
 
 # ============== pytest ==============
 [tool.pytest.ini_options]

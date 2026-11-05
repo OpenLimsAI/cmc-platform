@@ -114,6 +114,7 @@ class ESignatureItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     signature_id: int
+    audit_log_id: int | None = None
     user_id: int
     username: str
     full_name: str

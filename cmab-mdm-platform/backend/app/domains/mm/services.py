@@ -169,29 +169,29 @@ class MaterialService:
                     Substance.substance_id.in_(sub_ids)
                 )
             )
-            sub_code_map = {sid: scode for sid, scode in sub_rows}
+            sub_code_map = dict(sub_rows.tuples().all())
 
         return (
             [
-                MaterialBrief(
-                    version=m.version,
-                    material_code=m.material_code,
-                    material_name=m.material_name,
-                    material_name_en=m.material_name_en,
-                    material_type=m.material_type,
-                    category=m.category,
-                    grade=m.grade,
-                    status=m.status,
-                    unit=m.unit,
-                    manufacturer=m.manufacturer,
-                    spec_model=m.spec_model,
-                    physical_form=m.physical_form,
-                    source_name=m.source_name,
-                    substance_id=m.substance_id,
-                    substance_code=sub_code_map.get(m.substance_id) if m.substance_id else None,
-                    created_at=m.created_at,
-                    updated_at=m.updated_at,
-                )
+                MaterialBrief.model_validate({
+                    'version': m.version,
+                    'material_code': m.material_code,
+                    'material_name': m.material_name,
+                    'material_name_en': m.material_name_en,
+                    'material_type': m.material_type,
+                    'category': m.category,
+                    'grade': m.grade,
+                    'status': m.status,
+                    'unit': m.unit,
+                    'manufacturer': m.manufacturer,
+                    'spec_model': m.spec_model,
+                    'physical_form': m.physical_form,
+                    'source_name': m.source_name,
+                    'substance_id': m.substance_id,
+                    'substance_code': sub_code_map.get(m.substance_id) if m.substance_id else None,
+                    'created_at': m.created_at,
+                    'updated_at': m.updated_at,
+                })
                 for m in materials
             ],
             total,
@@ -342,25 +342,25 @@ class MaterialService:
         result = await self.db.execute(stmt)
         materials = list(result.scalars())
         return [
-            MaterialBrief(
-                version=m.version,
-                material_code=m.material_code,
-                material_name=m.material_name,
-                material_name_en=m.material_name_en,
-                material_type=m.material_type,
-                category=m.category,
-                grade=m.grade,
-                status=m.status,
-                unit=m.unit,
-                manufacturer=m.manufacturer,
-                spec_model=m.spec_model,
-                physical_form=m.physical_form,
-                source_name=m.source_name,
-                substance_id=m.substance_id,
-                substance_code=substance_code,
-                created_at=m.created_at,
-                updated_at=m.updated_at,
-            )
+            MaterialBrief.model_validate({
+                'version': m.version,
+                'material_code': m.material_code,
+                'material_name': m.material_name,
+                'material_name_en': m.material_name_en,
+                'material_type': m.material_type,
+                'category': m.category,
+                'grade': m.grade,
+                'status': m.status,
+                'unit': m.unit,
+                'manufacturer': m.manufacturer,
+                'spec_model': m.spec_model,
+                'physical_form': m.physical_form,
+                'source_name': m.source_name,
+                'substance_id': m.substance_id,
+                'substance_code': substance_code,
+                'created_at': m.created_at,
+                'updated_at': m.updated_at,
+            })
             for m in materials
         ]
 

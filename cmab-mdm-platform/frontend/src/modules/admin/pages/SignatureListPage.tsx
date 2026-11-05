@@ -180,7 +180,7 @@ export function SignatureListPage() {
               电子签名（21 CFR Part 11 §11.50）
             </Title>
             <Text type="secondary">
-              共 {total} 条签名记录。所有 GxP 关键状态变更均留有签名链。
+              共 {total} 条签名记录。新签名直接关联审计记录；历史记录缺少关联时会明确标注。
             </Text>
           </div>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
@@ -309,6 +309,12 @@ export function SignatureListPage() {
               <Text strong>理由：</Text>
               <br />
               {detail.signature_reason}
+            </Paragraph>
+            <Paragraph>
+              <Text strong>关联审计记录：</Text>{' '}
+              {detail.audit_log_id != null
+                ? <Text code>#{detail.audit_log_id}</Text>
+                : <Text type="secondary">历史记录未关联</Text>}
             </Paragraph>
             <Paragraph>
               <Text strong>内容哈希（SHA-256）：</Text>

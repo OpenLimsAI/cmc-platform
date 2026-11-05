@@ -19,9 +19,10 @@ from __future__ import annotations
 import secrets
 import string
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from loguru import logger
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import Table, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -419,7 +420,7 @@ class UserAdminService:
 
         # 全替换：先清，再加
         await self.db.execute(
-            UserRole.__table__.delete().where(UserRole.user_id == user.user_id)
+            cast(Table, UserRole.__table__).delete().where(UserRole.user_id == user.user_id)
         )
         for rid in role_ids:
             self.db.add(UserRole(user_id=user.user_id, role_id=rid, granted_by=actor.user_id))

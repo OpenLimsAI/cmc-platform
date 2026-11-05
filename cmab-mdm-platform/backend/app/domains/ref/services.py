@@ -208,25 +208,25 @@ class ProjectSubstanceLinkService:
     def _compose_item(
         link: ProjectSubstanceLink, proj: Project, sub: Substance
     ) -> ProjectSubstanceLinkItem:
-        return ProjectSubstanceLinkItem(
-            relation_type=link.relation_type,
-            is_primary=link.is_primary,
-            notes=link.notes,
-            created_at=link.created_at,
-            created_by=link.created_by,
-            updated_at=link.updated_at,
-            updated_by=link.updated_by,
-            deleted_at=link.deleted_at,
-            deleted_by=link.deleted_by,
-            project_code=proj.project_code,
-            project_name=proj.project_name,
-            project_status=proj.status,
-            project_type=proj.project_type,
-            substance_code=sub.substance_code,
-            substance_preferred_name=sub.preferred_name,
-            substance_status=sub.status,
-            substance_type=sub.substance_type,
-        )
+        return ProjectSubstanceLinkItem.model_validate({
+                   'relation_type': link.relation_type,
+                   'is_primary': link.is_primary,
+                   'notes': link.notes,
+                   'created_at': link.created_at,
+                   'created_by': link.created_by,
+                   'updated_at': link.updated_at,
+                   'updated_by': link.updated_by,
+                   'deleted_at': link.deleted_at,
+                   'deleted_by': link.deleted_by,
+                   'project_code': proj.project_code,
+                   'project_name': proj.project_name,
+                   'project_status': proj.status,
+                   'project_type': proj.project_type,
+                   'substance_code': sub.substance_code,
+                   'substance_preferred_name': sub.preferred_name,
+                   'substance_status': sub.status,
+                   'substance_type': sub.substance_type,
+               })
 
 
 # ============== §11.3 AssetSubstance ==============
@@ -393,26 +393,26 @@ class AssetSubstanceLinkService:
     def _compose_item(
         link: AssetSubstanceLink, asset: Asset, sub: Substance
     ) -> AssetSubstanceLinkItem:
-        return AssetSubstanceLinkItem(
-            component_role=link.component_role,
-            is_active_ingredient=link.is_active_ingredient,
-            notes=link.notes,
-            created_at=link.created_at,
-            created_by=link.created_by,
-            updated_at=link.updated_at,
-            updated_by=link.updated_by,
-            deleted_at=link.deleted_at,
-            deleted_by=link.deleted_by,
-            asset_code=asset.asset_code,
-            asset_internal_name=asset.internal_name,
-            asset_type=asset.asset_type,
-            asset_status=asset.status,
-            asset_phase=asset.current_phase,
-            substance_code=sub.substance_code,
-            substance_preferred_name=sub.preferred_name,
-            substance_status=sub.status,
-            substance_type=sub.substance_type,
-        )
+        return AssetSubstanceLinkItem.model_validate({
+                   'component_role': link.component_role,
+                   'is_active_ingredient': link.is_active_ingredient,
+                   'notes': link.notes,
+                   'created_at': link.created_at,
+                   'created_by': link.created_by,
+                   'updated_at': link.updated_at,
+                   'updated_by': link.updated_by,
+                   'deleted_at': link.deleted_at,
+                   'deleted_by': link.deleted_by,
+                   'asset_code': asset.asset_code,
+                   'asset_internal_name': asset.internal_name,
+                   'asset_type': asset.asset_type,
+                   'asset_status': asset.status,
+                   'asset_phase': asset.current_phase,
+                   'substance_code': sub.substance_code,
+                   'substance_preferred_name': sub.preferred_name,
+                   'substance_status': sub.status,
+                   'substance_type': sub.substance_type,
+               })
 
 
 # ============== §11.4 ProjectAsset ==============

@@ -1,0 +1,32 @@
+{
+  "base": "75cb755a3f2b86fa04f6c37abe0018c62af6a7dc",
+  "boundaries": [
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/mm/services.py",
+      "response_boundaries": 2,
+      "field_value_mapping_unchanged": true
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/ref/services.py",
+      "response_boundaries": 2,
+      "field_value_mapping_unchanged": true
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/search/services.py",
+      "response_boundaries": 7,
+      "field_value_mapping_unchanged": true
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/srs/services.py",
+      "response_boundaries": 2,
+      "field_value_mapping_unchanged": true
+    },
+    {
+      "path": "cmab-mdm-platform/backend/app/domains/prs/services.py",
+      "response_boundaries": 2,
+      "field_value_mapping_unchanged": true
+    }
+  ],
+  "total": 15,
+  "runtime_pydantic_validation_retained": true
+}

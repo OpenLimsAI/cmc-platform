@@ -1,0 +1,23 @@
+{
+  "base": "75cb755a3f2b86fa04f6c37abe0018c62af6a7dc",
+  "fixture_values": {
+    "seed_data.py": {
+      "constant_count": 8,
+      "ast_sha256": "d6d5072130aaa9a94e05a70f627118e14ae2968756a7d1254ba4aee42c3772c1",
+      "unchanged": true
+    },
+    "seed_real_demo.py": {
+      "constant_count": 3,
+      "ast_sha256": "b05a2a84acfc03e75523e89700d78fa6f09f424da2c0bb5a20c2aadf059d63de",
+      "unchanged": true
+    }
+  },
+  "removed_dev_stubs": [
+    "types-cffi",
+    "types-pyopenssl",
+    "types-redis",
+    "types-setuptools"
+  ],
+  "all_other_locked_versions_unchanged": true,
+  "scripts_executed": false
+}

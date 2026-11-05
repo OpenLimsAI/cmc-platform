@@ -2,7 +2,7 @@
 安全工具：密码哈希、JWT
 """
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -17,7 +17,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds
 
 def hash_password(password: str) -> str:
     """对密码进行 bcrypt 哈希"""
-    return pwd_context.hash(password)
+    return cast(str, pwd_context.hash(password))
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -45,12 +45,12 @@ def create_access_token(
     }
     if extra_claims:
         payload.update(extra_claims)
-    return jwt.encode(
+    return cast(str, jwt.encode(
         payload,
         get_signing_key(),
         algorithm=settings.JWT_ALGORITHM,
         headers=get_jwt_header_extras() or None,
-    )
+    ))
 
 
 def create_refresh_token(
@@ -65,12 +65,12 @@ def create_refresh_token(
         "exp": expire,
         "iat": issued_at or datetime.now(UTC),
     }
-    return jwt.encode(
+    return cast(str, jwt.encode(
         payload,
         get_signing_key(),
         algorithm=settings.JWT_ALGORITHM,
         headers=get_jwt_header_extras() or None,
-    )
+    ))
 
 
 def decode_token(token: str, *, verify_exp: bool = True) -> dict[str, Any]:
@@ -80,12 +80,12 @@ def decode_token(token: str, *, verify_exp: bool = True) -> dict[str, Any]:
     （能区分「空闲超时」与「达到硬上限」给出不同提示），JWT 签名仍照常校验。
     """
     try:
-        return jwt.decode(
+        return cast(dict[str, Any], jwt.decode(
             token,
             get_verifying_key(),
             algorithms=[settings.JWT_ALGORITHM],
             options={"verify_exp": verify_exp},
-        )
+        ))
     except jwt.ExpiredSignatureError as e:
         raise TokenExpiredError() from e
     except JWTError as e:

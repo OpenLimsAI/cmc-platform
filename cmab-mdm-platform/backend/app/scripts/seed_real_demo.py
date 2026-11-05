@@ -17,12 +17,13 @@ from loguru import logger
 
 from app.core.database import AsyncSessionLocal
 from app.scripts import seed_data
+from app.scripts.seed_types import AssetSeed, ProjectSeed, SubstanceSeed
 
 # =============================================================================
 # 物质（SRS）：3 个单抗
 # =============================================================================
 
-REAL_SUBSTANCES = [
+REAL_SUBSTANCES: list[SubstanceSeed] = [
     {
         "substance_type": "mab",
         "internal_code": "CMAB-101",
@@ -114,7 +115,7 @@ REAL_SUBSTANCES = [
 # 项目（PRS）：每个药按生物类似药 BLA 申报工作流分若干项目
 # =============================================================================
 
-REAL_PROJECTS = [
+REAL_PROJECTS: list[ProjectSeed] = [
     # ---------------- CMAB-101 Denosumab ----------------
     {
         "name": "CMAB-101 CMC 工艺开发与放大",
@@ -322,7 +323,7 @@ REAL_PROJECTS = [
 # 资产（ARS）：剂型 / 包装规格层面
 # =============================================================================
 
-REAL_ASSETS = [
+REAL_ASSETS: list[AssetSeed] = [
     # ---- CMAB-101：双适应症 双剂型 ----
     {
         "internal_name": "CMAB-101 注射液 60mg/1mL（骨质疏松）",

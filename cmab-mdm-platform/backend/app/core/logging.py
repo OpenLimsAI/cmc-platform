@@ -17,9 +17,12 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from loguru import Record
 
 from app.core.config import settings
 from app.shared.audit_context import (
@@ -42,7 +45,7 @@ class OIDCCallbackFilter(logging.Filter):
         return True
 
 
-def _audit_patcher(record: dict[str, Any]) -> None:
+def _audit_patcher(record: Record) -> None:
     """把 ContextVar 中的审计上下文塞到 record["extra"] 里"""
     extra = record["extra"]
     extra.setdefault("request_id", audit_request_id.get())

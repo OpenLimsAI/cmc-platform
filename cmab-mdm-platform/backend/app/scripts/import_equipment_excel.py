@@ -633,6 +633,7 @@ async def import_rows(
                     seen_nat.add(nk)
 
                 to_insert.append(pr)
+                assert pr.category is not None, "parse_row must reject missing equipment categories"
                 _bump(stats["category_dist"], pr.category)
 
             stats["to_insert"] = len(to_insert)
