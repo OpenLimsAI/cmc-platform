@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 UTC = timezone.utc
 SH = ZoneInfo('Asia/Shanghai')
@@ -18,6 +18,7 @@ class Task(BaseModel):
     environment: str = 'production'
     enabled: bool | None = True
     times: list[str] = []
+    slot_effective_dates: dict[str, date] = {}
     grace_minutes: int = 5
     timeout_minutes: int = 30
     unit: str | None = None
@@ -38,6 +39,12 @@ class Task(BaseModel):
     notes: list[str] = []
     producer_users: list[str] = []
 
+    @model_validator(mode='after')
+    def effective_dates_match_slots(self):
+        if not set(self.slot_effective_dates).issubset(self.times):
+            raise ValueError('计划生效日期必须对应已登记时刻')
+        return self
+
     def timeout_at(self, when: datetime, mode: str | None = None) -> int:
         if self.archive_device and mode=='day':return min(self.slot_timeouts.values(),default=self.timeout_minutes)
         return self.slot_timeouts.get(when.astimezone(SH).strftime('%H:%M'),self.timeout_minutes)
@@ -45,7 +52,19 @@ class Task(BaseModel):
     def occurrences(self, now: datetime, days: int = 1) -> list[datetime]:
         local = now.astimezone(SH)
         return sorted(datetime.combine((local - timedelta(days=d)).date(), datetime.strptime(t, '%H:%M').time(), SH).astimezone(UTC)
-                      for d in range(days + 1) for t in self.times)
+                      for d in range(days + 1) for t in self.times
+                      if (local - timedelta(days=d)).date() >= self.slot_effective_dates.get(t, date.min))
+
+    def next_occurrence(self, now: datetime) -> datetime | None:
+        local = now.astimezone(SH)
+        candidates = []
+        for slot in self.times:
+            day = max(local.date(), self.slot_effective_dates.get(slot, date.min))
+            when = datetime.combine(day, datetime.strptime(slot, '%H:%M').time(), SH)
+            if when <= local:
+                when += timedelta(days=1)
+            candidates.append(when.astimezone(UTC))
+        return min(candidates, default=None)
 
 class Run(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -101,7 +120,7 @@ class Snapshot(BaseModel):
     tasks: list[Observation]
     mode: str = 'production'
     inventory_version: str = '2026-10-12'
-    rule_version: str = 'v3-upstream-context'
+    rule_version: str = 'v4-schedule-effective-dates'
     gaps: list[str] = []
 
 class Event(BaseModel):
@@ -117,9 +136,7 @@ def assess(task: Task, runs: list[Run], now: datetime, gaps: list[str] | None = 
     gaps = gaps or []
     runs = sorted(runs, key=lambda r: r.start, reverse=True)
     last = runs[0] if runs else None
-    next_at = next((t for t in task.occurrences(now) if t > now), None)
-    if not next_at and task.times:
-        next_at = min(t + timedelta(days=1) for t in task.occurrences(now, 0))
+    next_at = task.next_occurrence(now)
     o = Observation(task=task, observed_at=now, collection_status='ok', last_run=last, next_at=next_at, gaps=gaps)
     if gaps:
         o.collection_status = 'unavailable'; o.label = '当前未知'; o.reasons = list(gaps)

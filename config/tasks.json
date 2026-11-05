@@ -89,6 +89,7 @@
     "kind": "etl",
     "project": "rd-vicell-etl",
     "times": [
+      "02:20",
       "12:05",
       "16:20"
     ],
@@ -101,7 +102,10 @@
     "timer": "vicell-etl.timer",
     "db_source": "rd",
     "ledger": "vicell",
-    "watermark_path": "/var/lib/vicell-etl/watermark"
+    "watermark_path": "/var/lib/vicell-etl/watermark",
+    "slot_effective_dates": {
+      "02:20": "2026-11-06"
+    }
   },
   {
     "key": "nova",
@@ -109,6 +113,7 @@
     "kind": "etl",
     "project": "rd-nova-etl",
     "times": [
+      "02:20",
       "12:05",
       "16:20"
     ],
@@ -121,7 +126,10 @@
     "timer": "nova-etl.timer",
     "db_source": "rd",
     "ledger": "nova",
-    "watermark_path": "/var/lib/nova-etl/watermark"
+    "watermark_path": "/var/lib/nova-etl/watermark",
+    "slot_effective_dates": {
+      "02:20": "2026-11-06"
+    }
   },
   {
     "key": "ingest-vicell",
