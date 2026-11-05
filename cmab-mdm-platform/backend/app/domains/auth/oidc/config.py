@@ -1,6 +1,7 @@
 """Explicit URLs and separate OIDC client audiences; disabled by default."""
 import re
 from dataclasses import dataclass, field
+from typing import Literal
 from urllib.parse import urlsplit
 
 from app.core.config import settings
@@ -34,10 +35,14 @@ class OIDCConfig:
     client_secret: str = field(repr=False)
     organization: str = ""
     account_status_visible: bool = False
+    account_status_mode: Literal["get_user", "casdoor_v4_userinfo"] = "get_user"
     internal_url: str = ""
     pm_client_id: str = ""
     pm_client_secret: str = field(default="", repr=False)
     session_max_seconds: int = 3600
+    signature_client_id: str = ""
+    signature_client_secret: str = field(default="", repr=False)
+    signature_password_only: bool = False
 
     @property
     def origin(self):
@@ -52,7 +57,9 @@ class OIDCConfig:
     def secure(self):
         return urlsplit(self.public_url).scheme == "https"
 
-    def callback(self, delegation=False):
+    def callback(self, delegation=False, *, signing=False):
+        if signing:
+            return self.public_url + "/signature-callback"
         return self.public_url + "/api/v1/auth/oidc/" + ("pm-callback" if delegation else "callback")
 
 
@@ -77,6 +84,21 @@ def configured() -> OIDCConfig:
                       client_secret=settings.MDM_OIDC_CLIENT_SECRET.get_secret_value(),
                       organization=settings.MDM_OIDC_ORGANIZATION,
                       account_status_visible=settings.MDM_OIDC_ACCOUNT_STATUS_VISIBLE,
+                      account_status_mode=settings.MDM_OIDC_ACCOUNT_STATUS_MODE,
                       pm_client_id=settings.MDM_OIDC_PM_CLIENT_ID,
                       pm_client_secret=settings.MDM_OIDC_PM_CLIENT_SECRET.get_secret_value() if settings.MDM_OIDC_PM_CLIENT_SECRET else "",
-                      session_max_seconds=settings.MDM_OIDC_SESSION_MAX_SECONDS)
+                      session_max_seconds=settings.MDM_OIDC_SESSION_MAX_SECONDS,
+                      signature_client_id=settings.MDM_OIDC_SIGNATURE_CLIENT_ID,
+                      signature_client_secret=settings.MDM_OIDC_SIGNATURE_CLIENT_SECRET.get_secret_value() if settings.MDM_OIDC_SIGNATURE_CLIENT_SECRET else "",
+                      signature_password_only=settings.MDM_OIDC_SIGNATURE_PASSWORD_ONLY)
+
+
+def fresh_signing_enabled() -> bool:
+    if settings.MDM_SIGNATURE_MODE != "oidc_fresh":
+        return False
+    config = configured()
+    if not config.signature_client_id or not config.signature_client_secret:
+        raise OIDCError("Independent signature client is not configured")
+    if config.signature_client_id in {config.client_id, config.pm_client_id}:
+        raise OIDCError("Signature audience must be independent")
+    return True

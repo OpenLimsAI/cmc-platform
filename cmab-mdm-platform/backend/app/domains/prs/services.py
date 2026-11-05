@@ -422,6 +422,7 @@ class ProjectService:
             sig = await sig_service.sign(
                 user=current_user,
                 password=signature.password,
+                challenge_id=signature.challenge_id,
                 entity_schema="prs",
                 entity_table="project",
                 entity_id=proj.project_id,

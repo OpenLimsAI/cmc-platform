@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth_mode import native_auth_enabled
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import (
@@ -18,7 +19,7 @@ from app.core.exceptions import (
     TokenMissingError,
 )
 from app.core.responses import success
-from app.domains.auth.oidc.config import configured
+from app.domains.auth.oidc.config import configured, fresh_signing_enabled
 from app.domains.auth.oidc.protocol import OIDCError
 from app.domains.auth.oidc.service import (
     LOGIN_COOKIE,
@@ -38,7 +39,7 @@ HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache", "Referrer-Policy":
 
 def _unavailable():
     message = "统一登录未启用或配置不可用，请稍后重试或联系管理员"
-    if settings.MDM_NATIVE_LOGIN_ENABLED:
+    if native_auth_enabled():
         message += "，可使用已允许的原生恢复入口"
     return JSONResponse(status_code=503, content={"code": 50311, "message": message, "data": None}, headers=HEADERS)
 
@@ -63,9 +64,15 @@ async def oidc_config():
     if enabled:
         try:
             configured()
+            fresh_signing_enabled()
         except OIDCError:
             enabled = False
-    return JSONResponse(success(data={"enabled": enabled, "native_login_enabled": settings.MDM_NATIVE_LOGIN_ENABLED}), headers=HEADERS)
+    data = {"enabled": enabled, "native_login_enabled": native_auth_enabled()}
+    if settings.MDM_OIDC_DEVICE_LOGOUT_ENABLED:
+        data["device_logout_enabled"] = True
+    if settings.MDM_SIGNATURE_MODE == "oidc_fresh":
+        data["signature_mode"] = "oidc_fresh"
+    return JSONResponse(success(data=data), headers=HEADERS)
 
 
 @router.get("/login")
@@ -134,17 +141,21 @@ async def oidc_session(request: Request, db: AsyncSession = Depends(get_db)):
     return JSONResponse(success(data={"mode": "oidc", "expires_at": session.expires_at.isoformat(),
         "pm_delegated": bool(secret.get("pm_access_token") and secret.get("pm_expires_at", 0) > time.time()),
         "user": {"user_id": user.user_id, "username": user.username, "full_name": user.full_name,
-                 "department": user.department, "title": user.title, "must_change_password": requires_password_change(user),
+                 **db.info.get("oidc_identity_presentation", {}),
+                 "department": user.department, "title": user.title, "must_change_password": requires_password_change(user) and not fresh_signing_enabled(),
                  "roles": [role.role_code for role in user.roles], "permissions": permissions}}), headers=HEADERS)
 
 
 class LogoutRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     global_: bool = Field(default=False, alias="global")
+    device: bool = False
 
 
 @router.post("/logout")
 async def oidc_logout(payload: LogoutRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    if payload.device and (payload.global_ or not settings.MDM_OIDC_DEVICE_LOGOUT_ENABLED):
+        raise PermissionDeniedError("当前设备退出尚未启用或范围冲突")
     try:
         service = OIDCService(db)
     except OIDCError:
@@ -161,10 +172,13 @@ async def oidc_logout(payload: LogoutRequest, request: Request, db: AsyncSession
     await service.revoke(raw)
     global_ok = False
     data = {"local_logout": True, "global_logout": False, "login_url": service.config.public_url + "/login?reason=logout"}
-    if payload.global_:
+    if payload.global_ or payload.device:
         if access:
             try:
-                await service.provider.global_logout(access)
+                if payload.device:
+                    await service.provider.global_logout(access, all_devices=False)
+                else:
+                    await service.provider.global_logout(access)
                 global_ok = True
             except OIDCError:
                 pass
@@ -200,3 +214,52 @@ async def backchannel_logout(request: Request, db: AsyncSession = Depends(get_db
         return JSONResponse({"status": "ok"}, headers=HEADERS)
     except (OIDCError, ValueError, KeyError):
         raise PermissionDeniedError("注销通知无效") from None
+
+
+from app.domains.auth.oidc.signing import SigningRequest, SigningService  # noqa: E402
+
+
+class SignatureCompletion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=4096)
+    state: str = Field(min_length=32, max_length=128)
+
+
+def _signing_service(db, request):
+    if not getattr(request.state, "oidc_session", None):
+        raise PermissionDeniedError("签名必须使用当前独立 OIDC 会话")
+    try:
+        return SigningService(db)
+    except OIDCError:
+        from app.domains.auth.oidc.service import OIDCUnavailableError
+        raise OIDCUnavailableError() from None
+
+
+@router.post("/signatures")
+async def begin_signature(payload: SigningRequest, request: Request,
+        user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    service = _signing_service(db, request)
+    return success(data=await service.begin(payload, user=user, session=request.state.oidc_session))
+
+
+@router.post("/signatures/{challenge_id}/complete")
+async def complete_signature(challenge_id: str, payload: SignatureCompletion, request: Request,
+        user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    service = _signing_service(db, request)
+    return success(data=await service.complete(challenge_id, code=payload.code, state=payload.state,
+        user=user, session=request.state.oidc_session))
+
+
+@router.post("/signatures/{challenge_id}/cancel")
+async def cancel_signature(challenge_id: str, request: Request,
+        user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    service = _signing_service(db, request)
+    await service.cancel(challenge_id, user=user, session=request.state.oidc_session)
+    return success(data={"cancelled": True})
+
+
+@router.get("/signatures/{challenge_id}")
+async def signature_receipt(challenge_id: str, request: Request,
+        user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    service = _signing_service(db, request)
+    return success(data=await service.receipt(challenge_id, user=user, session=request.state.oidc_session))

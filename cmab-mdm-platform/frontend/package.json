@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:phase2": "node --test tests/phase2-auth.test.mjs",
+    "test:unit": "node --test tests/*.test.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",

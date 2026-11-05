@@ -132,3 +132,22 @@ async def test_concurrent_real_cli_calls_create_only_one_pair(bootstrap_target):
     results = await asyncio.gather(invoke(bootstrap_target), invoke(bootstrap_target))
     assert all(r.returncode == 0 for r in results), "Concurrent bootstrap failed; private output suppressed"
     assert sorted(json.loads(r.stdout)["status"] for r in results) == ["created", "idempotent"]
+
+
+async def test_fresh_oidc_bootstrap_does_not_issue_a_local_signing_password(bootstrap_target):
+    target = bootstrap_target
+    target["env"].update(MDM_SIGNATURE_MODE="oidc_fresh", MDM_OIDC_SIGNATURE_CLIENT_ID="bootstrap-sign-only",
+        MDM_OIDC_SIGNATURE_CLIENT_SECRET=secrets.token_urlsafe(32))
+    first = await invoke(target)
+    assert first.returncode == 0, "Fresh OIDC bootstrap failed; private output suppressed"
+    assert list(target["output"].iterdir()) == []
+    conn = await asyncpg.connect(**target["args"])
+    try:
+        assert await conn.fetchval('SELECT count(*) FROM auth."user" WHERE force_password_change OR password_expires_at IS NOT NULL') == 0
+        assert await conn.fetchval("SELECT count(*) FROM auth.password_history") == 0
+        assert await conn.fetchval("SELECT count(*) FROM auth.oidc_identity") == 2
+        second = await invoke(target)
+        assert second.returncode == 0 and json.loads(second.stdout)["status"] == "idempotent"
+        assert list(target["output"].iterdir()) == []
+    finally:
+        await conn.close()

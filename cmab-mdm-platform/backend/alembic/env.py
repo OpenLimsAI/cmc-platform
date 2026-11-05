@@ -18,6 +18,7 @@ from app.core.database import Base  # noqa: E402
 # 导入所有 ORM 模型，确保 Alembic 能发现
 from app.domains.audit import models as audit_models  # noqa: E402,F401
 from app.domains.auth import models as auth_models  # noqa: E402,F401
+from app.domains.auth.oidc import models as oidc_models  # noqa: E402,F401
 from app.domains.srs import models as srs_models  # noqa: E402,F401
 from app.shared import idempotency_models  # noqa: E402,F401
 

@@ -68,6 +68,8 @@ export interface LoginRequest {
 }
 
 export interface LoginResponseUser {
+  displayName?: string;
+  identityUsername?: string;
   user_id: number;
   username: string;
   full_name: string;
@@ -549,7 +551,8 @@ export type SignatureMeaning = 'approve' | 'review' | 'release' | 'witness' | 'r
 
 export interface SignatureBlock {
   /** 当前用户密码（21 CFR Part 11 §11.200）*/
-  password: string;
+  password?: string;
+  challenge_id?: string;
   /** 签名含义（可选，后端按 action 推断默认值）*/
   meaning?: SignatureMeaning;
   /** 签名理由（21 CFR Part 11 §11.50，独立于 comment）*/

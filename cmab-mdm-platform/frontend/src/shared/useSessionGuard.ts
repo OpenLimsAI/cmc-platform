@@ -2,7 +2,7 @@
  * MDM 侧接入会话守卫（挂在 MainLayout，登录后的所有页面生效）
  * 通用逻辑在 sessionGuard.ts；这里只把 store / API / 路由接上。
  */
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import { authApi } from '@/api/auth';
@@ -10,7 +10,7 @@ import { performRefresh } from '@/api/client';
 import { useAuthStore } from '@/stores/authStore';
 import { startSessionGuard, type LogoutReason } from './sessionGuard';
 import { oidcApi } from '@/api/oidc';
-import { authResultIsCurrent } from './oidcPolicy';
+import { checkOidcSession } from './oidcSessionCheck';
 
 const REASON_TEXT: Record<LogoutReason, string | null> = {
   idle: '长时间未操作，已自动退出登录',
@@ -18,9 +18,10 @@ const REASON_TEXT: Record<LogoutReason, string | null> = {
   'other-tab': null, // 别处已经提示过
 };
 
-export function useSessionGuard(): void {
+export function useSessionGuard(): () => void {
   const navigate = useNavigate();
   const mode = useAuthStore((s) => s.authMode);
+  const retry = useRef<() => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     if (mode === 'oidc') {
@@ -42,7 +43,6 @@ export function useSessionGuard(): void {
         if (stopped || checking) return;
         const context = useAuthStore.getState();
         if (context.authExitReason) return;
-        const epoch = context.authEpoch;
         checking = true;
         try {
           if (Date.now() - lastActivity > idleMinutes * 60000) {
@@ -50,16 +50,21 @@ export function useSessionGuard(): void {
             end('idle');
             return;
           }
-          const session = await oidcApi.session();
-          const current = useAuthStore.getState();
-          if (stopped || !authResultIsCurrent(epoch, current.authEpoch, current.authExitReason)) return;
-          if (!session) { end('expired'); return; }
-          current.setOidcSession(session.user, session.expires_at, session.pm_delegated, epoch);
-        } catch {
-          const current = useAuthStore.getState();
-          if (authResultIsCurrent(epoch, current.authEpoch, current.authExitReason)) end('expired');
+          await checkOidcSession({
+            context: () => {
+              const current = useAuthStore.getState();
+              return {authEpoch:current.authEpoch,authExitReason:current.authExitReason,
+                userId:current.user?.user_id,expiresAt:current.oidcExpiresAt};
+            },
+            now: Date.now,
+            loadSession: oidcApi.session,
+            verified: (session, epoch) => { if (!stopped) useAuthStore.getState().setOidcSession(session.user, session.expires_at, session.pm_delegated, epoch); },
+            unavailable: () => { if (!stopped) useAuthStore.getState().setOidcVerificationUnavailable(true); },
+            expired: () => end('expired'),
+          });
         } finally { checking = false; }
       };
+      retry.current = check;
       void authApi.sessionPolicy().then((policy) => { idleMinutes = policy.idle_timeout_minutes; }).catch(() => undefined);
       events.forEach((event) => window.addEventListener(event, activity, { passive: true }));
       const visible = () => { if (document.visibilityState === 'visible') void check(); };
@@ -68,6 +73,7 @@ export function useSessionGuard(): void {
       void check();
       return () => {
         stopped = true;
+        retry.current = async () => undefined;
         window.clearInterval(timer);
         events.forEach((event) => window.removeEventListener(event, activity));
         document.removeEventListener('visibilitychange', visible);
@@ -92,4 +98,5 @@ export function useSessionGuard(): void {
     });
     return stop;
   }, [mode, navigate]);
+  return useCallback(() => { void retry.current(); }, []);
 }

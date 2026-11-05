@@ -209,6 +209,10 @@ async def change_password(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.core.exceptions import PermissionDeniedError
+    from app.domains.auth.oidc.config import fresh_signing_enabled
+    if fresh_signing_enabled():
+        raise PermissionDeniedError("密码由 Casdoor 管理，MDM 不接收或维护签名密码")
     service = AuthService(db)
     await service.change_password(user, payload.old_password, payload.new_password)
     # 改密同时撤销所有 refresh token + 清前端 cookie

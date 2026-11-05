@@ -62,3 +62,28 @@ class OIDCLogoutReplay(Base):
     sid: Mapped[str | None] = mapped_column(String(255))
     issued_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OIDCSignatureChallenge(Base):
+    """New authentication evidence; historical signatures are never rewritten."""
+    __tablename__ = "oidc_signature_challenge"
+    __table_args__ = ({"schema": "auth"},)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("auth.oidc_session.id"), nullable=False)
+    identity_id: Mapped[int] = mapped_column(ForeignKey("auth.oidc_identity.identity_id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("auth.user.user_id"), nullable=False)
+    issuer: Mapped[str] = mapped_column(String(512), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    audience: Mapped[str] = mapped_column(String(255), nullable=False)
+    entity_schema: Mapped[str] = mapped_column(String(16), nullable=False)
+    entity_table: Mapped[str] = mapped_column(String(32), nullable=False)
+    entity_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    meaning: Mapped[str] = mapped_column(String(32), nullable=False)
+    state_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    secret_data: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    authenticated_at: Mapped[int | None] = mapped_column(BigInteger)
+    signature_id: Mapped[int | None] = mapped_column(ForeignKey("audit.e_signature.signature_id"), unique=True)

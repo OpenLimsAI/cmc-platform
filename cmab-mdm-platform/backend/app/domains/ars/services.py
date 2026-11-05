@@ -253,6 +253,7 @@ class AssetService:
             sig = await sig_service.sign(
                 user=current_user,
                 password=signature.password,
+                challenge_id=signature.challenge_id,
                 entity_schema="ars",
                 entity_table="asset",
                 entity_id=asset.asset_id,

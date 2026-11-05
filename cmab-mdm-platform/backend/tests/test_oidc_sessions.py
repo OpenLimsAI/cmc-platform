@@ -90,6 +90,36 @@ async def test_no_implicit_name_or_email_binding(db):
         await service.issue_session(claims("unmapped-" + uuid4().hex), {"access_token": "synthetic-only"})
 
 
+@pytest.mark.parametrize("scope", ["device", "all", "legacy"])
+async def test_device_scope_and_newer_login(db, monkeypatch, scope):
+    monkeypatch.setattr(settings, "MDM_OIDC_DEVICE_LOGOUT_ENABLED", scope != "legacy")
+    admin, readonly = await actors(db)
+    service = OIDCService(db, config=config())
+    subject, other_subject = "device-" + uuid4().hex, "other-" + uuid4().hex
+    await service.bind_identity(subject, admin.user_id, actor=admin, reason="合成设备范围明确映射")
+    await service.bind_identity(other_subject, readonly.user_id, actor=admin, reason="合成其他用户明确映射")
+    now = int(time.time())
+    first = {**claims(subject), "iat": now - 5, "sid": "device-a"}
+    second = {**first, "sid": "device-b"}
+    raw_a, _ = await service.issue_session(first, {"access_token": "synthetic-only"})
+    raw_b, _ = await service.issue_session(second, {"access_token": "synthetic-only"})
+    raw_other, _ = await service.issue_session({**claims(other_subject), "sid": "other-user"}, {"access_token": "synthetic-only"})
+    event = {"iss": _ISSUER, "sub": subject, "iat": now, "jti": uuid4().hex}
+    if scope != "all":
+        event["sid"] = "device-a"
+    await service.backchannel(event)
+    with pytest.raises(TokenInvalidError):
+        await service.current_session(raw_a)
+    if scope == "device":
+        await service.current_session(raw_b)
+    else:
+        with pytest.raises(TokenInvalidError):
+            await service.current_session(raw_b)
+    await service.current_session(raw_other)
+    fresh, _ = await service.issue_session({**first, "iat": now+1}, {"access_token": "synthetic-only"})
+    await service.current_session(fresh)
+
+
 async def test_explicit_identity_preserves_numeric_id_and_ignores_casdoor_role(db):
     admin, readonly = await actors(db)
     before = readonly.user_id

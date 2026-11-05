@@ -65,6 +65,7 @@ async def get_current_user(
             require_origin(request, service.config)
         cookie_user, session = await service.current_session(opaque)
         request.state.oidc_session = session
+        db.info["oidc_session_id"] = session.id
         payload = {"sub": str(cookie_user.user_id), "type": "access",
                    "iat": int(session.issued_at.timestamp()), "password_changed_at": session.password_version}
     else:
@@ -108,9 +109,18 @@ async def get_current_user(
 
     # 强制改密拦截：临时密码仅可走改密闭环，其余接口 403
     # （403 而非 401：避免前端拦截器按会话失效登出）
-    if temporary_password_expired(user):
+    from app.domains.auth.oidc.config import fresh_signing_enabled
+    from app.domains.auth.oidc.protocol import OIDCError
+    from app.domains.auth.oidc.service import OIDCUnavailableError
+    fresh_oidc = False
+    if opaque:
+        try:
+            fresh_oidc = fresh_signing_enabled()
+        except OIDCError:
+            raise OIDCUnavailableError() from None
+    if not fresh_oidc and temporary_password_expired(user):
         raise TemporaryPasswordExpiredError()
-    if requires_password_change(user) and request.url.path not in FORCE_PASSWORD_CHANGE_ALLOWED_PATHS:
+    if not fresh_oidc and requires_password_change(user) and request.url.path not in FORCE_PASSWORD_CHANGE_ALLOWED_PATHS:
         raise PasswordChangeRequiredError()
 
     # 认证通过后把 user 写入 ContextVar 并回灌当前事务的 PG session 变量，

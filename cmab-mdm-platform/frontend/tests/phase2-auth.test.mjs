@@ -27,7 +27,7 @@ test('SSO-only password change clearly separates signing credential from Casdoor
   assert.match(text.description, /Casdoor/);
   assert.match(text.success, /Casdoor/);
   assert.doesNotMatch(text.success, /用新密码重新登录/);
-  assert.match(text.loginNotice, /Casdoor/);
+  assert.match(text.loginNotice, /统一身份登录/);
 });
 
 test('native and opt-in compatible deployments retain truthful password wording', async () => {
