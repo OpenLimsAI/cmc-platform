@@ -1,0 +1,42 @@
+{
+  "counts": {
+    "signatures": 1,
+    "success_sign_audits": 1,
+    "status_history": 1
+  },
+  "projects": [
+    {
+      "id": 1,
+      "code": "CMAB-PRJ-2026-0001",
+      "status": "initiated",
+      "version": 2
+    }
+  ],
+  "signature_links": [
+    {
+      "signature_id": 1,
+      "audit_log_id": 16,
+      "user_id": 1,
+      "entity_table": "project",
+      "entity_id": 1,
+      "meaning": "approve",
+      "signed_at": "2026-11-05T05:39:41.313774+00:00",
+      "audit_action": "SIGN",
+      "audit_actor_matches": true,
+      "audit_entity_matches": true,
+      "audit_content_matches": true,
+      "audit_signature_matches": true,
+      "authentication_method": "oidc_fresh",
+      "history_links": 1,
+      "consumed_proof_links": 1
+    }
+  ],
+  "proof_statuses": {
+    "consumed": 1,
+    "cancelled": 3
+  },
+  "legacy_unlinked_signatures": 0,
+  "stage": "after-success",
+  "time_utc": "2026-11-05T05:40:13.678047+00:00",
+  "synthetic_only": true
+}

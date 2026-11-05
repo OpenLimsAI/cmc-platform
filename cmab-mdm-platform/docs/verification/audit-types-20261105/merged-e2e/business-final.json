@@ -1,0 +1,49 @@
+{
+  "time_utc": "2026-11-05T05:45:57.036490+00:00",
+  "stage": "snapshot",
+  "synthetic_only": true,
+  "mdm": {
+    "projects": [
+      {
+        "id": 1,
+        "code": "CMAB-PRJ-2026-0001",
+        "status": "initiated",
+        "version": 2
+      }
+    ],
+    "links": [
+      {
+        "mdm_project_id": 1,
+        "pm_project_id": "p-mdm-0828eef150b8401ea55519b8",
+        "created_by": 1
+      }
+    ],
+    "requests": [
+      {
+        "request_id": "3def9f3e-7ed8-4d0d-a001-bd8aa3baae8b",
+        "project_id": 1,
+        "status": "linked",
+        "attempts": 1,
+        "pm_project_id": "p-mdm-0828eef150b8401ea55519b8"
+      }
+    ],
+    "signatures": 1,
+    "status_history": 1,
+    "link_audits": 1,
+    "proofs": {
+      "consumed": 1,
+      "cancelled": 3
+    }
+  },
+  "pm": {
+    "projects": [
+      {
+        "id": "p-mdm-0828eef150b8401ea55519b8",
+        "code": "E2E-AUDIT-20261105",
+        "owner_id": "joint-signer",
+        "status": "\u6d3b\u8dc3"
+      }
+    ],
+    "receipts": 1
+  }
+}

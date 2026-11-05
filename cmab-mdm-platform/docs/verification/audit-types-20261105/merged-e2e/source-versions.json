@@ -1,0 +1,17 @@
+{
+  "mdm_code_commit": "818529e157733593c227e5db08724af857bb74b6",
+  "mdm_code_tree": "14eba64a2a395d84bcf0019fc7e83e7c57e355fd",
+  "mdm_pr": "https://github.com/OpenLimsAI/cmc-platform/pull/6",
+  "mdm_tooling_image": "sha256:9d336fcc954f462fb05dfbcbf21c5bd9fae176d83d9115e58e5ab3094f36580f",
+  "pm_commit": "1b21df69f7dca0b3558db2de74e5045b6ba78163",
+  "pm_business_source_unchanged_since": "3292930944e1e6348addf328e608c2e2d365a764",
+  "iam_commit": "72ebcb4d7c0aedecd7ca56a29fbb37b78c85c6c1",
+  "iam_tree": "66e78e36657e27e2b6ad80fad73e5a15b30069c4",
+  "iam_image": "sha256:56e11171cfb2022215a46e2c55b15c9c5734162bdd2f058892cde29e356d42ca",
+  "iam_server_sha256": "688ef68705c9d1758b074e1f33754eeb5ad6a12af0f85de64d8f8ad9fc3abf7d",
+  "iam_upstream": "v4.25.0 / 528a0213f01caf70b9f41009cbf7b2f67bdd67ec",
+  "postgres": "postgres:16-alpine",
+  "synthetic_only": true,
+  "browser_origin": "127.0.0.1",
+  "original_experience_origin": "localhost"
+}
