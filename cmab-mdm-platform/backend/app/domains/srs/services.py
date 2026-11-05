@@ -766,6 +766,7 @@ class SubstanceService:
             sig = await sig_service.sign(
                 user=current_user,
                 password=signature.password,
+                challenge_id=signature.challenge_id,
                 entity_schema="srs",
                 entity_table="substance",
                 entity_id=sub.substance_id,

@@ -138,7 +138,7 @@ def remove_own_uncommitted_files(created: list[tuple[Path, int, int]]) -> None:
             path.unlink()
 
 
-async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
+async def bootstrap(plan: BootstrapPlan, output: Path | None) -> dict[str, object]:
     from sqlalchemy import func, select, text
 
     from app.core.config import settings
@@ -146,6 +146,7 @@ async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
     from app.core.security import hash_password
     from app.domains.audit.models import AuditLog
     from app.domains.auth.models import Role, User, UserRole
+    from app.domains.auth.oidc.config import fresh_signing_enabled
     from app.domains.auth.oidc.models import OIDCIdentity
     from app.domains.auth.password_policy import (
         load_password_policy,
@@ -158,8 +159,12 @@ async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
     ensure_runtime_target(plan, database_url=settings.DATABASE_URL, issuer=settings.MDM_OIDC_ISSUER_URL,
                           organization=settings.MDM_OIDC_ORGANIZATION,
                           native_enabled=settings.MDM_NATIVE_LOGIN_ENABLED, oidc_enabled=settings.MDM_OIDC_ENABLED)
-    output = private_path(output, directory=True)
-    fingerprint = hashlib.sha256(json.dumps({"plan": plan.model_dump(mode="json"), "output": str(output)},
+    fresh = fresh_signing_enabled()
+    if not fresh:
+        if output is None:
+            raise ValueError("Local signing-password compatibility mode requires a private delivery directory")
+        output = private_path(output, directory=True)
+    fingerprint = hashlib.sha256(json.dumps({"plan": plan.model_dump(mode="json"), "output": "oidc_fresh:no-local-credential" if fresh else str(output)},
                                             sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     created: list[tuple[Path, int, int]] = []
     commit_started = False
@@ -198,15 +203,21 @@ async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
             for account in plan.accounts:
                 length = max(32, policy.min_length)
                 password = "Aa1!" + "".join(secrets.choice(string.ascii_letters + string.digits + "-_") for _ in range(length - 4))
-                await validate_new_password(db, password)
-                write_initial_secret(output, account.username, password, created)
+                if not fresh:
+                    await validate_new_password(db, password)
+                    assert output is not None
+                    write_initial_secret(output, account.username, password, created)
+                # Legacy NOT NULL column: hash an unpredictable disposable value,
+                # never deliver it or permit it as a login/signature credential.
                 user = User(username=account.username, email=str(account.email), full_name=account.full_name,
-                            password_hash=hash_password(password), status="active", force_password_change=True,
-                            password_changed_at=datetime.now(UTC), password_expires_at=datetime.now(UTC) + timedelta(hours=24),
+                            password_hash=hash_password(password), status="active", force_password_change=not fresh,
+                            password_changed_at=None if fresh else datetime.now(UTC),
+                            password_expires_at=None if fresh else datetime.now(UTC) + timedelta(hours=24),
                             created_by=None, updated_by=None)
                 db.add(user)
                 await db.flush()
-                await record_password(db, user)
+                if not fresh:
+                    await record_password(db, user)
                 db.add(UserRole(user_id=user.user_id, role_id=role.role_id, granted_by=None))
                 users[account.subject] = user
             authorizer = users[plan.operator_subject]
@@ -220,12 +231,13 @@ async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
                                     created_by=authorizer.user_id, change_reason=plan.reason))
                 db.add(AuditLog(user_id=None, username="deployment.cli", action="CREATE", entity_schema="auth",
                                entity_table="user", entity_id=user.user_id, reason=plan.reason,
-                               change_summary="首次空库：显式SSO管理员与强制改密签名凭据初始化",
+                               change_summary="首次空库：显式SSO管理员，签名使用Casdoor新鲜认证" if fresh else "首次空库：显式SSO管理员与强制改密签名凭据初始化",
                                extra={"actor_kind": "deployment_cli", "operator_ref": plan.operator_ref,
                                       "executing_uid": os.getuid(), "authorizing_subject": plan.operator_subject,
                                       "authorizing_mdm_user_id": authorizer.user_id, "subject": account.subject,
                                       "issuer": plan.issuer, "organization": plan.organization, "granted_role": "SYS_ADMIN",
-                                      "native_auth_enabled": False, "initial_password_hours": 24}))
+                                      "native_auth_enabled": False, "initial_password_hours": 0 if fresh else 24,
+                                      "local_signing_credential_created": not fresh}))
                 result.append({"username": user.username, "user_id": user.user_id})
             db.add(SystemConfig(config_key=MARKER, config_value=json.dumps({"plan_sha256": fingerprint}),
                                 value_type="json", description="首次显式SSO管理员初始化幂等标记", is_sensitive=True))
@@ -233,7 +245,8 @@ async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
             commit_started = True
             await db.commit()
             return {"status": "created", "accounts": result, "credentials_reissued": False,
-                    "initial_password_hours": 24, "must_change_password": True, "native_auth_enabled": False}
+                    "initial_password_hours": 0 if fresh else 24, "must_change_password": not fresh, "native_auth_enabled": False,
+                    "local_signing_credential_created": not fresh}
         except BaseException:
             if not commit_started:
                 await db.rollback()
@@ -246,7 +259,7 @@ async def bootstrap(plan: BootstrapPlan, output: Path) -> dict[str, object]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, required=True)
-    parser.add_argument("--secret-output-dir", type=Path, required=True)
+    parser.add_argument("--secret-output-dir", type=Path, help="Required only by local signing-password compatibility mode")
     parser.add_argument("--apply", action="store_true", help="Requires separate authorization for credential generation/delivery")
     args = parser.parse_args(argv)
     try:

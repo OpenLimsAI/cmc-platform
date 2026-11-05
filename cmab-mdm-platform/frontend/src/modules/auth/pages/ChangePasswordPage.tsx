@@ -10,7 +10,8 @@ import {
   message,
 } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { oidcApi } from '@/api/oidc';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
@@ -26,6 +27,7 @@ interface FormValues {
 }
 
 export function ChangePasswordPage() {
+  const signingConfig = useQuery({queryKey:['oidc-signing-config'],queryFn:oidcApi.config});
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const logout = useAuthStore((s) => s.logout);
@@ -72,6 +74,7 @@ export function ChangePasswordPage() {
     });
   };
 
+  if (signingConfig.data?.signature_mode === 'oidc_fresh') return <Alert type="info" message="密码由 Casdoor 管理。业务签名会在 Casdoor 页面重新认证，MDM 不再维护独立签名口令。" />;
   return (
     <div>
       <Breadcrumb

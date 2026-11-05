@@ -13,6 +13,7 @@ import { PMProjectContextPage } from './modules/projects/pages/PMProjectContextP
 import { NotFoundPage } from './modules/common/NotFoundPage';
 import { AuthBootstrap } from './shared/components/AuthBootstrap';
 import { AuthCompletePage } from './modules/auth/pages/AuthCompletePage';
+import { SignatureCallbackPage } from './modules/auth/pages/SignatureCallbackPage';
 
 // 路由级懒加载：每个页面打成独立 chunk，按需下载（命名导出→default 适配）
 const DashboardPage = lazy(() =>
@@ -162,6 +163,7 @@ const PageFallback = (
 export default function App() {
   // key=路径：换页时错误边界自动复位，不会一处出错后整站一直显示错误卡片
   const location = useLocation();
+  if (location.pathname === '/signature-callback') return <SignatureCallbackPage />;
   return (
     <AuthBootstrap>
       {/* 必须放在 keyed 边界之外：key 变化会重挂组件，「已知过期→下次换页刷新」就永远不触发 */}

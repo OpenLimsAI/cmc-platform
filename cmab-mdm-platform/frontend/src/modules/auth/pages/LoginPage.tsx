@@ -6,10 +6,12 @@ import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { APP_VERSION } from '@/shared/version';
 import { touchActivity } from '@/shared/sessionGuard';
-import { oidcLoginPath } from '@/api/oidc';
+import { oidcApi, oidcLoginPath } from '@/api/oidc';
+import { useQuery } from '@tanstack/react-query';
 import { nativeLoginSelected, oidcErrorNotice, safeAuthReturnTo, shouldAutoStartOidc } from '@/shared/oidcPolicy';
 import { withBase } from '@/shared/base';
 import { passwordChangeText } from '@/shared/passwordChangeText';
+import { authCopy } from '@/shared/authCopy';
 
 // 被会话守卫踢回登录页时的说明（?reason=idle|expired）
 const REASON_NOTICE: Record<string, string> = {
@@ -21,6 +23,12 @@ const REASON_NOTICE: Record<string, string> = {
 const { Title, Text } = Typography;
 
 export function LoginPage() {
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${authCopy.productTitle} · ${authCopy.loginHeading}`;
+    return () => { document.title = previous; };
+  }, []);
+  const signingConfig = useQuery({queryKey:['oidc-signing-config'],queryFn:oidcApi.config});
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -87,14 +95,14 @@ export function LoginPage() {
     >
       <div style={{ marginBottom: 40, textAlign: 'center' }}>
         <Title level={1} style={{ color: '#fff', marginBottom: 8 }}>
-          CMAB MDM Portal
+          {authCopy.productTitle}
         </Title>
-        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>主数据管理平台</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>{authCopy.subtitle}</Text>
       </div>
 
       <Card style={{ width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
         <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>
-          {native ? 'MDM 账号登录' : '统一身份登录'}
+          {native ? authCopy.nativeHeading : authCopy.loginHeading}
         </Title>
 
         {reasonNotice && !errorMessage && (
@@ -102,9 +110,9 @@ export function LoginPage() {
         )}
         {oidcError && <Alert type="error" showIcon message={oidcErrorNotice(oidcError)} style={{ marginBottom: 16 }} />}
         {oidcEnabled && <>
-          <Alert type="info" showIcon message="使用 Casdoor 统一身份，业务权限仍由 MDM 管理；电子签名仍需 MDM 密码再次认证。" style={{ marginBottom: 16 }} />
-          <Button type="primary" block loading={redirecting} href={oidcLoginPath(returnTo)} style={{ marginBottom: 16 }}>使用 Casdoor 统一身份登录</Button>
-          {nativeEnabled && !native && <Button block href={withBase(`/login?native=1&redirect=${encodeURIComponent(returnTo)}`)} style={{ marginBottom: 16 }}>使用 MDM 原生密码恢复登录</Button>}
+            <Alert type="info" showIcon message={signingConfig.isPending ? authCopy.pendingNotice : signingConfig.isError ? authCopy.configError : authCopy.loginNotice} style={{ marginBottom: 16 }} />
+          <Button type="primary" block loading={redirecting} href={oidcLoginPath(returnTo)} style={{ marginBottom: 16 }}>{authCopy.loginButton}</Button>
+          {nativeEnabled && !native && <Button block href={withBase(`/login?native=1&redirect=${encodeURIComponent(returnTo)}`)} style={{ marginBottom: 16 }}>{authCopy.recoveryButton}</Button>}
         </>}
 
         {errorMessage && (

@@ -1,0 +1,47 @@
+[
+  {
+    "run_id": "mdm-e2e-v11-experience2-20261104",
+    "file": "screenshots/v11-auto-02-original-mdm-header-name.jpg",
+    "capture_time_utc": "2026-11-05T00:18:55.074Z",
+    "sha256": "66b28b179712d85b9c31b2237452468aa2ff9d35877a67a8e5c4b144e4ddb51b",
+    "size": 72384,
+    "caption": "历史190xx：MDM新Header与显示名",
+    "reviewed": "Actual image viewed in this turn; synthetic UI only, no credentials/cookie/token/password fields"
+  },
+  {
+    "run_id": "mdm-e2e-v11-experience2-20261104",
+    "file": "screenshots/v11-auto-03-original-pm-header-name.jpg",
+    "capture_time_utc": "2026-11-05T00:19:46.726Z",
+    "sha256": "c31701b1b79b3cd77318883075db841f13850b1d09424af51dd05962a3c9f88a",
+    "size": 92683,
+    "caption": "历史190xx/PM af379：同账号显示名",
+    "reviewed": "Actual image viewed in this turn; synthetic UI only, no credentials/cookie/token/password fields"
+  },
+  {
+    "run_id": "mdm-e2e-password-ui6-20261104",
+    "file": "screenshots/pw-06-human-completed-project.jpg",
+    "capture_time_utc": "2026-11-04T23:28:28.999Z",
+    "sha256": "da04d4b203d0518af06732354df1eb9d0b59b24711f92c8f967f68e9f4e40143",
+    "size": 94170,
+    "caption": "历史191xx：人工输密码后的已完成项目；旧Header",
+    "reviewed": "Actual image viewed in this turn; synthetic UI only, no credentials/cookie/token/password fields"
+  },
+  {
+    "run_id": "mdm-e2e-password-ui6-20261104",
+    "file": "screenshots/pw-07-human-electronic-signature-records.jpg",
+    "capture_time_utc": "2026-11-04T23:29:43.520Z",
+    "sha256": "57139f63818e2e9307b7fa2cc040ca65bd133bc7bbe2fc03ee289a121d7de556",
+    "size": 86130,
+    "caption": "历史191xx：两条真实合成业务签名记录；不是完整审计外键证明",
+    "reviewed": "Actual image viewed in this turn; synthetic UI only, no credentials/cookie/token/password fields"
+  },
+  {
+    "run_id": "mdm-e2e-password-ui6-20261104",
+    "file": "screenshots/pw-08-human-signed-status-history.jpg",
+    "capture_time_utc": "2026-11-04T23:30:32.434Z",
+    "sha256": "d633d5fa8f94efad01a6b37f04c71bc3b31a5157b71ff6a6f95e7b6ee3e423bf",
+    "size": 73630,
+    "caption": "历史191xx：状态历史签名外键；不是密码输入页",
+    "reviewed": "Actual image viewed in this turn; synthetic UI only, no credentials/cookie/token/password fields"
+  }
+]

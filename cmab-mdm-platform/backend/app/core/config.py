@@ -2,6 +2,7 @@
 应用配置 - 从环境变量加载
 """
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,10 +69,16 @@ class Settings(BaseSettings):
     MDM_OIDC_INTERNAL_URL: str = ""
     MDM_OIDC_ORGANIZATION: str = ""
     MDM_OIDC_ACCOUNT_STATUS_VISIBLE: bool = False
+    MDM_OIDC_DEVICE_LOGOUT_ENABLED: bool = False
+    MDM_OIDC_ACCOUNT_STATUS_MODE: Literal["get_user", "casdoor_v4_userinfo"] = "get_user"
     MDM_OIDC_CLIENT_ID: str = ""
     MDM_OIDC_CLIENT_SECRET: SecretStr | None = None
     MDM_OIDC_PM_CLIENT_ID: str = ""
     MDM_OIDC_PM_CLIENT_SECRET: SecretStr | None = None
+    MDM_SIGNATURE_MODE: Literal["local_password", "oidc_fresh"] = "local_password"
+    MDM_OIDC_SIGNATURE_CLIENT_ID: str = ""
+    MDM_OIDC_SIGNATURE_CLIENT_SECRET: SecretStr | None = None
+    MDM_OIDC_SIGNATURE_PASSWORD_ONLY: bool = False
     MDM_OIDC_SESSION_MAX_SECONDS: int = Field(default=3600, ge=60, le=3600)
     MDM_PM_API_URL: str = ""
     MDM_PM_SOURCE_ID: str = "mdm"

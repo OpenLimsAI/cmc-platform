@@ -31,7 +31,7 @@ class ESignatureService:
     async def sign(
         self,
         user: User,
-        password: str,
+        password: str | None,
         entity_schema: str,
         entity_table: str,
         entity_id: int,
@@ -39,6 +39,7 @@ class ESignatureService:
         meaning: str,
         reason: str,
         content_for_hash: dict[str, Any],
+        challenge_id: str | None = None,
     ) -> ESignature:
         """验证密码 + 写电子签名 + 设置 PG session var
 
@@ -46,8 +47,16 @@ class ESignatureService:
         成功：返回 ESignature 实例（已 flushed，signature_id 可用）
         """
         ip = audit_ip.get()
-
-        if not verify_password(password, user.password_hash):
+        from app.core.config import settings
+        proof = None
+        if settings.MDM_SIGNATURE_MODE == "oidc_fresh":
+            from app.domains.auth.oidc.signing import consume
+            if password or not challenge_id:
+                raise SignatureInvalidError("此部署仅允许通过 Casdoor 再次认证签名")
+            proof = await consume(self.db, challenge_id, user=user, entity_schema=entity_schema,
+                entity_table=entity_table, entity_id=entity_id, meaning=meaning,
+                content_hash=compute_signed_content_hash(content_for_hash))
+        elif challenge_id or not password or not verify_password(password, user.password_hash):
             # 签名失败审计 + 累计 failed_login_count 必须独立落地，
             # 即使主事务最终 rollback（21 CFR Part 11 §11.300）。
             # 用独立 session 旁路写入，独立 commit。
@@ -87,6 +96,9 @@ class ESignatureService:
         )
         self.db.add(sig)
         await self.db.flush()
+        if proof is not None:
+            proof.signature_id = sig.signature_id
+            await self.db.flush()
         return sig
 
 

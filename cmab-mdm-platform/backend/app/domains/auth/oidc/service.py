@@ -7,7 +7,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import delete, or_, select, text, update
+from sqlalchemy import and_, delete, or_, select, text, update
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
@@ -162,7 +162,10 @@ class OIDCService:
         conditions = [OIDCLogoutReplay.issuer == self.config.issuer, OIDCLogoutReplay.expires_at > now,
                       OIDCLogoutReplay.issued_at >= issued_at]
         match = OIDCLogoutReplay.subject == subject
-        if sid:
+        if settings.MDM_OIDC_DEVICE_LOGOUT_ENABLED:
+            match = and_(or_(OIDCLogoutReplay.subject == subject, OIDCLogoutReplay.subject.is_(None)),
+                         or_(OIDCLogoutReplay.sid.is_(None), OIDCLogoutReplay.sid == "", OIDCLogoutReplay.sid == sid))
+        elif sid:
             match = or_(match, OIDCLogoutReplay.subject.is_(None) & (OIDCLogoutReplay.sid == sid))
         return (await self.db.execute(select(OIDCLogoutReplay.id).where(*conditions, match).limit(1))).scalar_one_or_none() is not None
 
@@ -195,6 +198,7 @@ class OIDCService:
     async def current_session(self, raw):
         if not raw or len(raw) > 128:
             raise TokenInvalidError()
+        self.db.info.pop("oidc_identity_presentation", None)
         item = (await self.db.execute(select(OIDCSession).where(OIDCSession.id == digest(raw)))).scalar_one_or_none()
         now = datetime.now(UTC)
         if item is None or item.revoked_at or item.expires_at <= now or item.idle_expires_at <= now:
@@ -212,6 +216,9 @@ class OIDCService:
         if not active:
             await self.revoke(raw)
             raise TokenInvalidError("统一身份凭证已撤销，请重新登录")
+        presentation = getattr(self.provider, "identity_presentation", None)
+        if isinstance(presentation, dict) and all(isinstance(presentation.get(key), str) for key in ("displayName", "identityUsername")):
+            self.db.info["oidc_identity_presentation"] = {key: presentation[key] for key in ("displayName", "identityUsername")}
         policy = await load_session_policy(self.db)
         item.idle_expires_at = min(item.expires_at, now + timedelta(minutes=policy.idle_minutes_for([r.role_code for r in user.roles])))
         await self.db.commit()
@@ -304,6 +311,8 @@ class OIDCService:
             condition = OIDCSession.identity_id.in_(identities)
         else:
             condition = OIDCSession.provider_sid == claims["sid"]
+        if settings.MDM_OIDC_DEVICE_LOGOUT_ENABLED and claims.get("sid"):
+            condition = and_(condition, OIDCSession.provider_sid == claims["sid"])
         await self.db.execute(update(OIDCSession).where(condition, OIDCSession.provider_issued_at <= claims["iat"]).values(revoked_at=now))
         await self.db.commit()
 

@@ -1,6 +1,6 @@
 import type { LoginResponseUser } from '@/api/types';
 
-export interface OidcConfig { enabled: boolean; native_login_enabled: boolean }
+export interface OidcConfig { enabled: boolean; native_login_enabled: boolean; signature_mode?: 'oidc_fresh'; device_logout_enabled?: boolean }
 export interface OidcSession {
   mode: 'oidc';
   user: LoginResponseUser;

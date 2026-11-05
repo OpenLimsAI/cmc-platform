@@ -10,6 +10,7 @@ import httpx
 from jose import JWTError, jwt
 
 from app.domains.auth.oidc.config import OIDCConfig, checked_url
+from app.domains.auth.oidc.display_identity import identity_presentation
 from app.domains.auth.oidc.protocol import OIDCError, validate_jwt
 
 _CACHE: dict[tuple[str, str, str], tuple[float, Any]] = {}
@@ -18,6 +19,7 @@ _CACHE: dict[tuple[str, str, str], tuple[float, Any]] = {}
 class OIDCProvider:
     def __init__(self, config: OIDCConfig):
         self.config = config
+        self.identity_presentation: dict[str, str] | None = None
 
     def internal(self, public):
         issuer = urlsplit(self.config.issuer)
@@ -94,14 +96,18 @@ class OIDCProvider:
         discovery = await self.discovery()
         return discovery["authorization_endpoint"] + "?" + urlencode(params)
 
-    async def exchange(self, code, verifier, nonce, *, delegation=False):
+    async def exchange(self, code, verifier, nonce, *, delegation=False, signing=False):
         if not code or len(code) > 4096:
             raise OIDCError("Invalid authorization code")
         client = self.config.pm_client_id if delegation else self.config.client_id
         secret = self.config.pm_client_secret if delegation else self.config.client_secret
+        if signing:
+            if delegation or not self.config.signature_client_id or not self.config.signature_client_secret:
+                raise OIDCError("Signature client unavailable")
+            client, secret = self.config.signature_client_id, self.config.signature_client_secret
         discovery = await self.discovery()
         body = await self.request("POST", discovery["token_endpoint"], data={"grant_type": "authorization_code",
-            "client_id": client, "client_secret": secret, "redirect_uri": self.config.callback(delegation),
+            "client_id": client, "client_secret": secret, "redirect_uri": self.config.callback(delegation, signing=signing),
             "code": code, "code_verifier": verifier})
         try:
             access = body["access_token"]
@@ -130,7 +136,7 @@ class OIDCProvider:
                     pass
         raise OIDCError("Invalid logout notification")
 
-    async def global_logout(self, access):
+    async def global_logout(self, access, *, all_devices=True):
         discovery = await self.discovery()
         endpoint = discovery.get("introspection_endpoint", self.config.issuer + "/api/login/oauth/introspect")
         self.internal(endpoint)
@@ -140,7 +146,7 @@ class OIDCProvider:
         if not (isinstance(before, dict) and before.get("active") is True
                 and before.get("client_id") == self.config.client_id and isinstance(before.get("sub"), str) and before["sub"]):
             raise OIDCError("Current identity cannot confirm global logout")
-        body = await self.request("POST", self.config.issuer + "/api/sso-logout", params={"logoutAll": "true"},
+        body = await self.request("POST", self.config.issuer + "/api/sso-logout", params={"logoutAll": "true" if all_devices else "false"},
                                   headers={"Authorization": "Bearer " + access})
         if not isinstance(body, dict) or body.get("status") != "ok":
             raise OIDCError("Global logout not confirmed")
@@ -150,7 +156,29 @@ class OIDCProvider:
             # Do not turn a transport success into a false global-success claim.
             raise OIDCError("Identity provider did not confirm token revocation")
 
+    async def signing_login_hint(self, access: str, *, subject: str) -> str:
+        """A presentation hint from own userinfo, never an authorization identity.
+
+        v4's preferred_username is the actual login name. Its name claim is a
+        display name; neither it nor the MDM username is an acceptable fallback.
+        """
+        info = await self.request("GET", self.config.issuer + "/api/userinfo",
+            headers={"Authorization": "Bearer " + access}, denied_statuses=(401, 403, 404))
+        if not isinstance(info, dict):
+            raise OIDCError("Verified signing username is unavailable")
+        audience = info.get("aud")
+        if isinstance(audience, list) and len(audience) == 1:
+            audience = audience[0]
+        username = info.get("preferred_username")
+        if (info.get("iss") != self.config.issuer or info.get("sub") != subject
+                or audience != self.config.client_id or not isinstance(username, str)
+                or not 1 <= len(username) <= 100 or username != username.strip()
+                or any(ord(char) < 32 or ord(char) == 127 for char in username)):
+            raise OIDCError("Verified signing username is unavailable")
+        return username
+
     async def is_active(self, access, *, subject):
+        self.identity_presentation = None
         # Back-channel delivery is best effort. A missed notification must not
         # leave a locally valid cookie usable after provider revocation.
         if not self.config.organization or self.config.account_status_visible is not True:
@@ -164,6 +192,25 @@ class OIDCProvider:
         if not (isinstance(body, dict) and body.get("active") is True
                 and body.get("client_id") == self.config.client_id and body.get("sub") == subject):
             return False
+        if self.config.account_status_mode == "casdoor_v4_userinfo":
+            # Explicit deployment contract, verified against official v4.25.0:
+            # AutoSigninFilter rejects forbidden/deleted users before userinfo.
+            # Dynamic clients cannot call get-user. Never infer this capability
+            # from an error, missing status fields, or an unverified token alone.
+            info = await self.request("GET", self.config.issuer + "/api/userinfo",
+                headers={"Authorization": "Bearer " + access}, denied_statuses=(401, 403, 404))
+            if not isinstance(info, dict):
+                return False
+            audience = info.get("aud")
+            if isinstance(audience, list) and len(audience) == 1:
+                audience = audience[0]
+            active = (info.get("sub") == subject and info.get("iss") == self.config.issuer
+                      and audience == self.config.client_id)
+            if active:
+                self.identity_presentation = identity_presentation(info.get("preferred_username"), info.get("name"))
+            return active
+        if self.config.account_status_mode != "get_user":
+            raise OIDCError("Unsupported live identity status mode")
         # Introspection in Casdoor 3.152.0 does not reflect a later account
         # disable/delete. Read only the verified subject with its own app token;
         # never use get-account (which can mint a token) or an admin credential.
@@ -171,6 +218,9 @@ class OIDCProvider:
             params={"owner": self.config.organization, "userId": subject},
             headers={"Authorization": "Bearer " + access}, denied_statuses=(401, 403, 404))
         user = account.get("data") if isinstance(account, dict) and account.get("status") == "ok" else None
-        return (isinstance(user, dict) and user.get("id") == subject
-                and user.get("owner") == self.config.organization
-                and user.get("isForbidden") is False and user.get("isDeleted") is False)
+        active = (isinstance(user, dict) and user.get("id") == subject
+                  and user.get("owner") == self.config.organization
+                  and user.get("isForbidden") is False and user.get("isDeleted") is False)
+        if active and isinstance(user, dict):
+            self.identity_presentation = identity_presentation(user.get("name"), user.get("displayName"))
+        return active

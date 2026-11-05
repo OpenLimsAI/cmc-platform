@@ -23,6 +23,20 @@ def pkce_pair() -> tuple[str, str]:
     return verifier, challenge
 
 
+def validate_fresh_auth(claims: dict, *, started_at: int, now: int | None = None) -> int:
+    """Call only after cryptographic ID-token validation; iat is not auth_time.
+
+    Provider timestamps have second precision. No backwards clock tolerance is
+    allowed at the challenge boundary; a future clock can lead by at most 5s.
+    """
+    now = int(time.time()) if now is None else now
+    authenticated = claims.get("auth_time")
+    if (type(authenticated) is not int or authenticated < started_at
+            or authenticated > now + 5 or now - authenticated > 120):
+        raise OIDCError("Fresh identity authentication is required")
+    return authenticated
+
+
 def safe_return_to(value: str | None) -> str:
     default = "/projects"
     if not value or len(value) > 2048 or any(ord(c) < 32 or ord(c) == 127 for c in value):

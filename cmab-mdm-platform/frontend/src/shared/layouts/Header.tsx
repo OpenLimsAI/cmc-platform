@@ -1,16 +1,22 @@
-import { Layout, Avatar, Dropdown, Space, message, theme, Modal, Tag } from 'antd';
+import { Layout, Button, Dropdown, Space, message, theme, Modal } from 'antd';
 import { UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/auth';
 import { GlobalSearchBox } from '@/shared/components/GlobalSearchBox';
 import { oidcApi } from '@/api/oidc';
 import { completeOidcLogout } from '@/shared/oidcPolicy';
 import { withBase } from '@/shared/base';
+import { AccountIdentity } from './AccountIdentity';
+import { ApplicationBrand } from './ApplicationBrand';
+import './accountIdentity.css';
+import './applicationBrand.css';
 
 const { Header: AntHeader } = Layout;
 
 export function Header() {
+  const signingConfig = useQuery({queryKey:['oidc-signing-config'],queryFn:oidcApi.config});
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -62,19 +68,13 @@ export function Header() {
         // UI2：Phase 4-5 个人偏好（主题/语言/时区）页未实现，先占位
         onClick: () => message.info('偏好设置（Phase 4-5 后实现）'),
       },
-      {
+      ...(signingConfig.data?.signature_mode !== 'oidc_fresh' ? [{
         key: 'change-pwd',
         icon: <KeyOutlined />,
         label: '修改密码',
         onClick: () => navigate('/profile/password'),
-      },
+      }] : []),
       { type: 'divider' as const },
-      {
-        key: 'logout',
-        icon: <LogoutOutlined />,
-        label: authMode === 'oidc' ? '仅退出 MDM' : '退出登录',
-        onClick: () => { void handleLogout(); },
-      },
       ...(authMode === 'oidc' ? [{ key: 'logout-global', icon: <LogoutOutlined />, label: '退出统一身份及各应用',
         onClick: () => Modal.confirm({ title: '退出统一身份及已接入应用', content: '将注销 Casdoor，并通过受验证的回调令 MDM、PM、门户会话失效。原生密码登录和未接入应用不属于此统一注销范围。', okText: '统一退出', cancelText: '取消', onOk: () => handleLogout(true) }) }] : []),
     ],
@@ -88,7 +88,7 @@ export function Header() {
         zIndex: 100,
         height: 56,
         lineHeight: '56px',
-        padding: '0 24px',
+        padding: '0 20px',
         background: '#fff',
         borderBottom: `1px solid ${token.colorBorderSecondary}`,
         display: 'flex',
@@ -96,13 +96,7 @@ export function Header() {
         alignItems: 'center',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* 与浏览器标签页 favicon 同源，保持品牌一致 */}
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="CMAB MDM" style={{ width: 32, height: 32, display: 'block' }} />
-        <div style={{ fontSize: 18, fontWeight: 600, color: token.colorPrimary }}>
-          CMAB MDM Portal
-        </div>
-      </div>
+      <ApplicationBrand />
 
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
         <GlobalSearchBox />
@@ -110,13 +104,14 @@ export function Header() {
 
       <Space size="large">
         <BellOutlined style={{ fontSize: 18, color: token.colorTextSecondary, cursor: 'pointer' }} />
-        <Tag>{authMode === 'oidc' ? 'Casdoor 登录' : '原生登录'}</Tag>
         <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-          <Space style={{ cursor: 'pointer' }}>
-            <Avatar size="small" icon={<UserOutlined />} style={{ background: token.colorPrimary }} />
-            <span style={{ color: token.colorText }}>{user?.full_name || user?.username}</span>
-          </Space>
+          <button type="button" className="mdm-account-trigger" aria-label="我的账号">
+            <AccountIdentity user={user} />
+          </button>
         </Dropdown>
+        <Button type="text" icon={<LogoutOutlined />} title="退出本应用" onClick={() => { void handleLogout(); }}>
+          登出
+        </Button>
       </Space>
     </AntHeader>
   );

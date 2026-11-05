@@ -297,6 +297,8 @@ class UserAdminService:
 
     # ----------- 创建 / 更新 -----------
     async def create_user(self, payload: UserCreate, actor: User) -> UserDetail:
+        from app.core.auth_mode import require_local_password_management
+        require_local_password_management()
         password_policy = await validate_new_password(self.db, payload.password)
         # 预检：username / email 唯一（pre-check 避免 IntegrityError）
         exist = await self.db.execute(
@@ -514,6 +516,8 @@ class UserAdminService:
     async def reset_password(
         self, username: str, actor: User
     ) -> ResetPasswordResponse:
+        from app.core.auth_mode import require_local_password_management
+        require_local_password_management()
         if username == actor.username:
             raise CannotOperateSelfError("不能重置自己的密码，请走 /auth/change-password")
         user = await _load_user(self.db, username, with_roles=False, for_update=True)

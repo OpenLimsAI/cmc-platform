@@ -96,6 +96,7 @@ interface AuthState {
   authEpoch: number;
   authExitReason: AuthExitReason;
   oidcExpiresAt: string | null;
+  oidcVerificationUnavailable: boolean;
   pmDelegated: boolean;
   oidcEnabled: boolean;
   nativeLoginEnabled: boolean;
@@ -108,6 +109,7 @@ interface AuthState {
 
   setAuth: (token: string, user: LoginResponseUser) => void;
   setOidcSession: (user: LoginResponseUser, expiresAt: string, pmDelegated: boolean, expectedEpoch?: number) => void;
+  setOidcVerificationUnavailable: (unavailable: boolean) => void;
   setOidcConfig: (enabled: boolean, nativeEnabled: boolean) => number;
   finishBootstrap: (error?: string) => void;
   updateToken: (token: string) => void;
@@ -130,6 +132,7 @@ export const useAuthStore = create<AuthState>()(
       authEpoch: 0,
       authExitReason: null,
       oidcExpiresAt: null,
+        oidcVerificationUnavailable: false,
       pmDelegated: false,
       oidcEnabled: false,
       nativeLoginEnabled: true,
@@ -149,6 +152,7 @@ export const useAuthStore = create<AuthState>()(
           authEpoch: get().authEpoch + 1,
           authExitReason: null,
           oidcExpiresAt: null,
+            oidcVerificationUnavailable: false,
           pmDelegated: false,
           user,
           permissions: new Set(user.permissions),
@@ -164,13 +168,17 @@ export const useAuthStore = create<AuthState>()(
         if (expectedEpoch !== undefined && !authResultIsCurrent(expectedEpoch, get().authEpoch, get().authExitReason)) return;
         const changed = get().user?.user_id !== user.user_id || get().authMode !== 'oidc';
         if (get().user?.user_id !== user.user_id || get().authMode !== 'oidc') queryClient.clear();
-        set({ token: null, authMode: 'oidc', user, oidcExpiresAt: expiresAt, pmDelegated,
+        set({ token: null, authMode: 'oidc', user, oidcExpiresAt: expiresAt, pmDelegated, oidcVerificationUnavailable: false,
           authEpoch: get().authEpoch + (changed ? 1 : 0), authExitReason: null,
           permissions: new Set(user.permissions), isAdmin: user.roles.includes('SYS_ADMIN'),
           userAdminScope: computeUserAdminScope(user),
           // Existing guards select this function. A new reference also notifies
           // those guards when a non-admin's permission set changes in-session.
           hasPermission: (perm) => get().isAdmin || get().permissions.has(perm) });
+      },
+      setOidcVerificationUnavailable: (unavailable) => {
+        if (unavailable && get().authMode !== 'oidc') return;
+        set({ oidcVerificationUnavailable: unavailable });
       },
       setOidcConfig: (enabled, nativeEnabled) => {
         if (!nativeEnabled && (get().authMode === 'native' || get().token)) get().logout();
@@ -216,6 +224,7 @@ export const useAuthStore = create<AuthState>()(
           authEpoch: get().authEpoch + 1,
           authExitReason: reason ?? get().authExitReason,
           oidcExpiresAt: null,
+          oidcVerificationUnavailable: false,
           pmDelegated: false,
           user: null,
           permissions: new Set(),

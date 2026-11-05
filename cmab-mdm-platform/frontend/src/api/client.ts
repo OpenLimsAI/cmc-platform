@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { BASE, stripBase, withBase } from '@/shared/base';
 import type { ApiResponse, ApiErrorInfo } from './types';
 import { authFailureLoginPath, authResultIsCurrent, mayRefreshNative } from '@/shared/oidcPolicy';
+import { maySendBusinessWrite } from '@/shared/oidcSessionCheck';
 
 // ============== 实例 ==============
 export const api = axios.create({
@@ -26,6 +27,9 @@ type AxiosRequestConfigEx = InternalAxiosRequestConfig & RetryFlag;
 api.interceptors.request.use(
   (config: AxiosRequestConfigEx) => {
     const auth = useAuthStore.getState();
+    if (!maySendBusinessWrite(auth.authMode, auth.oidcVerificationUnavailable, config.method)) {
+      throw new axios.AxiosError('暂时无法核验登录状态，业务操作已暂停', 'ERR_SESSION_UNAVAILABLE', config);
+    }
     config._authEpoch = auth.authEpoch;
     const token = auth.token;
     if (token && config.headers) {
@@ -91,6 +95,7 @@ api.interceptors.response.use(
     const currentAuth = useAuthStore.getState();
     // A request dispatched before logout/login must not overwrite that transition.
     if (!authResultIsCurrent(originalConfig?._authEpoch, currentAuth.authEpoch, currentAuth.authExitReason)) return Promise.reject(error);
+    if (error.code === 'ERR_SESSION_UNAVAILABLE') return Promise.reject(error);
     // 网络错误
     if (!error.response) {
       antdMessage.error('网络异常，请检查网络连接');

@@ -4,7 +4,7 @@ Audit & status-history Pydantic schemas
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # ============== 状态机端点公用：嵌套签名块 + 通用响应 ==============
 # 对齐 API-MDM-001 V1.1 §6.5 / §7.4 / §8.x 状态机端点契约
@@ -18,11 +18,18 @@ class SignatureBlock(BaseModel):
     GxP 关键动作必传；hold/resume/restrict 等可逆动作不需要。
     """
 
-    password: str = Field(..., min_length=1, max_length=128)
+    password: str | None = Field(None, min_length=1, max_length=128)
+    challenge_id: str | None = Field(None, pattern=r"^[a-f0-9]{64}$")
     meaning: SignatureMeaning | None = Field(
         None, description="签名含义；未传时按 action 推断默认值（approve/review/release/witness/reject）",
     )
     reason: str = Field(..., min_length=5, max_length=2000, description="签名理由（独立于业务 comment）")
+
+    @model_validator(mode="after")
+    def one_authentication_method(self):
+        if bool(self.password) == bool(self.challenge_id):
+            raise ValueError("Provide exactly one signing authentication method")
+        return self
 
 
 class StateChangeResponse(BaseModel):

@@ -1,0 +1,11 @@
+.mdm-app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 176px;
+  line-height: 1.2;
+}
+.mdm-app-brand img { flex-shrink: 0; object-fit: contain; }
+.mdm-app-brand-title { color: #18373e; font-size: 14px; font-weight: 600; }
+.mdm-app-brand-subtitle { margin-top: 4px; color: #5b747a; font-size: 12px; white-space: nowrap; }

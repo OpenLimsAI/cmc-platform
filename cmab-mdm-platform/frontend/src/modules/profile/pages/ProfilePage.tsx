@@ -23,6 +23,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
+import { oidcApi } from '@/api/oidc';
 import type { LoginHistoryItem, SignatureItem } from '@/api/types';
 import { TimeDisplay } from '@/shared/components/TimeDisplay';
 
@@ -45,6 +46,7 @@ const MEANING_LABEL: Record<string, string> = {
 };
 
 function BasicInfoTab() {
+  const signingConfig = useQuery({queryKey:['oidc-signing-config'],queryFn:oidcApi.config});
   const navigate = useNavigate();
   const { data: me, isLoading, isError } = useQuery({
     queryKey: ['auth-me'],
@@ -81,12 +83,12 @@ function BasicInfoTab() {
                 <Text type="secondary">{me.email}</Text>
               </Space>
             </div>
-            <Button
+            {signingConfig.data?.signature_mode === 'oidc_fresh' ? <Text type="secondary">密码与签名再次认证由 Casdoor 管理</Text> : <Button
               icon={<KeyOutlined />}
               onClick={() => navigate('/profile/password')}
             >
               修改密码
-            </Button>
+            </Button>}
           </div>
 
           <Descriptions

@@ -10,8 +10,10 @@ os.environ.update(LOGURU_LEVEL="WARNING", APP_LOG_LEVEL="WARNING")
 sources = ["app/domains/auth/oidc", "app/api/v1/oidc.py", "app/api/v1/auth.py", "app/shared/permissions.py",
            "app/core/auth_mode.py", "app/domains/auth/services.py",
            "app/core/config.py", "app/core/logging.py", "app/main.py", "app/domains/prs/pm_create.py",
-           "app/domains/prs/pm_links.py", "app/api/v1/pm_links.py", "app/scripts/oidc_identity.py", "app/scripts/sso_bootstrap.py"]
-tests = ["tests/test_sso_bootstrap.py", "tests/test_sso_bootstrap_cli.py", "tests/test_oidc_only_native_rejection.py", "tests/test_oidc_only_http_rejection.py",
+           "app/domains/prs/pm_links.py", "app/api/v1/pm_links.py", "app/scripts/oidc_identity.py", "app/scripts/sso_bootstrap.py",
+           "scripts/e2e_runtime.py", "scripts/e2e_services.py", "scripts/e2e_evidence.py", "scripts/e2e_control.py", "scripts/e2e_signature_form.py"]
+tests = ["tests/test_e2e_identity_profile.py", "tests/test_e2e_signature_form.py", "tests/test_sso_bootstrap.py", "tests/test_sso_bootstrap_cli.py", "tests/test_oidc_only_native_rejection.py", "tests/test_oidc_only_http_rejection.py",
+         "tests/test_oidc_fresh_signature.py", "tests/test_oidc_display_identity.py", "tests/test_oidc_signature_hint.py", "tests/test_oidc_signature_business.py", "tests/test_oidc_v4_userinfo.py", "tests/test_e2e_runtime_safety.py", "tests/test_e2e_control.py",
          "tests/test_oidc_protocol.py", "tests/test_oidc_provider.py", "tests/test_oidc_logout.py",
          "tests/test_oidc_sessions.py", "tests/test_oidc_endpoints.py", "tests/test_oidc_recovery_urls.py", "tests/test_pm_create.py"]
 subprocess.run(["ruff", "check", "--no-cache", *sources, *tests], check=True)

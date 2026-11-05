@@ -351,6 +351,8 @@ class AuthService:
     async def get_me(self, user: User) -> dict:
         """获取当前用户完整信息"""
         permissions = await self._get_user_permissions(user)
+        from app.domains.auth.oidc.config import fresh_signing_enabled
+        local_password_gate = not (self.db.info.get("oidc_session_id") and fresh_signing_enabled())
         return {
             "user_id": user.user_id,
             "username": user.username,
@@ -362,7 +364,7 @@ class AuthService:
             "phone": user.phone,
             "status": user.status,
             "mfa_enabled": user.mfa_enabled,
-            "force_password_change": requires_password_change(user),
+            "force_password_change": requires_password_change(user) and local_password_gate,
             "last_login_at": user.last_login_at,
             "roles": [
                 {"role_id": r.role_id, "role_code": r.role_code, "role_name": r.role_name}
@@ -372,6 +374,8 @@ class AuthService:
         }
 
     async def change_password(self, user: User, old_password: str, new_password: str):
+        from app.core.auth_mode import require_local_password_management
+        require_local_password_management()
         result = await self.db.execute(
             select(User).where(User.user_id == user.user_id)
             .options(selectinload(User.roles))

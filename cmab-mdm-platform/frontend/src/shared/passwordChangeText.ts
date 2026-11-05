@@ -14,7 +14,7 @@ export function passwordChangeText(mode: 'native' | 'oidc' | null, nativeAllowed
       ? 'MDM 密码已更新，即将退出本应用。请通过 Casdoor 重新进入。'
       : '密码已修改，3 秒后将自动退出登录。请用新密码重新登录。',
     loginNotice: !nativeAllowed
-      ? '审批签名密码已更新，请通过 Casdoor 重新进入；该密码不能用于登录。'
+      ? '审批签名密码已更新，请通过统一身份登录重新进入；该密码不能用于登录。'
       : '密码已修改成功，请用新密码登录',
   };
 }
