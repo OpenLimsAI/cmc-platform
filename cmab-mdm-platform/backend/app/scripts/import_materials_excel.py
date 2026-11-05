@@ -32,6 +32,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypedDict
 
 import openpyxl
 from loguru import logger
@@ -196,9 +197,20 @@ async def get_existing_codes(db) -> set[str]:
     return {r[0] for r in res.all()}
 
 
-async def import_rows(rows: list[ParsedRow], dry_run: bool) -> dict:
+class ImportStats(TypedDict):
+    total: int
+    skipped_by_reason: dict[str, int]
+    duplicated_code: int
+    to_insert: int
+    type_dist: dict[str, int]
+    category_dist: dict[str, int]
+    column_overwrite: int
+    inserted: int
+
+
+async def import_rows(rows: list[ParsedRow], dry_run: bool) -> ImportStats:
     """执行导入。返回统计 dict。"""
-    stats = {
+    stats: ImportStats = {
         "total": len(rows),
         "skipped_by_reason": {},
         "duplicated_code": 0,
@@ -217,6 +229,7 @@ async def import_rows(rows: list[ParsedRow], dry_run: bool) -> dict:
             stats["skipped_by_reason"].setdefault(pr.skip_reason, 0)
             stats["skipped_by_reason"][pr.skip_reason] += 1
             continue
+        assert pr.code is not None, "parse_row must reject missing material codes"
         if pr.code in by_code:
             inner_dup += 1
             stats["skipped_by_reason"].setdefault("inner_dup_code", 0)
@@ -245,6 +258,7 @@ async def import_rows(rows: list[ParsedRow], dry_run: bool) -> dict:
                     pr.skip_reason = "db_dup_code"
                     continue
                 to_insert.append(pr)
+                assert pr.material_type is not None and pr.category is not None, "parse_row must resolve valid material types/categories"
                 stats["type_dist"].setdefault(pr.material_type, 0)
                 stats["type_dist"][pr.material_type] += 1
                 stats["category_dist"].setdefault(pr.category, 0)
@@ -310,7 +324,7 @@ def write_report(rows: list[ParsedRow], report_path: Path) -> None:
             ])
 
 
-def print_stats(stats: dict) -> None:
+def print_stats(stats: ImportStats) -> None:
     print("=" * 60)
     print(f"Excel 总行: {stats['total']}")
     print(f"待插入:     {stats['to_insert']}")

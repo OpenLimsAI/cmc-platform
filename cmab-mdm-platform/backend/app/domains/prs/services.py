@@ -21,7 +21,7 @@ from app.core.exceptions import (
     VersionConflictError,
 )
 from app.domains.ars.models import Asset
-from app.domains.audit.schemas import StatusHistoryItem
+from app.domains.audit.schemas import SignatureBlock, StateChangeResponse, StatusHistoryItem
 from app.domains.audit.signature_service import ESignatureService
 from app.domains.auth.models import User
 from app.domains.prs.models import (
@@ -140,7 +140,10 @@ class ProjectService:
                 "EXTRACT(YEAR FROM NOW())::INT, 4))"
             )
         )
-        return result.scalar_one()
+        code = result.scalar_one()
+        if not isinstance(code, str):
+            raise TypeError("Database code generator must return a string")
+        return code
 
     # ----------- 列表 -----------
     async def list_projects(
@@ -694,15 +697,15 @@ class ProjectService:
             other_id = r.to_project_id if outgoing else r.from_project_id
             other_code, other_name = code_map.get(other_id, (f"#{other_id}", ""))
             items.append(
-                ProjectRelationshipItem(
-                    relationship_id=r.relationship_id,
-                    relationship_type=r.relationship_type,
-                    direction="outgoing" if outgoing else "incoming",
-                    other_project_code=other_code,
-                    other_project_name=other_name,
-                    notes=r.notes,
-                    created_at=r.created_at,
-                )
+                ProjectRelationshipItem.model_validate({
+                    'relationship_id': r.relationship_id,
+                    'relationship_type': r.relationship_type,
+                    'direction': "outgoing" if outgoing else "incoming",
+                    'other_project_code': other_code,
+                    'other_project_name': other_name,
+                    'notes': r.notes,
+                    'created_at': r.created_at,
+                })
             )
         return items
 
@@ -743,15 +746,15 @@ class ProjectService:
         self.db.add(rel)
         await self.db.flush()
         await self.db.refresh(rel)
-        item = ProjectRelationshipItem(
-            relationship_id=rel.relationship_id,
-            relationship_type=rel.relationship_type,
-            direction="outgoing",
-            other_project_code=to_proj.project_code,
-            other_project_name=to_proj.project_name,
-            notes=rel.notes,
-            created_at=rel.created_at,
-        )
+        item = ProjectRelationshipItem.model_validate({
+                   'relationship_id': rel.relationship_id,
+                   'relationship_type': rel.relationship_type,
+                   'direction': "outgoing",
+                   'other_project_code': to_proj.project_code,
+                   'other_project_name': to_proj.project_name,
+                   'notes': rel.notes,
+                   'created_at': rel.created_at,
+               })
         await self.db.commit()
         return item
 

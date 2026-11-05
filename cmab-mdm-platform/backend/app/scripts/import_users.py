@@ -207,8 +207,8 @@ async def main() -> int:
             res = await db.execute(
                 select(User).options(selectinload(User.roles)).where(User.username.in_([u for u, _, _ in created]))
             )
-            for u in res.scalars():
-                print(f"   ✓ {u.username} {u.full_name} 部门={u.department} 角色={[r.role_code for r in u.roles]}")
+            for imported_user in res.scalars():
+                print(f"   ✓ {imported_user.username} {imported_user.full_name} 部门={imported_user.department} 角色={[r.role_code for r in imported_user.roles]}")
         await engine.dispose()
     return 0
 

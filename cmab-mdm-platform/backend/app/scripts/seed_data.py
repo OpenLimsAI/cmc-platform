@@ -12,6 +12,7 @@ import hashlib
 import re
 import sys
 from datetime import UTC, date, datetime, timedelta
+from typing import Literal
 
 from loguru import logger
 from sqlalchemy import select, text
@@ -40,6 +41,7 @@ from app.domains.ref.models import (
     ProjectSubstanceLink,
 )
 from app.domains.srs.models import Substance, SubstanceProtein, SubstanceXref
+from app.scripts.seed_types import AssetSeed, MaterialSeed, ProjectSeed, SubstanceSeed, UserSeed
 
 
 def _hash_seq(seq: str | None) -> str | None:
@@ -81,7 +83,7 @@ PERMISSIONS = [
     ("system:config", "system", "config", "系统配置（会话策略等）"),
 ]
 
-ROLES = [
+ROLES: list[tuple[str, str, str, Literal["ALL"] | list[str]]] = [
     ("SYS_ADMIN", "系统管理员", "全权限，仅限 IT", "ALL"),
     ("SUBSTANCE_STEWARD", "物质数据管家",
      "Substance 域审核、合并、状态变更；跨域只读（项目/资产/物料模块可见性，对齐 UI §2.2 权限矩阵）",
@@ -120,7 +122,7 @@ ROLES = [
      []),
 ]
 
-USERS = [
+USERS: list[UserSeed] = [
     {"username": "admin", "password": "__REDACTED_SEED_PASSWORD_1__",
      "email": "admin@cmab.com", "full_name": "系统管理员",
      "department": "IT", "title": "Admin",
@@ -144,7 +146,7 @@ USERS = [
      "roles": ["READ_ONLY_USER"]},
 ]
 
-SAMPLE_SUBSTANCES = [
+SAMPLE_SUBSTANCES: list[SubstanceSeed] = [
     {
         "substance_type": "mab",
         "internal_code": "CMAB-101",
@@ -245,10 +247,7 @@ async def seed_roles(db: AsyncSession):
             await db.flush()
 
         # 关联权限
-        if perm_codes == "ALL":
-            target_codes = list(perm_map.keys())
-        else:
-            target_codes = perm_codes
+        target_codes = list(perm_map.keys()) if perm_codes == "ALL" else perm_codes
 
         for code in target_codes:
             pid = perm_map.get(code)
@@ -370,7 +369,7 @@ async def seed_substances(db: AsyncSession):
 # 命名约定：物质用 CMAB-D## internal_code；项目名以 [DEMO] 前缀做幂等识别。
 # 数据风格力求贴近真实 CMC 业务（PD-1/TIGIT/HER2/CD3/KRAS 都是当前热门靶点）。
 
-DEMO_SUBSTANCES = [
+DEMO_SUBSTANCES: list[SubstanceSeed] = [
     {
         "substance_type": "mab",
         "internal_code": "CMAB-D01",
@@ -475,7 +474,7 @@ DEMO_SUBSTANCES = [
 ]
 
 # 项目：每个项目以 [DEMO] 前缀作幂等识别
-DEMO_PROJECTS = [
+DEMO_PROJECTS: list[ProjectSeed] = [
     {
         "name": "[DEMO] Anti-PD-1 CMC 开发",
         "name_en": "Anti-PD-1 CMC Development",
@@ -582,7 +581,7 @@ DEMO_PROJECTS = [
 # 跨域绑定：
 #   - asset_substance：用 substance_internal_code 指向 DEMO_SUBSTANCES 里的物质
 #   - project_asset：用 project_name 指向 DEMO_PROJECTS 里的项目
-DEMO_ASSETS = [
+DEMO_ASSETS: list[AssetSeed] = [
     {
         "internal_name": "[DEMO] Anti-PD-1 注射液",
         "trade_name": "Cmaboline",
@@ -677,7 +676,7 @@ DEMO_ASSETS = [
 
 # 物料：每个以 (material_name) 作幂等识别（material_code 由触发器分配，幂等用 name）
 # 跨域绑定：substance_internal_code → DEMO_SUBSTANCES 中的物质
-DEMO_MATERIALS = [
+DEMO_MATERIALS: list[MaterialSeed] = [
     {
         "material_code": "R-0001",
         "material_name": "[DEMO] PBS 10× 缓冲液",

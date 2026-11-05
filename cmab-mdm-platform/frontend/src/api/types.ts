@@ -262,6 +262,7 @@ export interface AuditLogQuery {
 
 export interface SignatureItem {
   signature_id: number;
+  audit_log_id?: number | null;
   user_id: number;
   username: string;
   full_name: string;

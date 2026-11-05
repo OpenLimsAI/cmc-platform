@@ -17,6 +17,8 @@ CMAB MDM Portal 是 CMAB 公司内部的主数据管理系统，覆盖：
 - **MM** (Material Master) - R&D 物料管理
 - 跨域引用、审计追踪、电子签名
 
+新签名的直接审计关联、完整类型检查与本地验证边界见[工程验证记录](./docs/verification/audit-types-20261105/report.md)。历史签名不自动回填。
+
 设计依据见 [docs/](./docs/) 下的设计文档：
 
 **设计文档 V1.1**（当前活跃版本 · IT 架构组已签批 · 2026-05-12）：

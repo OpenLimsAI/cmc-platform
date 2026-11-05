@@ -13,6 +13,78 @@ export interface paths {
     /** 健康检查（带前缀 alias） */
     get: operations["health_check_api_api_v1_health_get"];
   };
+  "/api/v1/auth/oidc/config": {
+    /** Oidc Config */
+    get: operations["oidc_config_api_v1_auth_oidc_config_get"];
+  };
+  "/api/v1/auth/oidc/pm-login": {
+    /** Oidc Login */
+    get: operations["oidc_login_api_v1_auth_oidc_pm_login_get"];
+  };
+  "/api/v1/auth/oidc/login": {
+    /** Oidc Login */
+    get: operations["oidc_login_api_v1_auth_oidc_login_get"];
+  };
+  "/api/v1/auth/oidc/pm-callback": {
+    /** Oidc Callback */
+    get: operations["oidc_callback_api_v1_auth_oidc_pm_callback_get"];
+  };
+  "/api/v1/auth/oidc/callback": {
+    /** Oidc Callback */
+    get: operations["oidc_callback_api_v1_auth_oidc_callback_get"];
+  };
+  "/api/v1/auth/oidc/session": {
+    /** Oidc Session */
+    get: operations["oidc_session_api_v1_auth_oidc_session_get"];
+  };
+  "/api/v1/auth/oidc/logout": {
+    /** Oidc Logout */
+    post: operations["oidc_logout_api_v1_auth_oidc_logout_post"];
+  };
+  "/api/v1/auth/oidc/backchannel-logout": {
+    /** Backchannel Logout */
+    post: operations["backchannel_logout_api_v1_auth_oidc_backchannel_logout_post"];
+  };
+  "/api/v1/auth/oidc/signatures": {
+    /** Begin Signature */
+    post: operations["begin_signature_api_v1_auth_oidc_signatures_post"];
+  };
+  "/api/v1/auth/oidc/signatures/{challenge_id}/complete": {
+    /** Complete Signature */
+    post: operations["complete_signature_api_v1_auth_oidc_signatures__challenge_id__complete_post"];
+  };
+  "/api/v1/auth/oidc/signatures/{challenge_id}/cancel": {
+    /** Cancel Signature */
+    post: operations["cancel_signature_api_v1_auth_oidc_signatures__challenge_id__cancel_post"];
+  };
+  "/api/v1/auth/oidc/signatures/{challenge_id}": {
+    /** Signature Receipt */
+    get: operations["signature_receipt_api_v1_auth_oidc_signatures__challenge_id__get"];
+  };
+  "/api/v1/projects/{code}/pm-link": {
+    /** Get Pm Link */
+    get: operations["get_pm_link_api_v1_projects__code__pm_link_get"];
+    /** Bind Pm Link */
+    post: operations["bind_pm_link_api_v1_projects__code__pm_link_post"];
+  };
+  "/api/v1/integration/pm-projects/{pm_id}": {
+    /** Resolve Pm Link */
+    get: operations["resolve_pm_link_api_v1_integration_pm_projects__pm_id__get"];
+  };
+  "/api/v1/integration/pm/owners": {
+    /** Pm Owners */
+    get: operations["pm_owners_api_v1_integration_pm_owners_get"];
+  };
+  "/api/v1/projects/{code}/pm-create": {
+    /** Get Pm Creation */
+    get: operations["get_pm_creation_api_v1_projects__code__pm_create_get"];
+    /** Create Pm Project */
+    post: operations["create_pm_project_api_v1_projects__code__pm_create_post"];
+  };
+  "/api/v1/projects/{code}/pm-create/retry": {
+    /** Retry Pm Project */
+    post: operations["retry_pm_project_api_v1_projects__code__pm_create_retry_post"];
+  };
   "/api/v1/auth/login": {
     /** 用户登录 */
     post: operations["login_api_v1_auth_login_post"];
@@ -759,6 +831,13 @@ export interface components {
         [key: string]: unknown;
       } | null;
     };
+    /** BindPMProject */
+    BindPMProject: {
+      /** Pm Project Id */
+      pm_project_id: string;
+      /** Change Reason */
+      change_reason: string;
+    };
     /** ChangePasswordRequest */
     ChangePasswordRequest: {
       /** Old Password */
@@ -791,6 +870,17 @@ export interface components {
        * @constant
        */
       tolerance?: "exact";
+    };
+    /** CreatePMProject */
+    CreatePMProject: {
+      /**
+       * Client Request Id
+       * Format: uuid
+       */
+      client_request_id: string;
+      /** Change Reason */
+      change_reason: string;
+      project: components["schemas"]["PMProjectInput"];
     };
     /**
      * DeptAdminPolicyUpdate
@@ -1191,6 +1281,19 @@ export interface components {
       /** Password */
       password: string;
     };
+    /** LogoutRequest */
+    LogoutRequest: {
+      /**
+       * Global
+       * @default false
+       */
+      global?: boolean;
+      /**
+       * Device
+       * @default false
+       */
+      device?: boolean;
+    };
     /**
      * MaterialBatchCreate
      * @description POST 请求体（status 默认 in_stock）
@@ -1443,6 +1546,42 @@ export interface components {
       needs_confirm?: boolean | null;
       /** Notes */
       notes?: string | null;
+    };
+    /** PMProjectInput */
+    PMProjectInput: {
+      /** Code */
+      code: string;
+      /** Name */
+      name: string;
+      /**
+       * Product Type
+       * @enum {string}
+       */
+      product_type: "单抗" | "多抗" | "其他";
+      /**
+       * Current Stage
+       * @enum {string}
+       */
+      current_stage: "临床前" | "IND" | "Ph1/2" | "Ph3" | "BLA" | "商业化" | "上市后";
+      /**
+       * Target Stage
+       * @enum {string}
+       */
+      target_stage: "临床前" | "IND" | "Ph1/2" | "Ph3" | "BLA" | "商业化" | "上市后";
+      /** Owner Id */
+      owner_id: string;
+      /**
+       * Planned Start
+       * Format: date
+       */
+      planned_start: string;
+      /**
+       * Planned End
+       * Format: date
+       */
+      planned_end: string;
+      /** Description */
+      description?: string | null;
     };
     /**
      * ProjectAssetLinkByAsset
@@ -1918,7 +2057,9 @@ export interface components {
      */
     SignatureBlock: {
       /** Password */
-      password: string;
+      password?: string | null;
+      /** Challenge Id */
+      challenge_id?: string | null;
       /**
        * Meaning
        * @description 签名含义；未传时按 action 推断默认值（approve/review/release/witness/reject）
@@ -1928,6 +2069,29 @@ export interface components {
        * Reason
        * @description 签名理由（独立于业务 comment）
        */
+      reason: string;
+    };
+    /** SignatureCompletion */
+    SignatureCompletion: {
+      /** Code */
+      code: string;
+      /** State */
+      state: string;
+    };
+    /** SigningRequest */
+    SigningRequest: {
+      /**
+       * Entity Type
+       * @enum {string}
+       */
+      entity_type: "project" | "substance" | "asset";
+      /** Entity Code */
+      entity_code: string;
+      /** Action */
+      action: string;
+      /** Comment */
+      comment: string;
+      /** Reason */
       reason: string;
     };
     /**
@@ -2480,6 +2644,442 @@ export interface operations {
       200: {
         content: {
           "application/json": unknown;
+        };
+      };
+    };
+  };
+  /** Oidc Config */
+  oidc_config_api_v1_auth_oidc_config_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  /** Oidc Login */
+  oidc_login_api_v1_auth_oidc_pm_login_get: {
+    parameters: {
+      query?: {
+        return_to?: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Oidc Login */
+  oidc_login_api_v1_auth_oidc_login_get: {
+    parameters: {
+      query?: {
+        return_to?: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Oidc Callback */
+  oidc_callback_api_v1_auth_oidc_pm_callback_get: {
+    parameters: {
+      query?: {
+        code?: string;
+        state?: string;
+        error?: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Oidc Callback */
+  oidc_callback_api_v1_auth_oidc_callback_get: {
+    parameters: {
+      query?: {
+        code?: string;
+        state?: string;
+        error?: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Oidc Session */
+  oidc_session_api_v1_auth_oidc_session_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  /** Oidc Logout */
+  oidc_logout_api_v1_auth_oidc_logout_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LogoutRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Backchannel Logout */
+  backchannel_logout_api_v1_auth_oidc_backchannel_logout_post: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  /** Begin Signature */
+  begin_signature_api_v1_auth_oidc_signatures_post: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SigningRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Complete Signature */
+  complete_signature_api_v1_auth_oidc_signatures__challenge_id__complete_post: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        challenge_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SignatureCompletion"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Cancel Signature */
+  cancel_signature_api_v1_auth_oidc_signatures__challenge_id__cancel_post: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        challenge_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Signature Receipt */
+  signature_receipt_api_v1_auth_oidc_signatures__challenge_id__get: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        challenge_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Get Pm Link */
+  get_pm_link_api_v1_projects__code__pm_link_get: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        code: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Bind Pm Link */
+  bind_pm_link_api_v1_projects__code__pm_link_post: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        code: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BindPMProject"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Resolve Pm Link */
+  resolve_pm_link_api_v1_integration_pm_projects__pm_id__get: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        pm_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Pm Owners */
+  pm_owners_api_v1_integration_pm_owners_get: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Get Pm Creation */
+  get_pm_creation_api_v1_projects__code__pm_create_get: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        code: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Create Pm Project */
+  create_pm_project_api_v1_projects__code__pm_create_post: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        code: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreatePMProject"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Retry Pm Project */
+  retry_pm_project_api_v1_projects__code__pm_create_retry_post: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        code: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

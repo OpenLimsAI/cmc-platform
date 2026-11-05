@@ -136,15 +136,15 @@ class GlobalSearchService:
             field, snippet = _which_field_target(q, t)
             mf = [k.get("name") for k in (t.keywords or []) if k.get("category") == "Molecular function"]
             items.append(
-                SearchHit(
-                    entity_type="target",
-                    code=t.target_code,
-                    name=t.target_name,
-                    status=t.status,
-                    matched_field=field,  # type: ignore[arg-type]
-                    sub_type=(", ".join(mf[:2]) if mf else (t.cd_antigen_names or [None])[0]),
-                    snippet=snippet,
-                )
+                SearchHit.model_validate({
+                    'entity_type': "target",
+                    'code': t.target_code,
+                    'name': t.target_name,
+                    'status': t.status,
+                    'matched_field': field,
+                    'sub_type': ", ".join(mf[:2]) if mf else (t.cd_antigen_names or [None])[0],
+                    'snippet': snippet,
+                })
             )
         return items
 
@@ -165,15 +165,15 @@ class GlobalSearchService:
         items: dict[str, SearchHit] = {}
         for sub in result.scalars():
             field = _which_field_substance(q, sub)
-            items[sub.substance_code] = SearchHit(
-                entity_type="substance",
-                code=sub.substance_code,
-                name=sub.preferred_name,
-                status=sub.status,
-                matched_field=field,
-                sub_type=sub.substance_type,
-                snippet=sub.internal_code if field == "internal_code" else None,
-            )
+            items[sub.substance_code] = SearchHit.model_validate({
+                                            'entity_type': "substance",
+                                            'code': sub.substance_code,
+                                            'name': sub.preferred_name,
+                                            'status': sub.status,
+                                            'matched_field': field,
+                                            'sub_type': sub.substance_type,
+                                            'snippet': sub.internal_code if field == "internal_code" else None,
+                                        })
 
         # xref 命中（去重：已在主表命中的 substance 不再覆盖）
         xref_result = await self.db.execute(
@@ -188,15 +188,15 @@ class GlobalSearchService:
         )
         for xref, sub in xref_result.all():
             if sub.substance_code not in items:
-                items[sub.substance_code] = SearchHit(
-                    entity_type="substance",
-                    code=sub.substance_code,
-                    name=sub.preferred_name,
-                    status=sub.status,
-                    matched_field="xref",
-                    sub_type=sub.substance_type,
-                    snippet=f"{xref.xref_type}: {xref.xref_value}",
-                )
+                items[sub.substance_code] = SearchHit.model_validate({
+                                                'entity_type': "substance",
+                                                'code': sub.substance_code,
+                                                'name': sub.preferred_name,
+                                                'status': sub.status,
+                                                'matched_field': "xref",
+                                                'sub_type': sub.substance_type,
+                                                'snippet': f"{xref.xref_type}: {xref.xref_value}",
+                                            })
         return list(items.values())
 
     async def _search_project(self, q: str, lim: int) -> list[SearchHit]:
@@ -217,15 +217,15 @@ class GlobalSearchService:
         for proj in result.scalars():
             field = _which_field_project(q, proj)
             items.append(
-                SearchHit(
-                    entity_type="project",
-                    code=proj.project_code,
-                    name=proj.project_name,
-                    status=proj.status,
-                    matched_field=field,
-                    sub_type=proj.project_type,
-                    snippet=proj.objective if field == "objective" else None,
-                )
+                SearchHit.model_validate({
+                    'entity_type': "project",
+                    'code': proj.project_code,
+                    'name': proj.project_name,
+                    'status': proj.status,
+                    'matched_field': field,
+                    'sub_type': proj.project_type,
+                    'snippet': proj.objective if field == "objective" else None,
+                })
             )
         return items
 
@@ -248,19 +248,17 @@ class GlobalSearchService:
         for asset in result.scalars():
             field = _which_field_asset(q, asset)
             items.append(
-                SearchHit(
-                    entity_type="asset",
-                    code=asset.asset_code,
-                    name=asset.internal_name,
-                    status=asset.status,
-                    matched_field=field,
-                    sub_type=asset.asset_type,
-                    snippet=(
-                        asset.trade_name if field == "trade_name"
+                SearchHit.model_validate({
+                    'entity_type': "asset",
+                    'code': asset.asset_code,
+                    'name': asset.internal_name,
+                    'status': asset.status,
+                    'matched_field': field,
+                    'sub_type': asset.asset_type,
+                    'snippet': asset.trade_name if field == "trade_name"
                         else asset.inn_name if field == "inn_name"
-                        else None
-                    ),
-                )
+                        else None,
+                })
             )
         return items
 
@@ -282,15 +280,15 @@ class GlobalSearchService:
         for mat in result.scalars():
             field = _which_field_material(q, mat)
             items.append(
-                SearchHit(
-                    entity_type="material",
-                    code=mat.material_code,
-                    name=mat.material_name,
-                    status=mat.status,
-                    matched_field=field,
-                    sub_type=mat.material_type,
-                    snippet=mat.source_name if field == "source_name" else None,
-                )
+                SearchHit.model_validate({
+                    'entity_type': "material",
+                    'code': mat.material_code,
+                    'name': mat.material_name,
+                    'status': mat.status,
+                    'matched_field': field,
+                    'sub_type': mat.material_type,
+                    'snippet': mat.source_name if field == "source_name" else None,
+                })
             )
         return items
 
@@ -316,22 +314,20 @@ class GlobalSearchService:
         for eq in result.scalars():
             field = _which_field_equipment(q, eq)
             items.append(
-                SearchHit(
-                    entity_type="equipment",
-                    code=eq.equipment_code,
-                    name=eq.equipment_name,
-                    status=eq.status,
-                    matched_field=field,
-                    sub_type=eq.category,
-                    snippet=(
-                        eq.equipment_no if field == "equipment_no"
+                SearchHit.model_validate({
+                    'entity_type': "equipment",
+                    'code': eq.equipment_code,
+                    'name': eq.equipment_name,
+                    'status': eq.status,
+                    'matched_field': field,
+                    'sub_type': eq.category,
+                    'snippet': eq.equipment_no if field == "equipment_no"
                         else eq.fixed_asset_no if field == "fixed_asset_no"
                         else eq.model if field == "model"
                         else eq.manufacturer if field == "manufacturer"
                         else eq.serial_no if field == "serial_no"
-                        else None
-                    ),
-                )
+                        else None,
+                })
             )
         return items
 

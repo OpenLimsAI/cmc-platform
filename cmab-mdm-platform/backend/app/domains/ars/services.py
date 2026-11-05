@@ -30,7 +30,7 @@ from app.domains.ars.schemas import (
     AssetMarketIdUpdate,
     AssetUpdate,
 )
-from app.domains.audit.schemas import StatusHistoryItem
+from app.domains.audit.schemas import SignatureBlock, StateChangeResponse, StatusHistoryItem
 from app.domains.audit.signature_service import ESignatureService
 from app.domains.auth.models import User
 
@@ -59,7 +59,10 @@ class AssetService:
     # ----------- 编码生成 -----------
     async def _next_asset_code(self) -> str:
         result = await self.db.execute(text("SELECT meta.fn_next_code('asset')"))
-        return result.scalar_one()
+        code = result.scalar_one()
+        if not isinstance(code, str):
+            raise TypeError("Database code generator must return a string")
+        return code
 
     # ----------- 列表 -----------
     async def list_assets(

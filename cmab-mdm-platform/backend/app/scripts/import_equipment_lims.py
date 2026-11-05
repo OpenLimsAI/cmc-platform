@@ -28,6 +28,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 import oracledb
 import psycopg2
@@ -181,8 +182,18 @@ INSERT_SQL = """
 """
 
 
-def run(rows: list[dict], pg: dict, dry_run: bool) -> dict:
-    stats = {"total": len(rows), "to_insert": 0, "inserted": 0,
+class ImportStats(TypedDict):
+    total: int
+    to_insert: int
+    inserted: int
+    category_defaulted: int
+    skipped: dict[str, int]
+    cat_dist: dict[str, int]
+    status_dist: dict[str, int]
+
+
+def run(rows: list[dict], pg: dict, dry_run: bool) -> ImportStats:
+    stats: ImportStats = {"total": len(rows), "to_insert": 0, "inserted": 0,
              "category_defaulted": 0, "skipped": {}, "cat_dist": {}, "status_dist": {}}
 
     conn = psycopg2.connect(
@@ -267,7 +278,7 @@ def write_report(rows: list[dict], path: Path) -> None:
             ])
 
 
-def print_stats(stats: dict, dry_run: bool) -> None:
+def print_stats(stats: ImportStats, dry_run: bool) -> None:
     print("=" * 60)
     print(f"LIMS INSTRUMENT 行: {stats['total']}")
     print(f"待插入:            {stats['to_insert']}")

@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 from app.core.config import settings
 from app.core.exceptions import SignatureInvalidError
-from app.domains.audit.models import ESignature
+from app.domains.audit.models import AuditLog, ESignature
 from app.domains.audit.schemas import SignatureBlock
 from app.domains.auth.models import User
 from app.domains.auth.oidc.config import OIDCConfig
@@ -77,6 +77,13 @@ async def test_project_signature_consumes_fresh_proof_in_business_transaction(mo
             assert result.new_status == "initiated" and result.signature_id
             signature = await db.get(ESignature, result.signature_id)
             assert signature.user_id == user.user_id and signature.signature_reason == request.reason
+            assert signature.audit_log_id is not None, "Every new signature must directly reference its successful SIGN audit"
+            audit = await db.get(AuditLog, signature.audit_log_id)
+            assert audit.action == "SIGN" and audit.user_id == signature.user_id
+            assert audit.entity_schema == "prs" and audit.entity_id == signature.entity_id
+            assert audit.reason == signature.signature_reason
+            assert audit.extra["signed_content_hash"] == signature.signed_content_hash
+            assert audit.extra["authentication_method"] == "oidc_fresh"
             proof = await service.receipt(pending["challenge_id"], user=user, session=session)
             assert proof["status"] == "consumed" and proof["signature_id"] == result.signature_id
             with pytest.raises(SignatureInvalidError):
@@ -112,6 +119,31 @@ async def test_project_signature_consumes_fresh_proof_in_business_transaction(mo
 
             pending = await service.begin(cancel, user=user, session=session)
             await service.complete(pending["challenge_id"], code="synthetic-code", state=pending["state"], user=user, session=session)
+            project_id, user_id, session_id = project.project_id, user.user_id, session.id
+
+            async def reject_commit():
+                raise RuntimeError("synthetic failure before database commit")
+
+            with monkeypatch.context() as failure:
+                failure.setattr(db, "commit", reject_commit)
+                with pytest.raises(RuntimeError, match="before database commit"):
+                    await ProjectService(db).change_status(project.project_code, "cancel", cancel.comment, user,
+                        SignatureBlock(challenge_id=pending["challenge_id"], reason=cancel.reason))
+            not_committed = (await db.execute(select(ESignature).where(
+                ESignature.entity_schema == "prs", ESignature.entity_table == "project",
+                ESignature.entity_id == project_id, ESignature.signature_id != result.signature_id,
+            ))).scalar_one()
+            rolled_signature_id, rolled_audit_id = not_committed.signature_id, not_committed.audit_log_id
+            assert rolled_audit_id is not None
+            await db.rollback()
+            assert await db.get(ESignature, rolled_signature_id) is None
+            assert await db.get(AuditLog, rolled_audit_id) is None
+            challenge = await db.get(OIDCSignatureChallenge, pending["challenge_id"])
+            assert challenge.status == "ready" and challenge.signature_id is None
+            project = await db.get(Project, project_id)
+            assert project.status == "initiated"
+            user = (await db.execute(select(User).options(selectinload(User.roles)).where(User.user_id == user_id))).scalar_one()
+            session = await db.get(OIDCSession, session_id)
             async with async_sessionmaker(engine, expire_on_commit=False)() as other_transaction:
                 await other_transaction.execute(update(OIDCSession).where(OIDCSession.id == session.id).values(revoked_at=datetime.now(UTC)))
                 await other_transaction.commit()

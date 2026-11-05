@@ -19,7 +19,7 @@ from app.core.exceptions import (
     VersionConflictError,
     XrefNotFoundError,
 )
-from app.domains.audit.schemas import StatusHistoryItem
+from app.domains.audit.schemas import SignatureBlock, StateChangeResponse, StatusHistoryItem
 from app.domains.audit.signature_service import ESignatureService
 from app.domains.auth.models import User
 from app.domains.srs.models import (
@@ -89,6 +89,8 @@ class SubstanceService:
     async def _next_substance_code(self) -> str:
         result = await self.db.execute(text("SELECT meta.fn_next_code('substance')"))
         row = result.scalar_one()
+        if not isinstance(row, str):
+            raise TypeError("Database code generator must return a string")
         return row
 
     # ----------- 列表查询 -----------
@@ -206,7 +208,7 @@ class SubstanceService:
                 )
                 .group_by(ProjectSubstanceLink.substance_id)
             )
-            project_count_map = {sid: cnt for sid, cnt in proj_count_result.all()}
+            project_count_map = dict(proj_count_result.tuples().all())
 
             asset_count_result = await self.db.execute(
                 select(AssetSubstanceLink.substance_id, func.count())
@@ -216,7 +218,7 @@ class SubstanceService:
                 )
                 .group_by(AssetSubstanceLink.substance_id)
             )
-            asset_count_map = {sid: cnt for sid, cnt in asset_count_result.all()}
+            asset_count_map = dict(asset_count_result.tuples().all())
 
             mat_count_result = await self.db.execute(
                 select(Material.substance_id, func.count())
@@ -257,23 +259,23 @@ class SubstanceService:
         for sub in substances:
             xrefs_for_sub = xref_map.get(sub.substance_id, {})
             items.append(
-                SubstanceBrief(
-                    substance_code=sub.substance_code,
-                    substance_type=sub.substance_type,
-                    internal_code=sub.internal_code,
-                    preferred_name=sub.preferred_name,
-                    preferred_name_en=sub.preferred_name_en,
-                    target=target_map.get(sub.substance_id) or sub.target,
-                    status=sub.status,
-                    confidentiality=sub.confidentiality,
-                    inn=xrefs_for_sub.get("INN"),
-                    cas_number=xrefs_for_sub.get("CAS"),
-                    project_count=project_count_map.get(sub.substance_id, 0),
-                    asset_count=asset_count_map.get(sub.substance_id, 0),
-                    material_count=material_count_map.get(sub.substance_id, 0),
-                    created_at=sub.created_at,
-                    updated_at=sub.updated_at,
-                )
+                SubstanceBrief.model_validate({
+                    'substance_code': sub.substance_code,
+                    'substance_type': sub.substance_type,
+                    'internal_code': sub.internal_code,
+                    'preferred_name': sub.preferred_name,
+                    'preferred_name_en': sub.preferred_name_en,
+                    'target': target_map.get(sub.substance_id) or sub.target,
+                    'status': sub.status,
+                    'confidentiality': sub.confidentiality,
+                    'inn': xrefs_for_sub.get("INN"),
+                    'cas_number': xrefs_for_sub.get("CAS"),
+                    'project_count': project_count_map.get(sub.substance_id, 0),
+                    'asset_count': asset_count_map.get(sub.substance_id, 0),
+                    'material_count': material_count_map.get(sub.substance_id, 0),
+                    'created_at': sub.created_at,
+                    'updated_at': sub.updated_at,
+                })
             )
         return items, total
 
@@ -974,14 +976,14 @@ class SubstanceService:
                 confidence = 0.0
 
             matches.append(
-                SamenessMatch(
-                    substance_code=sub.substance_code,
-                    preferred_name=sub.preferred_name,
-                    status=sub.status,
-                    substance_type=sub.substance_type,
-                    matched_fields=sorted(fields),
-                    confidence=confidence,
-                )
+                SamenessMatch.model_validate({
+                    'substance_code': sub.substance_code,
+                    'preferred_name': sub.preferred_name,
+                    'status': sub.status,
+                    'substance_type': sub.substance_type,
+                    'matched_fields': sorted(fields),
+                    'confidence': confidence,
+                })
             )
         matches.sort(key=lambda m: -m.confidence)
 
