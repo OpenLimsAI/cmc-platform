@@ -1,3 +1,7 @@
+## 2026-11-05 — 下游凌晨ETL计划补齐
+
+用户确认Nova/Vi-CELL每次归档计划启动后20分钟执行ETL，增加02:20（首次2026-11-06），保留12:05/16:20。同步运行时刻表和项目说明；本归档项目程序、timer及Linux部署不变。ETL timer、监控生效日期与验收记录分别由对应仓库和cmc-platform-monitor维护。
+
 # Changelog
 
 本文件记录 `cmc-instrument-ingest` 的变更。遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/) 风格。

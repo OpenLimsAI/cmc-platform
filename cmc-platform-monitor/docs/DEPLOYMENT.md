@@ -16,6 +16,12 @@
 
 ## 固定版本发布步骤
 
+### 2026-11-05 凌晨ETL定时补齐
+
+Nova/Vi-CELL仍为独立仓库，在隔离工作副本提交以保留原目录未提交文档；monitor及归档时刻表在总仓库提交。monitor沿用下方子目录tree一致的定向发布方式，归档项目仅文档同步、不发布程序。两个ETL只安装版本化timer，不重启源service、不跑入库/迁移；monitor仅重启API/collector加载计划及兼容模型，无前端变更或重建。
+
+实机空命令隔离试验确认：运行中的Persistent timer新增过去时刻后，仅daemon-reload也会补触发。专项脚本`scripts/deploy_night_etl_schedule.py MONITOR_SHA NOVA_SHA VICELL_SHA`先核对版本、工作区、原日历、源service空闲和发布窗口，保留旧timer；使用临时运行时Condition跳过发布引起的额外触发，确认源执行时间/PID不变后移除条件并再次reload。下一时刻仍为当天12:05，新增02:20首次2026-11-06。失败恢复旧timer并清理保护，随后按记录的旧Git版本回退配套监控。隔离测试资源均已清理，不修改timer历史戳、不伪造ETL成功。
+
 ### 2026-11-04总仓库内开发、独立目录发布
 
 本地权威工作副本已迁入`OpenLimsAI/cmc-platform`的`cmc-platform-monitor/`；Linux本次实查仍为原独立Git仓库和既有`/opt/cmc-platform-monitor`路径。本次保留运行路径、origin及服务配置：先将本项目显式文件清单提交/push至总仓库，再以该提交的监控子目录完整Git tree、Linux当前提交为父，建立`codex/monitor-upstream-release-20261104`发布分支并push至同一总仓库。Linux从该分支fetch并快进到核实的完整发布SHA，再运行现有monitor专项发布脚本。

@@ -63,6 +63,8 @@ collection_status=ok/partial/unavailable/stale；run_status=success/partial_fail
 
 ## 计划时刻与父子关联
 
+2026-11-05已确认Nova/Vi-CELL增加02:20，保留12:05/16:20。清单使用可选的`slot_effective_dates`（时刻→北京时间首个有效日期），此次02:20为2026-11-06。未设置的既有时刻沿用原规则；新时刻生效前不得生成历史漏跑、影响当前状态或触发更新逾期，下一次计划显示首个有效时刻。规则变更不重写已保存历史观测。实际归档日历不变，固定20分钟不保证异常归档已结束，上游风险判定保持。
+
 每计划时刻occurrence_key=(task_key,scheduled_for,rule_version)，记录时区、随机延迟、Persistent、activation_kind。时刻+宽限已过且所有必要启动证据可读仍无启动才确认missed_run；漏跑历史只从监控首次采集后生成，不以当前计划倒推上线前任务的漏跑。上线前真实来源记录仍可展示；早期调试观测中上线前推断的schedule引用保留原版本但不纳入有效历史。仅台账缺失且日志不可读为unknown+missing_evidence。
 
 台账running超过阈值为running_timeout；服务已退出但台账未结束为orphaned_run/evidence_conflict，不猜结束、不写回台账。cron/QC缺父invocation_id时按有界时间窗关联，歧义必须展示；手工最新成功不自动匹配定时窗口。Persistent补跑注明catch_up，保留原漏跑历史，不推造多个成功。
