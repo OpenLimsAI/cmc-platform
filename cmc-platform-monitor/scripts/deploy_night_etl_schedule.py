@@ -25,6 +25,14 @@ def calendars(path):
     return re.findall(r'^OnCalendar=\*-\*-\* (\d\d:\d\d):00$', path.read_text(), re.M)
 
 
+def conditions(name):
+    # systemctl prints even an empty complex array as "[unprintable]" on systemd 255.
+    unit_path = '/org/freedesktop/systemd1/unit/' + name.replace('-', '_2d') + '_2eservice'
+    return json.loads(command('busctl', '--json=short', 'get-property',
+                             'org.freedesktop.systemd1', unit_path,
+                             'org.freedesktop.systemd1.Unit', 'Conditions'))['data']
+
+
 def main():
     if os.geteuid() != 0 or len(sys.argv) != 4:
         raise SystemExit('Usage via sudo: deploy_night_etl_schedule.py MONITOR_SHA NOVA_SHA VICELL_SHA')
@@ -45,12 +53,19 @@ def main():
     names = ['nova-etl', 'vicell-etl']
     observed = ['ExecMainStartTimestampMonotonic', 'ExecMainExitTimestampMonotonic', 'ExecMainPID']
     before = {name: properties(name + '.service', *observed) for name in names}
+    original_conditions = {name: conditions(name) for name in names}
+    catch_up = []
     for name, root in zip(names, roots[1:]):
         assert properties(name + '.service', 'ActiveState')['ActiveState'] == 'inactive'
         assert properties(name + '.timer', 'ActiveState')['ActiveState'] == 'active'
         assert calendars(Path('/etc/systemd/system') / (name + '.timer')) == ['12:05', '16:20']
         assert calendars(root / 'deploy' / (name + '.timer')) == ['02:20', '12:05', '16:20']
-    backup = Path('/var/backups/cmc-platform-monitor/night-etl-20261105')
+        last = properties(name + '.timer', 'LastTriggerUSec')['LastTriggerUSec']
+        stamp = re.search(r'\d{4}-\d\d-\d\d \d\d:\d\d:\d\d', last)
+        assert stamp, 'Missing actual timer trigger history'
+        if stamp[0] < '2026-11-05 02:20:00':
+            catch_up.append(name)
+    backup = Path('/var/backups/cmc-platform-monitor') / now.strftime('night-etl-%Y%m%d-%H%M%S')
     backup.mkdir(mode=0o700, parents=True, exist_ok=False)
     (backup / 'before.json').write_text(json.dumps(before, indent=2) + '\n')
     guards = [Path('/run/systemd/system') / (n + '.service.d') / '90-night-schedule-rollout.conf' for n in names]
@@ -73,7 +88,7 @@ def main():
         command('systemctl', 'daemon-reload')
         # Any timer catch-up is skipped by the explicit condition, not reported as ETL success.
         for _ in range(20):
-            if all(properties(n + '.service', 'ConditionResult')['ConditionResult'] == 'no' for n in names):
+            if all(properties(n + '.service', 'ConditionResult')['ConditionResult'] == 'no' for n in catch_up):
                 break
             time.sleep(0.5)
         else:
@@ -89,10 +104,11 @@ def main():
             state = properties(name + '.timer', 'NextElapseUSecRealtime', 'RandomizedDelayUSec', 'Persistent', 'ActiveState')
             assert '2026-11-05 12:05:00' in state['NextElapseUSecRealtime']
             assert state['RandomizedDelayUSec'] == '0' and state['Persistent'] == 'yes' and state['ActiveState'] == 'active'
-            assert not properties(name + '.service', 'Conditions')['Conditions']
+            assert conditions(name) == original_conditions[name]
             print(name, json.dumps(state))
         completed = True
         print('PASS: timer calendars installed; source ETL execution timestamps/PIDs unchanged; guards removed')
+        print('BACKUP', backup)
     finally:
         if not completed:
             for name in names:
