@@ -1,0 +1,20 @@
+{
+  "headSha": "818529e157733593c227e5db08724af857bb74b6",
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/OpenLimsAI/cmc-platform/actions/runs/41972752422",
+  "jobs": [
+    {
+      "name": "mdm-frontend",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/OpenLimsAI/cmc-platform/actions/runs/41972752422/job/127064525045"
+    },
+    {
+      "name": "mdm-backend",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/OpenLimsAI/cmc-platform/actions/runs/41972752422/job/127064525221"
+    }
+  ]
+}

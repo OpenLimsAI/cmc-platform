@@ -1,0 +1,156 @@
+[
+  {
+    "file": "screenshots/01-portal-login.jpg",
+    "time_utc": "2026-11-05T05:30:27.574Z",
+    "scenario": "合成 signer 通过正常页面密码登录门户",
+    "url": "http://127.0.0.1:19192/",
+    "sha256": "853dc1bea50989d3fe3ce8a5b08b9967916ef61ecba03ff1fe9acec5c5983a74"
+  },
+  {
+    "file": "screenshots/02-mdm-sso-projects.jpg",
+    "time_utc": "2026-11-05T05:30:40.957Z",
+    "scenario": "从门户进入主数据真实项目页，未重复输入密码，用户名 Synthetic signer",
+    "url": "http://127.0.0.1:19190/mdm/projects",
+    "sha256": "aad0cd9211f72f49968b5ba2d1939dd00ea1074ca5d7ed4ab3d9977006bbf2d2"
+  },
+  {
+    "file": "screenshots/03-mdm-pm-linked.jpg",
+    "time_utc": "2026-11-05T05:32:59.513Z",
+    "scenario": "真实表单创建 PM 项目并建立严格一对一关联",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "8a390cc1eef876c1cc3e76da84d9907e1f421d83f55cf6acef188de15dd287a1"
+  },
+  {
+    "file": "screenshots/04-pm-project-linked.jpg",
+    "time_utc": "2026-11-05T05:33:15.220Z",
+    "scenario": "PM 同账号 Synthetic signer 可见实际执行项目及打开 MDM 登记项目入口",
+    "url": "http://127.0.0.1:19191/projects/p-mdm-0828eef150b8401ea55519b8",
+    "sha256": "e6e1ae965afa2dca114afb2f38ace3c2a9ad0a98b6e3dc00d5bd7ccb0d420e70"
+  },
+  {
+    "file": "screenshots/05-signature-password-only.jpg",
+    "time_utc": "2026-11-05T05:33:54.783Z",
+    "scenario": "真实签名弹层只有中文密码输入，已绑定当前身份，主项目页面和理由保留",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "64267fee6ee464b7bce0a21f8478942b0771590bdc255c6e37eab2e061beaae5"
+  },
+  {
+    "file": "screenshots/06-signature-cancelled.jpg",
+    "time_utc": "2026-11-05T05:33:55.263Z",
+    "scenario": "取消再次认证后返回表单，内容保留，项目仍已提议",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "f8fa53d69a8cd1c5ca7c67466d410527c31853404e5525f41708fd405c8927cf"
+  },
+  {
+    "file": "screenshots/07-wrong-password-rejected.jpg",
+    "time_utc": "2026-11-05T05:35:49.523Z",
+    "scenario": "错误密码已被拒绝后返回的签名表单，密码已清空；瞬时错误提示已消失，不单独证明错误文案",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "43d078a21923247e291ce097592e840f815e7bee9e909f89b779e0d36e2554e9"
+  },
+  {
+    "file": "screenshots/08-wrong-password-visible.jpg",
+    "time_utc": "2026-11-05T05:37:15.240Z",
+    "scenario": "错误密码请求提交中，截图只证明请求正在校验，尚未显示结果",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "b0d70688f5dcd43ed833bd252719fc70fce61e00e3284005a513d53794595496"
+  },
+  {
+    "file": "screenshots/09-wrong-password-response.jpg",
+    "time_utc": "2026-11-05T05:37:26.177Z",
+    "scenario": "错误密码请求结束后的弹层，瞬时错误提示未被该图捕获",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "ff11a9f2d3301b570ef5e0178b091023380cf40a9ecffd20784d070f9373b0a4"
+  },
+  {
+    "file": "screenshots/10-wrong-password-readable.jpg",
+    "time_utc": "2026-11-05T05:37:59.051Z",
+    "scenario": "DOM 实际读取到错误密码拒绝文本；该截图未捕获瞬时提示，不能用作错误文案图证",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "c82d6182960ec5b48f4809374c4b8ad4259bfd268e676456c72c5de42e4b4ace"
+  },
+  {
+    "file": "screenshots/11-expired-challenge.jpg",
+    "time_utc": "2026-11-05T05:39:12.630Z",
+    "scenario": "挑战自然过期后拒绝继续签署，原业务表单保留",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "f4e2414b508537ee0bb79c67e489b939e0d4ddd57d95b285b220ccbac9b73cd5"
+  },
+  {
+    "file": "screenshots/12-fresh-password-authenticated.jpg",
+    "time_utc": "2026-11-05T05:39:41.148Z",
+    "scenario": "当前用户重新验密成功，仍需明确确认签名意图后才提交",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "649d17c9b39b213faf4a450c0a738bd6066e75251b4519f44edd3822079058a0"
+  },
+  {
+    "file": "screenshots/13-project-signed-history.jpg",
+    "time_utc": "2026-11-05T05:39:53.298Z",
+    "scenario": "实际审批签署成功，登记项目变为已立项，状态历史保存独立变更理由",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "b27251f60b3fda45749bb2f0af8c4aaa117d01faab784a2dd4e1a8f858c0cd95"
+  },
+  {
+    "file": "screenshots/14-project-sign-audit.jpg",
+    "time_utc": "2026-11-05T05:40:28.449Z",
+    "scenario": "对象审计页显示独立 SIGN 和 UPDATE，保留独立签名理由与变更理由",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "d64223c161c9759c1a29e4801bda6fdb63ebb28f6848caf92f0d9bd602aa1b6e"
+  },
+  {
+    "file": "screenshots/15-signature-direct-audit-id.jpg",
+    "time_utc": "2026-11-05T05:40:49.078Z",
+    "scenario": "电子签名详情在真实页面展示直接审计 ID 16，保留签名理由与签署内容哈希",
+    "url": "http://127.0.0.1:19190/mdm/admin/signatures",
+    "sha256": "7f761d94c9d00e996f3bb92f06936853d1fcbe87cb96727ad143f5783d2d4828"
+  },
+  {
+    "file": "screenshots/16-pm-after-restart.jpg",
+    "time_utc": "2026-11-05T05:42:30.737Z",
+    "scenario": "仅应用进程重启后，原 PM 会话仍能进入关联执行项目",
+    "url": "http://127.0.0.1:19191/projects/p-mdm-0828eef150b8401ea55519b8",
+    "sha256": "61238e15ef9e8baaecb811b6ad73c5daa75798069ceb7985af1eec25dfd7c0d9"
+  },
+  {
+    "file": "screenshots/17-signature-after-restart.jpg",
+    "time_utc": "2026-11-05T05:42:31.068Z",
+    "scenario": "仅应用进程重启并刷新后，签名 #1 和直接审计 #16 仍可见",
+    "url": "http://127.0.0.1:19190/mdm/admin/signatures",
+    "sha256": "8dfae83bf63d020b943120585070a49146fb9de01cab6815ffae15e0a57fc5cf"
+  },
+  {
+    "file": "screenshots/18-portal-logged-out.jpg",
+    "time_utc": "2026-11-05T05:42:53.640Z",
+    "scenario": "PM 产品登出后刷新门户回到登录页",
+    "url": "http://127.0.0.1:19192/login",
+    "sha256": "7f4c48b3fb31d323ccadd76fb5f230d5439af04b329399b9dc75b187078faea2"
+  },
+  {
+    "file": "screenshots/19-mdm-logged-out.jpg",
+    "time_utc": "2026-11-05T05:42:53.693Z",
+    "scenario": "PM 产品登出后刷新 MDM 的会话失效结果",
+    "url": "http://127.0.0.1:19181/login/oauth/authorize",
+    "sha256": "4231cf0d64907f69c06958ba45367f8026e9bb6ef380592448ea9e30517a8eff"
+  },
+  {
+    "file": "screenshots/20-readonly-admin-data-denied.jpg",
+    "time_utc": "2026-11-05T05:43:37.345Z",
+    "scenario": "另一合成身份显示只读用户，未获得管理员菜单或签名记录；实际接口状态另由代理日志核验",
+    "url": "http://127.0.0.1:19190/mdm/admin/signatures",
+    "sha256": "aae031719af1628acd96d19fd625f5c9ef39879a099d3e09a8232b79ae288e98"
+  },
+  {
+    "file": "screenshots/21-readonly-project-no-write.jpg",
+    "time_utc": "2026-11-05T05:45:03.372Z",
+    "scenario": "只读用户可查看已立项项目，但启动、取消、终止按钮禁用，且没有编辑入口",
+    "url": "http://127.0.0.1:19190/mdm/projects/CMAB-PRJ-2026-0001",
+    "sha256": "0ced8897adaae78c59f98f878f18e6e690a82e080d7bb8b3da55071906c2b4f8"
+  },
+  {
+    "file": "screenshots/22-mdm-local-logout.jpg",
+    "time_utc": "2026-11-05T05:45:21.915Z",
+    "scenario": "MDM 明确显示已退出本应用，再次统一登录需主动发起",
+    "url": "http://127.0.0.1:19190/mdm/login",
+    "sha256": "5fa43d1a578a5e2f21dc363525deff4a1c3d6e15784865a7cf16267c1c7fc531"
+  }
+]

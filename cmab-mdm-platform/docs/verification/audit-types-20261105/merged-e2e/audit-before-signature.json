@@ -1,0 +1,21 @@
+{
+  "counts": {
+    "signatures": 0,
+    "success_sign_audits": 0,
+    "status_history": 0
+  },
+  "projects": [
+    {
+      "id": 1,
+      "code": "CMAB-PRJ-2026-0001",
+      "status": "proposed",
+      "version": 1
+    }
+  ],
+  "signature_links": null,
+  "proof_statuses": null,
+  "legacy_unlinked_signatures": 0,
+  "stage": "before-signature",
+  "time_utc": "2026-11-05T05:33:33.272720+00:00",
+  "synthetic_only": true
+}

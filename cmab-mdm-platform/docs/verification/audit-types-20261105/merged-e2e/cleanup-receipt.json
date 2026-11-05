@@ -1,0 +1,14 @@
+{
+  "time_utc": "2026-11-05T05:47:03.848552+00:00",
+  "run_id": "mdm-e2e-audit-main2-20261105",
+  "containers_removed": 9,
+  "networks_removed": 2,
+  "owned_containers_remaining": [],
+  "ports_still_listening": {
+    "idp": false,
+    "mdm": false,
+    "pm": false,
+    "portal": false
+  },
+  "credentials_destroyed_with_tmpfs": true
+}

@@ -1,0 +1,156 @@
+[
+  {
+    "file": "screenshots/01-portal-login.jpg",
+    "width": 1265,
+    "height": 712,
+    "sha256": "853dc1bea50989d3fe3ce8a5b08b9967916ef61ecba03ff1fe9acec5c5983a74",
+    "readable": true
+  },
+  {
+    "file": "screenshots/02-mdm-sso-projects.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "aad0cd9211f72f49968b5ba2d1939dd00ea1074ca5d7ed4ab3d9977006bbf2d2",
+    "readable": true
+  },
+  {
+    "file": "screenshots/03-mdm-pm-linked.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "8a390cc1eef876c1cc3e76da84d9907e1f421d83f55cf6acef188de15dd287a1",
+    "readable": true
+  },
+  {
+    "file": "screenshots/04-pm-project-linked.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "e6e1ae965afa2dca114afb2f38ace3c2a9ad0a98b6e3dc00d5bd7ccb0d420e70",
+    "readable": true
+  },
+  {
+    "file": "screenshots/05-signature-password-only.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "64267fee6ee464b7bce0a21f8478942b0771590bdc255c6e37eab2e061beaae5",
+    "readable": true
+  },
+  {
+    "file": "screenshots/06-signature-cancelled.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "f8fa53d69a8cd1c5ca7c67466d410527c31853404e5525f41708fd405c8927cf",
+    "readable": true
+  },
+  {
+    "file": "screenshots/07-wrong-password-rejected.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "43d078a21923247e291ce097592e840f815e7bee9e909f89b779e0d36e2554e9",
+    "readable": true
+  },
+  {
+    "file": "screenshots/08-wrong-password-visible.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "b0d70688f5dcd43ed833bd252719fc70fce61e00e3284005a513d53794595496",
+    "readable": true
+  },
+  {
+    "file": "screenshots/09-wrong-password-response.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "ff11a9f2d3301b570ef5e0178b091023380cf40a9ecffd20784d070f9373b0a4",
+    "readable": true
+  },
+  {
+    "file": "screenshots/10-wrong-password-readable.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "c82d6182960ec5b48f4809374c4b8ad4259bfd268e676456c72c5de42e4b4ace",
+    "readable": true
+  },
+  {
+    "file": "screenshots/11-expired-challenge.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "f4e2414b508537ee0bb79c67e489b939e0d4ddd57d95b285b220ccbac9b73cd5",
+    "readable": true
+  },
+  {
+    "file": "screenshots/12-fresh-password-authenticated.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "649d17c9b39b213faf4a450c0a738bd6066e75251b4519f44edd3822079058a0",
+    "readable": true
+  },
+  {
+    "file": "screenshots/13-project-signed-history.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "b27251f60b3fda45749bb2f0af8c4aaa117d01faab784a2dd4e1a8f858c0cd95",
+    "readable": true
+  },
+  {
+    "file": "screenshots/14-project-sign-audit.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "d64223c161c9759c1a29e4801bda6fdb63ebb28f6848caf92f0d9bd602aa1b6e",
+    "readable": true
+  },
+  {
+    "file": "screenshots/15-signature-direct-audit-id.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "7f761d94c9d00e996f3bb92f06936853d1fcbe87cb96727ad143f5783d2d4828",
+    "readable": true
+  },
+  {
+    "file": "screenshots/16-pm-after-restart.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "61238e15ef9e8baaecb811b6ad73c5daa75798069ceb7985af1eec25dfd7c0d9",
+    "readable": true
+  },
+  {
+    "file": "screenshots/17-signature-after-restart.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "8dfae83bf63d020b943120585070a49146fb9de01cab6815ffae15e0a57fc5cf",
+    "readable": true
+  },
+  {
+    "file": "screenshots/18-portal-logged-out.jpg",
+    "width": 1265,
+    "height": 712,
+    "sha256": "7f4c48b3fb31d323ccadd76fb5f230d5439af04b329399b9dc75b187078faea2",
+    "readable": true
+  },
+  {
+    "file": "screenshots/19-mdm-logged-out.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "4231cf0d64907f69c06958ba45367f8026e9bb6ef380592448ea9e30517a8eff",
+    "readable": true
+  },
+  {
+    "file": "screenshots/20-readonly-admin-data-denied.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "aae031719af1628acd96d19fd625f5c9ef39879a099d3e09a8232b79ae288e98",
+    "readable": true
+  },
+  {
+    "file": "screenshots/21-readonly-project-no-write.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "0ced8897adaae78c59f98f878f18e6e690a82e080d7bb8b3da55071906c2b4f8",
+    "readable": true
+  },
+  {
+    "file": "screenshots/22-mdm-local-logout.jpg",
+    "width": 1029,
+    "height": 884,
+    "sha256": "5fa43d1a578a5e2f21dc363525deff4a1c3d6e15784865a7cf16267c1c7fc531",
+    "readable": true
+  }
+]

@@ -1,0 +1,38 @@
+{
+  "status": "passed-with-evidence-limitations",
+  "completed_at_utc": "2026-11-05T05:45:21.916Z",
+  "synthetic_only": true,
+  "source_commits": {
+    "mdm": "818529e157733593c227e5db08724af857bb74b6",
+    "pm": "1b21df69f7dca0b3558db2de74e5045b6ba78163",
+    "iam": "72ebcb4d7c0aedecd7ca56a29fbb37b78c85c6c1"
+  },
+  "browser_covered": [
+    "portal-password-login",
+    "portal-to-mdm-sso",
+    "create-mdm-project",
+    "create-and-link-pm-project",
+    "pm-project-display",
+    "same-display-name-independent-roles",
+    "signature-cancel",
+    "wrong-password-rejection",
+    "challenge-natural-expiry",
+    "fresh-password-authentication",
+    "explicit-signature-confirmation",
+    "project-state-history",
+    "sign-audit-display",
+    "signature-direct-audit-id",
+    "app-process-restart-persistence",
+    "pm-product-logout-portal-mdm-session-revocation",
+    "readonly-role-no-write-controls",
+    "readonly-signature-api-403",
+    "mdm-local-logout"
+  ],
+  "limitations": [
+    "wrong-password DOM rejection was observed but transient error was not legible in saved outer-page screenshots",
+    "cross-subject/replay/content-change/commit-failure cases covered in real-database integration tests, not rerun as browser attacks in this round",
+    "restart covered app processes, not PostgreSQL or IdP restart",
+    "no Maibo or real-user acceptance; no legal/compliance certification"
+  ],
+  "ordinary_ui_fallback": "documented CDP mouse input after iframe locator stale-target errors; no page scripts, paused requests, storage or authentication state modified"
+}
