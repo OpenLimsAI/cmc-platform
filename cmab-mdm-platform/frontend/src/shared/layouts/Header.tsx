@@ -1,5 +1,5 @@
-import { Layout, Button, Dropdown, Space, message, theme, Modal } from 'antd';
-import { UserOutlined, LogoutOutlined, KeyOutlined, BellOutlined, SettingOutlined } from '@ant-design/icons';
+import { Layout, Dropdown, message, theme, Modal } from 'antd';
+import { UserOutlined, LogoutOutlined, KeyOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
@@ -10,6 +10,7 @@ import { completeOidcLogout } from '@/shared/oidcPolicy';
 import { withBase } from '@/shared/base';
 import { AccountIdentity } from './AccountIdentity';
 import { ApplicationBrand } from './ApplicationBrand';
+import { ApplicationActions } from './ApplicationActions';
 import './accountIdentity.css';
 import './applicationBrand.css';
 
@@ -75,6 +76,7 @@ export function Header() {
         onClick: () => navigate('/profile/password'),
       }] : []),
       { type: 'divider' as const },
+      { key: 'logout-local', icon: <LogoutOutlined />, label: '退出本应用', onClick: () => { void handleLogout(); } },
       ...(authMode === 'oidc' ? [{ key: 'logout-global', icon: <LogoutOutlined />, label: '退出统一身份及各应用',
         onClick: () => Modal.confirm({ title: '退出统一身份及已接入应用', content: '将注销 Casdoor，并通过受验证的回调令 MDM、PM、门户会话失效。原生密码登录和未接入应用不属于此统一注销范围。', okText: '统一退出', cancelText: '取消', onOk: () => handleLogout(true) }) }] : []),
     ],
@@ -82,6 +84,7 @@ export function Header() {
 
   return (
     <AntHeader
+      className="mdm-header"
       style={{
         position: 'sticky',
         top: 0,
@@ -89,7 +92,7 @@ export function Header() {
         height: 56,
         lineHeight: '56px',
         padding: '0 20px',
-        background: '#fff',
+        background: token.colorBgContainer,
         borderBottom: `1px solid ${token.colorBorderSecondary}`,
         display: 'flex',
         justifyContent: 'space-between',
@@ -98,21 +101,17 @@ export function Header() {
     >
       <ApplicationBrand />
 
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+      <div className="mdm-header-search">
         <GlobalSearchBox />
       </div>
 
-      <Space size="large">
-        <BellOutlined style={{ fontSize: 18, color: token.colorTextSecondary, cursor: 'pointer' }} />
+      <ApplicationActions>
         <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
           <button type="button" className="mdm-account-trigger" aria-label="我的账号">
             <AccountIdentity user={user} />
           </button>
         </Dropdown>
-        <Button type="text" icon={<LogoutOutlined />} title="退出本应用" onClick={() => { void handleLogout(); }}>
-          登出
-        </Button>
-      </Space>
+      </ApplicationActions>
     </AntHeader>
   );
 }
