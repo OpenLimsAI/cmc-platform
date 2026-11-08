@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Layout, Modal, Typography } from 'antd';
+import { Button, Layout, Modal, Typography, theme } from 'antd';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -8,6 +8,7 @@ import { useSessionGuard } from '@/shared/useSessionGuard';
 import { useAuthStore } from '@/stores/authStore';
 
 export function MainLayout() {
+  const { token } = theme.useToken();
   // 会话守卫：空闲超时自动登出 + 通行证快到期静默续期 + 多标签页同步
   const retrySession = useSessionGuard();
   const unavailable = useAuthStore((s) => s.authMode === 'oidc' && s.oidcVerificationUnavailable);
@@ -33,7 +34,7 @@ export function MainLayout() {
           <Layout.Content
             style={{
               padding: 24,
-              background: '#f5f5f5',
+              background: token.colorBgLayout,
               flex: 1,
               overflowY: 'auto', // 仅内容区随滚轮滚动
             }}
@@ -44,10 +45,10 @@ export function MainLayout() {
             style={{
               padding: '6px 24px',
               fontSize: 12,
-              background: '#fafafa',
-              borderTop: '1px solid #f0f0f0',
+              background: token.colorBgContainer,
+              borderTop: `1px solid ${token.colorBorderSecondary}`,
               textAlign: 'center',
-              color: '#8c8c8c',
+              color: token.colorTextSecondary,
             }}
           >
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>

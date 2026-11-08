@@ -1,0 +1,44 @@
+.mdm-header { gap: 16px; }
+.mdm-header-search { flex: 1; min-width: 0; display: flex; justify-content: center; }
+.mdm-application-actions { display: flex; align-items: center; flex: none; gap: 10px; min-width: 0; line-height: 1.3; }
+.mdm-header-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 6px 10px; border: 1px solid #d2e3e7; border-radius: 7px; color: #08616c; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.mdm-header-link svg { flex: none; }
+.mdm-feedback-link:hover { color: #08616c; border-color: #91bdc6; background: #e7f3f3; }
+.mdm-workbench-link { color: #fff; border-color: #08778f; background: #08778f; }
+.mdm-workbench-link:hover { color: #fff; border-color: #065b70; background: #065b70; }
+.mdm-header-divider { width: 1px; height: 26px; background: #d2e3e7; margin-inline: 2px; }
+.mdm-theme-toggle { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; flex: none; color: #5b747a; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.mdm-theme-toggle:hover { color: #08616c; background: #e7f3f3; }
+.mdm-header-link:focus-visible, .mdm-theme-toggle:focus-visible { outline: 2px solid #08778f; outline-offset: 3px; }
+.mdm-application-actions .mdm-account-trigger { padding: 2px; }
+.mdm-application-actions .mdm-account-avatar { flex-basis: 32px; height: 32px; color: #08616c; border: 1px solid #d2e3e7; background: #e7f3f3; }
+.mdm-application-actions .mdm-account-copy { max-width: 120px; }
+.mdm-application-actions .mdm-account-name { color: #18373e; font-weight: 600; }
+.mdm-application-actions .mdm-account-role { display: none; }
+html[data-mdm-theme="dark"] .mdm-header-link { color: #b0e5e7; border-color: #36565c; }
+html[data-mdm-theme="dark"] .mdm-feedback-link:hover { background: #183b43; }
+html[data-mdm-theme="dark"] .mdm-workbench-link { color: #fff; border-color: #08778f; }
+html[data-mdm-theme="dark"] .mdm-workbench-link:hover { border-color: #065b70; }
+html[data-mdm-theme="dark"] .mdm-theme-toggle { color: #bed4d8; }
+html[data-mdm-theme="dark"] .mdm-theme-toggle:hover { color: #e6f3f5; background: #183b43; }
+html[data-mdm-theme="dark"] .mdm-header-divider { background: #36565c; }
+html[data-mdm-theme="dark"] .mdm-account-trigger:hover { background: #183b43; }
+html[data-mdm-theme="dark"] .mdm-application-actions .mdm-account-name,
+html[data-mdm-theme="dark"] .mdm-app-brand-title { color: #e6f3f5; }
+html[data-mdm-theme="dark"] .mdm-app-brand-subtitle { color: #bed4d8; }
+html[data-mdm-theme="dark"] body { color: #e6f3f5; background: #141414; }
+@media (max-width: 1050px) { .mdm-header-search { display: none; } }
+@media (max-width: 640px) {
+  .mdm-header { gap: 8px; padding-inline: 12px !important; }
+  .mdm-header .mdm-app-brand { min-width: 0; }
+  .mdm-header .mdm-app-brand-copy, .mdm-application-actions .mdm-account-copy { display: none; }
+  .mdm-application-actions { gap: 6px; }
+  .mdm-header-link { padding-inline: 8px; }
+  .mdm-header-divider { margin-inline: 0; }
+}
+@media (max-width: 350px) {
+  .mdm-header .mdm-app-brand { display: none; }
+  .mdm-application-actions { flex: 1; justify-content: flex-end; gap: 5px; }
+  .mdm-header-link { padding-inline: 6px; font-size: 12px; }
+  .mdm-theme-toggle { width: 30px; height: 32px; }
+}
