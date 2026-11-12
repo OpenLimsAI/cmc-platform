@@ -12,6 +12,8 @@ import { nativeLoginSelected, oidcErrorNotice, safeAuthReturnTo, shouldAutoStart
 import { withBase } from '@/shared/base';
 import { passwordChangeText } from '@/shared/passwordChangeText';
 import { authCopy } from '@/shared/authCopy';
+import { Database } from 'lucide-react';
+import '@/shared/layouts/applicationBrand.css';
 
 // 被会话守卫踢回登录页时的说明（?reason=idle|expired）
 const REASON_NOTICE: Record<string, string> = {
@@ -82,25 +84,16 @@ export function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%)',
-        padding: 24,
-      }}
-    >
-      <div style={{ marginBottom: 40, textAlign: 'center' }}>
-        <Title level={1} style={{ color: '#fff', marginBottom: 8 }}>
+    <div className="mdm-login">
+      <div className="mdm-login-brand">
+        <span className="mdm-app-mark"><Database size={27} strokeWidth={1.7} aria-hidden="true" /></span>
+        <Title level={2} style={{ margin: 0 }}>
           {authCopy.productTitle}
         </Title>
-        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16 }}>{authCopy.subtitle}</Text>
+        <Text className="mdm-login-caption">{authCopy.subtitle}</Text>
       </div>
 
-      <Card style={{ width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+      <Card className="mdm-login-card">
         <Title level={3} style={{ marginTop: 0, marginBottom: 24, textAlign: 'center' }}>
           {native ? authCopy.nativeHeading : authCopy.loginHeading}
         </Title>
@@ -145,14 +138,14 @@ export function LoginPage() {
             </Button>
           </Form.Item>
 
-          <div style={{ textAlign: 'center', color: '#8c8c8c', fontSize: 13 }}>
+          <div className="mdm-login-caption" style={{ textAlign: 'center', fontSize: 13 }}>
             忘记密码？请联系系统管理员
           </div>
         </Form>}
         {!oidcEnabled && !nativeEnabled && <Alert type="warning" message="统一身份暂不可用，请联系管理员；此环境未启用其他登录方式。" />}
       </Card>
 
-      <div style={{ marginTop: 32, color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
+      <div className="mdm-login-footer">
         © 2026 CMAB · 系统版本 {APP_VERSION} · 内部系统
       </div>
     </div>

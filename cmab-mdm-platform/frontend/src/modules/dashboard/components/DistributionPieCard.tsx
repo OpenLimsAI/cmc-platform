@@ -1,4 +1,5 @@
 import { Card, Empty, Typography } from 'antd';
+import { useApplicationTheme } from '@/shared/applicationThemeContext';
 import ReactECharts from 'echarts-for-react';
 import type { DistributionItem } from '@/api/types';
 
@@ -16,8 +17,8 @@ interface Props {
 }
 
 const FALLBACK_COLORS = [
-  '#1F4E79', '#2E75B6', '#52C41A', '#FAAD14', '#F5222D',
-  '#722ED1', '#13C2C2', '#EB2F96', '#A0D911', '#FA8C16',
+  '#1e466b', '#67baf4', '#3b7ea8', '#536c80', '#90b9d4',
+  '#36617f', '#a7cde7', '#1b5b89', '#719bb9', '#c1ddee',
 ];
 
 function colorOf(key: string, idx: number, colorMap?: Record<string, string>): string {
@@ -31,6 +32,7 @@ export function DistributionPieCard({
   colorMap,
   variant = 'pie',
 }: Props) {
+  const { dark } = useApplicationTheme();
   const filtered = data.filter((d) => d.count > 0);
 
   if (filtered.length === 0) {
@@ -49,6 +51,7 @@ export function DistributionPieCard({
   let option: object;
   if (variant === 'bar') {
     option = {
+      backgroundColor: 'transparent',
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       grid: { left: 90, right: 30, top: 10, bottom: 30 },
       xAxis: { type: 'value', minInterval: 1 },
@@ -71,6 +74,7 @@ export function DistributionPieCard({
     };
   } else {
     option = {
+      backgroundColor: 'transparent',
       tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
       legend: { bottom: 0, type: 'scroll' },
       series: [
@@ -95,7 +99,7 @@ export function DistributionPieCard({
       style={{ height: '100%' }}
       extra={<Text type="secondary">共 {filtered.reduce((s, d) => s + d.count, 0)} 条</Text>}
     >
-      <ReactECharts option={option} style={{ height: 280 }} />
+      <ReactECharts theme={dark ? 'dark' : undefined} option={option} style={{ height: 280 }} />
     </Card>
   );
 }

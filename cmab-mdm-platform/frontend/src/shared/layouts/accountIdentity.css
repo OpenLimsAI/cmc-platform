@@ -7,8 +7,8 @@
   font: inherit;
   line-height: 1.3;
 }
-.mdm-account-trigger:hover { background: #f1f5f9; }
-.mdm-account-trigger:focus-visible { outline: 2px solid #39739a; outline-offset: 2px; }
+.mdm-account-trigger:hover { background: var(--mdm-soft); }
+.mdm-account-trigger:focus-visible { outline: 2px solid var(--mdm-accent); outline-offset: 2px; }
 .mdm-account-identity { display: flex; align-items: center; gap: 8px; }
 .mdm-account-avatar {
   display: grid;
@@ -16,11 +16,11 @@
   flex: 0 0 30px;
   height: 30px;
   border-radius: 50%;
-  background: #e8eff5;
-  color: #275b7b;
+  background: var(--mdm-soft);
+  color: var(--mdm-accent);
   font-size: 13px;
   font-weight: 600;
 }
 .mdm-account-copy { display: flex; flex-direction: column; text-align: left; gap: 3px; max-width: 260px; }
-.mdm-account-name { color: #172b3a; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mdm-account-role { color: #64748b; font-size: 12px; }
+.mdm-account-name { color: var(--mdm-ink); font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdm-account-role { color: var(--mdm-muted); font-size: 12px; }

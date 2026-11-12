@@ -19,9 +19,9 @@ const PATH_MAP = {
 export function EntityCodeLink({ type, code, name, withName }: EntityCodeLinkProps) {
   const href = `/${PATH_MAP[type]}/${encodeURIComponent(code)}`;
   return (
-    <Link to={href} style={{ color: '#1F4E79', fontWeight: 500 }}>
+    <Link to={href} style={{ color: 'var(--mdm-accent)', fontWeight: 500 }}>
       {code}
-      {withName && name ? <span style={{ marginLeft: 8, color: '#262626' }}>{name}</span> : null}
+      {withName && name ? <span style={{ marginLeft: 8, color: 'var(--mdm-ink)' }}>{name}</span> : null}
     </Link>
   );
 }

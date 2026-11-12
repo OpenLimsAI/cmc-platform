@@ -1,3 +1,30 @@
+:root {
+  --mdm-accent: #1e466b;
+  --mdm-highlight: #67baf4;
+  --mdm-accent-strong: #153a5b;
+  --mdm-line-strong: #a9c4da;
+  --mdm-ink: #0d0d0d;
+  --mdm-muted: #607184;
+  --mdm-canvas: #fafafa;
+  --mdm-surface: #ffffff;
+  --mdm-line: #e0e6ed;
+  --mdm-soft: #edf5fb;
+  --mdm-mark: #1e466b;
+}
+
+html[data-mdm-theme='dark'] {
+  --mdm-accent: #67baf4;
+  --mdm-accent-strong: #8acbfa;
+  --mdm-line-strong: #67869e;
+  --mdm-ink: #f2f6fa;
+  --mdm-muted: #b9cbdc;
+  --mdm-canvas: #0d1722;
+  --mdm-surface: #142536;
+  --mdm-line: #30475c;
+  --mdm-soft: #203e57;
+  --mdm-mark: #1e466b;
+}
+
 html,
 body,
 #root {
@@ -11,8 +38,8 @@ body {
     'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
-  color: #262626;
+  background-color: var(--mdm-canvas);
+  color: var(--mdm-ink);
 }
 
 * {
@@ -35,12 +62,12 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
+  background: #c5d3df;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #bfbfbf;
+  background: #9aafc2;
 }
 
 /* 工具类 */
@@ -51,7 +78,7 @@ a {
 }
 
 .text-secondary {
-  color: #595959;
+  color: var(--mdm-muted);
 }
 
 .text-disabled {
@@ -80,6 +107,65 @@ a {
   align-items: center;
   justify-content: center;
   height: 100vh;
+}
+
+.mdm-sidebar .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}
+
+.mdm-sidebar .ant-menu {
+  padding: 14px 10px;
+}
+
+.mdm-sidebar .ant-menu-item-selected {
+  font-weight: 600;
+}
+
+.ant-card {
+  box-shadow: 0 2px 10px rgba(30, 70, 107, 0.025);
+}
+
+.mdm-login {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 32px 20px;
+  background: var(--mdm-canvas);
+}
+
+.mdm-login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.mdm-login-brand .mdm-app-mark {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border-radius: 13px;
+}
+
+.mdm-login-card {
+  width: min(420px, 100%);
+  border-color: var(--mdm-line);
+  box-shadow: 0 12px 38px rgba(30, 70, 107, 0.055);
+}
+
+.mdm-login-caption,
+.mdm-login-footer {
+  color: var(--mdm-muted);
+}
+
+.mdm-login-footer {
+  font-size: 12px;
+  text-align: center;
 }
 
 /* ============== Antd Form 字段级错误视觉强化 ==============

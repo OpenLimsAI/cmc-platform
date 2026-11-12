@@ -33,7 +33,7 @@ export function MainLayout() {
         <Layout style={{ overflow: 'hidden' }}>
           <Layout.Content
             style={{
-              padding: 24,
+              padding: 22,
               background: token.colorBgLayout,
               flex: 1,
               overflowY: 'auto', // 仅内容区随滚轮滚动
