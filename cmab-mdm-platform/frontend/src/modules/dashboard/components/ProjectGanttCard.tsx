@@ -1,5 +1,6 @@
 import { Card, Empty, Tag, Tooltip, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
+import { useApplicationTheme } from '@/shared/applicationThemeContext';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import type { GanttProject } from '@/api/types';
@@ -8,7 +9,7 @@ const { Text } = Typography;
 
 const STATUS_COLOR: Record<string, string> = {
   proposed: '#8c8c8c',
-  initiated: '#1F4E79',
+  initiated: '#1e466b',
   active: '#52C41A',
   on_hold: '#FAAD14',
   completed: '#13C2C2',
@@ -45,6 +46,7 @@ interface RenderApi {
 
 export function ProjectGanttCard({ projects }: Props) {
   const navigate = useNavigate();
+  const { dark } = useApplicationTheme();
 
   if (projects.length === 0) {
     return (
@@ -108,11 +110,12 @@ export function ProjectGanttCard({ projects }: Props) {
     return {
       type: 'rect',
       shape: rectShape,
-      style: api.style({ fill: STATUS_COLOR[status] ?? '#1F4E79' }),
+      style: api.style({ fill: STATUS_COLOR[status] ?? '#1e466b' }),
     };
   };
 
   const option = {
+    backgroundColor: 'transparent',
     tooltip: {
       formatter: (p: { seriesType: string; data?: unknown[]; value: unknown[] }) => {
         if (p.seriesType === 'custom') {
@@ -184,6 +187,7 @@ export function ProjectGanttCard({ projects }: Props) {
       }
     >
       <ReactECharts
+        theme={dark ? 'dark' : undefined}
         option={option}
         style={{ height: Math.max(220, projects.length * 38 + 80) }}
         onEvents={{ click: onClick }}

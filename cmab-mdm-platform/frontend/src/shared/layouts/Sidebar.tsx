@@ -150,9 +150,10 @@ export function Sidebar() {
 
   return (
     <Sider
+      className="mdm-sidebar"
       width={220}
       style={{
-        background: '#fff',
+        background: token.colorBgContainer,
         borderRight: `1px solid ${token.colorBorderSecondary}`,
         display: 'flex',
         flexDirection: 'column',
@@ -171,9 +172,9 @@ export function Sidebar() {
       <div
         style={{
           padding: '8px 12px',
-          borderTop: '1px solid #f0f0f0',
+          borderTop: `1px solid ${token.colorBorderSecondary}`,
           fontSize: 12,
-          color: '#8c8c8c',
+          color: token.colorTextSecondary,
         }}
       >
         <div style={{ marginBottom: 4 }}>

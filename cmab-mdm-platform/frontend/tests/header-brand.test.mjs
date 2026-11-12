@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { buildSync } = require(createRequire(require.resolve('vite')).resolve('esbuild'));
 mkdirSync('/tmp/mdm-brand-tests', { recursive: true });
@@ -14,17 +14,17 @@ export function renderBrand() { return renderToStaticMarkup(<ApplicationBrand/>)
   bundle: true, platform: 'node', format: 'cjs', jsx: 'automatic', logLevel: 'silent' });
 const { renderBrand } = require('/tmp/mdm-brand-tests/brand.cjs');
 
-test('the application brand uses the company identity and main-data subtitle', () => {
+test('the application brand identifies the Maibo main-data workspace', () => {
   const html = renderBrand();
-  assert.match(html, />MBERP</);
-  assert.match(html, /迈博药业 · 主数据/);
-  assert.match(html, /alt="迈博药业"/);
+  assert.match(html, /aria-label="迈博主数据管理"/);
+  assert.match(html, />主数据管理</);
+  assert.match(html, /MASTER DATA STUDIO/);
   assert.doesNotMatch(html, /CMAB MDM Portal|favicon\.svg/);
 });
 
-test('the logo stays under the MDM base path and is an available PNG asset', () => {
-  assert.match(renderBrand(), /src="\/mdm\/brand\/maibo-pharma-logo\.png"/);
-  const bytes = readFileSync('/app/public/brand/maibo-pharma-logo.png');
-  assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
-  assert.ok(bytes.length > 1000);
+test('the application mark is decorative and does not introduce a second navigation target', () => {
+  const html = renderBrand();
+  assert.match(html, /class="mdm-app-mark"/);
+  assert.match(html, /<svg[^>]*aria-hidden="true"/);
+  assert.doesNotMatch(html, /<a\b|<button\b/);
 });

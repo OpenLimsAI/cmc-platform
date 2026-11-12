@@ -1,12 +1,12 @@
-import { withBase } from '@/shared/base';
+import { Database } from 'lucide-react';
 
-/** Shared company identity; application-specific copy mirrors the PM workbench. */
+/** Application identity uses the shared Maibo workspace visual language. */
 export function ApplicationBrand() {
-  return <div className="mdm-app-brand">
-    <img src={withBase('/brand/maibo-pharma-logo.png')} alt="迈博药业" width={34} height={34} />
+  return <div className="mdm-app-brand" aria-label="迈博主数据管理">
+    <span className="mdm-app-mark"><Database size={22} strokeWidth={1.7} aria-hidden="true" /></span>
     <div className="mdm-app-brand-copy">
-      <div className="mdm-app-brand-title">MBERP</div>
-      <div className="mdm-app-brand-subtitle">迈博药业 · 主数据</div>
+      <div className="mdm-app-brand-title">主数据管理</div>
+      <div className="mdm-app-brand-subtitle">MASTER DATA STUDIO</div>
     </div>
   </div>;
 }
