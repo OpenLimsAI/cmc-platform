@@ -23,21 +23,7 @@
 .mdm-workbench-link { color: #fff; border-color: var(--mdm-mark); background: var(--mdm-mark); font-weight: 600; }
 .mdm-workbench-link:hover { color: #fff; border-color: #153a5b; background: #153a5b; }
 .mdm-header-divider { width: 1px; height: 26px; background: var(--mdm-line); margin-inline: 2px; }
-.mdm-theme-toggle {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  flex: none;
-  color: var(--mdm-muted);
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-}
-.mdm-theme-toggle:hover { color: var(--mdm-accent); background: var(--mdm-soft); }
-.mdm-header-link:focus-visible, .mdm-theme-toggle:focus-visible { outline: 2px solid var(--mdm-accent); outline-offset: 3px; }
+.mdm-header-link:focus-visible { outline: 2px solid var(--mdm-accent); outline-offset: 3px; }
 .mdm-application-actions .mdm-account-trigger { padding: 2px; }
 .mdm-application-actions .mdm-account-avatar { flex-basis: 30px; height: 30px; color: var(--mdm-accent); border: 1px solid var(--mdm-line); background: var(--mdm-soft); }
 .mdm-application-actions .mdm-account-copy { max-width: 120px; }
@@ -56,5 +42,4 @@
   .mdm-header .mdm-app-brand { display: none; }
   .mdm-application-actions { flex: 1; justify-content: flex-end; gap: 5px; }
   .mdm-header-link { padding-inline: 6px; font-size: 12px; }
-  .mdm-theme-toggle { width: 30px; height: 32px; }
 }

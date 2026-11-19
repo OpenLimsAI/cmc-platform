@@ -1,6 +1,5 @@
 import { Card, Empty, Tag, Tooltip, Typography } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import { useApplicationTheme } from '@/shared/applicationThemeContext';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import type { GanttProject } from '@/api/types';
@@ -46,7 +45,6 @@ interface RenderApi {
 
 export function ProjectGanttCard({ projects }: Props) {
   const navigate = useNavigate();
-  const { dark } = useApplicationTheme();
 
   if (projects.length === 0) {
     return (
@@ -187,7 +185,6 @@ export function ProjectGanttCard({ projects }: Props) {
       }
     >
       <ReactECharts
-        theme={dark ? 'dark' : undefined}
         option={option}
         style={{ height: Math.max(220, projects.length * 38 + 80) }}
         onEvents={{ click: onClick }}

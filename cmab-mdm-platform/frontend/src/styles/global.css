@@ -1,4 +1,5 @@
 :root {
+  color-scheme: only light;
   --mdm-accent: #1e466b;
   --mdm-highlight: #67baf4;
   --mdm-accent-strong: #153a5b;
@@ -9,19 +10,6 @@
   --mdm-surface: #ffffff;
   --mdm-line: #e0e6ed;
   --mdm-soft: #edf5fb;
-  --mdm-mark: #1e466b;
-}
-
-html[data-mdm-theme='dark'] {
-  --mdm-accent: #67baf4;
-  --mdm-accent-strong: #8acbfa;
-  --mdm-line-strong: #67869e;
-  --mdm-ink: #f2f6fa;
-  --mdm-muted: #b9cbdc;
-  --mdm-canvas: #0d1722;
-  --mdm-surface: #142536;
-  --mdm-line: #30475c;
-  --mdm-soft: #203e57;
   --mdm-mark: #1e466b;
 }
 

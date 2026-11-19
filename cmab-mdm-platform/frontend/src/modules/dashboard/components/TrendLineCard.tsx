@@ -1,5 +1,4 @@
 import { Card, Empty, theme } from 'antd';
-import { useApplicationTheme } from '@/shared/applicationThemeContext';
 import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import type { DashboardSummary } from '@/api/types';
@@ -18,7 +17,6 @@ const SERIES_META: { key: keyof DashboardSummary['trend_30d']; name: string; col
 ];
 
 export function TrendLineCard({ trend }: Props) {
-  const { dark } = useApplicationTheme();
   const { token } = theme.useToken();
   // x 轴用第一个 series 的日期序列（4 域日期对齐）
   // 2026-09-10：按读权限裁剪后 trend 只含可见域，只画有的；x 轴取第一个有的域
@@ -62,7 +60,7 @@ export function TrendLineCard({ trend }: Props) {
 
   return (
     <Card title="近 30 天新增趋势" extra={<span style={{ color: token.colorTextSecondary }}>共新增 {totalNew} 条</span>}>
-      <ReactECharts theme={dark ? 'dark' : undefined} option={option} style={{ height: 320 }} />
+      <ReactECharts option={option} style={{ height: 320 }} />
     </Card>
   );
 }
