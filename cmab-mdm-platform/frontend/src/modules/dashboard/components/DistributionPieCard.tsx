@@ -1,5 +1,4 @@
 import { Card, Empty, Typography } from 'antd';
-import { useApplicationTheme } from '@/shared/applicationThemeContext';
 import ReactECharts from 'echarts-for-react';
 import type { DistributionItem } from '@/api/types';
 
@@ -32,7 +31,6 @@ export function DistributionPieCard({
   colorMap,
   variant = 'pie',
 }: Props) {
-  const { dark } = useApplicationTheme();
   const filtered = data.filter((d) => d.count > 0);
 
   if (filtered.length === 0) {
@@ -99,7 +97,7 @@ export function DistributionPieCard({
       style={{ height: '100%' }}
       extra={<Text type="secondary">共 {filtered.reduce((s, d) => s + d.count, 0)} 条</Text>}
     >
-      <ReactECharts theme={dark ? 'dark' : undefined} option={option} style={{ height: 280 }} />
+      <ReactECharts option={option} style={{ height: 280 }} />
     </Card>
   );
 }
