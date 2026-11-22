@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 import os
 from dataclasses import dataclass, field
 from typing import Optional
@@ -16,11 +17,84 @@ import httpx
 from fastapi import Depends, Header, HTTPException
 from jose import JWTError, jwt
 
-MDM_SECRET_KEY = os.getenv(
-    "MDM_SECRET_KEY",
-    "dev-secret-key-CHANGE-ME-IN-PRODUCTION-please-32-chars",
+DEV_DEFAULT_MDM_SECRET_KEY = "dev-secret-key-CHANGE-ME-IN-PRODUCTION-please-32-chars"
+_INSECURE_SECRET_MARKERS = (
+    "change-me",
+    "change_me",
+    "dev-secret",
+    "__redacted",
+    "placeholder",
+    "default-secret",
 )
-MDM_JWT_ALGORITHM = os.getenv("MDM_JWT_ALGORITHM", "HS256")
+_TRUTHY_VALUES = frozenset({"1", "true", "yes", "on"})
+
+
+def is_production_env(environ: Mapping[str, str] | None = None) -> bool:
+    """判断当前是否处于生产环境（APP_ENV=production 或 CMC_ENV=production）。"""
+    source = os.environ if environ is None else environ
+    for key in ("APP_ENV", "CMC_ENV"):
+        if source.get(key, "").strip().lower() == "production":
+            return True
+    return False
+
+
+def resolve_mdm_signing_config(environ: Mapping[str, str] | None = None) -> tuple[str, str]:
+    """解析并校验 JWT 验签配置；生产环境下缺失或使用弱默认密钥时立即 fail-closed。"""
+    source = os.environ if environ is None else environ
+    algorithm = source.get("MDM_JWT_ALGORITHM", "HS256").strip() or "HS256"
+    if algorithm not in {"HS256", "RS256"}:
+        raise RuntimeError(f"安全配置错误：不支持的 MDM_JWT_ALGORITHM={algorithm!r}")
+
+    raw_secret = source.get("MDM_SECRET_KEY")
+    if is_production_env(source):
+        secret = (raw_secret or "").strip()
+        lowered = secret.lower()
+        if (
+            not secret
+            or len(secret) < 32
+            or secret == DEV_DEFAULT_MDM_SECRET_KEY
+            or any(marker in lowered for marker in _INSECURE_SECRET_MARKERS)
+        ):
+            raise RuntimeError(
+                "安全配置错误：生产环境（APP_ENV/CMC_ENV=production）必须显式配置高强度 "
+                "MDM_SECRET_KEY（至少 32 字符，禁止缺省或使用开发默认密钥）"
+            )
+        return secret, algorithm
+
+    return (raw_secret if raw_secret else DEV_DEFAULT_MDM_SECRET_KEY), algorithm
+
+
+def validate_auth_startup(environ: Mapping[str, str] | None = None) -> None:
+    """应用启动与请求验签前的安全基线检查。"""
+    resolve_mdm_signing_config(environ)
+
+
+def is_legacy_password_proxy_disabled(environ: Mapping[str, str] | None = None) -> bool:
+    """判断是否已禁用向 MDM 转发用户明文账号密码（启用 OIDC / oidc_fresh 后开启）。"""
+    source = os.environ if environ is None else environ
+    if source.get("LABOPS_DISABLE_LEGACY_PASSWORD_PROXY", "").strip().lower() in _TRUTHY_VALUES:
+        return True
+    if source.get("LABOPS_SIGNATURE_MODE", "").strip().lower() == "oidc_fresh":
+        return True
+    return False
+
+
+def ensure_legacy_password_proxy_enabled(*, context: str = "login") -> None:
+    """当明文密码代理被停用时，在发起任何外部 HTTP 调用前直接拦截。"""
+    if not is_legacy_password_proxy_disabled():
+        return
+    if context == "reviewer":
+        raise HTTPException(
+            status_code=403,
+            detail="明文密码复核代理已停用，请使用统一身份二次认证（oidc_fresh）完成复核签名",
+        )
+    raise HTTPException(
+        status_code=403,
+        detail="明文密码代理登录已停用，请使用统一身份（Casdoor OIDC）登录",
+    )
+
+
+MDM_SECRET_KEY, MDM_JWT_ALGORITHM = resolve_mdm_signing_config()
 # 2026-09-10 负责人：LabOps 是实验室系统，只对部门以 TT / CMC 开头的员工开放（SYS_ADMIN 例外）。
 # 部门来自 MDM access token 的 department 字段（MDM 2026-09-10 起下发）。逗号分隔，不分大小写。
 LAB_DEPARTMENT_PREFIXES = tuple(
@@ -58,6 +132,7 @@ class CurrentUser:
 def get_current_user(
     authorization: Optional[str] = Header(default=None),
 ) -> CurrentUser:
+    secret_key, jwt_algorithm = resolve_mdm_signing_config()
     if not authorization:
         raise HTTPException(status_code=401, detail="未登录，请提供 Authorization: Bearer <token>")
 
@@ -66,7 +141,7 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Authorization 头格式错误")
 
     try:
-        payload = jwt.decode(parts[1], MDM_SECRET_KEY, algorithms=[MDM_JWT_ALGORITHM])
+        payload = jwt.decode(parts[1], secret_key, algorithms=[jwt_algorithm])
     except JWTError:
         raise HTTPException(status_code=401, detail="Token 无效或已过期，请重新登录")
 
@@ -117,7 +192,10 @@ def require_lab_member(current: CurrentUser = Depends(get_current_user)) -> Curr
 def verify_reviewer(username: str, password: str) -> CurrentUser:
     """用账号密码向 MDM 验证一个复核人身份,返回其 CurrentUser(含 roles)。
     用于双人复核电子签名:第二位库管员/管理员当场输入凭据证明本人。
+    当启用统一身份二次认证（LABOPS_DISABLE_LEGACY_PASSWORD_PROXY=true / oidc_fresh）时直接拦截。
     注意 httpx 须 trust_env=False(本机有 SOCKS 代理)。"""
+    secret_key, jwt_algorithm = resolve_mdm_signing_config()
+    ensure_legacy_password_proxy_enabled(context="reviewer")
     try:
         with httpx.Client(timeout=MDM_TIMEOUT, trust_env=False) as c:
             resp = c.post(
@@ -137,7 +215,7 @@ def verify_reviewer(username: str, password: str) -> CurrentUser:
     if not token:
         raise HTTPException(status_code=502, detail="复核认证返回异常")
     try:
-        claims = jwt.decode(token, MDM_SECRET_KEY, algorithms=[MDM_JWT_ALGORITHM])
+        claims = jwt.decode(token, secret_key, algorithms=[jwt_algorithm])
         return CurrentUser(
             user_id=int(claims["sub"]),
             username=claims.get("username", ""),

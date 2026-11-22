@@ -1,0 +1,28 @@
+{
+  "name": "@maibo/blue-edition",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MBERP Design System v2.0 (Swiss Clinical Precision) shared CSS tokens and Ant Design 5/6 theme preset for CMC Platform subsystems.",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./tokens.css": "./tokens.css",
+    "./antdTheme": "./antdTheme.ts"
+  },
+  "files": [
+    "tokens.css",
+    "antdTheme.ts",
+    "index.ts",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "antd": ">=5.0.0 <7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "antd": {
+      "optional": true
+    }
+  }
+}

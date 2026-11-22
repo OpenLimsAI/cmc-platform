@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI, Request, Depends
@@ -15,15 +16,23 @@ from routers import (
     admin_router, auth_router, batch, dashboard, equipment,
     intake, inventory, location, material, stock, storage,
 )
-from auth import get_current_user, require_lab_member
+from auth import get_current_user, require_lab_member, validate_auth_startup
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("cmc-labops")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    validate_auth_startup()
+    yield
+
 
 app = FastAPI(
     title="CMC LabOps Portal API",
     description="CMC 部门运营平台 — 物料库存(物料/批次/出入库/预警) + 仪器设备(台账/校验/维护/维修)",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

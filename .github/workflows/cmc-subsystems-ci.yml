@@ -1,0 +1,183 @@
+name: CMC Subsystems & Shared Packages CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmc-subsystems-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cmc-oidc-auth:
+    name: Shared Package cmc-oidc-auth (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: packages/cmc-oidc-auth/pyproject.toml
+      - name: Install cmc-oidc-auth and test dependencies
+        run: python -m pip install -e "./packages/cmc-oidc-auth[dev]"
+      - name: Run cmc-oidc-auth unit tests
+        run: pytest -v packages/cmc-oidc-auth
+
+  cmc-labops-backend:
+    name: cmc-labops Backend (pytest + PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: cmc-labops/backend/requirements-dev.txt
+      - name: Install cmc-labops backend dependencies
+        run: python -m pip install -r cmc-labops/backend/requirements-dev.txt
+      - name: Run cmc-labops pytest suite (including auth hardening & PG integration)
+        working-directory: cmc-labops/backend
+        env:
+          DATABASE_URL_TEST: postgresql://postgres@127.0.0.1:5432/postgres
+        run: pytest -v -rs tests
+
+  cmc-water-backend:
+    name: cmc-water-system-dashboard Backend (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Noto CJK font & uv
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          python -m pip install --no-cache-dir uv
+      - name: Sync locked dependencies
+        working-directory: cmc-water-system-dashboard/backend
+        run: uv sync --frozen
+      - name: Run cmc-water-system-dashboard pytest suite
+        working-directory: cmc-water-system-dashboard/backend
+        env:
+          PYTHONPATH: .:tests
+          JWT_VERIFY_KEY: isolated-water-ci-key-not-mdm-secret-000001
+          DATABASE_URL: postgresql+asyncpg://test:test@127.0.0.1:1/isolated
+          WATER_VIEW_ROLES: CMC_WATER_VIEWER,CMC_WATER_EXPORTER,SYS_ADMIN
+          WATER_EXPORT_ROLES: CMC_WATER_EXPORTER,SYS_ADMIN
+        run: |
+          if [ -f /usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc ]; then
+            export PNG_FONT_PATH=/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc
+          else
+            export PNG_FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+          fi
+          uv run pytest -v tests
+
+  cmc-monitor-backend:
+    name: cmc-platform-monitor Backend (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install uv and sync locked dependencies
+        working-directory: cmc-platform-monitor/backend
+        run: |
+          python -m pip install --no-cache-dir uv
+          uv sync --frozen
+      - name: Run cmc-platform-monitor pytest suite
+        working-directory: cmc-platform-monitor/backend
+        env:
+          PYTHONPATH: .:tests
+        run: uv run pytest -v tests
+
+  cmc-water-frontend:
+    name: cmc-water-system-dashboard & blue-edition Frontend (tsc + vite build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm and install dependencies
+        working-directory: cmc-water-system-dashboard/frontend
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Type-check @maibo/blue-edition shared package
+        working-directory: cmc-water-system-dashboard/frontend
+        run: pnpm exec tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler ../../packages/blue-edition/index.ts
+      - name: Type-check cmc-water-system-dashboard frontend
+        working-directory: cmc-water-system-dashboard/frontend
+        run: pnpm exec tsc --noEmit
+      - name: Build cmc-water-system-dashboard with VITE_BASE_PATH=/water/
+        working-directory: cmc-water-system-dashboard/frontend
+        env:
+          VITE_BASE_PATH: /water/
+        run: |
+          pnpm exec vite build
+          grep -q '/water/assets/' dist/index.html
+      - name: Run cmc-water-system-dashboard frontend unit tests
+        working-directory: cmc-water-system-dashboard/frontend
+        run: pnpm test
+
+  cmc-monitor-frontend:
+    name: cmc-platform-monitor Frontend (tsc + vite build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: cmc-platform-monitor/frontend/package-lock.json
+      - name: Install locked dependencies
+        working-directory: cmc-platform-monitor/frontend
+        run: npm ci
+      - name: Type-check cmc-platform-monitor frontend
+        working-directory: cmc-platform-monitor/frontend
+        run: npx tsc --noEmit
+      - name: Build cmc-platform-monitor with vite build
+        working-directory: cmc-platform-monitor/frontend
+        run: npx vite build
+      - name: Run cmc-platform-monitor frontend unit tests
+        working-directory: cmc-platform-monitor/frontend
+        run: npm test
+
+  cmc-water-containers:
+    name: cmc-water-system-dashboard Docker Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build hardened multi-stage frontend image
+        run: docker build --build-arg VITE_BASE_PATH=/water/ -f cmc-water-system-dashboard/frontend/Dockerfile cmc-water-system-dashboard/frontend
+      - name: Build hardened multi-stage backend image
+        run: docker build -f cmc-water-system-dashboard/backend/Dockerfile cmc-water-system-dashboard/backend
