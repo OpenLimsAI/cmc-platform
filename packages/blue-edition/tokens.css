@@ -1,0 +1,121 @@
+/* ==========================================================================
+   @maibo/blue-edition — MBERP Design System v2.0 (Swiss Clinical Precision)
+   适用范围：cmc-platform 各子系统 (MDM / Water / Ops / QAP / LIMS / USP / LabOps)
+   核心原则：90-8-2 冷灰白精密仪器外壳 · 1px 锐利微边框 · 6px/4px 几何圆角 · 数字等宽
+   ========================================================================== */
+
+:root {
+  color-scheme: only light;
+
+  /* ------------------------------------------------------------------------
+     1. 品牌与交互强调色（占比 <= 8%）
+     ------------------------------------------------------------------------ */
+  --workbench-brand: #1E466B;          /* 迈博深海蓝（主按钮、激活指示条、关键操作） */
+  --workbench-brand-strong: #153552;   /* 悬停/按压态深海蓝 */
+  --workbench-sky: #2563EB;            /* 信号蓝（焦点环与进度指示） */
+  --workbench-highlight: #3B82F6;      /* 次级交互高亮蓝 */
+  --workbench-soft: #EDF3F8;           /* 极浅蓝选中态底色 */
+  --workbench-on-brand: #FFFFFF;
+  --workbench-on-mark: #FFFFFF;
+  --workbench-on-sky: #1E466B;
+
+  /* ------------------------------------------------------------------------
+     2. 中性表面与文字层级（占比 >= 90%，消除泛白眩光）
+     ------------------------------------------------------------------------ */
+  --workbench-bg: #F6F8FA;             /* 全局底层画布（Cool Lab Slate） */
+  --workbench-panel: #FFFFFF;          /* 卡片 / 表格 / 侧栏工作面 */
+  --workbench-panel-soft: #F8FAFC;     /* 表头 / 工具栏次级底色 */
+  --workbench-ink: #0F172A;            /* 一级标题与关键数值 */
+  --workbench-text: #1E293B;           /* 正文与表单文字 */
+  --workbench-muted: #64748B;          /* 辅助标签与表头说明 */
+  --workbench-faint: #94A3B8;          /* 占位符与次级提示 */
+
+  /* ------------------------------------------------------------------------
+     3. 1px 锐利微边框体系（取代弥散阴影与厚重圆角）
+     ------------------------------------------------------------------------ */
+  --workbench-line: #D8E0E8;           /* 主容器与输入框 1px 边框 */
+  --workbench-line-subtle: #EEF2F6;    /* 表格行内细分割线 */
+  --workbench-line-strong: #94A3B8;    /* 悬停态加强边框 */
+  --workbench-border-width: 1px;
+
+  /* ------------------------------------------------------------------------
+     4. 几何尺度、圆角与阴影
+     ------------------------------------------------------------------------ */
+  --workbench-header-height: 56px;     /* 紧凑型统一顶栏高度 */
+  --workbench-radius: 6px;             /* 卡片 / 容器圆角 */
+  --workbench-radius-sm: 4px;          /* 按钮 / 输入框 / 徽章圆角 */
+  --workbench-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --workbench-shadow-elevated: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  /* ------------------------------------------------------------------------
+     5. 字体栈（禁止在 CMC 后台表单/导航/LIMS 台账中使用衬线体）
+     ------------------------------------------------------------------------ */
+  --font-ui: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* ------------------------------------------------------------------------
+     6. GxP 合规语义状态色（占比 <= 2%，高对比度）
+     ------------------------------------------------------------------------ */
+  --status-ok-fg: #166534;
+  --status-ok-bg: #ECFDF3;
+  --status-ok-dot: #16A34A;
+
+  --status-warn-fg: #92400E;
+  --status-warn-bg: #FFFBEB;
+  --status-warn-dot: #D97706;
+
+  --status-err-fg: #991B1B;
+  --status-err-bg: #FEF2F2;
+  --status-err-dot: #DC2626;
+
+  --status-info-fg: #1E466B;
+  --status-info-bg: #EDF3F8;
+  --status-info-dot: #2563EB;
+
+  /* ------------------------------------------------------------------------
+     7. CMC / MDM 子系统语义别名（兼容非 AntD 与既有 MDM 样式变量）
+     ------------------------------------------------------------------------ */
+  --cmc-primary: var(--workbench-brand);
+  --cmc-primary-hover: var(--workbench-brand-strong);
+  --cmc-info: var(--workbench-sky);
+  --cmc-canvas: var(--workbench-bg);
+  --cmc-surface: var(--workbench-panel);
+  --cmc-surface-alt: var(--workbench-panel-soft);
+  --cmc-border: var(--workbench-line);
+  --cmc-border-subtle: var(--workbench-line-subtle);
+  --cmc-ink: var(--workbench-ink);
+  --cmc-text: var(--workbench-text);
+  --cmc-muted: var(--workbench-muted);
+  --cmc-radius-card: var(--workbench-radius);
+  --cmc-radius-control: var(--workbench-radius-sm);
+
+  --mdm-accent: var(--workbench-brand);
+  --mdm-accent-strong: var(--workbench-brand-strong);
+  --mdm-highlight: var(--workbench-sky);
+  --mdm-canvas: var(--workbench-bg);
+  --mdm-surface: var(--workbench-panel);
+  --mdm-line: var(--workbench-line);
+  --mdm-line-strong: var(--workbench-line-strong);
+  --mdm-ink: var(--workbench-ink);
+  --mdm-muted: var(--workbench-muted);
+  --mdm-soft: var(--workbench-soft);
+}
+
+/* 全局数字等宽铁律：批号、电导率、TOC、pH、库存、日期、百分比严禁抖动错位 */
+.tnum,
+table td,
+table th,
+.ant-table td,
+.ant-table th,
+.ant-statistic-content-value,
+.ant-descriptions-item-content,
+.metric-value,
+.batch-code {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono-id {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}

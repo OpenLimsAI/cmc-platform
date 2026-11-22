@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from audit import get_request_ip, write_audit
 from auth import (
-    MDM_JWT_ALGORITHM,
-    MDM_SECRET_KEY,
     CurrentUser,
+    ensure_legacy_password_proxy_enabled,
     get_current_user,
+    resolve_mdm_signing_config,
 )
 from database import get_db
 from schemas import LoginRequest
@@ -57,7 +57,8 @@ def _user_from_token(token: str | None) -> CurrentUser | None:
     if not token:
         return None
     try:
-        claims = jwt.decode(token, MDM_SECRET_KEY, algorithms=[MDM_JWT_ALGORITHM])
+        secret_key, jwt_algorithm = resolve_mdm_signing_config()
+        claims = jwt.decode(token, secret_key, algorithms=[jwt_algorithm])
         return CurrentUser(
             user_id=int(claims["sub"]),
             username=claims.get("username", ""),
@@ -78,7 +79,10 @@ def login(
     db: Session = Depends(get_db),
 ):
     """代理 MDM 登录，返回 JWT access_token；并把 MDM 下发的 refresh Cookie
-    中转为 LabOps 域的 HttpOnly Cookie，供后续 /auth/refresh 无感续期。"""
+    中转为 LabOps 域的 HttpOnly Cookie，供后续 /auth/refresh 无感续期。
+    当启用 LABOPS_DISABLE_LEGACY_PASSWORD_PROXY=true / oidc_fresh 时直接拦截明文密码转发。"""
+    resolve_mdm_signing_config()
+    ensure_legacy_password_proxy_enabled(context="login")
     try:
         with httpx.Client(timeout=MDM_TIMEOUT, trust_env=False) as c:
             resp = c.post(
