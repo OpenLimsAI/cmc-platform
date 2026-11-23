@@ -216,7 +216,7 @@ jobs:
         working-directory: cmc-rd-lims-dashboard/frontend
         run: |
           corepack enable
-          corepack prepare pnpm@9.15.0 --activate
+          corepack prepare pnpm@10.10.0 --activate
           pnpm install --frozen-lockfile
       - name: Generate Next.js route types and type-check cmc-rd-lims-dashboard frontend
         working-directory: cmc-rd-lims-dashboard/frontend
