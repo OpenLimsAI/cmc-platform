@@ -18,6 +18,14 @@ from fastapi import Depends, Header, HTTPException
 from jose import JWTError, jwt
 
 DEV_DEFAULT_MDM_SECRET_KEY = "dev-secret-key-CHANGE-ME-IN-PRODUCTION-please-32-chars"
+DEV_DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5100",
+    "http://127.0.0.1:5100",
+)
+CORS_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+CORS_ALLOWED_HEADERS = ["Authorization", "Content-Type", "Accept", "X-Requested-With"]
 _INSECURE_SECRET_MARKERS = (
     "change-me",
     "change_me",
@@ -36,6 +44,30 @@ def is_production_env(environ: Mapping[str, str] | None = None) -> bool:
         if source.get(key, "").strip().lower() == "production":
             return True
     return False
+
+
+def resolve_cors_origins(environ: Mapping[str, str] | None = None) -> list[str]:
+    """解析并校验允许跨域访问的前端 Origin 列表；生产环境缺失或含通配符 '*' 时立即 fail-closed。"""
+    source = os.environ if environ is None else environ
+    raw_origins = source.get("LABOPS_CORS_ORIGINS", "")
+    origins = [item.strip() for item in raw_origins.split(",") if item.strip()]
+
+    if is_production_env(source):
+        if not origins or "*" in origins:
+            raise RuntimeError(
+                "安全配置错误：生产环境（APP_ENV/CMC_ENV=production）必须显式配置 "
+                "LABOPS_CORS_ORIGINS（禁止缺省、为空或包含通配符 '*'）"
+            )
+        return origins
+
+    if not origins:
+        return list(DEV_DEFAULT_CORS_ORIGINS)
+    return origins
+
+
+def validate_cors_startup(environ: Mapping[str, str] | None = None) -> list[str]:
+    """应用启动时的 CORS 安全基线检查。"""
+    return resolve_cors_origins(environ)
 
 
 def resolve_mdm_signing_config(environ: Mapping[str, str] | None = None) -> tuple[str, str]:

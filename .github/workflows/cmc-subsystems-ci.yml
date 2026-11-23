@@ -181,3 +181,144 @@ jobs:
         run: docker build --build-arg VITE_BASE_PATH=/water/ -f cmc-water-system-dashboard/frontend/Dockerfile cmc-water-system-dashboard/frontend
       - name: Build hardened multi-stage backend image
         run: docker build -f cmc-water-system-dashboard/backend/Dockerfile cmc-water-system-dashboard/backend
+
+  cmc-lims-backend:
+    name: cmc-rd-lims-dashboard Backend (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install uv and sync locked dependencies
+        working-directory: cmc-rd-lims-dashboard/backend
+        run: |
+          python -m pip install --no-cache-dir uv
+          uv sync --frozen
+      - name: Run cmc-rd-lims-dashboard pytest suite
+        working-directory: cmc-rd-lims-dashboard/backend
+        env:
+          PYTHONPATH: .
+          ANALYTICS_DATABASE_URL: postgresql+asyncpg://test:test@127.0.0.1:1/isolated
+        run: uv run pytest -v tests
+
+  cmc-lims-frontend:
+    name: cmc-rd-lims-dashboard Frontend (tsc + next build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm and install dependencies
+        working-directory: cmc-rd-lims-dashboard/frontend
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.10.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Generate Next.js route types and type-check cmc-rd-lims-dashboard frontend
+        working-directory: cmc-rd-lims-dashboard/frontend
+        run: |
+          pnpm exec next typegen
+          pnpm exec tsc --noEmit
+      - name: Build cmc-rd-lims-dashboard frontend
+        working-directory: cmc-rd-lims-dashboard/frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: pnpm run build
+
+  cmc-usp-backend:
+    name: cmc-rd-usp-dashboard Backend (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install uv, sync locked dependencies, and install pytest
+        working-directory: cmc-rd-usp-dashboard/backend
+        run: |
+          python -m pip install --no-cache-dir uv
+          uv sync --frozen
+          uv pip install pytest
+      - name: Run cmc-rd-usp-dashboard pytest suite
+        working-directory: cmc-rd-usp-dashboard/backend
+        env:
+          PYTHONPATH: .
+          RAW_DATABASE_URL: postgresql+asyncpg://test:test@127.0.0.1:1/isolated
+        run: .venv/bin/pytest -v tests
+
+  cmc-usp-frontend:
+    name: cmc-rd-usp-dashboard Frontend (tsc + next build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: cmc-rd-usp-dashboard/frontend/package-lock.json
+      - name: Install locked dependencies
+        working-directory: cmc-rd-usp-dashboard/frontend
+        run: npm ci
+      - name: Generate Next.js route types and type-check cmc-rd-usp-dashboard frontend
+        working-directory: cmc-rd-usp-dashboard/frontend
+        run: |
+          npx next typegen
+          npx tsc --noEmit
+      - name: Build cmc-rd-usp-dashboard frontend
+        working-directory: cmc-rd-usp-dashboard/frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+  cmc-qap-backend:
+    name: cmc-quality-analytics-platform Backend (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install uv and sync locked dependencies
+        working-directory: cmc-quality-analytics-platform/backend
+        run: |
+          python -m pip install --no-cache-dir uv
+          uv sync --frozen
+      - name: Run cmc-quality-analytics-platform pytest & doctest suite
+        working-directory: cmc-quality-analytics-platform/backend
+        env:
+          PYTHONPATH: .
+        run: uv run pytest -v app/services/stats app/services/mapping/batch.py tests
+
+  cmc-qap-frontend:
+    name: cmc-quality-analytics-platform Frontend (tsc + vite build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm and install dependencies
+        working-directory: cmc-quality-analytics-platform/frontend
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.0 --activate
+          pnpm install --frozen-lockfile
+      - name: Type-check cmc-quality-analytics-platform frontend
+        working-directory: cmc-quality-analytics-platform/frontend
+        run: pnpm exec tsc -b
+      - name: Build cmc-quality-analytics-platform with vite build
+        working-directory: cmc-quality-analytics-platform/frontend
+        run: |
+          pnpm exec vite build
+          grep -q '/qap/assets/' dist/index.html
+      - name: Run cmc-quality-analytics-platform frontend unit tests
+        working-directory: cmc-quality-analytics-platform/frontend
+        run: node --test tests/sessionClient.test.mjs tests/releaseDraft.test.mjs
